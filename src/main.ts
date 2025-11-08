@@ -3,6 +3,7 @@ import { createApp } from './infra/http/express/app';
 import { loadEnvConfig } from './infra/config/EnvConfig';
 import { MarkdownItRenderer } from './infra/markdown/MarkdownItRenderer';
 import { FileSystemContentStorage } from './infra/filesystem/FileSystemContentStorage';
+import { FileSystemSiteIndex } from './infra/filesystem/FileSystemSiteIndex';
 import { PublishNotesUseCase } from './application/usecases/PublishNotesUseCase';
 
 async function bootstrap() {
@@ -10,7 +11,9 @@ async function bootstrap() {
 
   const markdownRenderer = new MarkdownItRenderer();
   const contentStorage = new FileSystemContentStorage(config.contentRoot);
-  const publishNotesUseCase = new PublishNotesUseCase(markdownRenderer, contentStorage);
+  const siteIndex = new FileSystemSiteIndex(config.contentRoot);
+
+  const publishNotesUseCase = new PublishNotesUseCase(markdownRenderer, contentStorage, siteIndex);
 
   const app = createApp({
     apiKey: config.apiKey,
