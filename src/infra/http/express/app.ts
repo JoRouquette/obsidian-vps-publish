@@ -18,15 +18,11 @@ export function createApp(options: CreateAppOptions) {
   app.use(
     cors({
       origin(origin, callback) {
-        if (!origin) {
-          return callback(null, true);
-        }
-
         if (origin === 'app://obsidian.md') {
           return callback(null, true);
         }
 
-        return callback(new Error('Not allowed by CORS'), false);
+        return callback(new Error('CORS_NOT_ALLOWED'), false);
       },
     })
   );
