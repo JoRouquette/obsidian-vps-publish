@@ -1,30 +1,16 @@
-export interface EnvConfig {
-  port: number;
-  apiKey: string;
-  contentRoot: string;
-  nodeEnv: 'development' | 'test' | 'production';
-}
+import * as path from 'path';
 
-export function loadEnvConfig(): EnvConfig {
-  const port = Number(process.env.PORT ?? '3000');
-  const apiKey = process.env.API_KEY;
-  const contentRoot = process.env.CONTENT_ROOT;
-
-  if (!apiKey) {
-    throw new Error('Missing API_KEY environment variable');
-  }
-
-  if (!contentRoot) {
-    throw new Error('Missing CONTENT_ROOT environment variable');
-  }
-
-  const nodeEnv =
-    (process.env.NODE_ENV as EnvConfig['nodeEnv']) ?? 'development';
-
-  return {
-    port,
-    apiKey,
-    contentRoot,
-    nodeEnv
-  };
-}
+export const EnvConfig = {
+  contentRoot(): string {
+    return process.env.CONTENT_ROOT || path.resolve(process.cwd(), 'tmp/site');
+  },
+  port(): number {
+    return Number(process.env.PORT ?? 3000);
+  },
+  apiKey(): string | undefined {
+    return process.env.API_KEY;
+  },
+  nodeEnv(): string {
+    return process.env.NODE_ENV ?? 'development';
+  },
+};
