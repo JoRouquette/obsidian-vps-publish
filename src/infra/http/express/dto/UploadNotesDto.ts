@@ -11,6 +11,8 @@ export const NoteDtoSchema = z.object({
   id: z.string(),
   slug: z.string(),
   route: z.string(),
+  vaultPath: z.string(),
+  relativePath: z.string(),
   markdown: z.string(),
   frontmatter: NoteFrontmatterSchema,
   publishedAt: z.string().datetime(),

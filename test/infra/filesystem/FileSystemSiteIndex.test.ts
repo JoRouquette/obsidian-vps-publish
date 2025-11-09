@@ -121,8 +121,8 @@ describe('FileSystemSiteIndex (manifest + rebuild)', () => {
       ],
     };
 
-    await index.saveManifest(manifestV2); // écrase le manifest précédent
-    await index.rebuildAllIndexes(manifestV2); // régénère tous les index de dossiers
+    await index.saveManifest(manifestV2);
+    await index.rebuildAllIndexes(manifestV2);
 
     // L’index /blog a été réécrit : plus "Ancien titre", mais "Nouveau titre" et "Autre note"
     blogHtml = await fs.readFile(blogIndexPath, 'utf8');

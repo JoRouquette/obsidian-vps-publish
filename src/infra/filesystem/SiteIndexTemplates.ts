@@ -11,7 +11,7 @@ export function renderRootIndex(dirs: { name: string; href: string; count: numbe
   const items = dirs
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(
-      (d) => `<li><a href="${d.href}">${escapeHtml(d.name)}</a> <small>(${d.count})</small></li>`
+      (d) => `<li><a href="${d.href}/">${escapeHtml(d.name)}</a> <small>(${d.count})</small></li>`
     )
     .join('');
 
@@ -51,7 +51,7 @@ export function renderFolderIndex(
   const subfoldList = subfolders
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(
-      (d) => `<li><a href="${d.href}">${escapeHtml(d.name)}</a> <small>(${d.count})</small></li>`
+      (d) => `<li><a href="${d.href}/">${escapeHtml(d.name)}</a> <small>(${d.count})</small></li>`
     )
     .join('');
 

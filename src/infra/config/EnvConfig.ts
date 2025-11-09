@@ -1,16 +1,19 @@
-import * as path from 'path';
+export class EnvConfig {
+  private static norm(s: string | undefined): string {
+    return (s ?? '').replace(/^\uFEFF/, '').trim();
+  }
 
-export const EnvConfig = {
-  contentRoot(): string {
-    return process.env.CONTENT_ROOT || path.resolve(process.cwd(), 'tmp/site');
-  },
-  port(): number {
-    return Number(process.env.PORT ?? 3000);
-  },
-  apiKey(): string | undefined {
-    return process.env.API_KEY;
-  },
-  nodeEnv(): string {
-    return process.env.NODE_ENV ?? 'development';
-  },
-};
+  static apiKey(): string {
+    return this.norm(process.env.API_KEY);
+  }
+  static contentRoot(): string {
+    return this.norm(process.env.CONTENT_ROOT) || './tmp/site';
+  }
+  static port(): number {
+    const p = Number(this.norm(process.env.PORT));
+    return Number.isFinite(p) ? p : 3000;
+  }
+  static nodeEnv(): string {
+    return this.norm(process.env.NODE_ENV) || 'development';
+  }
+}

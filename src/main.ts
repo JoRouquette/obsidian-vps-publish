@@ -23,6 +23,8 @@ async function bootstrap() {
     console.log(
       `[personal-publish] Listening on port ${EnvConfig.port()} (NODE_ENV=${EnvConfig.nodeEnv()})`
     );
+    console.log(`[personal-publish] Content root: ${EnvConfig.contentRoot()}`);
+    console.log(`[personal-publish] API key: ${EnvConfig.apiKey()}`);
   });
 }
 

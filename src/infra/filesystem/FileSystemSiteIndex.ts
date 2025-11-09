@@ -51,7 +51,8 @@ export class FileSystemSiteIndex implements SiteIndexPort {
   private buildFolderMap(
     manifest: Manifest
   ): Map<string, { pages: ManifestPage[]; subfolders: Set<string> }> {
-    const map = new Map<string, { pages: ManifestPage[]; subfolders: Set<string> }>();
+    type Node = { pages: ManifestPage[]; subfolders: Set<string> };
+    const map = new Map<string, Node>();
 
     const ensure = (folder: string) => {
       if (!map.has(folder)) map.set(folder, { pages: [], subfolders: new Set() });
@@ -61,45 +62,28 @@ export class FileSystemSiteIndex implements SiteIndexPort {
     ensure('/');
 
     for (const p of manifest.pages) {
-      const segs = p.route.split('/').filter(Boolean);
+      let route = p.route.trim();
+      if (!route.startsWith('/')) route = '/' + route;
+      if (route.length > 1) route = route.replace(/\/+$/, '');
 
-      const parent = '/' + segs[0];
-      if (segs.length === 2) {
-        ensure(parent).pages.push(p);
+      const segs = route.split('/').filter(Boolean);
+      if (segs.length === 0) {
+        // Page à la racine -> parent = '/'
+        ensure('/').pages.push(p);
+        continue;
       }
 
-      if (segs.length !== 2) {
-        let acc = '';
-        for (let i = 0; i < segs.length - 1; i++) {
-          acc = acc ? `${acc}/${segs[i]}` : `/${segs[i]}`;
-          ensure(acc);
-          if (i > 0) {
-            const prev = acc.split('/').filter(Boolean);
-            const parentPath = '/' + prev.slice(0, prev.length - 1).join('/');
-            ensure(parentPath).subfolders.add(prev[prev.length - 1]);
-          } else {
-            ensure('/').subfolders.add(segs[0]);
-          }
-        }
-
-        const pageFolder = '/' + segs.slice(0, segs.length - 1).join('/');
-        ensure(pageFolder).pages.push(p);
-      } else {
-        ensure('/').subfolders.add(segs[0]);
+      for (let i = 0; i < segs.length - 1; i++) {
+        const parentPath = i === 0 ? '/' : '/' + segs.slice(0, i).join('/');
+        const childName = segs[i];
+        ensure(parentPath).subfolders.add(childName);
+        // S'assurer que le dossier enfant existe dans la map
+        const childPath = '/' + segs.slice(0, i + 1).join('/');
+        ensure(childPath);
       }
-    }
 
-    for (const v of map.values()) {
-      v.pages = v.pages.filter(Boolean) as ManifestPage[];
-    }
-
-    for (const folder of [...map.keys()]) {
-      if (folder === '/') continue;
-      const segs = folder.split('/').filter(Boolean);
-      if (segs.length >= 2) {
-        const parent = '/' + segs.slice(0, segs.length - 1).join('/');
-        ensure(parent).subfolders.add(segs[segs.length - 1]);
-      }
+      const parentFolder = segs.length === 1 ? '/' : '/' + segs.slice(0, segs.length - 1).join('/');
+      ensure(parentFolder).pages.push(p);
     }
 
     return map;

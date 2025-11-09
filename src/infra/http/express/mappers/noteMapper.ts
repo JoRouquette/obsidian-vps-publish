@@ -6,6 +6,8 @@ export function mapNoteDtoToDomain(dto: NoteDto): Note {
     id: dto.id,
     slug: dto.slug,
     route: dto.route,
+    vaultPath: dto.vaultPath,
+    relativePath: dto.relativePath,
     markdown: dto.markdown,
     frontmatter: { ...dto.frontmatter },
     publishedAt: new Date(dto.publishedAt),

@@ -7,6 +7,7 @@ import { Note } from '../../../../domain/entities/Note';
 export function createUploadController(useCase: PublishNotesUseCase) {
   return async function uploadController(req: Request, res: Response) {
     const parseResult = UploadNotesRequestSchema.safeParse(req.body);
+    console.log('Upload request received, parsing result:', parseResult);
 
     if (!parseResult.success) {
       return res.status(400).json({
@@ -28,8 +29,6 @@ export function createUploadController(useCase: PublishNotesUseCase) {
         errors: result.errors,
       });
     } catch (err) {
-      // TODO: logger structuré plus tard
-      // eslint-disable-next-line no-console
       console.error('Upload error', err);
 
       return res.status(500).json({

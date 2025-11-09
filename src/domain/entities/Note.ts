@@ -1,14 +1,17 @@
 export interface NoteFrontmatter {
   title: string;
   description?: string;
-  date?: string; // ISO string, on raffinera si besoin en Value Object
+  date?: string;
   tags?: string[];
+  aliases?: string[];
 }
 
 export interface Note {
   id: string;
   slug: string;
-  route: string; // ex: "/blog/my-note"
+  vaultPath: string;
+  relativePath: string;
+  route: string;
   markdown: string;
   frontmatter: NoteFrontmatter;
   publishedAt: Date;

@@ -40,6 +40,8 @@ function makeNote(overrides?: Partial<Note>): Note {
   return {
     id: '1',
     slug: 'my-note',
+    vaultPath: 'vault/blog/my-note.md',
+    relativePath: 'blog/my-note',
     route: '/blog/my-note',
     markdown: '# Titre\n\nContenu',
     frontmatter: {

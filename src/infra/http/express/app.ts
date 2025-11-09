@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import type { PublishNotesUseCase } from '../../../application/usecases/PublishNotesUseCase';
 import { createUploadController } from './controllers/uploadController';
 import { createApiKeyAuthMiddleware } from './middleware/apiKeyAuth';
@@ -13,19 +12,16 @@ export function createApp(options: CreateAppOptions) {
   const app = express();
 
   app.set('trust proxy', true);
-  app.use(express.json());
+  app.use(express.json({ limit: '5mb' }));
 
-  app.use(
-    cors({
-      origin(origin, callback) {
-        if (origin === 'app://obsidian.md') {
-          return callback(null, true);
-        }
-
-        return callback(new Error('CORS_NOT_ALLOWED'), false);
-      },
-    })
-  );
+  app.use((req, _res, next) => {
+    const mask = (s: string) =>
+      !s ? '∅' : s.length <= 6 ? '***' : `${s.slice(0, 3)}…${s.slice(-2)}`;
+    // console.log(
+    //   `[req] ${req.method} ${req.path} origin=${req.headers.origin ?? '∅'} x-api-key=${mask(req.get('x-api-key') ?? '')}`
+    // );
+    next();
+  });
 
   const apiBase = '/api';
 

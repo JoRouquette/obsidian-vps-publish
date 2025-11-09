@@ -37,7 +37,7 @@ export class PublishNotesUseCase {
   constructor(
     private readonly markdownRenderer: MarkdownRendererPort,
     private readonly contentStorage: ContentStoragePort,
-    private readonly siteIndex: SiteIndexPort // <-- impératif
+    private readonly siteIndex: SiteIndexPort
   ) {}
 
   async execute(input: PublishNotesInput): Promise<PublishNotesOutput> {
@@ -50,7 +50,10 @@ export class PublishNotesUseCase {
         const bodyHtml = await this.markdownRenderer.render(note.markdown);
         const fullHtml = this.buildHtmlPage(note, bodyHtml);
 
-        await this.contentStorage.savePage({ route: note.route, html: fullHtml });
+        await this.contentStorage.savePage({
+          route: `${note.route}/${note.relativePath}`,
+          html: fullHtml,
+        });
 
         published++;
         succeeded.push(note);
@@ -64,6 +67,8 @@ export class PublishNotesUseCase {
       const pages: ManifestPage[] = succeeded.map((n) => ({
         route: n.route,
         slug: n.slug,
+        vaultPath: n.vaultPath,
+        relativePath: n.relativePath,
         title: n.frontmatter.title,
         description: n.frontmatter.description,
         tags: n.frontmatter.tags,
@@ -73,8 +78,8 @@ export class PublishNotesUseCase {
       pages.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
 
       const manifest: Manifest = { pages };
-      await this.siteIndex.saveManifest(manifest); // <-- on écrit le manifest
-      await this.siteIndex.rebuildAllIndexes(manifest); // <-- on reconstruit les index
+      await this.siteIndex.saveManifest(manifest);
+      await this.siteIndex.rebuildAllIndexes(manifest);
     }
 
     return { published, errors };
