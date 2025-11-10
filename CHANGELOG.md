@@ -1,3 +1,7 @@
+## <small>1.1.1 (2025-11-10)</small>
+
+* fix: complete theming and grid ([ad07ee5](https://github.com/JoRouquette/scribe-ektaron/commit/ad07ee5))
+
 ## 1.1.0 (2025-11-10)
 
 * feat: add theming and gridstyle ([53219e5](https://github.com/JoRouquette/scribe-ektaron/commit/53219e5))

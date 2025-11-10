@@ -1,6 +1,6 @@
 {
   "name": "personal-publish",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Backend personal-publish pour Obsidian (scribe-ektaron)",
   "main": "dist/main.js",
