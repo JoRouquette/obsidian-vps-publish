@@ -1,8 +1,12 @@
 import { ApplicationConfig } from '@angular/core';
-import { provideRouter } from '@angular/router';
-import { appRoutes } from '../presentation/routes/app.routes';
-import { provideHttpClient, withFetch } from '@angular/common/http';
+import { provideRouter, withInMemoryScrolling } from '@angular/router';
+import { APP_ROUTES } from './routes/app.routes';
+import { provideHttpClient, withFetch, withInterceptorsFromDi } from '@angular/common/http';
 
 export const appConfig: ApplicationConfig = {
-  providers: [provideRouter(appRoutes), provideHttpClient(withFetch())],
+  providers: [
+    provideRouter(APP_ROUTES, withInMemoryScrolling({ anchorScrolling: 'enabled' })),
+
+    provideHttpClient(withFetch(), withInterceptorsFromDi()),
+  ],
 };
