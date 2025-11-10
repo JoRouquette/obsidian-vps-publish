@@ -1,21 +1,17 @@
 services:
-  web:
+  scribe-ektaron:
     build:
       context: .
       dockerfile: Dockerfile
-    image: scribe-ektaron:web
-    ports:
-      - '3000:3000'
+    image: scribe-ektaron:dev
+    restart: unless-stopped
+    env_file: [.env]
     environment:
       NODE_ENV: production
-      PORT: 3000
-      CONTENT_ROOT: /content
-      UI_ROOT: /ui
-      API_PREFIX: /api
-      API_KEY: ${API_KEY:?set in .env}
+    ports:
+      - '3000:3000'
     volumes:
       - ./content:/content
-    restart: unless-stopped
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/health || exit 1']
       interval: 20s
