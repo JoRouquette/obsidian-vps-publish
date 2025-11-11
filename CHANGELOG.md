@@ -1,3 +1,7 @@
+## <small>1.1.3 (2025-11-11)</small>
+
+* fix: grid layout ([c447992](https://github.com/JoRouquette/scribe-ektaron/commit/c447992))
+
 ## <small>1.1.2 (2025-11-10)</small>
 
 * fix: publish-frontend issues ([f761f1c](https://github.com/JoRouquette/scribe-ektaron/commit/f761f1c))
