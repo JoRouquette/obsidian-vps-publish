@@ -7,7 +7,13 @@ services:
     restart: unless-stopped
     env_file: [.env]
     environment:
-      NODE_ENV: production
+      NODE_ENV: 'production'
+      PORT: '3000'
+      CONTENT_ROOT: '/content'
+      UI_ROOT: '/ui'
+      API_PREFIX: '/api'
+      AUTHOR_NAME: 'Jonathan Rouquette'
+      REPO_URL: 'https://github.com/jonathanrouquette/scribe-ektaron'
     ports:
       - '3000:3000'
     volumes:
