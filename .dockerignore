@@ -1,3 +1,4 @@
+/node_modules
 **/node_modules
 **/dist
 **/.angular
@@ -9,3 +10,5 @@ Dockerfile
 docker-compose.yml
 .vscode
 .env*
+**/content/**/*
+**/ui/**/*

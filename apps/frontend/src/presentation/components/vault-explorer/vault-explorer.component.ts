@@ -1,13 +1,12 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-
+import { MatTreeModule } from '@angular/material/tree';
+import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
-import { MatExpansionModule } from '@angular/material/expansion';
+import { MatButtonModule } from '@angular/material/button';
 
 import { CatalogFacade } from '../../../application/facades/CatalogFacade';
 import { BuildTreeUseCase, TreeNode } from '../../../application/usecases/BuildTree.usecase';
@@ -18,12 +17,12 @@ import { BuildTreeUseCase, TreeNode } from '../../../application/usecases/BuildT
   imports: [
     CommonModule,
     RouterLink,
+    MatTreeModule,
+    MatIconModule,
     MatFormFieldModule,
     MatInputModule,
-    MatIconModule,
-    MatButtonModule,
     MatDividerModule,
-    MatExpansionModule,
+    MatButtonModule,
   ],
   templateUrl: './vault-explorer.component.html',
   styleUrls: ['./vault-explorer.component.scss'],
@@ -31,6 +30,11 @@ import { BuildTreeUseCase, TreeNode } from '../../../application/usecases/BuildT
 export class VaultExplorerComponent {
   tree = signal<TreeNode | null>(null);
   q = signal<string>('');
+
+  // Nouveaux helpers pour l'API "childrenAccessor"
+  childrenOf = (n: TreeNode) => n.children ?? [];
+  isFolder = (_: number, n: TreeNode) => n.kind === 'folder';
+  isFile = (_: number, n: TreeNode) => n.kind === 'file';
 
   filteredTree = computed(() => this.filterTree(this.tree(), this.q().trim().toLowerCase()));
 
@@ -45,27 +49,14 @@ export class VaultExplorerComponent {
     this.q.set(value ?? '');
   }
 
-  isFolder(n: TreeNode): boolean {
-    return n.kind === 'folder';
-  }
-
   private filterTree(node: TreeNode | null, q: string): TreeNode | null {
     if (!node) return null;
     if (!q) return node;
-
     const selfMatch = (node.label || node.name).toLowerCase().includes(q);
-
-    if (node.kind === 'file') {
-      return selfMatch ? node : null;
-    }
-
+    if (node.kind === 'file') return selfMatch ? node : null;
     const children = (node.children ?? [])
       .map((c) => this.filterTree(c, q))
       .filter((x): x is TreeNode => !!x);
-
-    if (selfMatch || children.length) {
-      return { ...node, children };
-    }
-    return null;
+    return selfMatch || children.length ? { ...node, children } : null;
   }
 }
