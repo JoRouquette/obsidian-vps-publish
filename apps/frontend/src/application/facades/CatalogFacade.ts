@@ -22,7 +22,6 @@ export class CatalogFacade {
     this.findUc = new FindPageUseCase();
   }
 
-  // State
   manifest = signal<Manifest | null>(null);
   query = signal('');
   loading = signal(false);

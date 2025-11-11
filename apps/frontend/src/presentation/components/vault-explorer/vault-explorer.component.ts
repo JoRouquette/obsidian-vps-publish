@@ -1,12 +1,12 @@
-import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
-import { MatTreeModule } from '@angular/material/tree';
-import { MatIconModule } from '@angular/material/icon';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatDividerModule } from '@angular/material/divider';
+import { Component, computed, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatTreeModule } from '@angular/material/tree';
+import { RouterLink } from '@angular/router';
 
 import { CatalogFacade } from '../../../application/facades/CatalogFacade';
 import { BuildTreeUseCase, TreeNode } from '../../../application/usecases/BuildTree.usecase';
@@ -31,7 +31,6 @@ export class VaultExplorerComponent {
   tree = signal<TreeNode | null>(null);
   q = signal<string>('');
 
-  // Nouveaux helpers pour l'API "childrenAccessor"
   childrenOf = (n: TreeNode) => n.children ?? [];
   isFolder = (_: number, n: TreeNode) => n.kind === 'folder';
   isFile = (_: number, n: TreeNode) => n.kind === 'file';

@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { HttpConfigRepository } from '../../infrastructure/http/HttpConfigRepository';
 import { PublicConfig } from '../../domain/ports/ConfigRepository';
 

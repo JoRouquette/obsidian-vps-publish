@@ -10,21 +10,20 @@ export class FileSystemContentStorage implements ContentStoragePort {
   async savePage(params: SavePageParams): Promise<void> {
     const normalizedRoute = this.normalizeRoute(params.route);
 
-    if (normalizedRoute === '/') {
+    const segs = normalizedRoute.replace(/^\/+/, '').split('/').filter(Boolean);
+
+    if (segs.length === 0) {
       const filePath = path.join(this.rootDir, 'index.html');
       await fs.mkdir(this.rootDir, { recursive: true });
       await fs.writeFile(filePath, params.html, 'utf8');
       return;
     }
 
-    const segs = normalizedRoute.replace(/^\/+/, '').split('/');
-    const parentSegs = segs.slice(0, -1);
-    const lastSeg = segs[segs.length - 1];
+    const fileSlug = params.slug ? this.slugify(params.slug) : this.slugify(segs[segs.length - 1]);
+    const fileSegments = [...segs.slice(0, -1), `${fileSlug}.html`];
+    const filePath = path.join(this.rootDir, ...fileSegments);
 
-    const fileSlug = params.slug ? this.slugify(params.slug) : this.slugify(lastSeg);
-    const dir = path.join(this.rootDir, ...parentSegs);
-    const filePath = path.join(dir, `${fileSlug}.html`);
-
+    const dir = path.dirname(filePath);
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(filePath, params.html, 'utf8');
   }

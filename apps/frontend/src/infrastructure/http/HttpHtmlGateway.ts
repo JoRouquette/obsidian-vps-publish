@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable} from '@angular/core';
 import { HtmlGateway } from '../../domain/ports/HtmlGateway';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';

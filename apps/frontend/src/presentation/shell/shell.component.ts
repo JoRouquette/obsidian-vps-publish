@@ -1,12 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs/operators';
 
+import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
 
 import { CatalogFacade } from '../../application/facades/CatalogFacade';
 import { ConfigFacade } from '../../application/facades/ConfigFacade';
@@ -37,14 +37,15 @@ type Crumb = { label: string; url: string };
   styleUrls: ['./shell.component.scss'],
 })
 export class ShellComponent implements OnInit {
-  currentYear = new Date().getFullYear();
-
   constructor(
     readonly theme: ThemeService,
     private readonly config: ConfigFacade,
     private readonly catalog: CatalogFacade,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly destroyRef: DestroyRef
   ) {}
+
+  currentYear = new Date().getFullYear();
 
   author = () => this.config.cfg()?.author ?? '';
   siteName = () => this.config.cfg()?.siteName ?? '';
@@ -59,11 +60,10 @@ export class ShellComponent implements OnInit {
     this.theme.init();
     await this.config.ensure();
     await this.catalog.ensureManifest?.();
-
     this.router.events
       .pipe(
         filter((e) => e instanceof NavigationEnd),
-        takeUntilDestroyed()
+        takeUntilDestroyed(this.destroyRef)
       )
       .subscribe(() => this.updateFromUrl());
 

@@ -34,7 +34,7 @@ ENV NODE_ENV=production \
     UI_ROOT=/ui \
     API_PREFIX=/api \
     AUTHOR_NAME="Jonathan Rouquette" \
-    REPO_URL="https://github.com/jonathanrouquette/scribe-ektaron"
+    REPO_URL="https://github.com/jonathanrouquette/scribe-ektaron" 
 
 # Paquets de base (wget pour healthcheck)
 RUN apk --no-cache upgrade && apk add --no-cache wget
@@ -78,6 +78,7 @@ USER nodeusr
 
 # Nettoyage (cartes sourcemaps, caches)
 RUN find "${UI_ROOT}" -type f -name "*.map" -delete || true
+ENV NODE_OPTIONS=--enable-source-maps
 
 EXPOSE 3000
 
