@@ -17,13 +17,10 @@ $row-top: 5em;
     'vault-explorer main';
   gap: 0;
 
-  /* Autorise les lignes/colonnes à rétrécir et laisser scroller les enfants */
   min-height: calc(100dvh - 44px);
   background: var(--mat-sys-surface);
   border-top: 1px solid var(--mat-sys-outline-variant);
 }
-
-/* — ZONES — */
 
 .Logo {
   grid-area: Logo;
@@ -34,10 +31,9 @@ $row-top: 5em;
   border-right: 1px solid var(--mat-sys-outline-variant);
   border-bottom: 1px solid var(--mat-sys-outline-variant);
 
-  /* Évite tout overflow de contenu dans la cellule */
   min-width: 0;
   min-height: 0;
-  overflow: hidden; /* le logo est contenu */
+  overflow: hidden;
 }
 
 .TopBar {
@@ -47,12 +43,10 @@ $row-top: 5em;
   background: var(--mat-sys-surface);
   border-bottom: 1px solid var(--mat-sys-outline-variant);
 
-  /* Pour que mat-toolbar et les breadcrumbs ne fassent pas déborder */
   min-width: 0;
   min-height: 0;
   overflow: hidden;
 
-  /* S’assure que la toolbar s’étire sur toute la zone */
   app-topbar,
   .mat-toolbar {
     inline-size: 100%;
@@ -67,10 +61,17 @@ $row-top: 5em;
   background: var(--mat-sys-surface);
   border-right: 1px solid var(--mat-sys-outline-variant);
 
-  /* LA cellule ne scrolle pas : c'est l'intérieur du composant qui scrolle */
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+
+  app-vault-explorer {
+    flex: 1 1 auto;
+    min-height: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    display: block;
+  }
 }
 
 .main {
@@ -80,13 +81,11 @@ $row-top: 5em;
   background: var(--mat-sys-surface);
   padding: 16px clamp(12px, 3vw, 24px);
 
-  /* Autorise le router-outlet et ses pages à utiliser le scroll */
   min-width: 0;
   min-height: 0;
   overflow: auto;
 }
 
-/* Footer */
 .footer {
   height: 44px;
   display: flex;
@@ -117,8 +116,6 @@ $row-top: 5em;
     }
   }
 }
-
-/* — RESPONSIVE — */
 
 @media (max-width: 1100px) {
   .grid {
