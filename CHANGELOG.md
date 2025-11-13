@@ -1,3 +1,12 @@
+## <small>1.1.5 (2025-11-13)</small>
+
+* fix: injection issue locally ([83f31eb](https://github.com/JoRouquette/scribe-ektaron/commit/83f31eb))
+* fix: vault explorer style and navigation ([faca1d4](https://github.com/JoRouquette/scribe-ektaron/commit/faca1d4))
+* chore: add content to dockerignore ([626c9f0](https://github.com/JoRouquette/scribe-ektaron/commit/626c9f0))
+* chore: add content to dockerignore ([3557163](https://github.com/JoRouquette/scribe-ektaron/commit/3557163))
+* chore(release): 1.1.5 [skip ci] ([5d4fb78](https://github.com/JoRouquette/scribe-ektaron/commit/5d4fb78))
+* refactor: update for improved file upload and explorer UI ([0871361](https://github.com/JoRouquette/scribe-ektaron/commit/0871361))
+
 ## <small>1.1.5 (2025-11-12)</small>
 
 * refactor: update for improved file upload and explorer UI ([0871361](https://github.com/JoRouquette/scribe-ektaron/commit/0871361))
