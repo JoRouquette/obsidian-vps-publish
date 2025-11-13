@@ -20,13 +20,13 @@
 
   <div class="main">
     <router-outlet></router-outlet>
+
+    <footer class="footer">
+      <mat-icon>copyright</mat-icon> {{ currentYear }} {{ author() }} —
+      <a class="repo-link" [href]="repo()" target="_blank" rel="noopener">
+        <mat-icon aria-hidden="true">open_in_new</mat-icon>
+        Repository git : {{ repo() }}
+      </a>
+    </footer>
   </div>
 </div>
-
-<footer class="footer">
-  <mat-icon>copyright</mat-icon> {{ currentYear }} {{ author() }} —
-  <a class="repo-link" [href]="repo()" target="_blank" rel="noopener">
-    <mat-icon aria-hidden="true">open_in_new</mat-icon>
-    Repository git : {{ repo() }}
-  </a>
-</footer>

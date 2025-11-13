@@ -34,7 +34,7 @@
         class="node folder"
         [attr.aria-expanded]="node.isExpanded"
         matTreeNodePadding
-        [matTreeNodePaddingIndent]="16"
+        [matTreeNodePaddingIndent]="'0.4em'"
       >
         <button
           class="node-header"
@@ -42,9 +42,12 @@
           matTreeNodeToggle
           aria-label="Ouvrir/fermer le dossier"
         >
-          <mat-icon class="ico folder-ico" aria-hidden="true">folder</mat-icon>
-          <span class="label">{{ n.label || n.name || 'root' }}</span>
-          <mat-icon class="chev" aria-hidden="true">expand_more</mat-icon>
+          <mat-icon class="ico folder-ico" aria-hidden="true">
+            {{ node.isExpanded ? 'folder_open' : 'folder' }}
+          </mat-icon>
+          <span class="label" [title]="n.label || n.name || 'root'">
+            {{ n.label || n.name || 'root' }}
+          </span>
         </button>
 
         <div class="children" [class.open]="node.isExpanded" [attr.aria-hidden]="!node.isExpanded">
@@ -59,9 +62,14 @@
         *matTreeNodeDef="let n; when: isFile"
         class="node file"
         matTreeNodePadding
-        [matTreeNodePaddingIndent]="16"
+        [matTreeNodePaddingIndent]="'0.4em'"
       >
-        <a class="file-link" [routerLink]="[`/${n.path}`]" aria-label="Ouvrir le fichier">
+        <a
+          class="file-link"
+          [routerLink]="['/' + n.path]"
+          [title]="n.label"
+          aria-label="Ouvrir le fichier"
+        >
           <mat-icon class="ico file-ico" aria-hidden="true">description</mat-icon>
           <span class="label">{{ n.label }}</span>
         </a>

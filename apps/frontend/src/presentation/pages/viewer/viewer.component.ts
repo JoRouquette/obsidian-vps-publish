@@ -29,13 +29,8 @@ export class ViewerComponent implements OnDestroy {
         distinctUntilChanged(),
         switchMap((routePath) => {
           const normalized = routePath.replace(/\/+$/, '') || '/';
-          console.log('Loading HTML for route:', normalized);
-
           const htmlUrl = normalized === '/' ? '/index.html' : `${normalized}.html`;
-          console.log('Loading HTML from:', htmlUrl);
-
           const m = this.catalog.manifest?.();
-          console.log('Current manifest:', m);
 
           if (m?.pages?.length) {
             const p = m.pages.find((x) => x.route === normalized);
