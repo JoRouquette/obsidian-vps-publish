@@ -66,12 +66,7 @@ export class PublishNotesUseCase {
   private buildHtmlPage(note: Note, bodyHtml: string): string {
     return `
   <div class="markdown-body">
-    <div class="page-header">
-      <h1 class="site-title">${this.escapeHtml(this.extractTitle(note.vaultPath))}</h1>
-    </div>
-    <article class="page-content">
-${bodyHtml}
-    </article>
+    ${bodyHtml}
   </div>`;
   }
 
