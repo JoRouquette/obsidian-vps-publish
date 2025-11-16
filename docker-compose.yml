@@ -10,6 +10,7 @@ services:
       NODE_ENV: 'production'
       PORT: '3000'
       CONTENT_ROOT: '/content'
+      ASSETS_ROOT: '/assets'
       UI_ROOT: '/ui'
       API_PREFIX: '/api'
       AUTHOR_NAME: 'Jonathan Rouquette'
@@ -20,6 +21,9 @@ services:
       - type: volume
         source: content
         target: /content
+      - type: volume
+        source: assets
+        target: /assets
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/health || exit 1']
       interval: 20s
@@ -27,3 +31,4 @@ services:
       retries: 5
 volumes:
   content: {}
+  assets: {}
