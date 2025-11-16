@@ -31,6 +31,7 @@ FROM node:20.19.0-alpine3.20 AS runtime
 ENV NODE_ENV=production \
     PORT=3000 \
     CONTENT_ROOT=/content \
+    ASSETS_ROOT=/assets \
     UI_ROOT=/ui \
     API_PREFIX=/api \
     AUTHOR_NAME="Jonathan Rouquette" \

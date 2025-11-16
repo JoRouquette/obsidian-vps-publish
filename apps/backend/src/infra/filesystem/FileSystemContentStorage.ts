@@ -2,12 +2,10 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { ContentStoragePort } from '../../application/ports/ContentStoragePort';
 
-type SavePageParams = { route: string; html: string; slug?: string };
-
 export class FileSystemContentStorage implements ContentStoragePort {
   constructor(private readonly rootDir: string) {}
 
-  async savePage(params: SavePageParams): Promise<void> {
+  async save(params: { route: string; html: string; slug?: string }): Promise<void> {
     const normalizedRoute = this.normalizeRoute(params.route);
 
     const segs = normalizedRoute.replace(/^\/+/, '').split('/').filter(Boolean);

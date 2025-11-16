@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { PublishNotesUseCase } from '../../src/application/usecases/PublishNotesUseCase';
-import type { MarkdownRendererPort } from '../../src/application/ports/MarkdownRendererPort';
-import type { ContentStoragePort } from '../../src/application/ports/ContentStoragePort';
-import type { SiteIndexPort, Manifest } from '../../src/application/ports/SiteIndexPort';
-import type { Note } from '../../src/domain/entities/Note';
+import { PublishNotesUseCase } from '../src/application/usecases/PublishNotesUseCase';
+import type { MarkdownRendererPort } from '../src/application/ports/MarkdownRendererPort';
+import type { StoragePort } from '../src/application/ports/StoragePort';
+import type { SiteIndexPort, Manifest } from '../src/application/ports/SiteIndexPort';
+import type { Note } from '../src/domain/entities/Note';
 
 class FakeMarkdownRenderer implements MarkdownRendererPort {
   async render(markdown: string): Promise<string> {
@@ -11,11 +11,11 @@ class FakeMarkdownRenderer implements MarkdownRendererPort {
   }
 }
 
-class FakeContentStorage implements ContentStoragePort {
+class FakeContentStorage implements StoragePort {
   public saves: { route: string; html: string }[] = [];
   public failOnRoute?: string;
 
-  async savePage(params: { route: string; html: string }): Promise<void> {
+  async save(params: { route: string; html: string }): Promise<void> {
     if (this.failOnRoute && params.route === this.failOnRoute) {
       throw new Error('Simulated FS error');
     }

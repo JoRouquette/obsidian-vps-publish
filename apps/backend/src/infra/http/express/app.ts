@@ -1,72 +1,50 @@
 import express from 'express';
-import type { PublishNotesUseCase } from '../../../application/usecases/PublishNotesUseCase';
-import { createUploadController } from './controllers/uploadController';
-import { createApiKeyAuthMiddleware } from './middleware/apiKeyAuth';
 import path from 'node:path';
-import { stat } from 'node:fs';
+import { createPingController } from './controllers/pingController';
+import { createUploadController } from './controllers/uploadController';
+import { createAssetsUploadController } from './controllers/assetsUploadController';
 
-export interface CreateAppOptions {
-  uiRoot: string;
-  contentRoot: string;
-  apiKey: string;
-  publishNotesUseCase: PublishNotesUseCase;
-}
+// Adapters / services
+import { MarkdownItRenderer } from '../../markdown/MarkdownItRenderer';
+import { FileSystemContentStorage } from '../../filesystem/FileSystemContentStorage';
+import { FileSystemSiteIndex } from '../../filesystem/FileSystemSiteIndex';
+import { FileSystemAssetStorage } from '../../filesystem/FileSystemAssetStorage';
 
-export function createApp(options: CreateAppOptions) {
+import { PublishNotesUseCase } from '../../../application/usecases/PublishNotesUseCase';
+import { UploadAssetUseCase } from '../../../application/usecases/UploadAssetUseCase';
+import { EnvConfig } from '../../config/EnvConfig';
+import { createCorsMiddleware } from './middleware/corsMiddleware';
+import { createApiKeyAuthMiddleware } from './middleware/apiKeyAuthMiddleware';
+
+export function createApp() {
   const app = express();
-  const apiBase = '/api';
 
-  app.set('trust proxy', true);
-  app.use(express.json({ limit: '10mb' }));
+  app.use(express.json({ limit: '10mb' })); // à adapter si nécessaire
 
-  app.get('/health', (_req, res) => res.status(200).send('ok'));
+  app.use(createCorsMiddleware(EnvConfig.allowedOrigins()));
+  const apiKeyMiddleware = createApiKeyAuthMiddleware(EnvConfig.apiKey());
 
-  app.get(`${apiBase}/ping`, (_req, res) => {
-    res.json({
-      ok: true,
-      status: 200,
-      service: 'personal-publish',
-      version: '1.0.0',
-      timestamp: new Date().toISOString(),
-    });
-  });
+  // Static assets
+  app.use('/assets', express.static(EnvConfig.assetsRoot()));
 
-  const apiKeyAuth = createApiKeyAuthMiddleware(options.apiKey);
-  const uploadController = createUploadController(options.publishNotesUseCase);
-  app.post(`${apiBase}/upload`, apiKeyAuth, uploadController);
+  // Construct use cases & adapters
+  const markdownRenderer = new MarkdownItRenderer();
+  const contentStorage = new FileSystemContentStorage(EnvConfig.contentRoot());
+  const siteIndex = new FileSystemSiteIndex(EnvConfig.contentRoot());
+  const assetStorage = new FileSystemAssetStorage(EnvConfig.assetsRoot());
 
-  app.get(`${apiBase}/public-config`, (_req, res) => {
-    res.json({
-      siteName: 'Scribe d’Ektaron',
-      author: process.env.AUTHOR ?? 'Anonyme',
-      repoUrl: process.env.REPO_URL ?? '',
-    });
-  });
+  const publishNotesUseCase = new PublishNotesUseCase(markdownRenderer, contentStorage, siteIndex);
+  const uploadAssetUseCase = new UploadAssetUseCase(assetStorage);
 
-  app.use(apiBase, (_req, res) => {
-    res.status(404).json({ ok: false, error: 'Not found' });
-  });
+  // API routes (protégées par API key)
+  const apiRouter = express.Router();
+  apiRouter.use(apiKeyMiddleware);
 
-  app.use(
-    '/content',
-    express.static(options.contentRoot, {
-      fallthrough: true,
-      maxAge: '1h',
-    })
-  );
+  apiRouter.use(createPingController());
+  apiRouter.use(createUploadController(publishNotesUseCase));
+  apiRouter.use(createAssetsUploadController(uploadAssetUseCase));
 
-  app.use(
-    '/',
-    express.static(options.uiRoot, {
-      fallthrough: true,
-      index: false,
-      maxAge: '1h',
-    })
-  );
+  app.use('/api', apiRouter);
 
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(options.uiRoot, 'index.html'));
-  });
-
-  return app;
+  return { app, EnvConfig };
 }
