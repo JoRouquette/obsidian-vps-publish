@@ -30,11 +30,13 @@ FROM node:20.19.0-alpine3.20 AS runtime
 
 ENV NODE_ENV=production \
     PORT=3000 \
+    LOGGER_LEVEL=debug \
     CONTENT_ROOT=/content \
+    ASSETS_ROOT=/assets \
     UI_ROOT=/ui \
     API_PREFIX=/api \
     AUTHOR_NAME="Jonathan Rouquette" \
-    REPO_URL="https://github.com/jonathanrouquette/scribe-ektaron" 
+    REPO_URL="https://github.com/JoRouquette/scribe-ektaron" 
 
 # Paquets de base (wget pour healthcheck)
 RUN apk --no-cache upgrade && apk add --no-cache wget

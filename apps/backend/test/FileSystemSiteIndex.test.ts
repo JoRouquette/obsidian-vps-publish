@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { FileSystemSiteIndex } from '../../../src/infra/filesystem/FileSystemSiteIndex';
-import type { Manifest } from '../../../src/application/ports/SiteIndexPort';
+import { Manifest } from '../src/application/ports/SiteIndexPort';
+import { FileSystemSiteIndex } from '../src/infra/filesystem/FileSystemSiteIndex';
 
 async function createTempDir(): Promise<string> {
   const base = os.tmpdir();

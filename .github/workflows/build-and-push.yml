@@ -1,0 +1,33 @@
+name: Build & Push to Private Registry
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set TAG
+        id: vars
+        run: echo "TAG=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.scribe-ektaron.com
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build
+        run: |
+          docker build --pull \
+            -t registry.scribe-ektaron.com/personal-publish:${{ steps.vars.outputs.TAG }} \
+            -t registry.scribe-ektaron.com/personal-publish:latest .
+
+      - name: Push
+        run: |
+          docker push registry.scribe-ektaron.com/personal-publish:${{ steps.vars.outputs.TAG }}
+          docker push registry.scribe-ektaron.com/personal-publish:latest

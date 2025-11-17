@@ -1,27 +1,27 @@
 import { z } from 'zod';
 
-export const NoteFrontmatterSchema = z.object({
-  title: z.string(),
-  description: z.string().optional(),
-  date: z.string().optional(),
-  tags: z.array(z.string()).optional(),
+export const FrontmatterDto = z.object({
+  title: z.string().min(1),
+  description: z.string().optional().default(''),
+  date: z.iso.datetime().optional(),
+  tags: z.array(z.string()).optional().default([]),
 });
 
-export const NoteDtoSchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  route: z.string(),
-  vaultPath: z.string(),
-  relativePath: z.string(),
-  markdown: z.string(),
-  frontmatter: NoteFrontmatterSchema,
-  publishedAt: z.iso.datetime(),
+export const NoteDto = z.object({
+  id: z.string().min(1),
+  slug: z.string().min(1),
+  route: z.string().regex(/^\/[^\s/].*$/), // leading slash, pas de trailing.
+  relativePath: z.string().optional().default(''),
+  markdown: z.string().min(1),
+  frontmatter: FrontmatterDto,
   updatedAt: z.iso.datetime(),
+  publishedAt: z.iso.datetime(),
 });
 
-export const UploadNotesRequestSchema = z.object({
-  notes: z.array(NoteDtoSchema).nonempty(),
+export const UploadBodyDto = z.object({
+  notes: z.array(NoteDto).min(1),
 });
 
-export type UploadNotesRequestDto = z.infer<typeof UploadNotesRequestSchema>;
-export type NoteDto = z.infer<typeof NoteDtoSchema>;
+export type FrontmatterDtoType = z.infer<typeof FrontmatterDto>;
+export type NoteDtoType = z.infer<typeof NoteDto>;
+export type UploadBodyDtoType = z.infer<typeof UploadBodyDto>;

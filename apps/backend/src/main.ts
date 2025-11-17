@@ -1,39 +1,18 @@
-import 'dotenv/config';
-import { createApp } from './infra/http/express/app';
-import { MarkdownItRenderer } from './infra/markdown/MarkdownItRenderer';
-import { FileSystemContentStorage } from './infra/filesystem/FileSystemContentStorage';
-import { FileSystemSiteIndex } from './infra/filesystem/FileSystemSiteIndex';
-import { PublishNotesUseCase } from './application/usecases/PublishNotesUseCase';
 import { EnvConfig } from './infra/config/EnvConfig';
+import { createApp } from './infra/http/express/app';
+import { ConsoleLogger } from './infra/logging/ConsoleLogger';
 
 async function bootstrap() {
-  const markdownRenderer = new MarkdownItRenderer();
-  const contentStorage = new FileSystemContentStorage(EnvConfig.contentRoot());
-  const siteIndex = new FileSystemSiteIndex(EnvConfig.contentRoot());
+  const rootLogger = new ConsoleLogger({ level: EnvConfig.loggerLevel() });
 
-  const publishNotesUseCase = new PublishNotesUseCase(markdownRenderer, contentStorage, siteIndex);
-
-  const app = createApp({
-    apiKey: EnvConfig.apiKey() || '',
-    publishNotesUseCase,
-    uiRoot: EnvConfig.uiRoot(),
-    contentRoot: EnvConfig.contentRoot(),
-  });
+  const { app,  logger } = createApp(rootLogger);
 
   app.listen(EnvConfig.port(), () => {
-    console.log(
-      `[personal-publish] Listening on port ${EnvConfig.port()} (NODE_ENV=${EnvConfig.nodeEnv()})`
-    );
-    console.log(`[personal-publish] Content root: ${EnvConfig.contentRoot()}`);
-    console.log(`[personal-publish] API key: ${EnvConfig.apiKey()}`);
+    logger?.info(`Server listening on port ${EnvConfig.port()}`);
   });
 }
 
-(async () => {
-  try {
-    await bootstrap();
-  } catch (err) {
-    console.error('[personal-publish] Fatal error during bootstrap', err);
-    process.exit(1);
-  }
-})();
+bootstrap().catch((err) => {
+  console.error('Fatal error on bootstrap', err);
+  process.exit(1);
+});

@@ -2,20 +2,31 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { Manifest, ManifestPage, SiteIndexPort } from '../../application/ports/SiteIndexPort';
 import { renderFolderIndex, renderRootIndex } from './SiteIndexTemplates';
+import { LoggerPort } from '../../application/ports/LoggerPort';
 
 export class FileSystemSiteIndex implements SiteIndexPort {
-  constructor(private readonly contentRoot: string) {}
+  constructor(
+    private readonly contentRoot: string,
+    private readonly logger?: LoggerPort
+  ) {}
 
   private manifestPath() {
     return path.join(this.contentRoot, '_manifest.json');
   }
 
   async saveManifest(manifest: Manifest): Promise<void> {
-    await fs.mkdir(this.contentRoot, { recursive: true });
-    await fs.writeFile(this.manifestPath(), JSON.stringify(manifest, null, 2), 'utf8');
+    try {
+      await fs.mkdir(this.contentRoot, { recursive: true });
+      await fs.writeFile(this.manifestPath(), JSON.stringify(manifest, null, 2), 'utf8');
+      this.logger?.info('Manifest saved', { path: this.manifestPath() });
+    } catch (error) {
+      this.logger?.error('Failed to save manifest', { error });
+      throw error;
+    }
   }
 
   async rebuildAllIndexes(manifest: Manifest): Promise<void> {
+    this.logger?.info('Rebuilding all indexes', { contentRoot: this.contentRoot });
     const folders = this.buildFolderMap(manifest);
 
     const topDirs = [...folders.keys()]
@@ -28,6 +39,9 @@ export class FileSystemSiteIndex implements SiteIndexPort {
       });
 
     await this.writeHtml(path.join(this.contentRoot, 'index.html'), renderRootIndex(topDirs));
+    this.logger?.debug('Root index.html written', {
+      path: path.join(this.contentRoot, 'index.html'),
+    });
 
     for (const [folder, data] of folders.entries()) {
       if (folder === '/') continue;
@@ -46,7 +60,12 @@ export class FileSystemSiteIndex implements SiteIndexPort {
         path.join(folderDir, 'index.html'),
         renderFolderIndex(folder, data.pages, subfolders)
       );
+      this.logger?.debug('Folder index.html written', {
+        folder,
+        path: path.join(folderDir, 'index.html'),
+      });
     }
+    this.logger?.info('All indexes rebuilt');
   }
 
   private buildFolderMap(
@@ -84,11 +103,18 @@ export class FileSystemSiteIndex implements SiteIndexPort {
       ensure(parentFolder).pages.push(p);
     }
 
+    this.logger?.debug('Folder map built', { folderCount: map.size });
     return map;
   }
 
   private async writeHtml(filePath: string, html: string) {
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, html, 'utf8');
+    try {
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      await fs.writeFile(filePath, html, 'utf8');
+      this.logger?.debug('HTML file written', { filePath });
+    } catch (error) {
+      this.logger?.error('Failed to write HTML file', { filePath, error });
+      throw error;
+    }
   }
 }

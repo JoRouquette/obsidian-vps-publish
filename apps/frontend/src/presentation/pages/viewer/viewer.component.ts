@@ -1,4 +1,10 @@
-import { Component, signal, OnDestroy } from '@angular/core';
+import {
+  Component,
+  signal,
+  OnDestroy,
+  ViewEncapsulation,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -10,6 +16,8 @@ import { CatalogFacade } from '../../../application/facades/CatalogFacade';
   selector: 'app-viewer',
   templateUrl: './viewer.component.html',
   styleUrls: ['./viewer.component.scss'],
+  encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ViewerComponent implements OnDestroy {
   title = signal<string>('');
