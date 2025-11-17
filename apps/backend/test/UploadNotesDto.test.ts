@@ -11,8 +11,10 @@ describe('UploadBodyDto', () => {
           relativePath: '',
           markdown: '# test',
           frontmatter: {
-            title: 'Angle mort',
+            flat: {},
+            nested: {},
           },
+          vaultPath: 'Codex/Angle mort.md',
           publishedAt: '2025-11-09T18:45:50.009Z',
           updatedAt: '2025-11-09T18:45:50.009Z',
         },

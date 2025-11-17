@@ -1,13 +1,12 @@
 export interface NoteFrontmatter {
-  title: string;
-  description?: string;
-  date?: string;
-  tags?: string[];
-  aliases?: string[];
+  tags: string[];
+  flat: Record<string, unknown>;
+  nested: Record<string, unknown>;
 }
 
 export interface Note {
   id: string;
+  title: string;
   slug: string;
   vaultPath: string;
   relativePath: string;
@@ -15,5 +14,4 @@ export interface Note {
   markdown: string;
   frontmatter: NoteFrontmatter;
   publishedAt: Date;
-  updatedAt: Date;
 }

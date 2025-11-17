@@ -67,10 +67,7 @@ export class HomeComponent {
     for (const [key, g] of groups.entries()) {
       const landing = g.landing;
       const title = (landing?.title as string) ?? capitalize(key);
-      const description =
-        (landing?.description as string) ||
-        (landing?.frontmatter?.description as string) ||
-        undefined;
+      const description = (landing?.description as string) || undefined;
 
       let link: Section['link'] = { segments: [], disabled: true };
       if (landing?.route) {

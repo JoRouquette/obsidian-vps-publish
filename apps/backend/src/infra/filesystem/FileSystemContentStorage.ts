@@ -23,9 +23,7 @@ export class FileSystemContentStorage implements StoragePort {
         return;
       }
 
-      const fileSlug = params.slug
-        ? this.slugify(params.slug)
-        : this.slugify(segs.at(-1) || 'index');
+      const fileSlug = params.slug ?? 'index';
       const fileSegments = [...segs.slice(0, -1), `${fileSlug}.html`];
       const filePath = path.join(this.rootDir, ...fileSegments);
 
@@ -48,16 +46,5 @@ export class FileSystemContentStorage implements StoragePort {
     if (!r.startsWith('/')) r = '/' + r;
     if (r.length > 1) r = r.replace(/\/+$/, '');
     return r;
-  }
-
-  private slugify(input: string): string {
-    const ascii = input
-      .normalize('NFD')
-      .replaceAll(/\p{Diacritic}/gu, '')
-      .replaceAll(/[^\w\s-]/g, ' ')
-      .trim()
-      .replaceAll(/\s+/g, '-')
-      .toLowerCase();
-    return ascii || 'index';
   }
 }

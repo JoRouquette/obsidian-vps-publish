@@ -2,13 +2,11 @@ import { LoggerPort } from './LoggerPort';
 
 export interface ManifestPage {
   id: string;
-  route: string;
   title: string;
-  description?: string;
-  tags?: string[];
-  publishedAt: Date;
-  updatedAt: Date;
   slug: string;
+  route: string;
+  description?: string;
+  publishedAt: Date;
 }
 
 export interface Manifest {

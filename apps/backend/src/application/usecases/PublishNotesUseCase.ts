@@ -33,16 +33,15 @@ export class PublishNotesUseCase {
         noteLogger?.debug('Building HTML page');
         const fullHtml = this.buildHtmlPage(note, bodyHtml);
 
-        const pageRoute = this.buildPageRoute(note);
-        noteLogger?.debug('Saving content to storage', { route: pageRoute });
+        noteLogger?.debug('Saving content to storage', { route: note.route });
         await this.contentStorage.save({
-          route: pageRoute,
+          route: note.route,
           content: fullHtml,
         });
 
         published++;
         succeeded.push(note);
-        noteLogger?.info('Note published successfully', { route: pageRoute });
+        noteLogger?.info('Note published successfully', { route: note.route });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         errors.push({ noteId: note.id, message });
@@ -53,21 +52,14 @@ export class PublishNotesUseCase {
     if (succeeded.length > 0) {
       logger?.info(`Updating site manifest and indexes for ${succeeded.length} published notes`);
       const pages: ManifestPage[] = succeeded.map((n) => {
-        const route = this.buildPageRoute(
-          n,
-          logger?.child({ method: 'buildPageRoute', noteId: n.id, slug: n.slug })
-        );
-
         return {
           id: n.id,
-          route,
+          title: n.title,
+          route: n.route,
           slug: n.slug,
           vaultPath: n.vaultPath,
           relativePath: n.relativePath,
-          title: n.frontmatter?.title ?? this.extractTitle(n.vaultPath),
-          tags: n.frontmatter?.tags ?? [],
           publishedAt: n.publishedAt,
-          updatedAt: n.updatedAt,
         };
       });
 
@@ -87,46 +79,7 @@ export class PublishNotesUseCase {
     return { published, errors };
   }
 
-  /**
-   * Construit la route HTTP finale pour la page, en appliquant les règles :
-   * /<route_sans_slash_initial>/[<relativePath>/]<slug>/
-   *
-   * Ex :
-   *   route = "/codex"
-   *   relativePath = "puissances/divinites"
-   *   slug = "thormak"
-   * -> "/codex/puissances/divinites/thormak/"
-   */
-  private buildPageRoute(note: Note, logger?: LoggerPort): string {
-    const routeSegment = (note.route ?? '').trim().replace(/^\/+/, '').replace(/\/+$/, '');
-    logger?.debug('Building page route', {
-      routeSegment,
-      relativePath: note.relativePath,
-      slug: note.slug,
-    });
-
-    const relativeSegment = (note.relativePath ?? '')
-      .trim()
-      .replace(/^\/+/, '')
-      .replace(/\/+$/, '');
-    logger?.debug('Relative segment for route', { relativeSegment });
-
-    const segments: string[] = [];
-    if (routeSegment) {
-      segments.push(routeSegment);
-    }
-
-    if (relativeSegment) {
-      segments.push(...relativeSegment.split('/').filter(Boolean));
-    }
-    segments.push(note.slug);
-    logger?.debug('Final segments for route', { segments });
-
-    return '/' + segments.join('/');
-  }
-
   private buildHtmlPage(note: Note, bodyHtml: string, logger?: LoggerPort): string {
-    // Tu peux étoffer ici (header/footer) si besoin ; pour l’instant on reste sur un fragment
     return `
   <div class="markdown-body">
     ${bodyHtml}
