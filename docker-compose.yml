@@ -5,32 +5,29 @@ services:
       dockerfile: Dockerfile
     image: scribe-ektaron:dev
     restart: unless-stopped
-    env_file: [.env]
+
+    # Variables communes (complétées/surchargées par .env)
+    env_file:
+      - .env
     environment:
-      NODE_ENV: 'production'
-      PORT: '3000'
       LOGGER_LEVEL: 'debug'
-      CONTENT_ROOT: '/content'
-      ASSETS_ROOT: '/assets'
-      UI_ROOT: '/ui'
-      API_PREFIX: '/api'
       ALLOWED_ORIGINS: '*,app://obsidian'
       AUTHOR_NAME: 'Jonathan Rouquette'
       REPO_URL: 'https://github.com/jonathanrouquette/scribe-ektaron'
+
     ports:
       - '3000:3000'
+
     volumes:
-      - type: volume
-        source: content
-        target: /content
-      - type: volume
-        source: assets
-        target: /assets
+      - content:/content
+      - assets:/assets
+
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/health || exit 1']
-      interval: 20s
-      timeout: 3s
-      retries: 5
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
 volumes:
   content: {}
   assets: {}

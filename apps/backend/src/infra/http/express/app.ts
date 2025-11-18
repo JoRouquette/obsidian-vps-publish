@@ -17,12 +17,11 @@ import { createApiKeyAuthMiddleware } from './middleware/apiKeyAuthMiddleware';
 import { createCorsMiddleware } from './middleware/corsMiddleware';
 import { LoggerPort } from '../../../application/ports/LoggerPort';
 import { createHealthCheckController } from './controllers/healthCheckController';
-import { AssetsFileSystem } from '../../filesystem/AssetsFileSystem';
 
 export function createApp(rootLogger?: LoggerPort) {
   const app = express();
 
-  app.use(express.json({ limit: '10mb' })); // à adapter si nécessaire
+  app.use(express.json({ limit: '10mb' }));
 
   app.use(createCorsMiddleware(EnvConfig.allowedOrigins()));
   const apiKeyMiddleware = createApiKeyAuthMiddleware(EnvConfig.apiKey());
@@ -52,14 +51,15 @@ export function createApp(rootLogger?: LoggerPort) {
   );
 
   const assetStorage = new AssetsFileSystemStorage(EnvConfig.assetsRoot(), rootLogger);
-  const assetIndex = new AssetsFileSystem(EnvConfig.assetsRoot(), rootLogger);
-  const uploadAssetUseCase = new UploadAssetUseCase(assetStorage, assetIndex, rootLogger);
+
+  const uploadAssetUseCase = new UploadAssetUseCase(assetStorage, rootLogger);
 
   // API routes (protégées par API key)
   const apiRouter = express.Router();
   apiRouter.use(apiKeyMiddleware);
 
   apiRouter.use(createPingController(rootLogger));
+
   apiRouter.use(createNoteUploadController(publishNotesUseCase, rootLogger));
 
   apiRouter.use(createAssetsUploadController(uploadAssetUseCase, rootLogger));

@@ -1,7 +1,8 @@
 import { NextFunction, Request, Response, Router } from 'express';
 import { LoggerPort } from '../../../../application/ports/LoggerPort';
 import { UploadAssetUseCase } from '../../../../application/usecases/UploadAssetUseCase';
-import { UploadAssetDto } from '../dto/UploadAssetsDto';
+import { ApiAssetsBodyDto } from '../dto/UploadAssetsDto';
+import { Asset } from '../../../../domain/entities/Asset';
 
 export function createAssetsUploadController(
   uploadAssetUseCase: UploadAssetUseCase,
@@ -11,35 +12,37 @@ export function createAssetsUploadController(
 
   router.post('/assets/upload', async (req: Request, res: Response, next: NextFunction) => {
     const log = logger?.child({ route: '/assets/upload', method: 'POST' }) ?? logger;
+
     try {
-      const parsed = UploadAssetDto.safeParse(req.body);
+      const parsed = ApiAssetsBodyDto.safeParse(req.body);
 
       if (!parsed.success) {
-        log?.warn?.('UploadAssetDto validation error', { error: parsed.error });
+        log?.warn?.('UploadAssetsBodyDto validation error', { error: parsed.error });
         return res.status(400).json({ status: 'invalid_payload' });
       }
 
-      const dto = parsed.data;
+      const { assets } : { assets: Asset[] } = parsed.data;
+      log?.info?.('Uploading assets batch', { count: assets.length });
 
-      const buffer = Buffer.from(dto.contentBase64, 'base64');
+      for (const dto of assets) {
+        const buffer = Buffer.from(dto.contentBase64, 'base64');
 
-      log?.info?.('Uploading asset', {
-        noteId: dto.noteId,
-        noteRoute: dto.noteRoute,
-        relativeAssetPath: dto.relativeAssetPath,
-        fileName: dto.fileName,
-      });
+        log?.info?.('Uploading asset', {
+          fileName: dto.fileName,
+          relativePath: dto.relativePath,
+          vaultPath: dto.vaultPath,
+          size: buffer.length,
+        });
 
-      await uploadAssetUseCase.execute({
-        noteId: dto.noteId,
-        noteRoute: dto.noteRoute,
-        relativeAssetPath: dto.relativeAssetPath,
-        fileName: dto.fileName,
-        content: buffer,
-      });
+        const asset: Asset = dto; // types compatibles
 
-      log?.info?.('Asset uploaded successfully', { fileName: dto.fileName });
-      return res.status(200).json({ message: 'Asset uploaded successfully' });
+        await uploadAssetUseCase.execute(asset, buffer);
+      }
+
+      log?.info?.('Assets uploaded successfully', { count: assets.length });
+      return res
+        .status(200)
+        .json({ message: 'Assets uploaded successfully', count: assets.length });
     } catch (err) {
       log?.error?.('Error in /api/assets/upload', { error: err });
       return res.status(500).json({ status: 'error' });

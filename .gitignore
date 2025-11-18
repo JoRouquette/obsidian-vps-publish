@@ -3,6 +3,7 @@
 /.idea
 /.vscode
 .env
+.env.docker
 /tmp
 
 # Ignore node_modules, dist, and .env in all apps

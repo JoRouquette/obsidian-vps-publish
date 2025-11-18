@@ -1,21 +1,12 @@
-import { IndexPort } from '../ports/IndexPort';
+import { Asset } from '../../domain/entities/Asset';
+import { AssetStoragePort } from '../ports/AssetStoragePort';
 import { LoggerPort } from '../ports/LoggerPort';
-import { StoragePort } from '../ports/StoragePort';
-
-export interface UploadAssetCommand {
-  noteId: string;
-  noteRoute: string;
-  relativeAssetPath: string;
-  fileName: string;
-  content: Buffer;
-}
 
 export class UploadAssetUseCase {
   private readonly _logger;
 
   constructor(
-    private readonly assetStorage: StoragePort,
-    private readonly assetIndex: IndexPort,
+    private readonly assetStorage: AssetStoragePort,
     logger?: LoggerPort
   ) {
     this._logger = logger?.child({
@@ -24,10 +15,10 @@ export class UploadAssetUseCase {
     this._logger?.debug('UploadAssetUseCase initialized.');
   }
 
-  async execute(command: UploadAssetCommand): Promise<void> {
+  async execute(asset: Asset, content: Buffer): Promise<void> {
     await this.assetStorage.save({
-      relativeAssetPath: command.relativeAssetPath,
-      content: command.content,
+      relativeAssetPath: asset.relativePath,
+      content,
     });
   }
 }
