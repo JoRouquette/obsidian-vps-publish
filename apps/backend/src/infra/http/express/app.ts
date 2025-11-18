@@ -2,21 +2,22 @@ import express from 'express';
 import path from 'node:path';
 import { createAssetsUploadController } from './controllers/assetsUploadController';
 import { createPingController } from './controllers/pingController';
-import { createUploadController } from './controllers/uploadController';
+import { createNoteUploadController } from './controllers/uploadController';
 
 // Adapters / services
-import { FileSystemAssetStorage } from '../../filesystem/FileSystemAssetStorage';
-import { FileSystemContentStorage } from '../../filesystem/FileSystemContentStorage';
-import { FileSystemSiteIndex } from '../../filesystem/FileSystemSiteIndex';
+import { AssetsFileSystemStorage } from '../../filesystem/AssetsFileSystemStorage';
+import { NotesFileSystemStorage } from '../../filesystem/NotesFileSystemStorage';
+import { NotesFileSystem } from '../../filesystem/NotesFileSystem';
 import { MarkdownItRenderer } from '../../markdown/MarkdownItRenderer';
 
-import { PublishNotesUseCase } from '../../../application/usecases/PublishNotesUseCase';
+import { UploadNotesUseCase } from '../../../application/usecases/UploadNotesUseCase';
 import { UploadAssetUseCase } from '../../../application/usecases/UploadAssetUseCase';
 import { EnvConfig } from '../../config/EnvConfig';
 import { createApiKeyAuthMiddleware } from './middleware/apiKeyAuthMiddleware';
 import { createCorsMiddleware } from './middleware/corsMiddleware';
 import { LoggerPort } from '../../../application/ports/LoggerPort';
 import { createHealthCheckController } from './controllers/healthCheckController';
+import { AssetsFileSystem } from '../../filesystem/AssetsFileSystem';
 
 export function createApp(rootLogger?: LoggerPort) {
   const app = express();
@@ -40,47 +41,28 @@ export function createApp(rootLogger?: LoggerPort) {
   });
 
   const markdownRenderer = new MarkdownItRenderer();
-  const contentStorage = new FileSystemContentStorage(
-    EnvConfig.contentRoot(),
-    rootLogger?.child({ adapter: 'FileSystemContentStorage' })
-  );
-  const siteIndex = new FileSystemSiteIndex(
-    EnvConfig.contentRoot(),
-    rootLogger?.child({ adapter: 'FileSystemSiteIndex' })
-  );
-  const assetStorage = new FileSystemAssetStorage(
-    EnvConfig.assetsRoot(),
-    rootLogger?.child({ adapter: 'FileSystemAssetStorage' })
+  const noteStorage = new NotesFileSystemStorage(EnvConfig.contentRoot(), rootLogger);
+  const noteFileSystem = new NotesFileSystem(EnvConfig.contentRoot(), rootLogger);
+
+  const publishNotesUseCase = new UploadNotesUseCase(
+    markdownRenderer,
+    noteStorage,
+    noteFileSystem,
+    rootLogger
   );
 
-  const publishNotesUseCase = new PublishNotesUseCase(
-    markdownRenderer,
-    contentStorage,
-    siteIndex,
-    rootLogger?.child({ useCase: 'PublishNotesUseCase' })
-  );
-  const uploadAssetUseCase = new UploadAssetUseCase(
-    assetStorage,
-    rootLogger?.child({ useCase: 'UploadAssetUseCase' })
-  );
+  const assetStorage = new AssetsFileSystemStorage(EnvConfig.assetsRoot(), rootLogger);
+  const assetIndex = new AssetsFileSystem(EnvConfig.assetsRoot(), rootLogger);
+  const uploadAssetUseCase = new UploadAssetUseCase(assetStorage, assetIndex, rootLogger);
 
   // API routes (protégées par API key)
   const apiRouter = express.Router();
   apiRouter.use(apiKeyMiddleware);
 
-  apiRouter.use(createPingController(rootLogger?.child({ controller: 'pingController' })));
-  apiRouter.use(
-    createUploadController(
-      publishNotesUseCase,
-      rootLogger?.child({ controller: 'uploadController' })
-    )
-  );
-  apiRouter.use(
-    createAssetsUploadController(
-      uploadAssetUseCase,
-      rootLogger?.child({ controller: 'assetsUploadController' })
-    )
-  );
+  apiRouter.use(createPingController(rootLogger));
+  apiRouter.use(createNoteUploadController(publishNotesUseCase, rootLogger));
+
+  apiRouter.use(createAssetsUploadController(uploadAssetUseCase, rootLogger));
 
   app.use('/api', apiRouter);
 
@@ -97,7 +79,7 @@ export function createApp(rootLogger?: LoggerPort) {
     next();
   });
 
-  app.use(createHealthCheckController(rootLogger?.child({ controller: 'healthCheckController' })));
+  app.use(createHealthCheckController());
 
   app.get('*', (req, res) => {
     rootLogger?.info('Serving Angular index.html for unmatched route', {

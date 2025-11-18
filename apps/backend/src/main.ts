@@ -5,7 +5,9 @@ import { ConsoleLogger } from './infra/logging/ConsoleLogger';
 async function bootstrap() {
   const rootLogger = new ConsoleLogger({ level: EnvConfig.loggerLevel() });
 
-  const { app,  logger } = createApp(rootLogger);
+  const { app, logger } = createApp(rootLogger);
+
+  rootLogger.debug('Starting server...', { port: EnvConfig.port(), app: app, logger: logger });
 
   app.listen(EnvConfig.port(), () => {
     logger?.info(`Server listening on port ${EnvConfig.port()}`);

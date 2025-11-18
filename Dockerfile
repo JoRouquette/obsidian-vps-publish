@@ -35,6 +35,7 @@ ENV NODE_ENV=production \
     ASSETS_ROOT=/assets \
     UI_ROOT=/ui \
     API_PREFIX=/api \
+    ALLOWED_ORIGINS="*,app://obsidian" \
     AUTHOR_NAME="Jonathan Rouquette" \
     REPO_URL="https://github.com/JoRouquette/scribe-ektaron" 
 

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { Manifest } from '../src/application/ports/SiteIndexPort';
-import { FileSystemSiteIndex } from '../src/infra/filesystem/FileSystemSiteIndex';
+import { Manifest } from '../src/application/ports/NotesIndexPort';
+import { NotesFileSystem } from '../src/infra/filesystem/NotesFileSystem';
 
 async function createTempDir(): Promise<string> {
   const base = os.tmpdir();
@@ -13,7 +13,7 @@ async function createTempDir(): Promise<string> {
 describe('FileSystemSiteIndex (manifest + rebuild)', () => {
   it('écrit le manifest, génère index.html racine (dossiers uniquement) et index.html de dossier', async () => {
     const dir = await createTempDir();
-    const index = new FileSystemSiteIndex(dir);
+    const index = new NotesFileSystem(dir);
 
     const manifest: Manifest = {
       pages: [
@@ -29,8 +29,8 @@ describe('FileSystemSiteIndex (manifest + rebuild)', () => {
       ],
     };
 
-    await index.saveManifest(manifest);
-    await index.rebuildAllIndexes(manifest);
+    await index.save(manifest);
+    await index.rebuildIndex(manifest);
 
     // Vérifie le manifest
     const manifestPath = path.join(dir, '_manifest.json');
@@ -71,7 +71,7 @@ describe('FileSystemSiteIndex (manifest + rebuild)', () => {
 
   it('réécrit intégralement les index de dossiers à chaque sauvegarde du manifest (pas de doublons, remplace les titres)', async () => {
     const dir = await createTempDir();
-    const index = new FileSystemSiteIndex(dir);
+    const index = new NotesFileSystem(dir);
 
     // 1) Premier manifest : une page /blog/old (Ancien titre)
     const manifestV1: Manifest = {
@@ -88,8 +88,8 @@ describe('FileSystemSiteIndex (manifest + rebuild)', () => {
       ],
     };
 
-    await index.saveManifest(manifestV1);
-    await index.rebuildAllIndexes(manifestV1);
+    await index.save(manifestV1);
+    await index.rebuildIndex(manifestV1);
 
     // Sanity: l’index /blog contient "Ancien titre"
     const blogIndexPath = path.join(dir, 'blog', 'index.html');
@@ -121,8 +121,8 @@ describe('FileSystemSiteIndex (manifest + rebuild)', () => {
       ],
     };
 
-    await index.saveManifest(manifestV2);
-    await index.rebuildAllIndexes(manifestV2);
+    await index.save(manifestV2);
+    await index.rebuildIndex(manifestV2);
 
     // L’index /blog a été réécrit : plus "Ancien titre", mais "Nouveau titre" et "Autre note"
     blogHtml = await fs.readFile(blogIndexPath, 'utf8');

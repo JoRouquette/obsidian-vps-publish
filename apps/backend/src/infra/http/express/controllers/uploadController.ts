@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { UploadBodyDto } from '../dto/UploadNotesDto';
 import { Note } from '../../../../domain/entities/Note';
-import { PublishNotesUseCase } from '../../../../application/usecases/PublishNotesUseCase';
+import { UploadNotesUseCase } from '../../../../application/usecases/UploadNotesUseCase';
 import { LoggerPort } from '../../../../application/ports/LoggerPort';
 
 function mapDtoToDomainNote(dto: any): Note {
@@ -17,8 +17,8 @@ function mapDtoToDomainNote(dto: any): Note {
   } as Note;
 }
 
-export function createUploadController(
-  publishNotesUseCase: PublishNotesUseCase,
+export function createNoteUploadController(
+  publishNotesUseCase: UploadNotesUseCase,
   logger?: LoggerPort
 ): Router {
   const router = Router();
@@ -43,8 +43,9 @@ export function createUploadController(
       logger?.info?.('Received upload request', { notesCount: notes.length });
 
       const domainNotes = notes.map(mapDtoToDomainNote);
-      const result = await publishNotesUseCase.execute(domainNotes);
+      logger?.debug?.('Mapped domain notes', { domainNotes });
 
+      const result = await publishNotesUseCase.execute(domainNotes);
       logger?.info?.('Notes published', { publishedCount: result.published });
 
       return res.status(200).json({

@@ -1,7 +1,7 @@
 import type { Note } from '../../domain/entities/Note';
 import { LoggerPort } from '../ports/LoggerPort';
 import type { MarkdownRendererPort } from '../ports/MarkdownRendererPort';
-import type { Manifest, ManifestPage, SiteIndexPort } from '../ports/SiteIndexPort';
+import type { Manifest, ManifestPage, NotesIndexPort } from '../ports/NotesIndexPort';
 import type { StoragePort } from '../ports/StoragePort';
 
 export interface PublishNotesOutput {
@@ -9,20 +9,23 @@ export interface PublishNotesOutput {
   errors: { noteId: string; message: string }[];
 }
 
-export class PublishNotesUseCase {
+export class UploadNotesUseCase {
   constructor(
     private readonly markdownRenderer: MarkdownRendererPort,
     private readonly contentStorage: StoragePort,
-    private readonly siteIndex: SiteIndexPort,
+    private readonly siteIndex: NotesIndexPort,
     private readonly logger?: LoggerPort
-  ) {}
+  ) {
+    logger = logger?.child({ module: 'PublishNotesUseCase' });
+  }
 
   async execute(notes: Note[]): Promise<PublishNotesOutput> {
+    const logger = this.logger?.child({ method: 'execute' });
+
     let published = 0;
     const errors: { noteId: string; message: string }[] = [];
     const succeeded: Note[] = [];
 
-    const logger = this.logger?.child({ useCase: 'PublishNotesUseCase' });
     logger?.info(`Starting publishing of ${notes.length} notes`);
 
     for (const note of notes) {
@@ -37,6 +40,7 @@ export class PublishNotesUseCase {
         await this.contentStorage.save({
           route: note.route,
           content: fullHtml,
+          slug: note.slug,
         });
 
         published++;
@@ -62,12 +66,12 @@ export class PublishNotesUseCase {
           publishedAt: n.publishedAt,
         };
       });
-
       pages.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+      logger?.debug('Manifest pages ', { manifestPages: pages });
 
       const manifest: Manifest = { pages };
-      await this.siteIndex.saveManifest(manifest, logger);
-      await this.siteIndex.rebuildAllIndexes(manifest, logger);
+      await this.siteIndex.save(manifest);
+      await this.siteIndex.rebuildIndex(manifest);
       logger?.info('Site manifest and indexes updated');
     }
 
@@ -79,22 +83,10 @@ export class PublishNotesUseCase {
     return { published, errors };
   }
 
-  private buildHtmlPage(note: Note, bodyHtml: string, logger?: LoggerPort): string {
+  private buildHtmlPage(note: Note, bodyHtml: string): string {
     return `
   <div class="markdown-body">
     ${bodyHtml}
   </div>`;
-  }
-
-  private extractTitle(vaultPath: string | undefined, logger?: LoggerPort): string {
-    if (!vaultPath) {
-      return 'Untitled';
-    }
-
-    const parts = vaultPath.split('/');
-    const filename = parts.at(-1) || 'Untitled';
-    const title = filename.replace(/\.mdx?$/i, '');
-
-    return title.charAt(0).toUpperCase() + title.slice(1);
   }
 }

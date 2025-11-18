@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { PublishNotesUseCase } from '../src/application/usecases/PublishNotesUseCase';
+import { UploadNotesUseCase } from '../src/application/usecases/UploadNotesUseCase';
 import type { MarkdownRendererPort } from '../src/application/ports/MarkdownRendererPort';
 import type { StoragePort } from '../src/application/ports/StoragePort';
-import type { SiteIndexPort, Manifest } from '../src/application/ports/SiteIndexPort';
+import type { NotesIndexPort, Manifest } from '../src/application/ports/NotesIndexPort';
 import type { Note } from '../src/domain/entities/Note';
 
 class FakeMarkdownRenderer implements MarkdownRendererPort {
@@ -23,7 +23,7 @@ class FakeContentStorage implements StoragePort {
   }
 }
 
-class FakeSiteIndex implements SiteIndexPort {
+class FakeSiteIndex implements NotesIndexPort {
   public savedManifests: Manifest[] = [];
   public rebuildCalls: Manifest[] = [];
 
@@ -62,7 +62,7 @@ describe('PublishNotesUseCase', () => {
     const contentStorage = new FakeContentStorage();
     const siteIndex = new FakeSiteIndex();
 
-    const useCase = new PublishNotesUseCase(markdownRenderer, contentStorage, siteIndex);
+    const useCase = new UploadNotesUseCase(markdownRenderer, contentStorage, siteIndex);
 
     const note = makeNote();
     const result = await useCase.execute({ notes: [note] });
@@ -95,7 +95,7 @@ describe('PublishNotesUseCase', () => {
     const contentStorage = new FakeContentStorage();
     const siteIndex = new FakeSiteIndex();
 
-    const useCase = new PublishNotesUseCase(markdownRenderer, contentStorage, siteIndex);
+    const useCase = new UploadNotesUseCase(markdownRenderer, contentStorage, siteIndex);
 
     const okNote = makeNote({
       id: 'ok',

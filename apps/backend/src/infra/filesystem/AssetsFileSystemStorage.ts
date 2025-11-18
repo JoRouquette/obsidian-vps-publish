@@ -4,7 +4,7 @@ import { resolveWithinRoot } from './pathUtils';
 import { AssetStoragePort } from '../../application/ports/AssetStoragePort';
 import { LoggerPort } from '../../application/ports/LoggerPort';
 
-export class FileSystemAssetStorage implements AssetStoragePort {
+export class AssetsFileSystemStorage implements AssetStoragePort {
   constructor(
     private readonly assetsRoot: string,
     private readonly logger?: LoggerPort
