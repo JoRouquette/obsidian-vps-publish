@@ -1,0 +1,17 @@
+services:
+  scribe-ektaron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: scribe-ektaron:dev
+
+    env_file:
+      - .env.dev
+
+    environment:
+      NODE_ENV: 'development'
+      LOGGER_LEVEL: 'debug'
+      ALLOWED_ORIGINS: '*,app://obsidian'
+      AUTHOR_NAME: 'Jonathan Rouquette'
+      REPO_URL: 'https://github.com/jonathanrouquette/scribe-ektaron'

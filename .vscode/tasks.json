@@ -1,0 +1,71 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Docker: dev up",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "-f",
+        "docker-compose.yml",
+        "-f",
+        "docker-compose.dev.yml",
+        "up",
+        "--build",
+        "-d",
+        "--remove-orphans",
+        "--force-recreate"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Docker: dev down",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "-f", "docker-compose.yml", "-f", "docker-compose.dev.yml", "down", "-v"],
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "Backend: dev",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "dev"],
+      "options": {
+        "cwd": "${workspaceFolder}/apps/backend"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: test",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "test"],
+      "options": {
+        "cwd": "${workspaceFolder}/apps/backend"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Frontend: dev",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "start"],
+      "options": {
+        "cwd": "${workspaceFolder}/apps/frontend"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: frontend + backend (hors Docker)",
+      "dependsOn": ["Backend: dev", "Frontend: dev"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    }
+  ]
+}

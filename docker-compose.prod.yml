@@ -1,0 +1,10 @@
+services:
+  scribe-ektaron:
+    image: ${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG:-latest}
+
+    env_file:
+      - .env.prod
+
+    environment:
+      NODE_ENV: 'production'
+      LOGGER_LEVEL: 'info'

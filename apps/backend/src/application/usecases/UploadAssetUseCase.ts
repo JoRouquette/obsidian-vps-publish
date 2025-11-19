@@ -17,7 +17,7 @@ export class UploadAssetUseCase {
 
   async execute(asset: Asset, content: Buffer): Promise<void> {
     await this.assetStorage.save({
-      relativeAssetPath: asset.relativePath,
+      filename: asset.fileName,
       content,
     });
   }

@@ -1,19 +1,8 @@
 services:
   scribe-ektaron:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: scribe-ektaron:dev
-    restart: unless-stopped
+    image: scribe-ektaron:local
 
-    # Variables communes (complétées/surchargées par .env)
-    env_file:
-      - .env
-    environment:
-      LOGGER_LEVEL: 'debug'
-      ALLOWED_ORIGINS: '*,app://obsidian'
-      AUTHOR_NAME: 'Jonathan Rouquette'
-      REPO_URL: 'https://github.com/jonathanrouquette/scribe-ektaron'
+    restart: unless-stopped
 
     ports:
       - '3000:3000'
@@ -21,6 +10,10 @@ services:
     volumes:
       - content:/content
       - assets:/assets
+
+    labels:
+      # Watchtower surveille uniquement les services avec ce label
+      com.centurylinklabs.watchtower.enable: 'true'
 
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/health || exit 1']

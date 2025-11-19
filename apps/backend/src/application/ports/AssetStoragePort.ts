@@ -1,5 +1,5 @@
 import { StoragePort } from './StoragePort';
 
 export interface AssetStoragePort extends StoragePort {
-  save(params: { relativeAssetPath: string; content: Buffer }): Promise<void>;
+  save(params: { filename: string; content: Buffer }): Promise<void>;
 }
