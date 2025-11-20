@@ -1,10 +1,16 @@
 import { ManifestPage } from '../../application/ports/NotesIndexPort';
 
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function escapeHtml(s: string) {
-  return s.replace(
+  let escaped = s.replace(
     /[&<>"']/g,
     (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!
   );
+
+  return capitalize(escaped);
 }
 
 export function renderRootIndex(dirs: { name: string; link: string; count: number }[]) {
@@ -29,7 +35,7 @@ export function renderFolderIndex(
   subfolders: { name: string; link: string; count: number }[]
 ) {
   const folderName = folderPath === '/' ? '/' : folderPath.split('/').filter(Boolean).pop()!;
-  const folderTitle = folderName || 'Home';
+  const folderTitle = capitalize(folderName) || 'Home';
 
   const subfoldList = subfolders
     .sort((a, b) => a.name.localeCompare(b.name))

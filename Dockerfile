@@ -45,7 +45,6 @@ ENV NODE_ENV=production \
     CONTENT_ROOT=/content \
     ASSETS_ROOT=/assets \
     UI_ROOT=/ui \
-    API_PREFIX=/api \
     NODE_OPTIONS=--enable-source-maps
 
 # Dépendances runtime uniquement

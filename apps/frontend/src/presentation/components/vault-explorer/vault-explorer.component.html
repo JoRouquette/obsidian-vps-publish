@@ -41,6 +41,7 @@
           type="button"
           matTreeNodeToggle
           aria-label="Ouvrir/fermer le dossier"
+          [routerLink]="['/' + n.path + '/index']"
         >
           <mat-icon class="ico folder-ico" aria-hidden="true">
             {{ node.isExpanded ? 'folder_open' : 'folder' }}
@@ -63,6 +64,7 @@
         class="node file"
         matTreeNodePadding
         [matTreeNodePaddingIndent]="'0.4em'"
+        matTooltip="Ouvrir le fichier"
       >
         <a
           class="file-link"

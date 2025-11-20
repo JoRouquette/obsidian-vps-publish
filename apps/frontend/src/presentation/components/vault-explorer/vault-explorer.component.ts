@@ -11,6 +11,7 @@ import { RouterLink } from '@angular/router';
 
 import { CatalogFacade } from '../../../application/facades/CatalogFacade';
 import { BuildTreeUseCase, TreeNode } from '../../../application/usecases/BuildTree.usecase';
+import { MatTooltip } from '@angular/material/tooltip';
 
 @Component({
   standalone: true,
@@ -25,6 +26,7 @@ import { BuildTreeUseCase, TreeNode } from '../../../application/usecases/BuildT
     MatInputModule,
     MatTreeModule,
     RouterLink,
+    MatTooltip,
   ],
   templateUrl: './vault-explorer.component.html',
   styleUrls: ['./vault-explorer.component.scss'],
@@ -61,7 +63,6 @@ export class VaultExplorerComponent implements OnInit {
     private readonly facade: CatalogFacade,
     private readonly buildTree: BuildTreeUseCase
   ) {
-    // Re-mesure la largeur scrollable dès que le contenu (filtres/children) change
     effect(() => {
       this.rootChildren();
       queueMicrotask(() => this.measureScrollWidth());

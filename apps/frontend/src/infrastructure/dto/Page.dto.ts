@@ -1,8 +1,9 @@
 export interface PageDTO {
-  route: string;
+  id: string;
   title: string;
-  tags: string[];
-  filePath: string;
-  updatedAt?: string;
+  route: string;
   slug?: string;
+  tags: string[];
+  relativePath: string;
+  publishedAt?: string;
 }

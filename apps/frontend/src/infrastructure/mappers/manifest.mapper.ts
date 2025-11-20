@@ -5,14 +5,13 @@ import { Slug } from '../../domain/value-objects/Slug';
 
 export function toDomain(dto: ManifestDTO): Manifest {
   return {
-    version: dto.version,
-    generatedAt: new Date(dto.generatedAt),
     pages: dto.pages.map<Page>((p) => ({
+      id: p.id,
       route: p.route,
       title: p.title,
       tags: p.tags ?? [],
-      filePath: p.filePath,
-      updatedAt: p.updatedAt ? new Date(p.updatedAt) : undefined,
+      relativePath: p.relativePath,
+      publishedAt: p.publishedAt ? new Date(p.publishedAt) : undefined,
       slug: p.slug ? Slug.from(p.slug) : Slug.fromRoute(p.route),
     })),
   };

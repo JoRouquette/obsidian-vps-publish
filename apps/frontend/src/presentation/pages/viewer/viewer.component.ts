@@ -1,15 +1,17 @@
 import {
-  Component,
-  signal,
-  OnDestroy,
-  ViewEncapsulation,
   ChangeDetectionStrategy,
+  Component,
+  Inject,
+  OnDestroy,
+  signal,
+  ViewEncapsulation,
 } from '@angular/core';
-import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { Subscription, switchMap, map, distinctUntilChanged } from 'rxjs';
+import { Router } from '@angular/router';
+import { distinctUntilChanged, map, Subscription, switchMap } from 'rxjs';
 import { CatalogFacade } from '../../../application/facades/CatalogFacade';
+import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
+import { HttpContentRepository } from '../../../infrastructure/http/HttpContentRepository';
 
 @Component({
   standalone: true,
@@ -26,8 +28,8 @@ export class ViewerComponent implements OnDestroy {
   private readonly sub = new Subscription();
 
   constructor(
+    @Inject(CONTENT_REPOSITORY) private readonly contentRepository: HttpContentRepository,
     private readonly router: Router,
-    private readonly http: HttpClient,
     private readonly sanitizer: DomSanitizer,
     private readonly catalog: CatalogFacade
   ) {
@@ -38,18 +40,23 @@ export class ViewerComponent implements OnDestroy {
         switchMap((routePath) => {
           const normalized = routePath.replace(/\/+$/, '') || '/';
           const htmlUrl = normalized === '/' ? '/index.html' : `${normalized}.html`;
-          const m = this.catalog.manifest?.();
+          const manifest = this.catalog.manifest();
 
-          if (m?.pages?.length) {
-            const p = m.pages.find((x) => x.route === normalized);
-            this.title.set(p?.title ?? '');
+          console.log('Loading content for', normalized);
+
+          if (manifest.pages.length > 0) {
+            const p = manifest.pages.find((x) => x.route === normalized);
+
+            if (p) {
+              this.title.set(this.capitalize(p.title) ?? '');
+            }
           } else {
             const parts = normalized.split('/').filter(Boolean);
             const last = parts.at(-1);
             this.title.set(last ? decodeURIComponent(last) : '');
           }
 
-          return this.http.get(`content${htmlUrl}`, { responseType: 'text' });
+          return this.contentRepository.fetch(htmlUrl);
         })
       )
       .subscribe({
@@ -62,5 +69,9 @@ export class ViewerComponent implements OnDestroy {
 
   ngOnDestroy() {
     this.sub.unsubscribe();
+  }
+
+  private capitalize(s: string) {
+    return s.charAt(0).toUpperCase() + s.slice(1);
   }
 }

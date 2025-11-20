@@ -50,6 +50,7 @@ export class ShellComponent implements OnInit {
   author = () => this.config.cfg()?.author ?? '';
   siteName = () => this.config.cfg()?.siteName ?? '';
   repo = () => this.config.cfg()?.repoUrl ?? '';
+  reportIssues = () => this.config.cfg()?.reportIssuesUrl ?? '';
 
   currentTitle = '';
 
@@ -59,7 +60,7 @@ export class ShellComponent implements OnInit {
   ngOnInit() {
     this.theme.init();
     this.config.ensure().then(() => {
-      this.catalog.ensureManifest?.().then(() => {
+      this.catalog.ensureManifest().then(() => {
         this.router.events
           .pipe(
             filter((e) => e instanceof NavigationEnd),

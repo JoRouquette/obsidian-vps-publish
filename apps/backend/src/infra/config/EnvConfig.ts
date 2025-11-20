@@ -44,4 +44,20 @@ export class EnvConfig {
     }
     return 'info';
   }
+
+  static siteName(): string {
+    return this.norm(process.env.SITE_NAME) || "Scribe d'Ektaron";
+  }
+
+  static author(): string {
+    return this.norm(process.env.AUTHOR) || 'Author Name';
+  }
+
+  static repoUrl(): string {
+    return this.norm(process.env.REPO_URL) || '';
+  }
+
+  static reportIssuesUrl(): string {
+    return this.norm(process.env.REPORT_ISSUES_URL) || '';
+  }
 }

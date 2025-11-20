@@ -246,7 +246,6 @@ PORT=3000
 API_KEY=dev-key-local
 CONTENT_ROOT=./content
 UI_ROOT=/ui
-API_PREFIX=/api
 NODE_ENV=development
 ```
 
@@ -324,7 +323,6 @@ docker run -d --name scribe-ektaron \
   -e API_KEY=change-me \
   -e CONTENT_ROOT=/content \
   -e UI_ROOT=/ui \
-  -e API_PREFIX=/api \
   -v $(pwd)/content:/content \
   scribe-ektaron:latest
 ```

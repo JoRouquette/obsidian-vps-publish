@@ -8,7 +8,7 @@ export class HttpConfigRepository implements ConfigRepository {
   private cache$;
 
   constructor(private http: HttpClient) {
-    this.cache$ = this.http.get<PublicConfig>('/api/public-config').pipe(shareReplay(1));
+    this.cache$ = this.http.get<PublicConfig>('/public-config').pipe(shareReplay(1));
   }
 
   load(): Promise<PublicConfig> {

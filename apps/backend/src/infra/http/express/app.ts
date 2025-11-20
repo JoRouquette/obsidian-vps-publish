@@ -51,7 +51,6 @@ export function createApp(rootLogger?: LoggerPort) {
   );
 
   const assetStorage = new AssetsFileSystemStorage(EnvConfig.assetsRoot(), rootLogger);
-
   const uploadAssetUseCase = new UploadAssetUseCase(assetStorage, rootLogger);
 
   // API routes (protégées par API key)
@@ -71,15 +70,23 @@ export function createApp(rootLogger?: LoggerPort) {
 
   // Log each incoming request
   app.use((req, res, next) => {
-    rootLogger?.info('Incoming request', {
-      method: req.method,
-      url: req.originalUrl,
-      ip: req.ip,
-    });
+    rootLogger?.info(
+      `Incoming request received method: ${req.method}, url: ${req.originalUrl}, ip: ${req.ip}`
+    );
     next();
   });
 
   app.use(createHealthCheckController());
+
+  app.get('/public-config', (req, res) => {
+    rootLogger?.info('Serving public config');
+    res.json({
+      siteName: EnvConfig.siteName(),
+      author: EnvConfig.author(),
+      repoUrl: EnvConfig.repoUrl(),
+      reportIssuesUrl: EnvConfig.reportIssuesUrl(),
+    });
+  });
 
   app.get('*', (req, res) => {
     rootLogger?.info('Serving Angular index.html for unmatched route', {

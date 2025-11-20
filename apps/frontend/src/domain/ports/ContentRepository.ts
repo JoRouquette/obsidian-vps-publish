@@ -1,3 +1,3 @@
-export interface HtmlGateway {
+export interface ContentRepository {
   fetch(path: string): Promise<string>;
 }

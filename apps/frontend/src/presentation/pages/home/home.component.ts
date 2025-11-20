@@ -10,11 +10,11 @@ import { MatListModule } from '@angular/material/list';
 import { MatButtonModule } from '@angular/material/button';
 
 import { CatalogFacade } from '../../../application/facades/CatalogFacade';
+import { Page } from '../../../domain/models/Page';
 
 type Section = {
   key: string;
   title: string;
-  description?: string;
   count: number;
   link: { segments: any[]; disabled?: boolean };
 };
@@ -35,39 +35,49 @@ type Section = {
   styleUrls: [`./home.component.scss`],
 })
 export class HomeComponent {
-  constructor(public facade: CatalogFacade) {
-    this.facade.ensureManifest();
+  constructor(public catalog: CatalogFacade) {
+    this.catalog.ensureManifest();
   }
+
   onQueryInput(event: Event) {
     const value = (event.target as HTMLInputElement).value;
-    this.facade.query.set(value);
+    this.catalog.query.set(value);
   }
 
   sections = computed<Section[]>(() => {
-    const m = this.facade.manifest();
-    const pages = m?.pages ?? [];
-    if (pages.length === 0) return [];
+    const manifest = this.catalog.manifest();
+    const pages = manifest?.pages ?? [];
 
-    const groups = new Map<string, { landing?: any; children: any[] }>();
+    if (pages.length === 0) {
+      return [];
+    }
 
-    for (const p of pages as any[]) {
+    const groups = new Map<string, { landing?: Page | undefined; children: Page[] }>();
+
+    for (const p of pages as Page[]) {
       const route: string = p.route ?? '';
       const clean = route.replace(/^\/+|\/+$/g, '');
       const [key, ...rest] = clean.split('/');
       if (!key) continue;
 
-      if (!groups.has(key)) groups.set(key, { landing: undefined, children: [] });
+      if (!groups.has(key)) {
+        groups.set(key, { landing: undefined, children: [] });
+      }
+
       const g = groups.get(key)!;
 
-      if (rest.length === 0) g.landing = p;
-      else g.children.push(p);
+      if (rest.length === 0) {
+        g.landing = p;
+      } else {
+        g.children.push(p);
+      }
     }
 
     const list: Section[] = [];
+
     for (const [key, g] of groups.entries()) {
       const landing = g.landing;
-      const title = (landing?.title as string) ?? capitalize(key);
-      const description = (landing?.description as string) || undefined;
+      const title = capitalize(landing?.title ?? key);
 
       let link: Section['link'] = { segments: [], disabled: true };
       if (landing?.route) {
@@ -79,7 +89,6 @@ export class HomeComponent {
       list.push({
         key,
         title,
-        description,
         count: (g.children?.length ?? 0) + (landing ? 1 : 0),
         link,
       });

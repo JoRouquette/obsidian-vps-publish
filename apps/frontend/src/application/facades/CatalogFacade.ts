@@ -1,8 +1,8 @@
 import { computed, Inject, Injectable, signal } from '@angular/core';
 import { Manifest } from '../../domain/models/Manifest';
-import { HtmlGateway } from '../../domain/ports/HtmlGateway';
+import { ContentRepository } from '../../domain/ports/ContentRepository';
 import { ManifestRepository } from '../../domain/ports/ManifestRepository';
-import { HTML_GATEWAY, MANIFEST_REPOSITORY } from '../../domain/ports/tokens';
+import { CONTENT_REPOSITORY, MANIFEST_REPOSITORY } from '../../domain/ports/tokens';
 import { FindPageUseCase } from '../usecases/FindPage.usecase';
 import { LoadManifestUseCase } from '../usecases/LoadManifest.usecase';
 import { SearchPagesUseCase } from '../usecases/SearchPages.usecase';
@@ -15,14 +15,14 @@ export class CatalogFacade {
 
   constructor(
     @Inject(MANIFEST_REPOSITORY) private readonly manifestRepo: ManifestRepository,
-    @Inject(HTML_GATEWAY) private readonly html: HtmlGateway
+    @Inject(CONTENT_REPOSITORY) private readonly html: ContentRepository
   ) {
     this.loadManifest = new LoadManifestUseCase(this.manifestRepo);
     this.searchUc = new SearchPagesUseCase();
     this.findUc = new FindPageUseCase();
   }
 
-  manifest = signal<Manifest | null>(null);
+  manifest = signal<Manifest>({ pages: [] });
   query = signal('');
   loading = signal(false);
   error = signal<string | null>(null);
@@ -55,7 +55,7 @@ export class CatalogFacade {
     if (!m) return null;
     const page = this.findUc.exec(m, slugOrRoute);
     if (!page) return null;
-    const raw = await this.html.fetch(page.filePath);
+    const raw = await this.html.fetch(page.relativePath);
     return { title: page.title, html: raw };
   }
 }

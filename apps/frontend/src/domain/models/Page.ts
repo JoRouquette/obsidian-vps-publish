@@ -1,10 +1,11 @@
 import { Slug } from '../value-objects/Slug';
 
 export interface Page {
+  id: string;
   route: string;
   title: string;
   tags: string[];
-  filePath: string;
+  relativePath: string;
   slug: Slug;
-  updatedAt?: Date;
+  publishedAt?: Date;
 }

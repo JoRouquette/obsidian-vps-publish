@@ -12,13 +12,13 @@
           id="q"
           type="search"
           placeholder="Rechercher…"
-          [value]="facade.query()"
+          [value]="catalog.query()"
           (input)="onQueryInput($event)"
           autocomplete="off"
           spellcheck="false"
           aria-label="Rechercher"
         />
-        @if (facade.loading()) {
+        @if (catalog.loading()) {
         <mat-icon matSuffix class="spin">hourglass_empty</mat-icon>
         }
       </mat-form-field>
