@@ -1,8 +1,8 @@
-import type { Note } from '../../../domain/entities/Note';
 import { ContentStoragePort } from '../ports/ContentStoragePort';
 import { LoggerPort } from '../../ports/LoggerPort';
 import type { MarkdownRendererPort } from '../../ports/MarkdownRendererPort';
 import type { Manifest, ManifestPage, NotesIndexPort } from '../ports/NotesIndexPort';
+import { PublishableNote } from '../../../domain/entities/Note';
 
 export interface PublishNotesOutput {
   published: number;
@@ -19,36 +19,36 @@ export class UploadNotesHandler {
     logger = logger?.child({ handler: 'UploadNotesHandler' });
   }
 
-  async execute(notes: Note[]): Promise<PublishNotesOutput> {
+  async handle(notes: PublishableNote[]): Promise<PublishNotesOutput> {
     const logger = this.logger?.child({ method: 'execute' });
 
     let published = 0;
     const errors: { noteId: string; message: string }[] = [];
-    const succeeded: Note[] = [];
+    const succeeded: PublishableNote[] = [];
 
     logger?.info(`Starting publishing of ${notes.length} notes`);
 
     for (const note of notes) {
-      const noteLogger = logger?.child({ noteId: note.id, slug: note.slug });
+      const noteLogger = logger?.child({ noteId: note.noteId, slug: note.routing?.slug });
       try {
         noteLogger?.debug('Rendering markdown');
-        const bodyHtml = await this.markdownRenderer.render(note.markdown);
+        const bodyHtml = await this.markdownRenderer.render(note.content);
         noteLogger?.debug('Building HTML page');
         const fullHtml = this.buildHtmlPage(note, bodyHtml);
 
-        noteLogger?.debug('Saving content to storage', { route: note.route });
+        noteLogger?.debug('Saving content to storage', { route: note.routing?.routeBase });
         await this.contentStorage.save({
-          route: note.route,
+          route: note.routing.fullPath,
           content: fullHtml,
-          slug: note.slug,
+          slug: note.routing.slug,
         });
 
         published++;
         succeeded.push(note);
-        noteLogger?.info('Note published successfully', { route: note.route });
+        noteLogger?.info('Note published successfully', { route: note.routing?.routeBase });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
-        errors.push({ noteId: note.id, message });
+        errors.push({ noteId: note.noteId, message });
         noteLogger?.error('Failed to publish note', { error: message });
       }
     }
@@ -57,10 +57,10 @@ export class UploadNotesHandler {
       logger?.info(`Updating site manifest and indexes for ${succeeded.length} published notes`);
       const pages: ManifestPage[] = succeeded.map((n) => {
         return {
-          id: n.id,
+          id: n.noteId,
           title: n.title,
-          route: n.route,
-          slug: n.slug,
+          route: n.routing.fullPath,
+          slug: n.routing.slug,
           vaultPath: n.vaultPath,
           relativePath: n.relativePath,
           publishedAt: n.publishedAt,
@@ -83,7 +83,7 @@ export class UploadNotesHandler {
     return { published, errors };
   }
 
-  private buildHtmlPage(note: Note, bodyHtml: string): string {
+  private buildHtmlPage(note: PublishableNote, bodyHtml: string): string {
     return `
   <div class="markdown-body">
     ${bodyHtml}

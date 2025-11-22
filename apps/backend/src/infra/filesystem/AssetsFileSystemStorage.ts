@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { resolveWithinRoot } from '../utils/pathUtils';
-import { AssetStoragePort } from '../../application/publishing/ports/AssetStoragePort';
+import { AssetStoragePort } from '../../application/publishing/ports/AssetsStoragePort';
 import { LoggerPort } from '../../application/ports/LoggerPort';
 
 export class AssetsFileSystemStorage implements AssetStoragePort {

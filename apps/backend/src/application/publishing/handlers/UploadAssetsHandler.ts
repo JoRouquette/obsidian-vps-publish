@@ -1,8 +1,11 @@
-import { Asset } from '../../../domain/entities/Asset';
-import { AssetStoragePort } from '../ports/AssetStoragePort';
+import { AssetStoragePort } from '../ports/AssetsStoragePort';
 import { LoggerPort } from '../../ports/LoggerPort';
+import { UploadAssetsCommand, UploadAssetsResult } from '../commands/UploadAssetsCommand';
+import { CommandHandler } from '../../common/CommandHandler';
 
-export class UploadAssetsHandler {
+export class UploadAssetsHandler
+  implements CommandHandler<UploadAssetsCommand, UploadAssetsResult>
+{
   private readonly _logger;
 
   constructor(
@@ -15,5 +18,10 @@ export class UploadAssetsHandler {
     this._logger?.debug('UploadAssetHandler initialized.');
   }
 
-  async execute(): Promise<void> {}
+  async handle(command: UploadAssetsCommand): Promise<UploadAssetsResult> {
+    return {
+      sessionId: command.sessionId,
+      published: 0,
+    };
+  }
 }
