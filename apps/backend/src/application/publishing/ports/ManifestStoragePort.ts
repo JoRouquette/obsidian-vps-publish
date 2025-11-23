@@ -5,6 +5,11 @@ import { Manifest } from '../../../domain/entities/Manifest';
  */
 export interface ManifestPort {
   /**
+   * Charge le manifest s'il existe, ou null sinon.
+   */
+  load(): Promise<Manifest | null>;
+
+  /**
    * Sauvegarde le manifest du site.
    * @param manifest Le manifest à sauvegarder.
    */

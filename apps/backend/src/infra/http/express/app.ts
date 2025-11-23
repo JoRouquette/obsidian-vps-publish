@@ -49,14 +49,14 @@ export function createApp(rootLogger?: LoggerPort) {
 
   const markdownRenderer = new MarkdownItRenderer();
   const noteStorage = new NotesFileSystemStorage(EnvConfig.contentRoot(), rootLogger);
-  const noteFileSystem = new ManifestFileSystem(EnvConfig.contentRoot(), rootLogger);
+  const manifestFileSystem = new ManifestFileSystem(EnvConfig.contentRoot(), rootLogger);
   const assetStorage = new AssetsFileSystemStorage(EnvConfig.assetsRoot(), rootLogger);
   const sessionRepository = new FileSystemSessionRepository(EnvConfig.contentRoot());
   const idGenerator = new UuidIdGenerator();
   const uploadNotesHandler = new UploadNotesHandler(
     markdownRenderer,
     noteStorage,
-    noteFileSystem,
+    manifestFileSystem,
     rootLogger
   );
   const uploadAssetsHandler = new UploadAssetsHandler(assetStorage, rootLogger);

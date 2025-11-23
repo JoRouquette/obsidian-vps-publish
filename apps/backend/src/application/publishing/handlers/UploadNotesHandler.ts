@@ -5,24 +5,29 @@ import type { ManifestPort } from '../ports/ManifestStoragePort';
 import { PublishableNote } from '../../../domain/entities/Note';
 import { ManifestPage } from '../../../domain/entities/ManifestPage';
 import { Manifest } from '../../../domain/entities/Manifest';
+import { CommandHandler } from '../../common/CommandHandler';
+import { UploadNotesCommand, UploadNotesResult } from '../commands/UploadNotesCommand';
 
 export interface PublishNotesOutput {
   published: number;
   errors: { noteId: string; message: string }[];
 }
 
-export class UploadNotesHandler {
+export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, UploadNotesResult> {
+  private readonly logger?: LoggerPort;
+
   constructor(
     private readonly markdownRenderer: MarkdownRendererPort,
     private readonly contentStorage: ContentStoragePort,
-    private readonly notesIndex: ManifestPort,
-    private readonly logger?: LoggerPort
+    private readonly manifestStorage: ManifestPort,
+    logger?: LoggerPort
   ) {
-    logger = logger?.child({ handler: 'UploadNotesHandler' });
+    this.logger = logger?.child({ handler: 'UploadNotesHandler' });
   }
 
-  async handle(notes: PublishableNote[]): Promise<PublishNotesOutput> {
-    const logger = this.logger?.child({ method: 'execute' });
+  async handle(command: UploadNotesCommand): Promise<UploadNotesResult> {
+    const { sessionId, notes } = command;
+    const logger = this.logger?.child({ method: 'handle', sessionId });
 
     let published = 0;
     const errors: { noteId: string; message: string }[] = [];
@@ -56,25 +61,24 @@ export class UploadNotesHandler {
     }
 
     if (succeeded.length > 0) {
-      logger?.info(`Updating site manifest and indexes for ${succeeded.length} published notes`);
-      const pages: ManifestPage[] = succeeded.map((n) => {
-        return {
-          id: n.noteId,
-          title: n.title,
-          route: n.routing.fullPath,
-          slug: n.routing.slug,
-          vaultPath: n.vaultPath,
-          relativePath: n.relativePath,
-          publishedAt: n.publishedAt,
-        };
-      });
-      pages.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
-      logger?.debug('Manifest pages ', { manifestPages: pages });
+      const pages: ManifestPage[] = succeeded.map((n) => ({
+        id: n.noteId,
+        title: n.title,
+        route: n.routing.fullPath,
+        slug: n.routing.slug,
+        publishedAt: n.publishedAt,
+        vaultPath: n.vaultPath,
+        relativePath: n.relativePath,
+        tags: n.frontmatter?.tags ?? [],
+      }));
 
-      // const manifest: Manifest = { pages };
-      // await this.notesIndex.save(manifest);
-      // await this.notesIndex.rebuildIndex(manifest);
-      // logger?.info('Site manifest and indexes updated');
+      pages.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+      logger?.debug('Session manifest pages for batch', {
+        sessionId,
+        manifestPages: pages.map((p) => ({ id: p.id, route: p.route })),
+      });
+
+      await this.updateManifestForSession(sessionId, pages, logger);
     }
 
     logger?.info(`Publishing complete: ${published} notes published, ${errors.length} errors`);
@@ -82,7 +86,54 @@ export class UploadNotesHandler {
       logger?.warn('Some notes failed to publish', { errors });
     }
 
-    return { published, errors };
+    return { sessionId, published, errors };
+  }
+
+  private async updateManifestForSession(
+    sessionId: string,
+    newPages: ManifestPage[],
+    logger?: LoggerPort
+  ): Promise<void> {
+    const existing = await this.manifestStorage.load();
+    const now = new Date();
+
+    let manifest: Manifest;
+
+    // Si pas de manifest ou manifest lié à une autre session → on repars de zéro
+    if (!existing || existing.sessionId !== sessionId) {
+      logger?.info('Starting new manifest for session', { sessionId });
+      manifest = {
+        sessionId,
+        createdAt: now,
+        lastUpdatedAt: now,
+        pages: [],
+      };
+    } else {
+      manifest = {
+        ...existing,
+        lastUpdatedAt: now,
+      };
+    }
+
+    // Merge : dernière version d'une note gagne
+    const byId = new Map<string, ManifestPage>();
+    for (const p of manifest.pages) {
+      byId.set(p.id, p);
+    }
+    for (const p of newPages) {
+      byId.set(p.id, p);
+    }
+
+    manifest.pages = Array.from(byId.values()).sort(
+      (a, b) => b.publishedAt.getTime() - a.publishedAt.getTime()
+    );
+
+    await this.manifestStorage.save(manifest);
+    await this.manifestStorage.rebuildIndex(manifest);
+    logger?.info('Site manifest and indexes updated', {
+      sessionId,
+      pageCount: manifest.pages.length,
+    });
   }
 
   private buildHtmlPage(note: PublishableNote, bodyHtml: string): string {

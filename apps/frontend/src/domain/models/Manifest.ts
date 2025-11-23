@@ -2,7 +2,7 @@ import { Page } from './Page';
 
 export interface Manifest {
   sessionId: string;
-  publishedAt: string;
-  lastModifiedAt: string;
+  createdAt: string;
+  lastUpdatedAt: string;
   pages: Page[];
 }

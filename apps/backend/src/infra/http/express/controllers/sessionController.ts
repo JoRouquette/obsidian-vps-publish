@@ -19,6 +19,7 @@ import { CreateSessionBodyDto } from '../dto/CreateSessionBodyDto';
 import { UploadSessionNotesBodyDto } from '../dto/UploadSessionNotesBodyDto';
 import { FinishSessionBodyDto } from '../dto/FinishSessionBodyDto';
 import { BYTES_LIMIT } from '../app';
+import { UploadNotesCommand } from '../../../../application/publishing/commands/UploadNotesCommand';
 
 export function createSessionController(
   createSessionHandler: CreateSessionHandler,
@@ -76,19 +77,27 @@ export function createSessionController(
 
     const { notes } = parsed.data;
 
-    try {
-      routeLogger?.info('Publishing notes batch', { count: notes.length });
+    const command: UploadNotesCommand = {
+      sessionId: req.params.sessionId,
+      notes,
+    };
 
-      const result = await notePublicationHandler.handle(notes);
+    try {
+      routeLogger?.info('Publishing notes batch', {
+        sessionId: command.sessionId,
+        count: command.notes.length,
+      });
+
+      const result = await notePublicationHandler.handle(command);
 
       routeLogger?.info('Notes published for session', {
-        sessionId: req.params.sessionId,
+        sessionId: result.sessionId,
         published: result.published,
-        errorsCount: result.errors.length,
+        errorsCount: result.errors?.length,
       });
 
       return res.status(200).json({
-        sessionId: req.params.sessionId,
+        sessionId: result.sessionId,
         publishedCount: result.published,
         errors: result.errors,
       });

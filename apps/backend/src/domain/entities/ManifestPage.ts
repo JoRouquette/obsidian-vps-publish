@@ -5,4 +5,8 @@ export interface ManifestPage {
   route: string;
   description?: string;
   publishedAt: Date;
+
+  vaultPath?: string;
+  relativePath?: string;
+  tags?: string[];
 }

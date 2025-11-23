@@ -16,10 +16,57 @@ export class ManifestFileSystem implements ManifestPort {
     return path.join(this.contentRoot, '_manifest.json');
   }
 
+  async load(): Promise<Manifest | null> {
+    try {
+      const raw = await fs.readFile(this.manifestPath(), 'utf8');
+      const parsed = JSON.parse(raw) as any;
+
+      const pages: ManifestPage[] = Array.isArray(parsed.pages)
+        ? parsed.pages.map((p: any) => ({
+            ...p,
+            publishedAt: new Date(p.publishedAt),
+          }))
+        : [];
+
+      const manifest: Manifest = {
+        sessionId: parsed.sessionId,
+        createdAt: new Date(parsed.createdAt),
+        lastUpdatedAt: new Date(parsed.lastUpdatedAt),
+        pages,
+      };
+
+      this._logger?.debug('Manifest loaded', {
+        path: this.manifestPath(),
+        pages: manifest.pages.length,
+      });
+
+      return manifest;
+    } catch (error: any) {
+      if (error && error.code === 'ENOENT') {
+        this._logger?.debug('No existing manifest found', { path: this.manifestPath() });
+        return null;
+      }
+
+      this._logger?.error('Failed to load manifest', { path: this.manifestPath(), error });
+      throw error;
+    }
+  }
+
   async save(manifest: Manifest): Promise<void> {
     try {
       await fs.mkdir(this.contentRoot, { recursive: true });
-      await fs.writeFile(this.manifestPath(), JSON.stringify(manifest, null, 2), 'utf8');
+
+      const serializable = {
+        ...manifest,
+        createdAt: manifest.createdAt.toISOString(),
+        lastUpdatedAt: manifest.lastUpdatedAt.toISOString(),
+        pages: manifest.pages.map((p) => ({
+          ...p,
+          publishedAt: p.publishedAt.toISOString(),
+        })),
+      };
+
+      await fs.writeFile(this.manifestPath(), JSON.stringify(serializable, null, 2), 'utf8');
       this._logger?.info('Manifest saved', { path: this.manifestPath() });
     } catch (error) {
       this._logger?.error('Failed to save manifest', { error });

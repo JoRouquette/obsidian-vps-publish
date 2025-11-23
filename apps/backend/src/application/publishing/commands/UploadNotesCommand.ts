@@ -1,6 +1,8 @@
+import { PublishableNote } from '../../../domain/entities/Note';
+
 export interface UploadNotesCommand {
   sessionId: string;
-  files: Array<{ path: string; content: Buffer }>;
+  notes: PublishableNote[];
 }
 
 export interface UploadNotesResult {
