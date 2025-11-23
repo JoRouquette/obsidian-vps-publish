@@ -1,0 +1,32 @@
+{
+  "name": "core-domain",
+  "sourceRoot": "libs/core-domain/src",
+  "projectType": "library",
+  "tags": ["layer:domain"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{workspaceRoot}/dist/libs/core-domain"],
+      "options": {
+        "outputPath": "dist/libs/core-domain",
+        "main": "libs/core-domain/src/index.ts",
+        "tsConfig": "libs/core-domain/tsconfig.lib.json"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/core-domain"],
+      "options": {
+        "jestConfig": "libs/core-domain/jest.config.cts",
+        "passWithNoTests": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{workspaceRoot}/coverage/libs/core-domain"],
+      "options": {
+        "lintFilePatterns": ["libs/core-domain/**/*.ts"]
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "../../dist/libs/core-application",
+    "declaration": true,
+    "types": ["node", "jest"],
+    "paths": {
+      "@core-domain": ["dist/libs/core-domain/src/index.d.ts"],
+      "@core-application": ["libs/core-application/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["jest.config.ts", "**/*.spec.ts", "**/*.test.ts"]
+}

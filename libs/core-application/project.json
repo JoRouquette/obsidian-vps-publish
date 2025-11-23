@@ -1,0 +1,33 @@
+{
+  "name": "core-application",
+  "sourceRoot": "libs/core-application/src",
+  "projectType": "library",
+  "tags": ["layer:application"],
+  "implicitDependencies": ["core-domain"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{workspaceRoot}/dist/libs/core-application"],
+      "options": {
+        "tsConfig": "libs/core-application/tsconfig.lib.json",
+        "main": "libs/core-application/src/index.ts",
+        "outputPath": "dist/libs/core-application"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/core-application"],
+      "options": {
+        "jestConfig": "libs/core-application/jest.config.cts",
+        "passWithNoTests": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{workspaceRoot}/coverage/libs/core-application"],
+      "options": {
+        "lintFilePatterns": ["libs/core-application/**/*.ts"]
+      }
+    }
+  }
+}
