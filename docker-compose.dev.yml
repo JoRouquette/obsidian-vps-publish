@@ -9,9 +9,9 @@ services:
     env_file:
       - .env.dev
 
-    environment:
-      NODE_ENV: 'development'
-      LOGGER_LEVEL: 'debug'
-      ALLOWED_ORIGINS: '*,app://obsidian'
-      AUTHOR_NAME: 'Jonathan Rouquette'
-      REPO_URL: 'https://github.com/JoRouquette/scribe-ektaron'
+    # environment:
+    #   NODE_ENV: 'development'
+    #   LOGGER_LEVEL: 'debug'
+    #   ALLOWED_ORIGINS: '*,app://obsidian'
+    #   AUTHOR_NAME: 'Jonathan Rouquette'
+    #   REPO_URL: 'https://github.com/JoRouquette/scribe-ektaron'
