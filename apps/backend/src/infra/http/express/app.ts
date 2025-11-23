@@ -4,17 +4,25 @@ import path from 'node:path';
 import { LoggerPort } from '../../../application/ports/LoggerPort';
 
 // Adapters / services
-import { AssetsFileSystemStorage } from '../../filesystem/AssetsFileSystemStorage';
-import { NotesFileSystemStorage } from '../../filesystem/NotesFileSystemStorage';
-import { NotesFileSystem } from '../../filesystem/NotesFileSystem';
-import { MarkdownItRenderer } from '../../markdown/MarkdownItRenderer';
+import { UploadAssetsHandler } from '../../../application/publishing/handlers/UploadAssetsHandler';
+import { UploadNotesHandler } from '../../../application/publishing/handlers/UploadNotesHandler';
+import { AbortSessionHandler } from '../../../application/sessions/handlers/AbortSessionHandler';
+import { CreateSessionHandler } from '../../../application/sessions/handlers/CreateSessionHandler';
+import { FinishSessionHandler } from '../../../application/sessions/handlers/FinishSessionHandler';
 import { EnvConfig } from '../../config/EnvConfig';
+import { AssetsFileSystemStorage } from '../../filesystem/AssetsFileSystemStorage';
+import { FileSystemSessionRepository } from '../../filesystem/FileSystemSessionRepository';
+import { ManifestFileSystem } from '../../filesystem/ManifestFileSystem';
+import { NotesFileSystemStorage } from '../../filesystem/NotesFileSystemStorage';
+import { UuidIdGenerator } from '../../id/UuidIdGenerator';
+import { MarkdownItRenderer } from '../../markdown/MarkdownItRenderer';
+
+import { createHealthCheckController } from './controllers/HealthCheckController';
+import { createPingController } from './controllers/PingController';
+import { createSessionController } from './controllers/SessionController';
 
 import { createApiKeyAuthMiddleware } from './middleware/apiKeyAuthMiddleware';
 import { createCorsMiddleware } from './middleware/corsMiddleware';
-import { createHealthCheckController } from './controllers/healthCheckController';
-import { createPingController } from './controllers/pingController';
-import { createSessionController } from './controllers/sessionController';
 
 export const BYTES_LIMIT = '10mb';
 
@@ -41,9 +49,20 @@ export function createApp(rootLogger?: LoggerPort) {
 
   const markdownRenderer = new MarkdownItRenderer();
   const noteStorage = new NotesFileSystemStorage(EnvConfig.contentRoot(), rootLogger);
-  const noteFileSystem = new NotesFileSystem(EnvConfig.contentRoot(), rootLogger);
-
+  const noteFileSystem = new ManifestFileSystem(EnvConfig.contentRoot(), rootLogger);
   const assetStorage = new AssetsFileSystemStorage(EnvConfig.assetsRoot(), rootLogger);
+  const sessionRepository = new FileSystemSessionRepository(EnvConfig.contentRoot());
+  const idGenerator = new UuidIdGenerator();
+  const uploadNotesHandler = new UploadNotesHandler(
+    markdownRenderer,
+    noteStorage,
+    noteFileSystem,
+    rootLogger
+  );
+  const uploadAssetsHandler = new UploadAssetsHandler(assetStorage, rootLogger);
+  const createSessionHandler = new CreateSessionHandler(idGenerator, sessionRepository, rootLogger);
+  const finishSessionHandler = new FinishSessionHandler(sessionRepository, rootLogger);
+  const abortSessionHandler = new AbortSessionHandler(sessionRepository, rootLogger);
 
   // API routes (protégées par API key)
   const apiRouter = express.Router();
@@ -51,11 +70,20 @@ export function createApp(rootLogger?: LoggerPort) {
 
   apiRouter.use(createPingController(rootLogger));
 
-  //apiRouter.use(createSessionController());
+  apiRouter.use(
+    createSessionController(
+      createSessionHandler,
+      finishSessionHandler,
+      abortSessionHandler,
+      uploadNotesHandler,
+      uploadAssetsHandler,
+      rootLogger
+    )
+  );
 
   app.use('/api', apiRouter);
 
-  const ANGULAR_DIST = path.resolve(EnvConfig.uiRoot());
+  const ANGULAR_DIST = EnvConfig.uiRoot();
   app.use(express.static(ANGULAR_DIST));
 
   // Log each incoming request

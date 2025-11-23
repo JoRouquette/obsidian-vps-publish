@@ -1,7 +1,9 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+
 import { LoggerPort } from '../../application/ports/LoggerPort';
 import { ContentStoragePort } from '../../application/publishing/ports/ContentStoragePort';
+import { resolveWithinRoot } from '../utils/pathUtils';
 
 export class NotesFileSystemStorage implements ContentStoragePort {
   constructor(
@@ -10,25 +12,21 @@ export class NotesFileSystemStorage implements ContentStoragePort {
   ) {}
 
   async save(params: { route: string; content: string; slug?: string }): Promise<void> {
-    const normalizedRoute = this.normalizeRoute(params.route);
-
-    const segs = normalizedRoute.replace(/^\/+/, '').split('/').filter(Boolean);
+    const cleanedRoute = path.posix.normalize('/' + (params.route || '').trim());
+    const segs = cleanedRoute.replace(/^\/+/, '').split('/').filter(Boolean);
 
     try {
+      let filePath: string;
       if (segs.length === 0) {
-        const filePath = path.join(this.rootDir, `${params.slug}.html`);
+        filePath = resolveWithinRoot(this.rootDir, `${params.slug}.html`);
         await fs.mkdir(this.rootDir, { recursive: true });
-        await fs.writeFile(filePath, params.content, 'utf8');
-        this.logger?.info('Saved HTML to root index.html', { filePath, route: params.route });
-        return;
+      } else {
+        const fileSlug = params.slug;
+        const fileSegments = [...segs.slice(0, -1), `${fileSlug}.html`];
+        filePath = resolveWithinRoot(this.rootDir, ...fileSegments);
+        const dir = resolveWithinRoot(this.rootDir, ...fileSegments.slice(0, -1));
+        await fs.mkdir(dir, { recursive: true });
       }
-
-      const fileSlug = params.slug;
-      const fileSegments = [...segs.slice(0, -1), `${fileSlug}.html`];
-      const filePath = path.join(this.rootDir, ...fileSegments);
-
-      const dir = path.dirname(filePath);
-      await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(filePath, params.content, 'utf8');
       this.logger?.info('Saved HTML to file', { filePath, route: params.route, slug: params.slug });
     } catch (error) {
@@ -39,12 +37,5 @@ export class NotesFileSystemStorage implements ContentStoragePort {
       });
       throw error;
     }
-  }
-
-  private normalizeRoute(route: string): string {
-    let r = route.trim();
-    if (!r.startsWith('/')) r = '/' + r;
-    if (r.length > 1) r = r.replace(/\/+$/, '');
-    return r;
   }
 }

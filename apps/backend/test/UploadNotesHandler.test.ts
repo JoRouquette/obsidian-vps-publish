@@ -6,10 +6,10 @@ import {
 import type { Note } from '../src/domain/entities/Note';
 import type { ContentStoragePort } from '../src/application/publishing/ports/ContentStoragePort';
 import type {
-  NotesIndexPort,
+  ManifestPort,
   Manifest,
   ManifestPage,
-} from '../src/application/publishing/ports/NotesIndexPort';
+} from '../src/application/publishing/ports/ManifestStoragePort';
 import type { LoggerPort } from '../src/application/ports/LoggerPort';
 import { MarkdownRendererPort } from '../src/application/ports/MarkdownRendererPort';
 
@@ -31,7 +31,7 @@ function createNote(overrides: Partial<Note> = {}): Note {
 describe('UploadNotesHandler', () => {
   let markdownRenderer: MarkdownRendererPort;
   let contentStorage: ContentStoragePort;
-  let notesIndex: NotesIndexPort;
+  let notesIndex: ManifestPort;
   let logger: LoggerPort;
 
   beforeEach(() => {

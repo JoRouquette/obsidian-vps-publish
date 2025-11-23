@@ -1,4 +1,4 @@
-import { ManifestPage } from '../../application/publishing/ports/NotesIndexPort';
+import { ManifestPage } from '../../domain/entities/ManifestPage';
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);

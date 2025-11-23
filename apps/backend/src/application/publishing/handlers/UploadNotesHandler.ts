@@ -1,8 +1,10 @@
 import { ContentStoragePort } from '../ports/ContentStoragePort';
 import { LoggerPort } from '../../ports/LoggerPort';
 import type { MarkdownRendererPort } from '../../ports/MarkdownRendererPort';
-import type { Manifest, ManifestPage, NotesIndexPort } from '../ports/NotesIndexPort';
+import type { ManifestPort } from '../ports/ManifestStoragePort';
 import { PublishableNote } from '../../../domain/entities/Note';
+import { ManifestPage } from '../../../domain/entities/ManifestPage';
+import { Manifest } from '../../../domain/entities/Manifest';
 
 export interface PublishNotesOutput {
   published: number;
@@ -13,7 +15,7 @@ export class UploadNotesHandler {
   constructor(
     private readonly markdownRenderer: MarkdownRendererPort,
     private readonly contentStorage: ContentStoragePort,
-    private readonly notesIndex: NotesIndexPort,
+    private readonly notesIndex: ManifestPort,
     private readonly logger?: LoggerPort
   ) {
     logger = logger?.child({ handler: 'UploadNotesHandler' });
@@ -69,10 +71,10 @@ export class UploadNotesHandler {
       pages.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
       logger?.debug('Manifest pages ', { manifestPages: pages });
 
-      const manifest: Manifest = { pages };
-      await this.notesIndex.save(manifest);
-      await this.notesIndex.rebuildIndex(manifest);
-      logger?.info('Site manifest and indexes updated');
+      // const manifest: Manifest = { pages };
+      // await this.notesIndex.save(manifest);
+      // await this.notesIndex.rebuildIndex(manifest);
+      // logger?.info('Site manifest and indexes updated');
     }
 
     logger?.info(`Publishing complete: ${published} notes published, ${errors.length} errors`);

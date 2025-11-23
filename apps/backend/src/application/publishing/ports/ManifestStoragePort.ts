@@ -1,20 +1,9 @@
-export interface ManifestPage {
-  id: string;
-  title: string;
-  slug: string;
-  route: string;
-  description?: string;
-  publishedAt: Date;
-}
-
-export interface Manifest {
-  pages: ManifestPage[];
-}
+import { Manifest } from '../../../domain/entities/Manifest';
 
 /**
  * Gestion de l'indexation du site (manifest + index des dossiers).
  */
-export interface NotesIndexPort {
+export interface ManifestPort {
   /**
    * Sauvegarde le manifest du site.
    * @param manifest Le manifest à sauvegarder.

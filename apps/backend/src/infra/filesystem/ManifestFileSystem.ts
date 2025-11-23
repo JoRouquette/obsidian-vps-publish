@@ -1,16 +1,12 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import {
-  Manifest,
-  ManifestPage,
-  NotesIndexPort,
-} from '../../application/publishing/ports/NotesIndexPort';
+import { ManifestPort } from '../../application/publishing/ports/ManifestStoragePort';
 import { renderFolderIndex, renderRootIndex } from './SiteIndexTemplates';
 import { LoggerPort } from '../../application/ports/LoggerPort';
-import { title } from 'process';
-import { EnvConfig } from '../config/EnvConfig';
+import { Manifest } from '../../domain/entities/Manifest';
+import { ManifestPage } from '../../domain/entities/ManifestPage';
 
-export class NotesFileSystem implements NotesIndexPort {
+export class ManifestFileSystem implements ManifestPort {
   constructor(
     private readonly contentRoot: string,
     private readonly _logger?: LoggerPort
