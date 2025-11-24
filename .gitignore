@@ -16,7 +16,7 @@ apps/*/.env.*
 !apps/*/.env.example
 
 # Ignore build artifacts in the ui app
-**/coverage/**/*
+coverage/**/*
 **/content/**/*
 **/assets/**/*
 **/build/**/*
