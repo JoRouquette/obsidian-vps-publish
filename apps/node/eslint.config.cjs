@@ -21,6 +21,15 @@ module.exports = [
     linterOptions: {
       reportUnusedDisableDirectives: 'error',
     },
-    rules: {},
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: ['@angular/*'],
+        },
+      ],
+
+      'no-console': 'off',
+    },
   },
 ];
