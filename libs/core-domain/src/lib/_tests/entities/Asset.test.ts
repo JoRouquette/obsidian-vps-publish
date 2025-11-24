@@ -6,7 +6,7 @@ describe('Asset type', () => {
     vaultPath: '/vault/images/photo.jpg',
     fileName: 'photo.jpg',
     mimeType: 'image/jpeg',
-    contentBase64: 'aGVsbG8gd29ybGQ=', // "hello world" in base64
+    contentBase64: 'aGVsbG8gd29ybGQ=',
   };
 
   it('should have all required properties', () => {

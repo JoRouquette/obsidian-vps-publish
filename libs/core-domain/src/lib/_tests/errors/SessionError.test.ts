@@ -1,58 +1,59 @@
-import { Session, SessionStatus } from '../../entities/Session';
+import {
+  SessionError,
+  SessionNotFoundError,
+  SessionExpiredError,
+  SessionInvalidError,
+} from '../../errors/SessionError';
 
-describe('Session Entity', () => {
-  const baseSession: Session = {
-    id: 'session-123',
-    notesPlanned: 10,
-    assetsPlanned: 5,
-    notesProcessed: 0,
-    assetsProcessed: 0,
-    status: 'pending',
-    createdAt: new Date('2024-01-01T00:00:00Z'),
-    updatedAt: new Date('2024-01-01T00:00:00Z'),
-  };
-
-  it('should have all required properties', () => {
-    expect(baseSession).toHaveProperty('id');
-    expect(baseSession).toHaveProperty('notesPlanned');
-    expect(baseSession).toHaveProperty('assetsPlanned');
-    expect(baseSession).toHaveProperty('notesProcessed');
-    expect(baseSession).toHaveProperty('assetsProcessed');
-    expect(baseSession).toHaveProperty('status');
-    expect(baseSession).toHaveProperty('createdAt');
-    expect(baseSession).toHaveProperty('updatedAt');
+describe('SessionError', () => {
+  it('should set name and message', () => {
+    const err = new SessionError('Test message');
+    expect(err).toBeInstanceOf(Error);
+    expect(err.name).toBe('SessionError');
+    expect(err.message).toBe('Test message');
   });
 
-  it('should allow valid status values', () => {
-    const statuses: SessionStatus[] = ['pending', 'active', 'finished', 'aborted'];
-    statuses.forEach((status) => {
-      const session: Session = { ...baseSession, status };
-      expect(session.status).toBe(status);
-    });
+  it('should append params to message', () => {
+    const err = new SessionError('Base', { foo: 'bar' }, 42);
+    expect(err.message).toContain('Base');
+    expect(err.message).toContain(JSON.stringify({ foo: 'bar' }));
+    expect(err.message).toContain('42');
+  });
+});
+
+describe('SessionNotFoundError', () => {
+  it('should set name and message with sessionId', () => {
+    const err = new SessionNotFoundError('abc123');
+    expect(err).toBeInstanceOf(SessionError);
+    expect(err.name).toBe('SessionNotFoundError');
+    expect(err.message).toContain('Session with ID abc123 not found');
+    expect(err.message).toContain('"sessionId":"abc123"');
+  });
+});
+
+describe('SessionExpiredError', () => {
+  it('should set name and message with sessionId', () => {
+    const err = new SessionExpiredError('xyz789');
+    expect(err).toBeInstanceOf(SessionError);
+    expect(err.name).toBe('SessionExpiredError');
+    expect(err.message).toContain('Session with ID xyz789 has expired');
+    expect(err.message).toContain('"sessionId":"xyz789"');
+  });
+});
+
+describe('SessionInvalidError', () => {
+  it('should set name and message with reason and sessionId', () => {
+    const err = new SessionInvalidError('token mismatch', 'sess42');
+    expect(err).toBeInstanceOf(SessionError);
+    expect(err.name).toBe('SessionInvalidError');
+    expect(err.message).toContain('Session is invalid: token mismatch');
+    expect(err.message).toContain('"sessionId":"sess42"');
   });
 
-  it('should not allow invalid status values (type check)', () => {
-    // This test is for type safety and will not run at runtime,
-    // but you can check with TypeScript that the following line would error:
-    // const invalidSession: Session = { ...baseSession, status: 'invalid' as SessionStatus };
-    expect(true).toBe(true);
-  });
-
-  it('should update processed counts', () => {
-    const session: Session = { ...baseSession, notesProcessed: 5, assetsProcessed: 2 };
-    expect(session.notesProcessed).toBe(5);
-    expect(session.assetsProcessed).toBe(2);
-  });
-
-  it('should update timestamps', () => {
-    const updated = new Date('2024-01-02T00:00:00Z');
-    const session: Session = { ...baseSession, updatedAt: updated };
-    expect(session.updatedAt).toEqual(updated);
-  });
-
-  it('should not exceed planned notes/assets', () => {
-    const session: Session = { ...baseSession, notesProcessed: 10, assetsProcessed: 5 };
-    expect(session.notesProcessed).toBeLessThanOrEqual(session.notesPlanned);
-    expect(session.assetsProcessed).toBeLessThanOrEqual(session.assetsPlanned);
+  it('should handle missing sessionId', () => {
+    const err = new SessionInvalidError('missing id');
+    expect(err).toBeInstanceOf(SessionError);
+    expect(err.message).toContain('Session is invalid: missing id');
+    expect(err.message).toContain('{}');
   });
 });

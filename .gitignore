@@ -5,6 +5,7 @@
 .env.**
 !.env.**example
 /tmp
+diff.md
 
 # Ignore node_modules, dist, and .env in all apps
 /apps/*/node_modules

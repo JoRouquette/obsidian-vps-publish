@@ -17,8 +17,7 @@
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/libs/core-domain"],
       "options": {
-        "jestConfig": "libs/core-domain/jest.config.cjs",
-        "tsConfig": "libs/core-domain/tsconfig.lib.json"
+        "jestConfig": "libs/core-domain/jest.config.cjs"
       },
       "configurations": {
         "ci": {

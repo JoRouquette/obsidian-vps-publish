@@ -4,13 +4,7 @@ const nxPreset = require('@nx/jest/preset').default;
 module.exports = {
   ...nxPreset,
 
-  collectCoverage: true,
-
-  collectCoverageFrom: [
-    '<rootDir>/src/**/*.{ts,js,tsx,jsx}',
-    '!<rootDir>/src/**/*.spec.{ts,js,tsx,jsx}',
-    '!<rootDir>/src/**/*.test.{ts,js,tsx,jsx}',
-  ],
+  coverageProvider: 'babel',
 
   coverageReporters: ['lcov', 'text-summary'],
 
