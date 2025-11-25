@@ -32,7 +32,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies (root)
-        run: npm install --omit=optional --no-audit --no-fund --ignore-scripts
+        run: npm install --no-audit --no-fund --ignore-scripts
         env:
           HUSKY: 0
 
@@ -64,7 +64,7 @@ jobs:
           cache: 'npm'
 
       - name: Install deps (root)
-        run: npm install --omit=optional --no-audit --no-fund --ignore-scripts
+        run: npm install --no-audit --no-fund --ignore-scripts
         env:
           HUSKY: 0
 

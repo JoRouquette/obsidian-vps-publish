@@ -32,38 +32,22 @@
       "group": "none"
     },
     {
-      "label": "Backend: dev",
+      "label": "Launch site",
       "type": "shell",
-      "command": "npm",
-      "args": ["run", "dev"],
-      "options": {
-        "cwd": "${workspaceFolder}/apps/backend"
-      },
+      "command": "npx",
+      "args": ["nx", "serve", "site"],
       "problemMatcher": []
     },
     {
-      "label": "Backend: test",
+      "label": "Launch node",
       "type": "shell",
-      "command": "npm",
-      "args": ["run", "test"],
-      "options": {
-        "cwd": "${workspaceFolder}/apps/backend"
-      },
+      "command": "npx",
+      "args": ["nx", "serve", "node"],
       "problemMatcher": []
     },
     {
-      "label": "Frontend: dev",
-      "type": "shell",
-      "command": "npm",
-      "args": ["run", "start"],
-      "options": {
-        "cwd": "${workspaceFolder}/apps/frontend"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Dev: frontend + backend (hors Docker)",
-      "dependsOn": ["Backend: dev", "Frontend: dev"],
+      "label": "Launch all",
+      "dependsOn": ["Launch site", "Launch node"],
       "dependsOrder": "parallel",
       "problemMatcher": []
     }

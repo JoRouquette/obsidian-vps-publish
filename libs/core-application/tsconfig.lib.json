@@ -1,14 +1,21 @@
 {
   "extends": "../../tsconfig.base.json",
+  "composite": true,
   "compilerOptions": {
     "outDir": "../../dist/libs/core-application",
     "declaration": true,
+    "declarationMap": true,
     "types": ["node", "jest"],
     "paths": {
-      "@core-domain": ["dist/libs/core-domain/src/index.d.ts"],
-      "@core-application": ["libs/core-application/src/index.ts"]
+      "@core-domain": ["dist/libs/core-domain/src/index"],
+      "@core-domain/*": ["dist/libs/core-domain/src/lib/*"]
     }
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["jest.config.ts", "**/*.spec.ts", "**/*.test.ts"]
+  "exclude": ["jest.config.ts", "**/*.spec.ts", "**/*.test.ts"],
+  "references": [
+    {
+      "path": "../core-domain/tsconfig.lib.json"
+    }
+  ]
 }

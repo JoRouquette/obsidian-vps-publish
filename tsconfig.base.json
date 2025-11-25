@@ -10,8 +10,15 @@
     "skipLibCheck": true,
     "paths": {
       "@core-domain": ["libs/core-domain/src/index.ts"],
-      "@core-application": ["libs/core-application/src/index.ts"]
+      "@core-domain/*": ["libs/core-domain/src/lib/*"],
+      "@core-application": ["libs/core-application/src/index.ts"],
+      "@core-application/*": ["libs/core-application/src/lib/*"]
     }
   },
-  "exclude": ["node_modules", "tmp", "dist"]
+  "angularCompilerOptions": {
+    "enableIvy": true,
+    "strictTemplates": true
+  },
+  "exclude": ["node_modules", "tmp", "dist"],
+  "include": ["apps/**/*.ts", "libs/**/*.ts"]
 }
