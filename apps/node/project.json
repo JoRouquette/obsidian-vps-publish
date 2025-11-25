@@ -81,6 +81,11 @@
       }
     },
     "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/apps/node"],
+      "options": {
+        "jestConfig": "apps/node/jest.config.cjs"
+      },
       "configurations": {
         "ci": {
           "codeCoverage": true
