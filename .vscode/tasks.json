@@ -50,6 +50,27 @@
       "dependsOn": ["Launch site", "Launch node"],
       "dependsOrder": "parallel",
       "problemMatcher": []
+    },
+    {
+      "label": "Plugin: dev (watch)",
+      "type": "shell",
+      "command": "npx",
+      "args": ["nx", "run", "publish-to-personal-vps:dev"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Plugin: build",
+      "type": "shell",
+      "command": "npx",
+      "args": ["nx", "run", "publish-to-personal-vps:build"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Plugin: package",
+      "type": "shell",
+      "command": "npx",
+      "args": ["nx", "run", "publish-to-personal-vps:package"],
+      "problemMatcher": []
     }
   ]
 }

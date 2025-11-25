@@ -1,0 +1,30 @@
+{
+  "name": "publish-to-personal-vps",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/publish-to-personal-vps/src",
+  "projectType": "application",
+  "targets": {
+    "dev": {
+      "executor": "@nx/workspace:run-commands",
+      "options": {
+        "command": "node apps/publish-to-personal-vps/esbuild.config.mjs"
+      }
+    },
+    "build": {
+      "executor": "@nx/workspace:run-commands",
+      "outputs": ["dist/apps/publish-to-personal-vps"],
+      "options": {
+        "command": "node apps/publish-to-personal-vps/esbuild.config.mjs production"
+      }
+    },
+    "package": {
+      "executor": "@nx/workspace:run-commands",
+      "dependsOn": ["build"],
+      "outputs": ["dist/publish-to-personal-vps"],
+      "options": {
+        "command": "node apps/publish-to-personal-vps/scripts/package-plugin.mjs"
+      }
+    }
+  },
+  "tags": ["layer:ui", "type:plugin"]
+}

@@ -31,3 +31,6 @@ export * from './publishing/ports/AssetsIndexPort';
 export * from './publishing/ports/AssetsStoragePort';
 export * from './publishing/ports/ContentStoragePort';
 export * from './publishing/ports/ManifestStoragePort';
+
+// Publish-to-personal-vps plugin workflow (Obsidian)
+export * from './publish';
