@@ -3,7 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/node/src",
   "projectType": "application",
-  "tags": [],
+  "tags": ["layer:infra", "type:api"],
   "targets": {
     "build": {
       "executor": "@nx/esbuild:esbuild",
@@ -81,8 +81,15 @@
       }
     },
     "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/apps/node"],
       "options": {
-        "passWithNoTests": true
+        "jestConfig": "apps/node/jest.config.cjs"
+      },
+      "configurations": {
+        "ci": {
+          "codeCoverage": true
+        }
       }
     }
   }

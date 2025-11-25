@@ -4,7 +4,7 @@
   "projectType": "application",
   "prefix": "app",
   "sourceRoot": "apps/site/src",
-  "tags": [],
+  "tags": ["layer:ui", "type:app"],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
@@ -70,6 +70,11 @@
       "options": {
         "jestConfig": "apps/site/jest.config.ts",
         "tsConfig": "apps/site/tsconfig.spec.json"
+      },
+      "configurations": {
+        "ci": {
+          "codeCoverage": true
+        }
       }
     },
     "serve-static": {

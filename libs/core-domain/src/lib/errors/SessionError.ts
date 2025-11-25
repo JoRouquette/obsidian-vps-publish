@@ -1,5 +1,5 @@
 export class SessionError extends Error {
-  constructor(message: string, ...params: any[]) {
+  constructor(message: string, ...params: unknown[]) {
     super(message);
     this.name = 'SessionError';
     this.message = message;
@@ -25,7 +25,7 @@ export class SessionExpiredError extends SessionError {
 
 export class SessionInvalidError extends SessionError {
   constructor(reason: string, sessionId?: string) {
-    super(`Session is invalid: ${reason}`, { sessionId });
+    super(`Session is invalid: ${reason}`, { sessionId: sessionId });
     this.name = 'SessionInvalidError';
   }
 }

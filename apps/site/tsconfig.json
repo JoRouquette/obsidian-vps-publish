@@ -23,14 +23,5 @@
     "typeCheckHostBindings": true,
     "strictTemplates": true
   },
-  "files": [],
-  "include": [],
-  "references": [
-    {
-      "path": "./tsconfig.app.json"
-    },
-    {
-      "path": "./tsconfig.spec.json"
-    }
-  ]
+  "include": ["src/**/*.ts", "src/**/*.d.ts"]
 }

@@ -7,4 +7,4 @@ services:
 
     environment:
       NODE_ENV: 'production'
-      LOGGER_LEVEL: 'info'
+      LOGGER_LEVEL: 'warn'

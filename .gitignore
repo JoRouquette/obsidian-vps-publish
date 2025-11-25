@@ -5,6 +5,7 @@
 .env.**
 !.env.**example
 /tmp
+diff.md
 
 # Ignore node_modules, dist, and .env in all apps
 /apps/*/node_modules
@@ -16,6 +17,7 @@ apps/*/.env.*
 !apps/*/.env.example
 
 # Ignore build artifacts in the ui app
+coverage/**/*
 **/content/**/*
 **/assets/**/*
 **/build/**/*

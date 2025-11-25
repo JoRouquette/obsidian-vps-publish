@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+
+echo "Husky pre-push hook running..."
+
+echo "    → Running linting checks..."
+npm run lint
+status=$?
+
+if [ $status -ne 0 ]; then
+  echo "Linting failed. Push aborted."
+  exit $status
+fi
+
+echo "    → Running tests..."
+npm run test 
+status=$?
+
+if [ $status -ne 0 ]; then
+  echo "Tests failed. Push aborted."
+  exit $status
+fi
+
+echo "Linting OK. Push allowed."

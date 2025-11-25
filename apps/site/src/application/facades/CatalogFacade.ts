@@ -23,18 +23,13 @@ export class CatalogFacade {
     @Inject(MANIFEST_REPOSITORY) private readonly manifestRepository: ManifestRepository,
     @Inject(CONTENT_REPOSITORY) private readonly contentRepository: ContentRepository
   ) {
-    console.log('CatalogFacade initialized with manifestRepo and contentRepo');
-
     this.loadManifestQuery = new LoadManifestQuery(this.manifestRepository);
     this.loadManifestQuery.execute().then((m) => {
       this.manifest.set(m);
-      console.log('Initial manifest loaded in CatalogFacade:', m);
     });
 
     this.searchQuery = new SearchPagesQuery();
     this.findQuery = new FindPageQuery();
-
-    console.log('LoadManifestQuery, SearchPagesQuery, and FindPageQuery initialized');
   }
 
   results = computed(() => {
@@ -45,7 +40,6 @@ export class CatalogFacade {
 
   async ensureManifest(): Promise<void> {
     if (this.manifest()) {
-      console.log('Manifest already loaded, skipping load');
       return;
     }
     this.loading.set(true);

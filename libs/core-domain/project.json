@@ -17,8 +17,12 @@
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/libs/core-domain"],
       "options": {
-        "jestConfig": "libs/core-domain/jest.config.cts",
-        "passWithNoTests": true
+        "jestConfig": "libs/core-domain/jest.config.cjs"
+      },
+      "configurations": {
+        "ci": {
+          "codeCoverage": true
+        }
       }
     },
     "lint": {

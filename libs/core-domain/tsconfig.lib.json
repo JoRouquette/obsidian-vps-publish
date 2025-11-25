@@ -3,6 +3,8 @@
   "compilerOptions": {
     "outDir": "../../dist/libs/core-domain",
     "declaration": true,
+    "declarationMap": true,
+    "composite": true,
     "types": ["node", "jest"]
   },
   "include": ["src/**/*.ts"],
