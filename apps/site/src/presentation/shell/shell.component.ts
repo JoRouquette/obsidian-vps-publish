@@ -8,8 +8,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 
-import { CatalogFacade } from '../../application/facades/CatalogFacade';
-import { ConfigFacade } from '../../application/facades/ConfigFacade';
+import { CatalogFacade } from '../../application/facades/catalog-facade';
+import { ConfigFacade } from '../../application/facades/config-facade';
 import { VaultExplorerComponent } from '../components/vault-explorer/vault-explorer.component';
 import { LogoComponent } from '../pages/logo/logo.component';
 import { TopbarComponent } from '../pages/topbar/topbar.component';

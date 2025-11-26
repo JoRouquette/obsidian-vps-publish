@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+set -euo pipefail
+
+echo "Husky pre-merge-commit hook running..."
+echo "Running lint..."
+npm run lint
+echo "Running tests..."
+npm run test
+echo "Merge checks passed."

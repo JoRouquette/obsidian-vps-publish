@@ -1,6 +1,6 @@
-import { EnvConfig } from './infra/config/EnvConfig';
+import { EnvConfig } from './infra/config/env-config';
 import { createApp } from './infra/http/express/app';
-import { ConsoleLogger } from './infra/logging/ConsoleLogger';
+import { ConsoleLogger } from './infra/logging/console-logger';
 
 async function bootstrap() {
   const rootLogger = new ConsoleLogger({ level: EnvConfig.loggerLevel() });

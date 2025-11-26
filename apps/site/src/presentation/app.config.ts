@@ -2,12 +2,12 @@ import { provideHttpClient, withFetch } from '@angular/common/http';
 import { ANIMATION_MODULE_TYPE, ApplicationConfig } from '@angular/core';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
 import { provideRouter, withInMemoryScrolling } from '@angular/router';
-import { CONFIG_REPOSITORY, CONTENT_REPOSITORY, MANIFEST_REPOSITORY } from '../domain/ports/tokens';
-import { HttpConfigRepository } from '../infrastructure/http/HttpConfigRepository';
-import { HttpContentRepository } from '../infrastructure/http/HttpContentRepository';
-import { HttpManifestRepository } from '../infrastructure/http/HttpManifestRepository';
-import { APP_ROUTES } from './routes/app.routes';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
+import { CONFIG_REPOSITORY, CONTENT_REPOSITORY, MANIFEST_REPOSITORY } from '../domain/ports/tokens';
+import { HttpConfigRepository } from '../infrastructure/http/http-config.repository';
+import { HttpContentRepository } from '../infrastructure/http/http-content.repository';
+import { HttpManifestRepository } from '../infrastructure/http/http-manifest.repository';
+import { APP_ROUTES } from './routes/app.routes';
 
 export const appConfig: ApplicationConfig = {
   providers: [

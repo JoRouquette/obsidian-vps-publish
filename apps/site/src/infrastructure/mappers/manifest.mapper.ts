@@ -1,7 +1,7 @@
-import { ManifestDTO } from '../dto/Manifest.dto';
-import { Manifest } from '../../domain/models/Manifest';
-import { Page } from '../../domain/models/Page';
-import { Slug } from '../../domain/value-objects/Slug';
+import { ManifestDTO } from '../dto/manifest.dto';
+import { Manifest } from '../../domain/models/manifest';
+import { Page } from '../../domain/models/page';
+import { Slug } from '../../domain/value-objects/slug.value-object';
 
 export function toDomain(dto: ManifestDTO): Manifest {
   return {

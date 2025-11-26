@@ -9,8 +9,8 @@ import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
 import { MatButtonModule } from '@angular/material/button';
 
-import { CatalogFacade } from '../../../application/facades/CatalogFacade';
-import { Page } from '../../../domain/models/Page';
+import { CatalogFacade } from '../../../application/facades/catalog-facade';
+import { Page } from '../../../domain/models/page';
 
 type Section = {
   key: string;

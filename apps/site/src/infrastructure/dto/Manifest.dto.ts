@@ -1,4 +1,4 @@
-import { PageDTO } from './Page.dto';
+import { PageDTO } from './page.dto';
 
 export interface ManifestDTO {
   sessionId: string;

@@ -9,9 +9,9 @@ import {
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { distinctUntilChanged, map, Subscription, switchMap } from 'rxjs';
-import { CatalogFacade } from '../../../application/facades/CatalogFacade';
+import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
-import { HttpContentRepository } from '../../../infrastructure/http/HttpContentRepository';
+import { HttpContentRepository } from '../../../infrastructure/http/http-content.repository';
 
 @Component({
   standalone: true,

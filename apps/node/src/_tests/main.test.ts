@@ -5,7 +5,7 @@ jest.mock('../infra/http/express/app', () => ({
   }),
 }));
 
-jest.mock('../infra/config/EnvConfig', () => ({
+jest.mock('../infra/config/env-config', () => ({
   EnvConfig: {
     loggerLevel: jest.fn(() => 'info'),
     port: jest.fn(() => 3000),

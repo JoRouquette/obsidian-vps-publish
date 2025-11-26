@@ -1,6 +1,6 @@
 import * as CoreDomain from '../core-domain';
-import { SessionError } from '../errors/SessionError';
-import type { Session } from '../entities/Session';
+import { SessionError } from '../errors/session-error';
+import type { Session } from '../entities/session';
 
 describe('core-domain barrel', () => {
   it('expose les entités et erreurs principales sans planter', () => {

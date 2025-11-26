@@ -1,0 +1,106 @@
+{
+  "name": "publish-to-personal-vps",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/publish-to-personal-vps/src",
+  "projectType": "application",
+  "tags": ["layer:application", "type:plugin"],
+  "targets": {
+    "dev": {
+      "executor": "@nx/esbuild:esbuild",
+      "outputs": ["{workspaceRoot}/dist/apps/publish-to-personal-vps"],
+      "options": {
+        "platform": "node",
+        "outputPath": "dist/apps/publish-to-personal-vps",
+        "format": ["cjs"],
+        "bundle": true,
+        "main": "apps/publish-to-personal-vps/src/main.ts",
+        "tsConfig": "apps/publish-to-personal-vps/tsconfig.json",
+        "assets": [
+          "apps/publish-to-personal-vps/manifest.json",
+          "apps/publish-to-personal-vps/versions.json",
+          "apps/publish-to-personal-vps/styles.css"
+        ],
+        "external": [
+          "obsidian",
+          "electron",
+          "@codemirror/autocomplete",
+          "@codemirror/collab",
+          "@codemirror/commands",
+          "@codemirror/language",
+          "@codemirror/lint",
+          "@codemirror/search",
+          "@codemirror/state",
+          "@codemirror/view",
+          "@lezer/common",
+          "@lezer/highlight",
+          "@lezer/lr"
+        ],
+        "esbuildOptions": {
+          "target": "es2018",
+          "sourcemap": true,
+          "outExtension": {
+            ".js": ".js"
+          }
+        }
+      }
+    },
+    "build": {
+      "executor": "@nx/esbuild:esbuild",
+      "outputs": ["{workspaceRoot}/dist/apps/publish-to-personal-vps"],
+      "options": {
+        "platform": "node",
+        "outputPath": "dist/apps/publish-to-personal-vps",
+        "format": ["cjs"],
+        "bundle": true,
+        "main": "apps/publish-to-personal-vps/src/main.ts",
+        "tsConfig": "apps/publish-to-personal-vps/tsconfig.json",
+        "assets": [
+          "apps/publish-to-personal-vps/manifest.json",
+          "apps/publish-to-personal-vps/versions.json",
+          "apps/publish-to-personal-vps/styles.css"
+        ],
+        "external": [
+          "obsidian",
+          "electron",
+          "@codemirror/autocomplete",
+          "@codemirror/collab",
+          "@codemirror/commands",
+          "@codemirror/language",
+          "@codemirror/lint",
+          "@codemirror/search",
+          "@codemirror/state",
+          "@codemirror/view",
+          "@lezer/common",
+          "@lezer/highlight",
+          "@lezer/lr"
+        ],
+        "esbuildOptions": {
+          "target": "es2018",
+          "sourcemap": false,
+          "outExtension": {
+            ".js": ".js"
+          }
+        }
+      }
+    },
+    "package": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "outputs": ["{workspaceRoot}/dist/publish-to-personal-vps"],
+      "options": {
+        "command": "node apps/publish-to-personal-vps/scripts/package-plugin.mjs"
+      }
+    },
+    "lint": {
+      "executor": "nx:noop"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/apps/publish-to-personal-vps"],
+      "options": {
+        "jestConfig": "apps/publish-to-personal-vps/jest.config.cjs",
+        "runInBand": true
+      }
+    }
+  }
+}

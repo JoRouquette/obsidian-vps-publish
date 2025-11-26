@@ -1,33 +1,36 @@
 // Common
-export * from './common/CommandHandler';
-export * from './common/QueryHandler';
+export * from './common/command-handler';
+export * from './common/query-handler';
 
 // Ports génériques
-export * from './ports/IdGeneratorPort';
-export * from './ports/LoggerPort';
-export * from './ports/MarkdownRendererPort';
+export * from './ports/id-generator.port';
+export * from './ports/logger.port';
+export * from './ports/markdown-renderer.port';
 
 // Sessions
-export * from './sessions/commands/AbortSessionCommand';
-export * from './sessions/commands/AbortSessionResult';
-export * from './sessions/commands/CreateSessionCommand';
-export * from './sessions/commands/CreateSessionResult';
-export * from './sessions/commands/FinishSessionCommand';
-export * from './sessions/commands/FinishSessionResult';
+export * from './sessions/commands/abort-session.command';
+export * from './sessions/commands/abort-session.result';
+export * from './sessions/commands/create-session.command';
+export * from './sessions/commands/create-session.result';
+export * from './sessions/commands/finish-session.command';
+export * from './sessions/commands/finish-session.result';
 
-export * from './sessions/handlers/AbortSessionHandler';
-export * from './sessions/handlers/CreateSessionHandler';
-export * from './sessions/handlers/FinishSessionHandler';
-export * from './sessions/ports/SessionRepository';
+export * from './sessions/handlers/abort-session.handler';
+export * from './sessions/handlers/create-session.handler';
+export * from './sessions/handlers/finish-session.handler';
+export * from './sessions/ports/session.repository';
 
 // Publishing
-export * from './publishing/commands/UploadAssetsCommand';
-export * from './publishing/commands/UploadNotesCommand';
+export * from './publishing/commands/upload-assets.command';
+export * from './publishing/commands/upload-notes.command';
 
-export * from './publishing/handlers/UploadAssetsHandler';
-export * from './publishing/handlers/UploadNotesHandler';
+export * from './publishing/handlers/upload-assets.handler';
+export * from './publishing/handlers/upload-notes.handler';
 
-export * from './publishing/ports/AssetsIndexPort';
-export * from './publishing/ports/AssetsStoragePort';
-export * from './publishing/ports/ContentStoragePort';
-export * from './publishing/ports/ManifestStoragePort';
+export * from './publishing/ports/assets-index.port';
+export * from './publishing/ports/assets-storage.port';
+export * from './publishing/ports/content-storage.port';
+export * from './publishing/ports/manifest-storage.port';
+
+// Vault parsing & HTTP helpers for Obsidian plugin
+export * from './vault-parsing';

@@ -9,13 +9,13 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTreeModule } from '@angular/material/tree';
 import { RouterLink } from '@angular/router';
 
-import { CatalogFacade } from '../../../application/facades/CatalogFacade';
+import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { MatTooltip } from '@angular/material/tooltip';
 import {
   BuildTreeQuery,
   defaultTreeNode,
   TreeNode,
-} from '../../../application/queries/BuildTree.query';
+} from '../../../application/queries/build-tree.query';
 
 @Component({
   standalone: true,

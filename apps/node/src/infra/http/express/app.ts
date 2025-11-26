@@ -10,19 +10,19 @@ import {
   UploadNotesHandler,
 } from '@core-application';
 
-import { EnvConfig } from '../../config/EnvConfig';
-import { AssetsFileSystemStorage } from '../../filesystem/AssetsFileSystemStorage';
-import { FileSystemSessionRepository } from '../../filesystem/FileSystemSessionRepository';
-import { ManifestFileSystem } from '../../filesystem/ManifestFileSystem';
-import { NotesFileSystemStorage } from '../../filesystem/NotesFileSystemStorage';
-import { UuidIdGenerator } from '../../id/UuidIdGenerator';
-import { MarkdownItRenderer } from '../../markdown/MarkdownItRenderer';
+import { EnvConfig } from '../../config/env-config';
+import { AssetsFileSystemStorage } from '../../filesystem/assets-file-system.storage';
+import { FileSystemSessionRepository } from '../../filesystem/file-system-session.repository';
+import { ManifestFileSystem } from '../../filesystem/manifest-file-system';
+import { NotesFileSystemStorage } from '../../filesystem/notes-file-system.storage';
+import { UuidIdGenerator } from '../../id/uuid-id.generator';
+import { MarkdownItRenderer } from '../../markdown/markdown-it.renderer';
 
-import { createHealthCheckController } from './controllers/healthCheckController';
-import { createPingController } from './controllers/pingController';
-import { createSessionController } from './controllers/sessionController';
-import { createApiKeyAuthMiddleware } from './middleware/apiKeyAuthMiddleware';
-import { createCorsMiddleware } from './middleware/corsMiddleware';
+import { createHealthCheckController } from './controllers/health-check.controller';
+import { createPingController } from './controllers/ping.controller';
+import { createSessionController } from './controllers/session-controller';
+import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
+import { createCorsMiddleware } from './middleware/cors.middleware';
 
 export const BYTES_LIMIT = '10mb';
 

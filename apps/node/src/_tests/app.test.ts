@@ -1,11 +1,11 @@
 import express from 'express';
 import request from 'supertest';
 
-jest.mock('../infra/http/express/middleware/apiKeyAuthMiddleware', () => ({
+jest.mock('../infra/http/express/middleware/api-key-auth.middleware', () => ({
   createApiKeyAuthMiddleware: () => (_req: any, _res: any, next: any) => next(),
 }));
 
-jest.mock('../infra/http/express/controllers/sessionController', () => ({
+jest.mock('../infra/http/express/controllers/session-controller', () => ({
   createSessionController: () => {
     const router = express.Router();
     router.get('/session/mock', (_req, res) => res.json({ ok: true }));
@@ -13,7 +13,7 @@ jest.mock('../infra/http/express/controllers/sessionController', () => ({
   },
 }));
 
-jest.mock('../infra/config/EnvConfig', () => ({
+jest.mock('../infra/config/env-config', () => ({
   EnvConfig: {
     allowedOrigins: jest.fn(() => ['*']),
     apiKey: jest.fn(() => 'secret'),

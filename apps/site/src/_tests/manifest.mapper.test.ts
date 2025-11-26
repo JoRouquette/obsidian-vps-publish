@@ -1,5 +1,5 @@
 import { toDomain } from '../infrastructure/mappers/manifest.mapper';
-import { ManifestDTO } from '../infrastructure/dto/Manifest.dto';
+import { ManifestDTO } from '../infrastructure/dto/manifest.dto';
 
 describe('manifest.mapper', () => {
   it('maps dto to domain with slug fallback and dates', () => {

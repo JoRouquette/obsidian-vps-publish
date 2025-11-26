@@ -32,7 +32,7 @@ logs
 *.log
 npm-debug.log*
 
-
+./publish-to-personal-vps/
 
 .nx/cache
 .nx/workspace-data

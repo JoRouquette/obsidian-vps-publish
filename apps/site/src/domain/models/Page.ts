@@ -1,4 +1,4 @@
-import { Slug } from '../value-objects/Slug';
+import { Slug } from '../value-objects/slug.value-object';
 
 export interface Page {
   id: string;
