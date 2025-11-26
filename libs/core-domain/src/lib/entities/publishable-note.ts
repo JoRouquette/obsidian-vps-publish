@@ -1,7 +1,8 @@
 import type { AssetRef } from './asset-ref';
 import { NoteCore } from './note-core';
+import { NoteEligibility } from './note-eligibility';
 import { NoteRoutingInfo } from './note-routing-info';
-import type { ResolvedWikilink } from './resolved-wikilink';
+import { ResolvedWikilink } from './resolved-wikilink';
 import type { WikilinkRef } from './wikilink-ref';
 
 /**
@@ -13,7 +14,7 @@ import type { WikilinkRef } from './wikilink-ref';
 export interface PublishableNote extends NoteCore {
   routing: NoteRoutingInfo;
   publishedAt: Date;
+  eligibility: NoteEligibility;
   assets?: AssetRef[];
-  wikilinks?: WikilinkRef[];
   resolvedWikilinks?: ResolvedWikilink[];
 }

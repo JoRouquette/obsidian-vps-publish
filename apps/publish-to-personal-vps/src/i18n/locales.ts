@@ -28,6 +28,8 @@ type VpsTranslations = {
   apiKeyLabel: string;
   apiKeyDescription: string;
   help: string;
+  addButton: string;
+  deleteButton: string;
 };
 
 type FoldersTranslations = {
@@ -42,6 +44,8 @@ type FoldersTranslations = {
   sanitizeRemoveCodeBlocksLabel: string;
   sanitizeRemoveCodeBlocksDescription: string;
   rulesHelp: string;
+  vpsLabel: string;
+  vpsDescription: string;
 };
 
 type IgnoreRulesTranslations = {
@@ -56,6 +60,12 @@ type IgnoreRulesTranslations = {
   valueDescription: string;
   modeValues: string;
   modeBoolean: string;
+  frontmatterKeysLabel: string;
+  frontmatterKeysDescription: string;
+  frontmatterKeysPlaceholder: string;
+  tagsLabel: string;
+  tagsDescription: string;
+  tagsPlaceholder: string;
 };
 
 type TestConnectionTranslations = {
@@ -147,6 +157,8 @@ export const en: Translations = {
     },
     vps: {
       title: 'VPS configuration',
+      addButton: 'Add VPS',
+      deleteButton: 'Delete VPS',
       nameLabel: 'Name',
       nameDescription: 'Internal name for this VPS.',
       urlLabel: 'URL',
@@ -169,6 +181,8 @@ export const en: Translations = {
         'If enabled, fenced code blocks (``` or ~~~) will be removed from the content before publishing.',
       rulesHelp:
         'Notes whose frontmatter matches the ignore rules below will not be published.',
+      vpsLabel: 'Target VPS',
+      vpsDescription: 'Select which VPS configuration this folder publishes to.',
     },
     ignoreRules: {
       title: 'Ignore rules',
@@ -184,6 +198,13 @@ export const en: Translations = {
         'Comma-separated list of values to ignore for this property.',
       modeValues: 'Ignore specific values',
       modeBoolean: 'Ignore if equal (true/false)',
+      frontmatterKeysLabel: 'Frontmatter keys to strip',
+      frontmatterKeysDescription:
+        'These frontmatter properties will be removed from notes before publishing.',
+      frontmatterKeysPlaceholder: 'e.g. publish, draft, private',
+      tagsLabel: 'Tags to exclude',
+      tagsDescription: 'These tags will be removed from notes before publishing.',
+      tagsPlaceholder: 'e.g. draft, private, internal',
     },
     testConnection: {
       label: 'Test connection',
@@ -246,6 +267,8 @@ export const fr: Translations = {
     },
     vps: {
       title: 'Configuration du VPS',
+      addButton: 'Ajouter un VPS',
+      deleteButton: 'Supprimer le VPS',
       nameLabel: 'Nom',
       nameDescription: 'Nom interne pour ce VPS.',
       urlLabel: 'URL',
@@ -268,6 +291,8 @@ export const fr: Translations = {
         'Si activé, les blocs de code délimités (``` ou ~~~) seront supprimés du contenu avant publication.',
       rulesHelp:
         'Les notes dont le frontmatter correspond aux règles ci-dessous ne seront pas publiées.',
+      vpsLabel: 'VPS cible',
+      vpsDescription: 'Choisissez la configuration VPS ? utiliser pour ce dossier.',
     },
     ignoreRules: {
       title: 'Règles d’ignorance',
@@ -283,6 +308,13 @@ export const fr: Translations = {
         'Liste de valeurs à ignorer pour cette propriété (séparées par des virgules).',
       modeValues: 'Ignorer des valeurs spécifiques',
       modeBoolean: 'Ignorer si égal (true/false)',
+      frontmatterKeysLabel: 'Clés de frontmatter à supprimer',
+      frontmatterKeysDescription:
+        'Ces propriétés de frontmatter seront retirées des notes avant publication.',
+      frontmatterKeysPlaceholder: 'ex: publish, draft, private',
+      tagsLabel: 'Tags à exclure',
+      tagsDescription: 'Ces tags seront retirés des notes avant publication.',
+      tagsPlaceholder: 'ex: draft, private, internal',
     },
     testConnection: {
       label: 'Tester la connexion',

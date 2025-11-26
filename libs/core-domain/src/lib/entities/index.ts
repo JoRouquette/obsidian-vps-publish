@@ -10,6 +10,7 @@ export * from './http-response';
 export * from './ignore-primitive';
 export * from './ignore-rule';
 export * from './inline-dataview-expression';
+export * from './mapper';
 export * from './manifest';
 export * from './manifest-page';
 export * from './note-core';

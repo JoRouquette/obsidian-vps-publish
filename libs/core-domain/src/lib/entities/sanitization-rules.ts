@@ -1,5 +1,5 @@
 export interface SanitizationRules {
-  removeFencedCodeBlocks: boolean;
-  //removeInlineCode?: boolean;
-  //removeHtml?: boolean;
+  name: string;
+  regex: RegExp;
+  replacement: string;
 }

@@ -93,6 +93,13 @@
   position: relative;
 }
 
+.publish-to-personal-vps-settings .ptpv-folder legend {
+  padding: 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
 /* Liseré coloré à gauche pour bien distinguer chaque dossier */
 .publish-to-personal-vps-settings .ptpv-folder::before {
   content: '';
@@ -144,4 +151,46 @@
 /* Un peu d’air en bas pour ne pas coller au bord de la vue */
 .publish-to-personal-vps-settings {
   padding-bottom: 1rem;
+}
+
+/* ------------------------ Chips (frontmatter / tags) ---------------------- */
+.publish-to-personal-vps-settings .ptpv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0.2rem;
+}
+
+.publish-to-personal-vps-settings .ptpv-chips-empty {
+  color: var(--text-muted);
+  font-size: 0.9em;
+}
+
+.publish-to-personal-vps-settings .ptpv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--background-modifier-border);
+  background-color: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+.publish-to-personal-vps-settings .ptpv-chip-remove {
+  cursor: pointer;
+  padding: 0 0.2rem;
+  border-radius: 50%;
+  color: var(--text-muted);
+}
+
+.publish-to-personal-vps-settings .ptpv-chip-remove:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.publish-to-personal-vps-settings .ptpv-suggest-count {
+  color: var(--text-muted);
+  margin-left: 0.25rem;
+  font-size: 0.9em;
 }

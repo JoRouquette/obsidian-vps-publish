@@ -5,12 +5,6 @@
 
 export interface NoteRoutingInfo {
   /**
-   * Id logique de la note dans l'espace publié.
-   * ex: "puissances/divinites/thormak"
-   */
-  id: string;
-
-  /**
    * Nom de fichier slugifié (sans extension).
    * ex: "thormak"
    */

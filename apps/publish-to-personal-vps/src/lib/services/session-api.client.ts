@@ -2,6 +2,7 @@ import { requestUrl, RequestUrlResponse } from 'obsidian';
 import { HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
 import { HttpResponse } from '@core-domain/entities/http-response';
 import { LoggerPort } from '@core-domain/ports/logger-port';
+import { VpsConfig } from '@core-domain';
 
 export interface StartSessionResponse {
   sessionId: string;
@@ -11,19 +12,16 @@ export interface StartSessionResponse {
 export class SessionApiClient {
   constructor(
     private readonly baseUrl: string,
-    private readonly apiKey: string,
+    private readonly apiKey: VpsConfig['apiKey'],
     private readonly responseHandler: HttpResponseHandler<RequestUrlResponse>,
     private readonly logger: LoggerPort
   ) {}
 
   private buildUrl(path: string): string {
-    return `${this.baseUrl.replace(/\\/$/, '')}${path}`;
+    return `${this.baseUrl.replace(/\/$/, '')}${path}`;
   }
 
-  private async postJson<TBody, TResult>(
-    path: string,
-    body: TBody
-  ): Promise<HttpResponse> {
+  private async postJson<TBody, TResult>(path: string, body: TBody): Promise<HttpResponse> {
     const url = this.buildUrl(path);
     const res = await requestUrl({
       url,
@@ -76,7 +74,10 @@ export class SessionApiClient {
     if (result.isError) throw result.error ?? new Error('uploadAssets failed');
   }
 
-  async finishSession(sessionId: string, payload: { notesProcessed: number; assetsProcessed: number }): Promise<void> {
+  async finishSession(
+    sessionId: string,
+    payload: { notesProcessed: number; assetsProcessed: number }
+  ): Promise<void> {
     const result = await this.postJson(`/api/session/${sessionId}/finish`, payload);
     if (result.isError) throw result.error ?? new Error('finishSession failed');
   }
@@ -99,5 +100,5 @@ function parseLimit(value: unknown): number {
       return Math.floor(num);
     }
   }
-  return 5 * 1024 * 1024; // fallback 5MB
+  return 8 * 1024 * 1024; // fallback 8MB
 }

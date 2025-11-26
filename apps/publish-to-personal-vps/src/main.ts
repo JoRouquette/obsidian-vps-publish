@@ -1,15 +1,18 @@
 import { Notice, Plugin, RequestUrlResponse } from 'obsidian';
 
 import type { PublishPluginSettings } from '@core-domain/entities/publish-plugin-settings';
-import type { I18nSettings } from './i18n';
 import { getTranslations } from './i18n';
+import type { PluginSettings } from './lib/settings/plugin-settings.type';
 
 import { decryptApiKey, encryptApiKey } from './lib/api-key-crypto';
 import { testVpsConnection } from './lib/services/http-connection.service';
 import { PublishToPersonalVpsSettingTab } from './lib/setting-tab.view';
 
 import { PublishNotesCommandHandler } from '@core-application/vault-parsing/commands/publish-notes.command';
-import { extractNotesWithAssets, type NoteWithAssets } from '@core-domain/entities/note-with-assets';
+import {
+  extractNotesWithAssets,
+  type NoteWithAssets,
+} from '@core-domain/entities/note-with-assets';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import { PublishAssetsCommandHandler } from '@core-application/vault-parsing/commands/publish-assets.command';
 import { ObsidianAssetsVaultAdapter } from './lib/infra/obsidian-assets-vault.adapter';
@@ -21,25 +24,11 @@ import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
 import { NotesUploaderAdapter } from './lib/infra/notes-uploader.adapter';
 import { RequestUrlResponseMapper } from './lib/utils/http-response-status.mapper';
 import { SessionApiClient } from './lib/services/session-api.client';
-import { defaultSettings } from './lib/constants/default-settings.constant';
 import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
 import { NoticeProgressAdapter } from './lib/infra/notice-progress.adapter';
 import { ObsidianVaultAdapter } from './lib/infra/obsidian-vault.adapter';
 import type { UploaderPort } from '@core-domain/ports/uploader-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
-
-// -----------------------------------------------------------------------------
-// Types & Constants
-// -----------------------------------------------------------------------------
-
-type PluginLocale = 'en' | 'fr' | 'system';
-
-type PluginSettings = PublishPluginSettings &
-  I18nSettings & {
-    locale?: PluginLocale;
-    assetsFolder: string;
-    enableAssetsVaultFallback: boolean;
-  };
 
 const defaultSettings: PluginSettings = {
   vpsConfigs: [],
@@ -48,6 +37,8 @@ const defaultSettings: PluginSettings = {
   locale: 'system',
   assetsFolder: 'assets',
   enableAssetsVaultFallback: true,
+  frontmatterKeysToExclude: [],
+  frontmatterTagsToExclude: [],
 };
 
 // -----------------------------------------------------------------------------
@@ -201,137 +192,144 @@ export default class PublishToPersonalVpsPlugin extends Plugin {
       return;
     }
 
-    const vps = settings.vpsConfigs[0];
-    const scopedLogger = this.logger.child({ vps: vps.id ?? 'default' });
-    const vault = new ObsidianVaultAdapter(this.app, scopedLogger);
-    const guidGenerator = new GuidGeneratorAdapter();
-    const notesCollector = new CollectingUploader(scopedLogger);
-    const publishNotesHandler = new PublishNotesCommandHandler(
-      vault,
-      notesCollector,
-      guidGenerator,
-      scopedLogger
-    );
-    const notesProgress = new NoticeProgressAdapter();
-    const coreSettings = buildCoreSettings(settings);
+    // const vps = settings.vpsConfigs[0];
+    // const scopedLogger = this.logger.child({ vps: vps.id ?? 'default' });
+    // const guidGenerator = new GuidGeneratorAdapter();
+    // const vault = new ObsidianVaultAdapter(this.app, guidGenerator, scopedLogger);
+    // const notesCollector = new CollectingUploader(scopedLogger);
+    // const publishNotesHandler = new PublishNotesCommandHandler(
+    //   vault,
+    //   notesCollector,
+    //   scopedLogger
+    // );
+    // const notesProgress = new NoticeProgressAdapter();
+    // const coreSettings = buildCoreSettings(settings);
 
-    const result = await publishNotesHandler.execute({
-      settings: coreSettings,
-      progress: notesProgress,
-    });
+    // const result = await publishNotesHandler.execute({
+    //   settings: coreSettings,
+    //   progress: notesProgress,
+    // });
 
-    if (result.type === 'noConfig') {
-      new Notice('?? No folders or VPS configured.');
-      return;
-    }
+    // if (result.type === 'noConfig') {
+    //   new Notice('?? No folders or VPS configured.');
+    //   return;
+    // }
 
-    if (result.type === 'missingVpsConfig') {
-      this.logger.warn('Missing VPS for folders:', result.foldersWithoutVps);
-      new Notice('?? Some folder(s) have no VPS configured (see console).');
-      return;
-    }
+    // if (result.type === 'missingVpsConfig') {
+    //   this.logger.warn('Missing VPS for folders:', result.foldersWithoutVps);
+    //   new Notice('?? Some folder(s) have no VPS configured (see console).');
+    //   return;
+    // }
 
-    if (result.type === 'error') {
-      this.logger.error('Error during publishing: ', result.error);
-      new Notice('? Error during publishing (see console).');
-      return;
-    }
+    // if (result.type === 'error') {
+    //   this.logger.error('Error during publishing: ', result.error);
+    //   new Notice('? Error during publishing (see console).');
+    //   return;
+    // }
 
-    const notes = notesCollector.notes ?? result.notes ?? [];
-    if (notes.length === 0) {
-      new Notice('?? Nothing to publish (0 note).');
-      return;
-    }
+    // const notes = notesCollector.notes ?? result.notes ?? [];
+    // if (notes.length === 0) {
+    //   new Notice('?? Nothing to publish (0 note).');
+    //   return;
+    // }
 
-    const notesWithAssets = extractNotesWithAssets(notes);
-    const assetsPlanned = new Set(
-      notesWithAssets.flatMap((n) => n.assets?.map((a) => a.target) ?? [])
-    ).size;
+    // const notesWithAssets = extractNotesWithAssets(notes);
+    // const assetsPlanned = new Set(
+    //   notesWithAssets.flatMap((n) => n.assets?.map((a) => a.target) ?? [])
+    // ).size;
 
-    const sessionClient = new SessionApiClient(
-      vps.url,
-      vps.apiKey,
-      this.responseHandler,
-      this.logger
-    );
+    // const sessionClient = new SessionApiClient(
+    //   vps.url,
+    //   vps.apiKey,
+    //   this.responseHandler,
+    //   this.logger
+    // );
 
-    let sessionId = null;
-    const maxBytesRequested = 5 * 1024 * 1024;
-    let maxBytesPerRequest = maxBytesRequested;
-    let assetsUploaded = 0;
+    // let sessionId = null;
+    // const maxBytesRequested = 5 * 1024 * 1024;
+    // let maxBytesPerRequest = maxBytesRequested;
+    // let assetsUploaded = 0;
 
-    try {
-      const started = await sessionClient.startSession({
-        notesPlanned: notes.length,
-        assetsPlanned: assetsPlanned,
-        maxBytesPerRequest: maxBytesRequested,
-      });
-      sessionId = started.sessionId;
-      maxBytesPerRequest = started.maxBytesPerRequest;
-      this.logger.info('Session started', { sessionId, maxBytesPerRequest });
+    // try {
+    //   const started = await sessionClient.startSession({
+    //     notesPlanned: notes.length,
+    //     assetsPlanned: assetsPlanned,
+    //     maxBytesPerRequest: maxBytesRequested,
+    //   });
+    //   sessionId = started.sessionId;
+    //   maxBytesPerRequest = started.maxBytesPerRequest;
+    //   this.logger.info('Session started', { sessionId, maxBytesPerRequest });
 
-      const notesUploader = new NotesUploaderAdapter(
-        sessionClient,
-        sessionId,
-        this.logger,
-        maxBytesPerRequest
-      );
-      await notesUploader.upload(notes);
+    //   const notesUploader = new NotesUploaderAdapter(
+    //     sessionClient,
+    //     sessionId,
+    //     this.logger,
+    //     maxBytesPerRequest
+    //   );
+    //   await notesUploader.upload(notes);
 
-      if (notesWithAssets.length > 0) {
-        const assetsVault = new ObsidianAssetsVaultAdapter(this.app, this.logger);
-        const assetsUploader = new AssetsUploaderAdapter(
-          sessionClient,
-          sessionId,
-          this.logger,
-          maxBytesPerRequest
-        );
-        const publishAssetsUsecase = new PublishAssetsCommandHandler(
-          assetsVault,
-          assetsUploader,
-          this.logger
-        );
-        const assetsProgress = new NoticeProgressAdapter();
+    //   if (notesWithAssets.length > 0) {
+    //     const assetsVault = new ObsidianAssetsVaultAdapter(this.app, this.logger);
+    //     const assetsUploader = new AssetsUploaderAdapter(
+    //       sessionClient,
+    //       sessionId,
+    //       this.logger,
+    //       maxBytesPerRequest
+    //     );
+    //     const publishAssetsUsecase = new PublishAssetsCommandHandler(
+    //       assetsVault,
+    //       assetsUploader,
+    //       this.logger
+    //     );
+    //     const assetsProgress = new NoticeProgressAdapter();
 
-        const assetsResult = await publishAssetsUsecase.execute({
-          notes: notesWithAssets,
-          assetsFolder: settings.assetsFolder,
-          enableAssetsVaultFallback: settings.enableAssetsVaultFallback,
-          progress: assetsProgress,
-        });
+    //     const assetsResult = await publishAssetsUsecase.execute({
+    //       notes: notesWithAssets,
+    //       assetsFolder: settings.assetsFolder,
+    //       enableAssetsVaultFallback: settings.enableAssetsVaultFallback,
+    //       progress: assetsProgress,
+    //     });
 
-        if (assetsResult.type === 'error') {
-          throw assetsResult.error ?? new Error('Asset publication failed');
-        }
-        assetsUploaded =
-          assetsResult.type === 'success' ? assetsResult.publishedAssetsCount : 0;
+    //     if (assetsResult.type === 'error') {
+    //       throw assetsResult.error ?? new Error('Asset publication failed');
+    //     }
+    //     assetsUploaded = assetsResult.type === 'success' ? assetsResult.publishedAssetsCount : 0;
 
-        if (assetsResult.type === 'success' && assetsResult.failures.length > 0) {
-          this.logger.warn('Some assets failed to upload', {
-            failures: assetsResult.failures,
-          });
-        }
-      }
+    //     if (assetsResult.type === 'success' && assetsResult.failures.length > 0) {
+    //       this.logger.warn('Some assets failed to upload', {
+    //         failures: assetsResult.failures,
+    //       });
+    //     }
+    //   }
 
-      await sessionClient.finishSession(sessionId, {
-        notesProcessed: notes.length,
-        assetsProcessed: assetsUploaded,
-      });
+    //   await sessionClient.finishSession(sessionId, {
+    //     notesProcessed: notes.length,
+    //     assetsProcessed: assetsUploaded,
+    //   });
 
-      new Notice('' + ('? Published ' + notes.length + ' note(s)' + (assetsPlanned ? ' and ' + assetsUploaded + ' asset(s)' : '') + '.'));
-    } catch (err) {
-      this.logger.error('Publishing failed, aborting session if created', err);
-      if (sessionId) {
-        try {
-          await sessionClient.abortSession(sessionId);
-        } catch (abortErr) {
-          this.logger.error('Failed to abort session', abortErr);
-        }
-      }
-      new Notice('? Publishing failed (see console).');
-    }
+    //   new Notice(
+    //     '' +
+    //       ('? Published ' +
+    //         notes.length +
+    //         ' note(s)' +
+    //         (assetsPlanned ? ' and ' + assetsUploaded + ' asset(s)' : '') +
+    //         '.')
+    //   );
+    // } catch (err) {
+    //   this.logger.error('Publishing failed, aborting session if created', err);
+    //   if (sessionId) {
+    //     try {
+    //       await sessionClient.abortSession(sessionId);
+    //     } catch (abortErr) {
+    //       this.logger.error('Failed to abort session', abortErr);
+    //     }
+    //   }
+    //   new Notice('? Publishing failed (see console).');
+    // }
   }
-// VPS Connection Test
+
+  // ---------------------------------------------------------------------------
+  // VPS Connection Test
   // ---------------------------------------------------------------------------
   async testConnection(): Promise<void> {
     const { t } = getTranslations(this.app, this.settings);

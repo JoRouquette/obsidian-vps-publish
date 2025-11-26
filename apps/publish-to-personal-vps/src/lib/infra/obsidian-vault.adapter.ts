@@ -3,26 +3,32 @@ import { App, TAbstractFile, TFile, TFolder } from 'obsidian';
 import type { FolderConfig } from '@core-domain/entities/folder-config';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { VaultPort } from '@core-domain/ports/vault-port';
+import { GuidGeneratorPort } from '@core-domain/ports/guid-generator-port';
+import { VpsConfig } from '@core-domain';
 
 export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
   private readonly logger: LoggerPort;
 
-  constructor(private readonly app: App, logger: LoggerPort) {
+  constructor(
+    private readonly app: App,
+    private readonly guidGenerator: GuidGeneratorPort,
+    logger: LoggerPort
+  ) {
     this.logger = logger;
     this.logger.debug('ObsidianVaultAdapter initialized');
   }
 
-  async collectFromFolder(folderCfg: FolderConfig): Promise<CollectedNote[]> {
-    const result: Array<{
-      vaultPath: string;
-      relativePath: string;
-      content: string;
-      frontmatter: Record<string, any>;
-    }> = [];
+  async collectFromFolder(params: {
+    folderConfig: FolderConfig;
+    vpsConfig: VpsConfig;
+  }): Promise<CollectedNote[]> {
+    const { folderConfig, vpsConfig } = params;
 
-    const rootPath = folderCfg.vaultFolder?.trim();
+    const result: CollectedNote[] = [];
+
+    const rootPath = folderConfig.vaultFolder?.trim();
     if (!rootPath) {
-      this.logger.warn('No rootPath specified in FolderConfig', { folderCfg });
+      this.logger.warn('No rootPath specified in FolderConfig', { folderCfg: vpsConfig });
       return result;
     }
 
@@ -47,14 +53,17 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
         this.logger.debug('Reading file', { path: node.path });
         const content = await this.app.vault.read(node);
         const cache = this.app.metadataCache.getFileCache(node);
-        const frontmatter: Record<string, any> =
-          (cache?.frontmatter as any) ?? {};
+        const frontmatter: Record<string, any> = (cache?.frontmatter as any) ?? {};
 
         result.push({
+          noteId: this.guidGenerator.generateGuid(),
+          title: node.basename,
           vaultPath: node.path,
           relativePath: this.computeRelative(node.path, rootPath),
           content,
-          frontmatter,
+          frontmatter: { flat: frontmatter, nested: {}, tags: [] },
+          folderConfig: folderConfig,
+          vpsConfig: vpsConfig,
         });
         this.logger.info('Collected note', { path: node.path });
       }
