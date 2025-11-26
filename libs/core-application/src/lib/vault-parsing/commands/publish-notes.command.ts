@@ -64,7 +64,12 @@ export class PublishNotesCommandHandler
       }
 
       this.logger.debug('Collecting notes from folder', { folderId: folder.id });
-      collected.push(...(await this.vaultPort.collectFromFolder(folder)));
+      collected.push(
+        ...(await this.vaultPort.collectFromFolder({
+          folderConfig: folder,
+          vpsConfig,
+        }))
+      );
     }
 
     if (missingVps.length > 0) {

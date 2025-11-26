@@ -6,5 +6,5 @@ export interface FolderConfig {
   routeBase: string;
   vpsId: string;
 
-  sanitization?: SanitizationRules;
+  sanitization?: SanitizationRules[];
 }

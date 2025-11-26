@@ -1,5 +1,5 @@
+import { BaseService } from '../../common/base-service';
 import { CollectedNote } from '@core-domain';
-import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import { LoggerPort } from '@core-domain/ports/logger-port';
 import { normalizePropertyKey } from '@core-domain/utils/string.utils';
 

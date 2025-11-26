@@ -1,9 +1,7 @@
-export type Mapper<T> = (
+export type MapperFunction<T> = (
   response: T,
   url?: string
-) =>
-  | { response: Response; url?: string }
-  | Promise<{ response: Response; url?: string }>;
+) => { response: Response; url?: string } | Promise<{ response: Response; url?: string }>;
 
 export type MappingResult = {
   response: Response;
@@ -15,5 +13,5 @@ export interface ApiRequestMapper<T> {
 }
 
 export interface Handler<T> {
-  defaultMapper: Mapper<T>;
+  defaultMapper: MapperFunction<T>;
 }

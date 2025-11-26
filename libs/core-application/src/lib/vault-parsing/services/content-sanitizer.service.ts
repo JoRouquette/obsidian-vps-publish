@@ -1,10 +1,11 @@
-import { DomainFrontmatter, LoggerPort } from '@core-domain';
+import { BaseService } from '../../common/base-service';
+import { LoggerPort } from '@core-domain';
 import { PublishableNote } from '@core-domain/entities/publishable-note';
 import { SanitizationRules } from '@core-domain/entities/sanitization-rules';
 
 export class ContentSanitizerService implements BaseService {
   constructor(
-    private readonly sanitizationRules: SanitizationRules[],
+    private readonly sanitizationRules: SanitizationRules[] = [],
     private readonly frontmatterKeysToExclude?: string[],
     private readonly frontmatterTagsToExclude?: string[],
     private readonly logger?: LoggerPort
@@ -18,6 +19,8 @@ export class ContentSanitizerService implements BaseService {
     if (this.frontmatterTagsToExclude?.length) {
       notes = this.sanitizeTags(notes);
     }
+
+    notes = this.sanitizeContent(notes);
 
     return notes;
   }
@@ -59,5 +62,51 @@ export class ContentSanitizerService implements BaseService {
     }
 
     return notes;
+  }
+
+  private sanitizeContent(notes: PublishableNote[]): PublishableNote[] {
+    return notes.map((note) => {
+      const rulesSource = Array.isArray(note.folderConfig?.sanitization)
+        ? note.folderConfig.sanitization
+        : this.sanitizationRules;
+
+      const compiled = this.compileRules(rulesSource);
+      if (compiled.length === 0) {
+        return note;
+      }
+
+      let content = note.content;
+      for (const rule of compiled) {
+        content = content.replace(rule.regex, rule.replacement ?? '');
+        this.logger?.debug('Applied sanitization rule', {
+          noteId: note.noteId,
+          rule: rule.name,
+        });
+      }
+
+      return { ...note, content };
+    });
+  }
+
+  private compileRules(
+    rules: SanitizationRules[]
+  ): Array<SanitizationRules & { regex: RegExp }> {
+    const compiled: Array<SanitizationRules & { regex: RegExp }> = [];
+
+    for (const rule of rules || []) {
+      if (rule.isEnabled === false) continue;
+      try {
+        const regex =
+          rule.regex instanceof RegExp ? rule.regex : new RegExp(rule.regex, 'g');
+        compiled.push({ ...rule, regex });
+      } catch (error) {
+        this.logger?.warn('Failed to compile sanitization rule', {
+          rule,
+          error,
+        });
+      }
+    }
+
+    return compiled;
   }
 }

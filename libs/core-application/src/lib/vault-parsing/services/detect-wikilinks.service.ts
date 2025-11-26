@@ -1,7 +1,7 @@
 import { PublishableNote } from '@core-domain/entities';
 import type { WikilinkKind, WikilinkRef } from '@core-domain/entities/wikilink-ref';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
-import { QueryHandler } from '../../common/query-handler';
+import { BaseService } from '../../common/base-service';
 
 /**
  * Regex pour capturer les wikilinks [[...]].

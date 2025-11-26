@@ -1,4 +1,17 @@
 import type { FolderConfig } from '@core-domain/entities';
+import type { SanitizationRulesDefaults } from '@core-domain/entities/sanitization-rules';
+
+export function defaultSanitizationRules(): SanitizationRulesDefaults[] {
+  return [
+    {
+      name: 'Remove fenced code blocks',
+      regex: '```[\\s\\S]*?```|~~~[\\s\\S]*?~~~',
+      replacement: '',
+      isEnabled: true,
+      isDefault: true,
+    },
+  ];
+}
 
 export function createDefaultFolderConfig(
   vpsId: string,
@@ -9,7 +22,7 @@ export function createDefaultFolderConfig(
     vaultFolder: '',
     routeBase: '',
     vpsId,
-    sanitization: { removeFencedCodeBlocks: true },
+    sanitization: defaultSanitizationRules(),
   };
   return {
     ...defaults,

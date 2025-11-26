@@ -35,7 +35,10 @@ export const ResolvedWikilinkDto = WikilinkRefDto.extend({
 
 // SanitizationRules
 export const SanitizationRulesDto = z.object({
-  removeFencedCodeBlocks: z.boolean(),
+  name: z.string(),
+  regex: z.string().min(1),
+  replacement: z.string().default(''),
+  isEnabled: z.boolean().default(true),
 });
 
 // FolderConfig
@@ -44,7 +47,7 @@ export const FolderConfigDto = z.object({
   vaultFolder: z.string(),
   routeBase: z.string(),
   vpsId: z.string(),
-  sanitization: SanitizationRulesDto.optional(),
+  sanitization: z.array(SanitizationRulesDto).optional(),
 });
 
 // VpsConfig
@@ -52,7 +55,7 @@ export const VpsConfigDto = z.object({
   id: z.string(),
   name: z.string(),
   url: z.string(),
-  api-key: z.string(),
+  apiKey: z.string(),
 });
 
 // DomainFrontmatter
@@ -76,17 +79,30 @@ export const NoteCoreDto = z.object({
 
 // NoteRoutingInfo
 export const NoteRoutingInfoDto = z.object({
-  id: z.string(),
   slug: z.string(),
   path: z.string(),
   routeBase: z.string(),
   fullPath: z.string(),
 });
 
+// NoteEligibility
+export const NoteIgnoredByRuleDto = z.object({
+  property: z.string(),
+  reason: z.enum(['ignoreIf', 'ignoreValues']),
+  matchedValue: z.unknown(),
+  ruleIndex: z.number(),
+});
+
+export const NoteEligibilityDto = z.object({
+  isPublishable: z.boolean(),
+  ignoredByRule: NoteIgnoredByRuleDto.optional(),
+});
+
 // PublishableNote
 export const PublishableNoteDto = NoteCoreDto.extend({
   publishedAt: z.coerce.date(),
   routing: NoteRoutingInfoDto,
+  eligibility: NoteEligibilityDto,
   assets: z.array(AssetRefDto).optional(),
   wikilinks: z.array(WikilinkRefDto).optional(),
   resolvedWikilinks: z.array(ResolvedWikilinkDto).optional(),

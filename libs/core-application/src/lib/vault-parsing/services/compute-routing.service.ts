@@ -1,6 +1,7 @@
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import type { NoteRoutingInfo } from '@core-domain/entities/note-routing-info';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
+import { BaseService } from '../../common/base-service';
 
 export class ComputeRoutingService implements BaseService {
   private readonly _logger: LoggerPort;

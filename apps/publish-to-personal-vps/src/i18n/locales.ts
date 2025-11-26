@@ -41,11 +41,17 @@ type FoldersTranslations = {
   vaultDescription: string;
   routeLabel: string;
   routeDescription: string;
-  sanitizeRemoveCodeBlocksLabel: string;
-  sanitizeRemoveCodeBlocksDescription: string;
   rulesHelp: string;
   vpsLabel: string;
   vpsDescription: string;
+  sanitizationTitle: string;
+  sanitizationHelp?: string;
+  addSanitizationRule: string;
+  deleteSanitizationRule: string;
+  ruleNameLabel: string;
+  rulePatternLabel: string;
+  ruleReplacementLabel: string;
+  ruleEnabledLabel: string;
 };
 
 type IgnoreRulesTranslations = {
@@ -176,26 +182,28 @@ export const en: Translations = {
       vaultDescription: 'Example: Blog, Notes/Docs, etc.',
       routeLabel: 'Site route',
       routeDescription: 'Example: /blog, /docs, etc.',
-      sanitizeRemoveCodeBlocksLabel: 'Remove fenced code blocks',
-      sanitizeRemoveCodeBlocksDescription:
-        'If enabled, fenced code blocks (``` or ~~~) will be removed from the content before publishing.',
-      rulesHelp:
-        'Notes whose frontmatter matches the ignore rules below will not be published.',
+      rulesHelp: 'Notes whose frontmatter matches the ignore rules below will not be published.',
       vpsLabel: 'Target VPS',
       vpsDescription: 'Select which VPS configuration this folder publishes to.',
+      sanitizationTitle: 'Sanitization rules',
+      sanitizationHelp: 'Define regex-based rules applied to note content before publishing.',
+      addSanitizationRule: 'Add rule',
+      deleteSanitizationRule: 'Delete rule',
+      ruleNameLabel: 'Rule name',
+      rulePatternLabel: 'Pattern (regex)',
+      ruleReplacementLabel: 'Replacement',
+      ruleEnabledLabel: 'Enabled',
     },
     ignoreRules: {
       title: 'Ignore rules',
-      description:
-        'Notes with these frontmatter properties will be ignored during publishing.',
+      description: 'Notes with these frontmatter properties will be ignored during publishing.',
       help: 'You can define global rules based on frontmatter properties and values.',
       addButton: 'Add ignore rule',
       deleteButton: 'Delete ignore rule',
       propertyLabel: 'Frontmatter property',
       propertyDescription: 'Property to inspect in the frontmatter.',
       valueLabel: 'Value(s) to ignore',
-      valueDescription:
-        'Comma-separated list of values to ignore for this property.',
+      valueDescription: 'Comma-separated list of values to ignore for this property.',
       modeValues: 'Ignore specific values',
       modeBoolean: 'Ignore if equal (true/false)',
       frontmatterKeysLabel: 'Frontmatter keys to strip',
@@ -236,8 +244,7 @@ export const fr: Translations = {
     name: 'Publier vers mon VPS personnel',
     commandPublish: 'Publier vers mon VPS personnel',
     commandTestConnection: 'Tester la connexion VPS',
-    commandOpenSettings:
-      'Ouvrir les paramètres du plugin Publier vers mon VPS personnel',
+    commandOpenSettings: 'Ouvrir les paramètres du plugin Publier vers mon VPS personnel',
     publishSuccess: 'Publication terminée.',
     publishError: 'Erreur lors de la publication (voir la console).',
     noConfig: 'Aucune configuration VPS ou dossier définie.',
@@ -286,9 +293,14 @@ export const fr: Translations = {
       vaultDescription: 'Ex : Blog, Notes/Docs, etc.',
       routeLabel: 'Route du site',
       routeDescription: 'Ex : /blog, /docs, etc.',
-      sanitizeRemoveCodeBlocksLabel: 'Supprimer les blocs de code délimités',
-      sanitizeRemoveCodeBlocksDescription:
-        'Si activé, les blocs de code délimités (``` ou ~~~) seront supprimés du contenu avant publication.',
+      sanitizationTitle: 'Règles de nettoyage',
+      sanitizationHelp: 'Définissez des règles regex appliquées au contenu avant publication.',
+      addSanitizationRule: 'Ajouter une règle',
+      deleteSanitizationRule: 'Supprimer la règle',
+      ruleNameLabel: 'Nom de la règle',
+      rulePatternLabel: 'Motif (regex)',
+      ruleReplacementLabel: 'Remplacement',
+      ruleEnabledLabel: 'Activée',
       rulesHelp:
         'Les notes dont le frontmatter correspond aux règles ci-dessous ne seront pas publiées.',
       vpsLabel: 'VPS cible',
@@ -334,8 +346,7 @@ export const fr: Translations = {
       assetsFolderLabel: 'Dossier d’assets dans le vault',
       assetsFolderDescription:
         'Dossier dans le vault où les assets (images, fichiers) sont situés. Ex : Assets, Media, etc.',
-      enableAssetsVaultFallbackLabel:
-        'Permettre le recours à la racine du vault',
+      enableAssetsVaultFallbackLabel: 'Permettre le recours à la racine du vault',
       enableAssetsVaultFallbackDescription:
         'Si activé, lorsqu’un asset n’est pas trouvé dans le dossier spécifié, le système le cherchera à la racine du vault et dans tous les dossiers.',
     },

@@ -194,3 +194,17 @@
   margin-left: 0.25rem;
   font-size: 0.9em;
 }
+
+.publish-to-personal-vps-settings .ptpv-sanitization {
+  margin-top: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.publish-to-personal-vps-settings .ptpv-sanitization-rule {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  background-color: var(--background-secondary);
+}

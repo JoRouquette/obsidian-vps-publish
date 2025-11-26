@@ -1,5 +1,5 @@
 import { HttpResponse, HttpStatus } from '@core-domain/entities/http-response';
-import { Mapper, Handler } from '@core-domain/utils/mapper.util';
+import { MapperFunction, Handler } from '@core-domain/utils/mapper.util';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 
 export type HandleHttpResponseUseCaseCommand<T> = {
@@ -9,17 +9,15 @@ export type HandleHttpResponseUseCaseCommand<T> = {
 
 export class HttpResponseHandler<T> implements Handler<T> {
   private readonly _logger: LoggerPort;
-  defaultMapper: Mapper<T>;
+  defaultMapper: MapperFunction<T>;
 
-  constructor(mapper: Mapper<T>, logger: LoggerPort) {
+  constructor(mapper: MapperFunction<T>, logger: LoggerPort) {
     this.defaultMapper = mapper;
     this._logger = logger.child({ usecase: 'HandleHttpResponseUseCase' });
     this._logger.debug('HandleHttpResponseUseCase initialized');
   }
 
-  async handleResponseAsync(
-    command: HandleHttpResponseUseCaseCommand<T>
-  ): Promise<HttpResponse> {
+  async handleResponseAsync(command: HandleHttpResponseUseCaseCommand<T>): Promise<HttpResponse> {
     try {
       let { response: res, url } = command;
 
@@ -28,11 +26,7 @@ export class HttpResponseHandler<T> implements Handler<T> {
       let response = mappingResult.response;
       url = mappingResult.url;
 
-      if (
-        !response ||
-        typeof response !== 'object' ||
-        typeof response.text !== 'function'
-      ) {
+      if (!response || typeof response !== 'object' || typeof response.text !== 'function') {
         this._logger.debug('Mapper did not return a valid Response object', {
           response,
         });
@@ -48,28 +42,16 @@ export class HttpResponseHandler<T> implements Handler<T> {
 
         return {
           isError: false,
-          httpStatus: new HttpStatus(
-            response.status,
-            response.statusText
-          ).toString(),
+          httpStatus: new HttpStatus(response.status, response.statusText).toString(),
           text,
         };
       } else {
-        this._logger.debug(
-          `HTTP request failed ${response.status}`,
-          text,
-          response
-        );
+        this._logger.debug(`HTTP request failed ${response.status}`, text, response);
 
         return {
           isError: true,
-          error: new Error(
-            `HTTP Error ${response.status} ${response.statusText}`
-          ),
-          httpStatus: new HttpStatus(
-            response.status,
-            response.statusText
-          ).toString(),
+          error: new Error(`HTTP Error ${response.status} ${response.statusText}`),
+          httpStatus: new HttpStatus(response.status, response.statusText).toString(),
           text,
         };
       }

@@ -1,5 +1,4 @@
 export * from './assets-vault-port';
-export * from './content-sanitizer-port';
 export * from './guid-generator-port';
 export * from './logger-port';
 export * from './progress-port';

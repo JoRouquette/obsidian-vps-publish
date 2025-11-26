@@ -11,10 +11,7 @@ import type { UploaderPort } from '@core-domain/ports/uploader-port';
 
 import { CommandHandler } from '../../common/command-handler';
 
-export type AssetPublishFailureReason =
-  | 'not-found'
-  | 'upload-error'
-  | 'resolve-error';
+export type AssetPublishFailureReason = 'not-found' | 'upload-error' | 'resolve-error';
 
 export interface AssetPublishFailure {
   noteId: string;
@@ -54,7 +51,7 @@ export class PublishAssetsCommandHandler
     });
   }
 
-  async execute(command: PublishAssetsCommand): Promise<AssetsPublicationResult> {
+  async handle(command: PublishAssetsCommand): Promise<AssetsPublicationResult> {
     const { notes, assetsFolder, enableAssetsVaultFallback, progress } = command;
 
     const notesWithAssets = extractNotesWithAssets(notes as any as NoteWithAssets[]);
@@ -78,10 +75,7 @@ export class PublishAssetsCommandHandler
     for (const note of notesWithAssets) {
       for (const asset of note.assets) {
         try {
-          this._logger.debug(
-            `Resolving asset for noteId ${note.noteId} asset: `,
-            asset
-          );
+          this._logger.debug(`Resolving asset for noteId ${note.noteId} asset: `, asset);
 
           const file = await this.assetsVaultPort.resolveAssetForNote(
             note,
@@ -92,14 +86,9 @@ export class PublishAssetsCommandHandler
 
           resolvedEntries.push({ noteId: note.noteId, asset, file });
 
-          this._logger.debug(
-            `Resolved asset for noteId ${note.noteId} -> found=${!!file}`
-          );
+          this._logger.debug(`Resolved asset for noteId ${note.noteId} -> found=${!!file}`);
         } catch (error) {
-          this._logger.warn(
-            `Failed to resolve asset for noteId ${note.noteId}`,
-            { asset, error }
-          );
+          this._logger.warn(`Failed to resolve asset for noteId ${note.noteId}`, { asset, error });
           failures.push({
             noteId: note.noteId,
             asset,
@@ -132,9 +121,7 @@ export class PublishAssetsCommandHandler
     const uniqueAssets = Array.from(uniqueByVaultPath.values());
 
     if (uniqueAssets.length === 0) {
-      this._logger.info(
-        `No assets resolved to files. Failures count=${failures.length}`
-      );
+      this._logger.info(`No assets resolved to files. Failures count=${failures.length}`);
       return {
         type: 'success',
         publishedAssetsCount: 0,
@@ -143,17 +130,13 @@ export class PublishAssetsCommandHandler
     }
 
     progress?.start(uniqueAssets.length);
-    this._logger.info(
-      `Uploading ${uniqueAssets.length} unique asset file(s)...`
-    );
+    this._logger.info(`Uploading ${uniqueAssets.length} unique asset file(s)...`);
 
     try {
       const success = await this.assetsUploaderPort.upload(uniqueAssets);
 
       if (!success) {
-        this._logger.error(
-          'Assets uploader reported failure for the whole batch'
-        );
+        this._logger.error('Assets uploader reported failure for the whole batch');
         progress?.finish();
         return {
           type: 'error',

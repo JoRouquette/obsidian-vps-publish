@@ -1,7 +1,8 @@
 import { Notice, Setting } from 'obsidian';
 import { FolderSuggest } from '../../suggesters/folder-suggester';
-import { createDefaultFolderConfig } from '../../utils/create-default-folder-config.util';
+import { createDefaultFolderConfig, defaultSanitizationRules } from '../../utils/create-default-folder-config.util';
 import type { SettingsViewContext } from '../context';
+import type { SanitizationRules } from '@core-domain/entities/sanitization-rules';
 
 export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext): void {
   const { t, settings, logger } = ctx;
@@ -21,6 +22,8 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
   }
 
   settings.folders.forEach((folderCfg, index) => {
+    ensureSanitizationArray(folderCfg);
+
     const singleFolderFieldset = folderBlock.createEl('fieldset', {
       cls: 'ptpv-folder',
     });
@@ -107,25 +110,45 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
     );
 
     const sanitizeSetting = new Setting(singleFolderFieldset)
-      .setName(t.settings.folders.sanitizeRemoveCodeBlocksLabel)
-      .setDesc(t.settings.folders.sanitizeRemoveCodeBlocksDescription);
+      .setName(t.settings.folders.sanitizationTitle)
+      .setDesc(t.settings.folders.sanitizationHelp ?? '');
 
-    sanitizeSetting.addToggle((toggle) =>
-      toggle
-        .setValue(folderCfg.sanitization?.removeFencedCodeBlocks ?? true)
-        .onChange(async (value) => {
-          logger.debug('Sanitization.removeFencedCodeBlocks changed', {
-            index,
-            value,
-          });
-          if (!folderCfg.sanitization) {
-            folderCfg.sanitization = { removeFencedCodeBlocks: value };
-          } else {
-            folderCfg.sanitization.removeFencedCodeBlocks = value;
-          }
+    const sanitizationContainer = singleFolderFieldset.createDiv({ cls: 'ptpv-sanitization' });
+
+    (folderCfg.sanitization || []).forEach((rule, ruleIndex) => {
+      renderSanitizationRule(
+        sanitizationContainer,
+        rule,
+        () => folderCfg.sanitization || [],
+        async () => {
+          (folderCfg.sanitization || []).splice(ruleIndex, 1);
           await ctx.save();
-        })
-    );
+          ctx.refresh();
+        },
+        async () => {
+          await ctx.save();
+        },
+        t.settings.folders,
+        logger
+      );
+    });
+
+    const addRuleRow = sanitizationContainer.createDiv({ cls: 'ptpv-button-row' });
+    const addRuleBtn = addRuleRow.createEl('button', {
+      text: t.settings.folders.addSanitizationRule ?? 'Add rule',
+    });
+    addRuleBtn.addClass('mod-cta');
+    addRuleBtn.onclick = async () => {
+      folderCfg.sanitization = folderCfg.sanitization || [];
+      folderCfg.sanitization.push({
+        name: 'Custom rule',
+        regex: '',
+        replacement: '',
+        isEnabled: true,
+      });
+      await ctx.save();
+      ctx.refresh();
+    };
   });
 
   const rowAddFolder = folderBlock.createDiv({
@@ -142,4 +165,81 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
     await ctx.save();
     ctx.refresh();
   };
+}
+
+function ensureSanitizationArray(folderCfg: any) {
+  // Migration depuis l'ancien booléen removeFencedCodeBlocks.
+  if (!Array.isArray(folderCfg.sanitization)) {
+    if (folderCfg.sanitization && typeof folderCfg.sanitization.removeFencedCodeBlocks === 'boolean') {
+      const defaults = defaultSanitizationRules();
+      defaults[0].isEnabled = !!folderCfg.sanitization.removeFencedCodeBlocks;
+      folderCfg.sanitization = defaults;
+    } else {
+      folderCfg.sanitization = defaultSanitizationRules();
+    }
+  }
+}
+
+function renderSanitizationRule(
+  container: HTMLElement,
+  rule: SanitizationRules,
+  getRules: () => SanitizationRules[],
+  onDelete: () => Promise<void>,
+  onSave: () => Promise<void>,
+  tFolders: any,
+  logger: any
+) {
+  const wrapper = container.createDiv({ cls: 'ptpv-sanitization-rule' });
+
+  const titleSetting = new Setting(wrapper)
+    .setName(tFolders.ruleNameLabel ?? 'Rule name')
+    .addText((text) =>
+      text.setValue(rule.name || '').onChange(async (value) => {
+        rule.name = value;
+        await onSave();
+      })
+    );
+
+  titleSetting.addExtraButton((btn) =>
+    btn
+      .setIcon('trash')
+      .setTooltip(tFolders.deleteSanitizationRule ?? 'Delete rule')
+      .onClick(async () => {
+        if ((getRules()?.length ?? 0) <= 1) {
+          logger.warn('Attempted to delete last sanitization rule; keeping at least one.');
+          return;
+        }
+        await onDelete();
+      })
+  );
+
+  new Setting(wrapper)
+    .setName(tFolders.rulePatternLabel ?? 'Pattern (regex)')
+    .addText((text) =>
+      text
+        .setPlaceholder('e.g. ```[\\s\\S]*?```')
+        .setValue(typeof rule.regex === 'string' ? rule.regex : rule.regex?.source || '')
+        .onChange(async (value) => {
+          rule.regex = value;
+          await onSave();
+        })
+    );
+
+  new Setting(wrapper)
+    .setName(tFolders.ruleReplacementLabel ?? 'Replacement')
+    .addText((text) =>
+      text.setValue(rule.replacement || '').onChange(async (value) => {
+        rule.replacement = value;
+        await onSave();
+      })
+    );
+
+  new Setting(wrapper)
+    .setName(tFolders.ruleEnabledLabel ?? 'Enabled')
+    .addToggle((toggle) =>
+      toggle.setValue(rule.isEnabled ?? true).onChange(async (value) => {
+        rule.isEnabled = value;
+        await onSave();
+      })
+    );
 }

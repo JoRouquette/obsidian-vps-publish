@@ -1,3 +1,4 @@
+import { BaseService } from '../../common/base-service';
 import { PublishableNote } from '@core-domain/entities';
 import { AssetAlignment } from '@core-domain/entities/asset-alignment';
 import { AssetDisplayOptions } from '@core-domain/entities/asset-display-options';

@@ -1,3 +1,4 @@
+import { BaseService } from '../../common/base-service';
 import type { DomainFrontmatter } from '@core-domain/entities/domain-frontmatter';
 import type { InlineDataviewExpression } from '@core-domain/entities/inline-dataview-expression';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';

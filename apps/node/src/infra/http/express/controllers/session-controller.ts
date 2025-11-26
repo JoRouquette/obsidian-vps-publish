@@ -143,7 +143,7 @@ export function createSessionController(
     try {
       routeLogger?.info('Publishing assets batch', {
         sessionId: req.params.sessionId,
-        count: assets.length,
+        count: parsed.data.assets.length,
       });
 
       const result = await assetPublicationHandler.handle(command);
