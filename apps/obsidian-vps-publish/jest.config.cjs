@@ -1,6 +1,6 @@
 /** @type {import('jest').Config} */
 module.exports = {
-  displayName: 'publish-to-personal-vps',
+  displayName: 'obsidian-vps-publish',
 
   preset: '../../jest.preset.js',
 
@@ -14,5 +14,5 @@ module.exports = {
 
   moduleFileExtensions: ['ts', 'js', 'html'],
 
-  coverageDirectory: '../../coverage/apps/publish-to-personal-vps',
+  coverageDirectory: '../../coverage/apps/obsidian-vps-publish',
 };

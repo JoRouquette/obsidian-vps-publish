@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const PLUGIN_DIR_NAME = 'publish-to-personal-vps';
+const PLUGIN_DIR_NAME = 'obsidian-vps-publish';
 const APP_ROOT = path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), '..'));
 const WORKSPACE_ROOT = path.resolve(APP_ROOT, '..', '..');
 

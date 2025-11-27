@@ -55,21 +55,21 @@
       "label": "Plugin: dev (watch)",
       "type": "shell",
       "command": "npx",
-      "args": ["nx", "run", "publish-to-personal-vps:dev"],
+      "args": ["nx", "run", "obsidian-vps-publish:dev"],
       "problemMatcher": []
     },
     {
       "label": "Plugin: build",
       "type": "shell",
       "command": "npx",
-      "args": ["nx", "run", "publish-to-personal-vps:build"],
+      "args": ["nx", "run", "obsidian-vps-publish:build"],
       "problemMatcher": []
     },
     {
       "label": "Plugin: package",
       "type": "shell",
       "command": "npx",
-      "args": ["nx", "run", "publish-to-personal-vps:package"],
+      "args": ["nx", "run", "obsidian-vps-publish:package"],
       "dependsOn": ["Plugin: build"],
       "problemMatcher": []
     }

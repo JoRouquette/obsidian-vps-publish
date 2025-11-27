@@ -1,24 +1,24 @@
 {
-  "name": "publish-to-personal-vps",
+  "name": "obsidian-vps-publish",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/publish-to-personal-vps/src",
+  "sourceRoot": "apps/obsidian-vps-publish/src",
   "projectType": "application",
   "tags": ["layer:application", "type:plugin"],
   "targets": {
     "dev": {
       "executor": "@nx/esbuild:esbuild",
-      "outputs": ["{workspaceRoot}/dist/apps/publish-to-personal-vps"],
+      "outputs": ["{workspaceRoot}/dist/apps/obsidian-vps-publish"],
       "options": {
         "platform": "node",
-        "outputPath": "dist/apps/publish-to-personal-vps",
+        "outputPath": "dist/apps/obsidian-vps-publish",
         "format": ["cjs"],
         "bundle": true,
-        "main": "apps/publish-to-personal-vps/src/main.ts",
-        "tsConfig": "apps/publish-to-personal-vps/tsconfig.json",
+        "main": "apps/obsidian-vps-publish/src/main.ts",
+        "tsConfig": "apps/obsidian-vps-publish/tsconfig.json",
         "assets": [
-          "apps/publish-to-personal-vps/manifest.json",
-          "apps/publish-to-personal-vps/versions.json",
-          "apps/publish-to-personal-vps/styles.css"
+          "apps/obsidian-vps-publish/manifest.json",
+          "apps/obsidian-vps-publish/versions.json",
+          "apps/obsidian-vps-publish/styles.css"
         ],
         "external": [
           "obsidian",
@@ -46,18 +46,18 @@
     },
     "build": {
       "executor": "@nx/esbuild:esbuild",
-      "outputs": ["{workspaceRoot}/dist/apps/publish-to-personal-vps"],
+      "outputs": ["{workspaceRoot}/dist/apps/obsidian-vps-publish"],
       "options": {
         "platform": "node",
-        "outputPath": "dist/apps/publish-to-personal-vps",
+        "outputPath": "dist/apps/obsidian-vps-publish",
         "format": ["cjs"],
         "bundle": true,
-        "main": "apps/publish-to-personal-vps/src/main.ts",
-        "tsConfig": "apps/publish-to-personal-vps/tsconfig.json",
+        "main": "apps/obsidian-vps-publish/src/main.ts",
+        "tsConfig": "apps/obsidian-vps-publish/tsconfig.json",
         "assets": [
-          "apps/publish-to-personal-vps/manifest.json",
-          "apps/publish-to-personal-vps/versions.json",
-          "apps/publish-to-personal-vps/styles.css"
+          "apps/obsidian-vps-publish/manifest.json",
+          "apps/obsidian-vps-publish/versions.json",
+          "apps/obsidian-vps-publish/styles.css"
         ],
         "external": [
           "obsidian",
@@ -86,9 +86,9 @@
     "package": {
       "executor": "nx:run-commands",
       "dependsOn": ["build"],
-      "outputs": ["{workspaceRoot}/dist/publish-to-personal-vps"],
+      "outputs": ["{workspaceRoot}/dist/obsidian-vps-publish"],
       "options": {
-        "command": "node apps/publish-to-personal-vps/scripts/package-plugin.mjs"
+        "command": "node apps/obsidian-vps-publish/scripts/package-plugin.mjs"
       }
     },
     "lint": {
@@ -96,9 +96,9 @@
     },
     "test": {
       "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/apps/publish-to-personal-vps"],
+      "outputs": ["{workspaceRoot}/coverage/apps/obsidian-vps-publish"],
       "options": {
-        "jestConfig": "apps/publish-to-personal-vps/jest.config.cjs",
+        "jestConfig": "apps/obsidian-vps-publish/jest.config.cjs",
         "runInBand": true
       }
     }

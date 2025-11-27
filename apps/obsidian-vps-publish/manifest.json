@@ -1,5 +1,5 @@
 {
-  "id": "publish-to-personal-vps",
+  "id": "obsidian-vps-publish",
   "name": "Publish To personal VPS",
   "version": "3.0.1",
   "minAppVersion": "1.5.0",

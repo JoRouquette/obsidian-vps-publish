@@ -1,7 +1,7 @@
 /node_modules
 **/node_modules
 **/dist
-apps/publish-to-personal-vps/**
+apps/obsidian-vps-publish/**
 **/.angular
 **/.cache
 **/tmp
