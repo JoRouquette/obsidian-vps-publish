@@ -1,5 +1,5 @@
 services:
-  scribe-ektaron:
+  obsidian-vps-publish:
     image: ${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG:-latest}
 
     env_file:

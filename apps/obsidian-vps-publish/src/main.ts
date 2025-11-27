@@ -23,7 +23,7 @@ import { ObsidianAssetsVaultAdapter } from './lib/infra/obsidian-assets-vault.ad
 import { ObsidianVaultAdapter } from './lib/infra/obsidian-vault.adapter';
 import { testVpsConnection } from './lib/services/http-connection.service';
 import { SessionApiClient } from './lib/services/session-api.client';
-import { PublishToPersonalVpsSettingTab } from './lib/setting-tab.view';
+import { ObsidianVpsPublishSettingTab } from './lib/setting-tab.view';
 import type { PluginSettings } from './lib/settings/plugin-settings.type';
 import { RequestUrlResponseMapper } from './lib/utils/http-response-status.mapper';
 
@@ -72,10 +72,10 @@ function withDecryptedApiKeys(settings: PluginSettings): PluginSettings {
 // Main Plugin Class
 // -----------------------------------------------------------------------------
 
-export default class PublishToPersonalVpsPlugin extends Plugin {
+export default class ObsidianVpsPublishPlugin extends Plugin {
   settings!: PluginSettings;
   responseHandler!: HttpResponseHandler<RequestUrlResponse>;
-  logger = new ConsoleLoggerAdapter({ plugin: 'PublishToPersonalVps' }, LogLevel.debug);
+  logger = new ConsoleLoggerAdapter({ plugin: 'ObsidianVpsPublish' }, LogLevel.debug);
 
   async onload() {
     await this.loadSettings();
@@ -88,10 +88,10 @@ export default class PublishToPersonalVpsPlugin extends Plugin {
       this.logger
     );
 
-    this.addSettingTab(new PublishToPersonalVpsSettingTab(this.app, this, this.logger));
+    this.addSettingTab(new ObsidianVpsPublishSettingTab(this.app, this, this.logger));
 
     this.addCommand({
-      id: 'publish-to-personal-vps',
+      id: 'obsidian-vps-publish',
       name: t.plugin.commandPublish,
       callback: async () => this.publishToSiteAsync(),
     });

@@ -1,10 +1,10 @@
 services:
-  scribe-ektaron:
+  obsidian-vps-publish:
     build:
       context: .
       dockerfile: Dockerfile
 
-    image: scribe-ektaron:dev
+    image: obsidian-vps-publish:dev
 
     env_file:
       - .env.dev
@@ -14,4 +14,4 @@ services:
     #   LOGGER_LEVEL: 'debug'
     #   ALLOWED_ORIGINS: '*,app://obsidian'
     #   AUTHOR: 'Jonathan Rouquette'
-    #   REPO_URL: 'https://github.com/JoRouquette/scribe-ektaron'
+    #   REPO_URL: 'https://github.com/JoRouquette/obsidian-vps-publish'

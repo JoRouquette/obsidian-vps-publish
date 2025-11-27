@@ -1,5 +1,5 @@
 /* Conteneur global des settings du plugin */
-.publish-to-personal-vps-settings {
+.obsidian-vps-publish-settings {
   max-width: 900px;
   margin-top: 1rem;
   display: flex;
@@ -8,14 +8,14 @@
 }
 
 /* Titre principal */
-.publish-to-personal-vps-settings h1 {
+.obsidian-vps-publish-settings h1 {
   margin: 0 0 0.5rem 0;
   font-size: 1.4rem;
   font-weight: 600;
 }
 
 /* Bloc générique (langue, VPS, dossiers, etc.) */
-.publish-to-personal-vps-settings .ptpv-block {
+.obsidian-vps-publish-settings .ptpv-block {
   padding: 0.9rem 1.1rem;
   border-radius: 10px;
   background-color: var(--background-secondary);
@@ -24,7 +24,7 @@
 }
 
 /* Titre de section */
-.publish-to-personal-vps-settings .ptpv-block-title {
+.obsidian-vps-publish-settings .ptpv-block-title {
   font-weight: 600;
   color: var(--text-normal);
   margin-bottom: 0.4rem;
@@ -35,35 +35,35 @@
 }
 
 /* Texte d’aide sous les sections */
-.publish-to-personal-vps-settings .ptpv-help {
+.obsidian-vps-publish-settings .ptpv-help {
   font-size: 0.85rem;
   color: var(--text-muted);
   margin-top: 0.4rem;
 }
 
 /* Ajuster les Setting Obsidian à l’intérieur de notre conteneur */
-.publish-to-personal-vps-settings .setting-item {
+.obsidian-vps-publish-settings .setting-item {
   padding: 0.3rem 0;
 }
 
-.publish-to-personal-vps-settings .setting-item:first-of-type {
+.obsidian-vps-publish-settings .setting-item:first-of-type {
   margin-top: 0.2rem;
 }
 
-.publish-to-personal-vps-settings .setting-item:not(:last-of-type) {
+.obsidian-vps-publish-settings .setting-item:not(:last-of-type) {
   border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.publish-to-personal-vps-settings .setting-item-info {
+.obsidian-vps-publish-settings .setting-item-info {
   gap: 0.2rem;
 }
 
 /* Inputs texte full width (mais pas les toggles) */
-.publish-to-personal-vps-settings .setting-item-control input[type='text'] {
+.obsidian-vps-publish-settings .setting-item-control input[type='text'] {
   width: 100%;
 }
 
-.publish-to-personal-vps-settings .ptpv-button-row {
+.obsidian-vps-publish-settings .ptpv-button-row {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
@@ -72,7 +72,7 @@
 }
 
 /* Tag (si tu veux marquer des infos supplémentaires) */
-.publish-to-personal-vps-settings .ptpv-tag {
+.obsidian-vps-publish-settings .ptpv-tag {
   display: inline-flex;
   align-items: center;
   padding: 0 0.5rem;
@@ -84,7 +84,7 @@
 
 /* --- Styles spécifiques pour les blocs "dossier" --- */
 
-.publish-to-personal-vps-settings .ptpv-folder {
+.obsidian-vps-publish-settings .ptpv-folder {
   margin-top: 0.6rem;
   padding: 0.7rem 0.75rem;
   border-radius: 8px;
@@ -93,7 +93,7 @@
   position: relative;
 }
 
-.publish-to-personal-vps-settings .ptpv-folder legend {
+.obsidian-vps-publish-settings .ptpv-folder legend {
   padding: 0 0.35rem;
   font-size: 0.95rem;
   font-weight: 600;
@@ -101,7 +101,7 @@
 }
 
 /* Liseré coloré à gauche pour bien distinguer chaque dossier */
-.publish-to-personal-vps-settings .ptpv-folder::before {
+.obsidian-vps-publish-settings .ptpv-folder::before {
   content: '';
   position: absolute;
   left: 0;
@@ -114,7 +114,7 @@
 }
 
 /* Titre du bloc dossier (nom ou #index) */
-.publish-to-personal-vps-settings .ptpv-folder > h4 {
+.obsidian-vps-publish-settings .ptpv-folder > h4 {
   margin: 0 0 0.4rem 0;
   padding-left: 0.25rem;
   font-size: 0.95rem;
@@ -123,50 +123,50 @@
 }
 
 /* On ajoute un peu de marge entre les settings d’un même dossier */
-.publish-to-personal-vps-settings .ptpv-folder .setting-item {
+.obsidian-vps-publish-settings .ptpv-folder .setting-item {
   border-bottom: none;
   padding: 0.25rem 0;
 }
 
 /* Bouton "Add folder" intégré proprement */
-.publish-to-personal-vps-settings .setting-item-control button.mod-cta {
+.obsidian-vps-publish-settings .setting-item-control button.mod-cta {
   min-width: 7rem;
   padding: 0.3rem 0.6rem;
   border-radius: 6px;
 }
 
 /* Hover subtil pour les boutons normaux */
-.publish-to-personal-vps-settings .ptpv-button-row button:not(.mod-cta) {
+.obsidian-vps-publish-settings .ptpv-button-row button:not(.mod-cta) {
   background-color: transparent;
   border-radius: 6px;
   padding: 0.2rem 0.6rem;
   border: 1px solid var(--background-modifier-border);
 }
 
-.publish-to-personal-vps-settings .ptpv-button-row button:not(.mod-cta):hover {
+.obsidian-vps-publish-settings .ptpv-button-row button:not(.mod-cta):hover {
   background-color: var(--background-modifier-hover);
   border-color: var(--background-modifier-border);
 }
 
 /* Un peu d’air en bas pour ne pas coller au bord de la vue */
-.publish-to-personal-vps-settings {
+.obsidian-vps-publish-settings {
   padding-bottom: 1rem;
 }
 
 /* ------------------------ Chips (frontmatter / tags) ---------------------- */
-.publish-to-personal-vps-settings .ptpv-chips {
+.obsidian-vps-publish-settings .ptpv-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
   margin: 0.35rem 0 0.2rem;
 }
 
-.publish-to-personal-vps-settings .ptpv-chips-empty {
+.obsidian-vps-publish-settings .ptpv-chips-empty {
   color: var(--text-muted);
   font-size: 0.9em;
 }
 
-.publish-to-personal-vps-settings .ptpv-chip {
+.obsidian-vps-publish-settings .ptpv-chip {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -177,32 +177,32 @@
   color: var(--text-normal);
 }
 
-.publish-to-personal-vps-settings .ptpv-chip-remove {
+.obsidian-vps-publish-settings .ptpv-chip-remove {
   cursor: pointer;
   padding: 0 0.2rem;
   border-radius: 50%;
   color: var(--text-muted);
 }
 
-.publish-to-personal-vps-settings .ptpv-chip-remove:hover {
+.obsidian-vps-publish-settings .ptpv-chip-remove:hover {
   background-color: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
-.publish-to-personal-vps-settings .ptpv-suggest-count {
+.obsidian-vps-publish-settings .ptpv-suggest-count {
   color: var(--text-muted);
   margin-left: 0.25rem;
   font-size: 0.9em;
 }
 
-.publish-to-personal-vps-settings .ptpv-sanitization {
+.obsidian-vps-publish-settings .ptpv-sanitization {
   margin-top: 0.4rem;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
 
-.publish-to-personal-vps-settings .ptpv-sanitization-rule {
+.obsidian-vps-publish-settings .ptpv-sanitization-rule {
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
   padding: 0.4rem 0.6rem;

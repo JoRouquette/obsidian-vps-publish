@@ -1,4 +1,4 @@
-# PublishToPersonalVps
+# ObsidianVpsPublish
 
 Publish selected folders from your Obsidian vault to your **own VPS**, similar in spirit to Obsidian Publish, but self-hosted and fully under your control.
 
@@ -34,7 +34,7 @@ Everything is plain TypeScript with **relative imports only**, no Nx, no path al
 ## Repository Structure
 
 ```text
-publish-to-personal-vps/
+obsidian-vps-publish/
   core-publishing/
     src/
       lib/
@@ -127,7 +127,7 @@ This layer does **not** know:
 - Extends Obsidian’s `Plugin`.
 - Loads/saves `PublishPluginSettings` from Obsidian’s data store.
 - Registers:
-  - Settings tab (`PublishToPersonalVpsSettingTab`).
+  - Settings tab (`ObsidianVpsPublishSettingTab`).
   - Command: “Publish to personal VPS”.
 
 - On publish:
@@ -149,7 +149,7 @@ This layer does **not** know:
 
 - Styles (`styles.css`) are minimal and theme-friendly:
   - Use Obsidian CSS variables (`--background-secondary`, `--text-normal`, etc.).
-  - Scoped under `.publish-to-personal-vps-settings` to avoid global pollution.
+  - Scoped under `.obsidian-vps-publish-settings` to avoid global pollution.
 
 ## Build & Development
 
@@ -218,7 +218,7 @@ This runs:
 Result:
 
 ```text
-dist/PublishToPersonalVps/
+dist/ObsidianVpsPublish/
   main.js
   manifest.json
   styles.css
@@ -246,15 +246,15 @@ This folder is what Obsidian expects for a community plugin.
    Option A – copy:
 
    ```bash
-   cp -r dist/PublishToPersonalVps "<path-to-your-vault>/.obsidian/plugins/PublishToPersonalVps"
+   cp -r dist/ObsidianVpsPublish "<path-to-your-vault>/.obsidian/plugins/ObsidianVpsPublish"
    ```
 
    Option B – symlink (useful in dev):
 
    ```bash
    ln -s \
-     "$(pwd)/dist/PublishToPersonalVps" \
-     "<path-to-your-vault>/.obsidian/plugins/PublishToPersonalVps"
+     "$(pwd)/dist/ObsidianVpsPublish" \
+     "<path-to-your-vault>/.obsidian/plugins/ObsidianVpsPublish"
    ```
 
 4. **Enable the plugin in Obsidian**
@@ -450,7 +450,7 @@ Add UI elements in `setting-tab.ts` to:
 - Check that the final folder structure looks like:
 
   ```text
-  <vault>/.obsidian/plugins/PublishToPersonalVps/
+  <vault>/.obsidian/plugins/ObsidianVpsPublish/
     main.js
     manifest.json
     styles.css

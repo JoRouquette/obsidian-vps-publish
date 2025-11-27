@@ -26,7 +26,7 @@ module.exports = {
       '@semantic-release/exec',
       {
         prepareCmd:
-          'RELEASE_VERSION=${nextRelease.version} node scripts/sync-version.mjs && node apps/publish-to-personal-vps/scripts/update-obsidian-version.mjs ${nextRelease.version}',
+          'RELEASE_VERSION=${nextRelease.version} node scripts/sync-version.mjs && node apps/obsidian-vps-publish/scripts/update-obsidian-version.mjs ${nextRelease.version} && npx nx run obsidian-vps-publish:build --skip-nx-cache && node apps/obsidian-vps-publish/scripts/package-plugin.mjs && cd dist && zip -r obsidian-vps-publish.zip obsidian-vps-publish',
       },
     ],
     [
@@ -38,10 +38,16 @@ module.exports = {
           'package-lock.json',
           'apps/site/src/version.ts',
           'apps/node/src/version.ts',
-          'apps/publish-to-personal-vps/manifest.json',
-          'apps/publish-to-personal-vps/versions.json',
+          'apps/obsidian-vps-publish/manifest.json',
+          'apps/obsidian-vps-publish/versions.json',
         ],
         message: 'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
+      },
+    ],
+    [
+      '@semantic-release/github',
+      {
+        assets: [{ path: 'dist/obsidian-vps-publish.zip', label: 'Obsidian plugin bundle' }],
       },
     ],
     ['@semantic-release/npm', { npmPublish: false }],

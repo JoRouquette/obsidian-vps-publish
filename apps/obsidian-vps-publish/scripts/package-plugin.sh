@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Dossier final du plugin (celui qu'Obsidian utilisera)
-PLUGIN_DIR_NAME="publish-to-personal-vps"
+PLUGIN_DIR_NAME="obsidian-vps-publish"
 
 # Racine du repo
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

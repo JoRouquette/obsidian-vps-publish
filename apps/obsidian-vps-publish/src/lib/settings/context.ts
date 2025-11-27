@@ -1,15 +1,15 @@
-import type PublishToPersonalVpsPlugin from '../../main';
+import type ObsidianVpsPublishPlugin from '../../main';
 import { getTranslations } from '../../i18n';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { SettingsContext as BaseContext, PluginSettings } from './plugin-settings.type';
 
 export type SettingsViewContext = BaseContext & {
-  plugin: PublishToPersonalVpsPlugin;
+  plugin: ObsidianVpsPublishPlugin;
   t: ReturnType<typeof getTranslations>['t'];
 };
 
 export function buildSettingsContext(
-  plugin: PublishToPersonalVpsPlugin,
+  plugin: ObsidianVpsPublishPlugin,
   logger: LoggerPort,
   refresh: () => void
 ): SettingsViewContext {

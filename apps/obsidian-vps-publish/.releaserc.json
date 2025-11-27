@@ -6,7 +6,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "node apps/publish-to-personal-vps/scripts/update-obsidian-version.mjs ${nextRelease.version}"
+        "prepareCmd": "node apps/obsidian-vps-publish/scripts/update-obsidian-version.mjs ${nextRelease.version}"
       }
     ],
     [
@@ -15,9 +15,9 @@
         "assets": [
           "CHANGELOG.md",
           "package.json",
-          "apps/publish-to-personal-vps/manifest.json",
-          "apps/publish-to-personal-vps/versions.json",
-          "dist/publish-to-personal-vps/**"
+          "apps/obsidian-vps-publish/manifest.json",
+          "apps/obsidian-vps-publish/versions.json",
+          "dist/obsidian-vps-publish/**"
         ],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
@@ -27,7 +27,7 @@
       {
         "assets": [
           {
-            "path": "dist/publish-to-personal-vps",
+            "path": "dist/obsidian-vps-publish",
             "label": "Obsidian plugin folder"
           }
         ]

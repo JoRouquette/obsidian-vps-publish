@@ -1,6 +1,6 @@
 services:
-  scribe-ektaron:
-    image: scribe-ektaron:local
+  obsidian-vps-publish:
+    image: obsidian-vps-publish:local
 
     restart: unless-stopped
 

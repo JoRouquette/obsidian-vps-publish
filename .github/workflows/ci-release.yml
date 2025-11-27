@@ -87,56 +87,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
 
-  obsidian-plugin-dry-run:
-    name: Package & dry-run publish Obsidian plugin
-    needs: semantic-release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout latest release commit
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Sync to latest branch state
-        run: |
-          git fetch origin "${GITHUB_REF_NAME}"
-          git checkout "origin/${GITHUB_REF_NAME}"
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund --ignore-scripts
-        env:
-          HUSKY: 0
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: .
-
-      - name: Ensure plugin build exists
-        run: |
-          if [ ! -f "dist/apps/publish-to-personal-vps/main.js" ]; then
-            echo "dist artifact missing plugin build; rebuilding plugin only"
-            npx nx run publish-to-personal-vps:build --skip-nx-cache
-          fi
-
-      - name: Package plugin for Obsidian publishing
-        run: node apps/publish-to-personal-vps/scripts/package-plugin.mjs
-
-      - name: Semantic-release dry-run
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release --config apps/publish-to-personal-vps/.releaserc.json --dry-run
-
   docker-images:
     name: Build and publish Docker images
     needs: semantic-release
@@ -204,7 +154,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: false
+          push: true
           tags: |
             docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.version }}
             docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.short_sha }}
