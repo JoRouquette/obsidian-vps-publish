@@ -25,7 +25,8 @@ module.exports = {
     [
       '@semantic-release/exec',
       {
-        prepareCmd: 'RELEASE_VERSION=${nextRelease.version} node scripts/sync-version.mjs',
+        prepareCmd:
+          'RELEASE_VERSION=${nextRelease.version} node scripts/sync-version.mjs && node apps/publish-to-personal-vps/scripts/update-obsidian-version.mjs ${nextRelease.version}',
       },
     ],
     [
@@ -37,6 +38,8 @@ module.exports = {
           'package-lock.json',
           'apps/site/src/version.ts',
           'apps/node/src/version.ts',
+          'apps/publish-to-personal-vps/manifest.json',
+          'apps/publish-to-personal-vps/versions.json',
         ],
         message: 'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
       },
