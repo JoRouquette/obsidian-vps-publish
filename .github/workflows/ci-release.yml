@@ -122,6 +122,13 @@ jobs:
           name: dist
           path: .
 
+      - name: Ensure plugin build exists
+        run: |
+          if [ ! -f "dist/apps/publish-to-personal-vps/main.js" ]; then
+            echo "dist artifact missing plugin build; rebuilding plugin only"
+            npx nx run publish-to-personal-vps:build --skip-nx-cache
+          fi
+
       - name: Package plugin for Obsidian publishing
         run: node apps/publish-to-personal-vps/scripts/package-plugin.mjs
 
