@@ -6,3 +6,10 @@ export interface Manifest {
   lastUpdatedAt: Date;
   pages: ManifestPage[];
 }
+
+export const defaultManifest: Manifest = {
+  sessionId: '',
+  createdAt: new Date(0),
+  lastUpdatedAt: new Date(0),
+  pages: [],
+};

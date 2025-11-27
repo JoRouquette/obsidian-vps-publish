@@ -46,6 +46,7 @@ type FoldersTranslations = {
   vpsDescription: string;
   sanitizationTitle: string;
   sanitizationHelp?: string;
+  defaultSanitizationRuleBanner: string;
   addSanitizationRule: string;
   deleteSanitizationRule: string;
   ruleNameLabel: string;
@@ -187,6 +188,7 @@ export const en: Translations = {
       vpsDescription: 'Select which VPS configuration this folder publishes to.',
       sanitizationTitle: 'Sanitization rules',
       sanitizationHelp: 'Define regex-based rules applied to note content before publishing.',
+      defaultSanitizationRuleBanner: 'Default rule (uneditable)',
       addSanitizationRule: 'Add rule',
       deleteSanitizationRule: 'Delete rule',
       ruleNameLabel: 'Rule name',
@@ -295,6 +297,7 @@ export const fr: Translations = {
       routeDescription: 'Ex : /blog, /docs, etc.',
       sanitizationTitle: 'Règles de nettoyage',
       sanitizationHelp: 'Définissez des règles regex appliquées au contenu avant publication.',
+      defaultSanitizationRuleBanner: 'Règle par défaut (non modifiable)',
       addSanitizationRule: 'Ajouter une règle',
       deleteSanitizationRule: 'Supprimer la règle',
       ruleNameLabel: 'Nom de la règle',

@@ -3,10 +3,9 @@ import type { AssetRef } from '../entities/asset-ref';
 import { ResolvedAssetFile } from '../entities/resolved-asset-file';
 
 export interface AssetsVaultPort {
-  resolveAssetForNote(
-    note: PublishableNote,
-    asset: AssetRef,
+  resolveAssetsFromNotes(
+    notes: PublishableNote[],
     assetsFolder: string,
     enableVaultFallback: boolean
-  ): Promise<ResolvedAssetFile | null>;
+  ): Promise<ResolvedAssetFile[]>;
 }

@@ -1,5 +1,5 @@
 import { ManifestPort } from '../../../publishing/ports/manifest-storage.port';
-import { Manifest } from '@core-domain';
+import { Manifest, Slug } from '@core-domain';
 
 describe('ManifestPort', () => {
   let manifestPort: ManifestPort;
@@ -14,7 +14,7 @@ describe('ManifestPort', () => {
         {
           id: 'page-1',
           title: 'Home',
-          slug: 'home',
+          slug: Slug.from('home'),
           route: '/home',
           publishedAt: new Date(),
         },

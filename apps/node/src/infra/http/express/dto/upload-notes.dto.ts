@@ -50,14 +50,6 @@ export const FolderConfigDto = z.object({
   sanitization: z.array(SanitizationRulesDto).optional(),
 });
 
-// VpsConfig
-export const VpsConfigDto = z.object({
-  id: z.string(),
-  name: z.string(),
-  url: z.string(),
-  apiKey: z.string(),
-});
-
 // DomainFrontmatter
 export const DomainFrontmatterDto = z.object({
   flat: z.record(z.string(), z.unknown()),
@@ -74,7 +66,6 @@ export const NoteCoreDto = z.object({
   content: z.string(),
   frontmatter: DomainFrontmatterDto,
   folderConfig: FolderConfigDto,
-  vpsConfig: VpsConfigDto,
 });
 
 // NoteRoutingInfo

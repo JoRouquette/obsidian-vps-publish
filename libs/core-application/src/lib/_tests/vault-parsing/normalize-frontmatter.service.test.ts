@@ -31,7 +31,6 @@ describe('NormalizeFrontmatterService', () => {
     content: 'c',
     frontmatter: { 'Foo.Bar': 'baz', tags: ['a', 'b'], nested: { keep: true } } as any,
     folderConfig: { id: 'f', vaultFolder: 'Vault', routeBase: '/blog', vpsId: 'vps' },
-    vpsConfig: { id: 'vps', name: 'v', url: 'http://x', apiKey: 'k' },
   };
 
   it('normalizes keys and builds flat/nested/tags', () => {

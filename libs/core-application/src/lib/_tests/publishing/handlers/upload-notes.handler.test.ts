@@ -48,12 +48,6 @@ describe('UploadNotesHandler', () => {
         vpsId: 'vps-1',
         sanitization: [],
       },
-      vpsConfig: {
-        id: 'vps-1',
-        name: 'Default VPS',
-        url: 'https://example.test',
-        apiKey: 'dummy',
-      },
       eligibility: { isPublishable: true },
       ...overrides,
     };

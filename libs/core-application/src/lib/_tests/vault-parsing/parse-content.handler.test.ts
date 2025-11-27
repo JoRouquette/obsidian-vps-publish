@@ -63,8 +63,6 @@ describe('ParseContentHandler', () => {
     vpsId: 'vps',
   };
 
-  const vpsConfig = { id: 'vps', name: 'vps', url: 'http://x', apiKey: 'k' };
-
   it('filters notes using ignore rules and resolves wikilinks/assets/routing', async () => {
     const handler = buildHandler([{ property: 'publish', ignoreIf: false } as any], ['secret'], ['private']);
 
@@ -81,7 +79,6 @@ describe('ParseContentHandler', () => {
         tags: ['public', 'private'],
       } as any,
       folderConfig: baseFolder,
-      vpsConfig,
     };
 
     const noteB: CollectedNote = {
@@ -92,7 +89,6 @@ describe('ParseContentHandler', () => {
       content: 'Content B',
       frontmatter: { publish: true } as any,
       folderConfig: baseFolder,
-      vpsConfig,
     };
 
     const result = await handler.handle([noteA, noteB]);
@@ -119,7 +115,6 @@ describe('ParseContentHandler', () => {
       content: 'hello',
       frontmatter: { publish: false } as any,
       folderConfig: baseFolder,
-      vpsConfig,
     };
 
     const result = await handler.handle([note]);

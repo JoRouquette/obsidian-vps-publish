@@ -1,4 +1,4 @@
-import { Manifest } from '../models/manifest';
+import type { Manifest } from '../entities/manifest';
 
 export interface ManifestRepository {
   load(): Promise<Manifest>;

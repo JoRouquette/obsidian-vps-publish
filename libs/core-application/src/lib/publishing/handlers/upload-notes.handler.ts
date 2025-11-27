@@ -1,4 +1,4 @@
-import { Manifest, ManifestPage, PublishableNote } from '@core-domain';
+import { Manifest, ManifestPage, PublishableNote, Slug } from '@core-domain';
 import { CommandHandler } from '../../common/command-handler';
 import { LoggerPort } from '../../ports/logger.port';
 import type { MarkdownRendererPort } from '../../ports/markdown-renderer.port';
@@ -63,7 +63,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
         id: n.noteId,
         title: n.title,
         route: n.routing.fullPath,
-        slug: n.routing.slug,
+        slug: Slug.from(n.routing.slug),
         publishedAt: n.publishedAt,
         vaultPath: n.vaultPath,
         relativePath: n.relativePath,

@@ -1,44 +1,31 @@
-import { Notice, Plugin, RequestUrlResponse } from 'obsidian';
-
-import type { PublishPluginSettings } from '@core-domain/entities/publish-plugin-settings';
-import { getTranslations } from './i18n';
-import type { PluginSettings } from './lib/settings/plugin-settings.type';
-
-import { decryptApiKey, encryptApiKey } from './lib/api-key-crypto';
-import { testVpsConnection } from './lib/services/http-connection.service';
-import { PublishToPersonalVpsSettingTab } from './lib/setting-tab.view';
-
-import { PublishNotesCommandHandler } from '@core-application/vault-parsing/commands/publish-notes.command';
-import {
-  extractNotesWithAssets,
-  type NoteWithAssets,
-} from '@core-domain/entities/note-with-assets';
-import type { PublishableNote } from '@core-domain/entities/publishable-note';
-import { PublishAssetsCommandHandler } from '@core-application/vault-parsing/commands/publish-assets.command';
-import { ObsidianAssetsVaultAdapter } from './lib/infra/obsidian-assets-vault.adapter';
-
-import { HttpResponse } from '@core-domain/entities/http-response';
-import { HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
-import { AssetsUploaderAdapter } from './lib/infra/assets-uploader.adapter';
-import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
-import { NotesUploaderAdapter } from './lib/infra/notes-uploader.adapter';
-import { RequestUrlResponseMapper } from './lib/utils/http-response-status.mapper';
-import { SessionApiClient } from './lib/services/session-api.client';
-import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
-import { NoticeProgressAdapter } from './lib/infra/notice-progress.adapter';
-import { ObsidianVaultAdapter } from './lib/infra/obsidian-vault.adapter';
-import type { UploaderPort } from '@core-domain/ports/uploader-port';
-import type { LoggerPort } from '@core-domain/ports/logger-port';
-import { ParseContentHandler } from '@core-application/vault-parsing/handler/parse-content.handler';
-import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';
 import { EvaluateIgnoreRulesHandler } from '@core-application/vault-parsing/handler/evaluate-ignore-rules.handler';
-import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
+import { HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
+import { ParseContentHandler } from '@core-application/vault-parsing/handler/parse-content.handler';
+import { NotesMapper } from '@core-application/vault-parsing/mappers/notes.mapper';
+import { ComputeRoutingService } from '@core-application/vault-parsing/services/compute-routing.service';
 import { ContentSanitizerService } from '@core-application/vault-parsing/services/content-sanitizer.service';
 import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
 import { DetectWikilinksService } from '@core-application/vault-parsing/services/detect-wikilinks.service';
+import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';
+import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
-import { ComputeRoutingService } from '@core-application/vault-parsing/services/compute-routing.service';
-import { NotesMapper } from '@core-application/vault-parsing/mappers/notes.mapper';
+import { CollectedNote, LogLevel } from '@core-domain';
+import { HttpResponse } from '@core-domain/entities/http-response';
+import type { LoggerPort } from '@core-domain/ports/logger-port';
+import { Notice, Plugin, RequestUrlResponse } from 'obsidian';
+import { getTranslations } from './i18n';
+import { decryptApiKey, encryptApiKey } from './lib/api-key-crypto';
+import { AssetsUploaderAdapter } from './lib/infra/assets-uploader.adapter';
+import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
+import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
+import { NotesUploaderAdapter } from './lib/infra/notes-uploader.adapter';
+import { ObsidianAssetsVaultAdapter } from './lib/infra/obsidian-assets-vault.adapter';
+import { ObsidianVaultAdapter } from './lib/infra/obsidian-vault.adapter';
+import { testVpsConnection } from './lib/services/http-connection.service';
+import { SessionApiClient } from './lib/services/session-api.client';
+import { PublishToPersonalVpsSettingTab } from './lib/setting-tab.view';
+import type { PluginSettings } from './lib/settings/plugin-settings.type';
+import { RequestUrlResponseMapper } from './lib/utils/http-response-status.mapper';
 
 const defaultSettings: PluginSettings = {
   vpsConfigs: [],
@@ -81,22 +68,6 @@ function withDecryptedApiKeys(settings: PluginSettings): PluginSettings {
   return cloned;
 }
 
-function buildCoreSettings(settings: PluginSettings): PublishPluginSettings {
-  const { vpsConfigs, folders, ignoreRules } = settings;
-  return { vpsConfigs, folders, ignoreRules };
-}
-
-class CollectingUploader implements UploaderPort {
-  notes: PublishableNote[] = [];
-  constructor(private readonly logger: LoggerPort) {}
-
-  async upload(notes: PublishableNote[]): Promise<boolean> {
-    this.notes.push(...notes);
-    this.logger.debug('Collected notes for deferred upload', { count: notes.length });
-    return true;
-  }
-}
-
 // -----------------------------------------------------------------------------
 // Main Plugin Class
 // -----------------------------------------------------------------------------
@@ -104,7 +75,7 @@ class CollectingUploader implements UploaderPort {
 export default class PublishToPersonalVpsPlugin extends Plugin {
   settings!: PluginSettings;
   responseHandler!: HttpResponseHandler<RequestUrlResponse>;
-  logger = new ConsoleLoggerAdapter({ plugin: 'PublishToPersonalVps' });
+  logger = new ConsoleLoggerAdapter({ plugin: 'PublishToPersonalVps' }, LogLevel.debug);
 
   async onload() {
     await this.loadSettings();
@@ -206,49 +177,21 @@ export default class PublishToPersonalVpsPlugin extends Plugin {
     const scopedLogger = this.logger.child({ vps: vps.id ?? 'default' });
     const guidGenerator = new GuidGeneratorAdapter();
     const vault = new ObsidianVaultAdapter(this.app, guidGenerator, scopedLogger);
-    const notesCollector = new CollectingUploader(scopedLogger);
-    const parseContentHandler = this.buildParseContentHandler(settings, scopedLogger);
-    const publishNotesHandler = new PublishNotesCommandHandler(
-      vault,
-      notesCollector,
-      parseContentHandler,
-      scopedLogger
-    );
-    const notesProgress = new NoticeProgressAdapter();
-    const coreSettings = buildCoreSettings(settings);
 
-    const result = await publishNotesHandler.handle({
-      settings: coreSettings,
-      progress: notesProgress,
+    let notes: CollectedNote[] = await vault.collectFromFolder({
+      folderConfig: settings.folders,
     });
 
-    if (result.type === 'noConfig') {
-      new Notice('?? No folders or VPS configured.');
-      return;
-    }
+    const parseContentHandler = this.buildParseContentHandler(settings, scopedLogger);
+    let publishables = await parseContentHandler.handle(notes);
 
-    if (result.type === 'missingVpsConfig') {
-      this.logger.warn('Missing VPS for folders:', result.foldersWithoutVps);
-      new Notice('?? Some folder(s) have no VPS configured (see console).');
-      return;
-    }
+    const notesWithAssets = publishables.filter((n) => n.assets && n.assets.length > 0);
+    const assetsPlanned = notesWithAssets.reduce(
+      (sum, n) => sum + (Array.isArray(n.assets) ? n.assets.length : 0),
+      0
+    );
 
-    if (result.type === 'error') {
-      this.logger.error('Error during publishing: ', result.error);
-      new Notice('? Error during publishing (see console).');
-      return;
-    }
-
-    const notes = notesCollector.notes ?? result.notes ?? [];
-    if (notes.length === 0) {
-      new Notice('?? Nothing to publish (0 note).');
-      return;
-    }
-
-    const notesWithAssets = extractNotesWithAssets(notes);
-    const assetsPlanned = new Set(
-      notesWithAssets.flatMap((n) => n.assets?.map((a) => a.target) ?? [])
-    ).size;
+    scopedLogger.info('Total notes collected and parsed', { count: notes.length });
 
     const sessionClient = new SessionApiClient(
       vps.url,
@@ -268,6 +211,7 @@ export default class PublishToPersonalVpsPlugin extends Plugin {
         assetsPlanned: assetsPlanned,
         maxBytesPerRequest: maxBytesRequested,
       });
+
       sessionId = started.sessionId;
       maxBytesPerRequest = started.maxBytesPerRequest;
       this.logger.info('Session started', { sessionId, maxBytesPerRequest });
@@ -278,7 +222,7 @@ export default class PublishToPersonalVpsPlugin extends Plugin {
         this.logger,
         maxBytesPerRequest
       );
-      await notesUploader.upload(notes);
+      await notesUploader.upload(publishables);
 
       if (notesWithAssets.length > 0) {
         const assetsVault = new ObsidianAssetsVaultAdapter(this.app, this.logger);
@@ -288,30 +232,17 @@ export default class PublishToPersonalVpsPlugin extends Plugin {
           this.logger,
           maxBytesPerRequest
         );
-        const publishAssetsHandler = new PublishAssetsCommandHandler(
-          assetsVault,
-          assetsUploader,
-          this.logger
+
+        const resolvedAssets = await assetsVault.resolveAssetsFromNotes(
+          notesWithAssets,
+          settings.assetsFolder,
+          settings.enableAssetsVaultFallback
         );
-        const assetsProgress = new NoticeProgressAdapter();
+        assetsUploaded = resolvedAssets.length;
 
-        const assetsResult = await publishAssetsHandler.handle({
-          notes: notesWithAssets,
-          assetsFolder: settings.assetsFolder,
-          enableAssetsVaultFallback: settings.enableAssetsVaultFallback,
-          progress: assetsProgress,
-        });
+        await assetsUploader.upload(resolvedAssets);
 
-        if (assetsResult.type === 'error') {
-          throw assetsResult.error ?? new Error('Asset publication failed');
-        }
-        assetsUploaded = assetsResult.type === 'success' ? assetsResult.publishedAssetsCount : 0;
-
-        if (assetsResult.type === 'success' && assetsResult.failures.length > 0) {
-          this.logger.warn('Some assets failed to upload', {
-            failures: assetsResult.failures,
-          });
-        }
+        this.logger.info('Assets uploaded', { assetsUploaded });
       }
 
       await sessionClient.finishSession(sessionId, {
@@ -321,7 +252,7 @@ export default class PublishToPersonalVpsPlugin extends Plugin {
 
       new Notice(
         '' +
-          ('? Published ' +
+          ('Published ' +
             notes.length +
             ' note(s)' +
             (assetsPlanned ? ' and ' + assetsUploaded + ' asset(s)' : '') +
@@ -336,7 +267,7 @@ export default class PublishToPersonalVpsPlugin extends Plugin {
           this.logger.error('Failed to abort session', abortErr);
         }
       }
-      new Notice('? Publishing failed (see console).');
+      new Notice('❌ Publishing failed (see console).');
     }
   }
 

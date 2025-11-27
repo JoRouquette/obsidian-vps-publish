@@ -11,14 +11,14 @@ export class AssetsFileSystemStorage implements AssetStoragePort {
     private readonly logger?: LoggerPort
   ) {}
 
-  async save(params: { filename: string; content: Buffer }[]): Promise<void> {
+  async save(params: { filename: string; content: Uint8Array }[]): Promise<void> {
     const savePromises = params.map(({ filename, content }) =>
       this.saveSingleAsset(filename, content)
     );
     await Promise.all(savePromises);
   }
 
-  private async saveSingleAsset(relativeAssetPath: string, content: Buffer): Promise<void> {
+  private async saveSingleAsset(relativeAssetPath: string, content: Uint8Array): Promise<void> {
     const normalizedRelative = relativeAssetPath.replace(/^[/\\]+/, '');
     const fullPath = resolveWithinRoot(this.assetsRoot, normalizedRelative);
 

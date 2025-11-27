@@ -2,7 +2,7 @@ import { requestUrl, RequestUrlResponse } from 'obsidian';
 import { HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
 import { HttpResponse } from '@core-domain/entities/http-response';
 import { LoggerPort } from '@core-domain/ports/logger-port';
-import { VpsConfig } from '@core-domain';
+import { PublishableNote, VpsConfig } from '@core-domain';
 
 export interface StartSessionResponse {
   sessionId: string;
@@ -15,7 +15,10 @@ export class SessionApiClient {
     private readonly apiKey: VpsConfig['apiKey'],
     private readonly responseHandler: HttpResponseHandler<RequestUrlResponse>,
     private readonly logger: LoggerPort
-  ) {}
+  ) {
+    this.logger = logger.child({ component: 'SessionApiClient' });
+    this.logger.debug('SessionApiClient initialized', { baseUrl });
+  }
 
   private buildUrl(path: string): string {
     return `${this.baseUrl.replace(/\/$/, '')}${path}`;
@@ -60,7 +63,8 @@ export class SessionApiClient {
     };
   }
 
-  async uploadNotes(sessionId: string, notes: unknown[]): Promise<void> {
+  async uploadNotes(sessionId: string, notes: PublishableNote[]): Promise<void> {
+    this.logger.debug('Uploading notes', { sessionId, notesCount: notes.length });
     const result = await this.postJson(`/api/session/${sessionId}/notes/upload`, {
       notes,
     });

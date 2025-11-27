@@ -1,6 +1,5 @@
-import { SearchPagesQuery } from '../application/queries/search-pages.query';
-import { Manifest } from '../domain/models/manifest';
-import { Slug } from '../domain/value-objects/slug.value-object';
+import { SearchPagesHandler } from '@core-application';
+import { Manifest, Slug } from '@core-domain';
 
 const manifest: Manifest = {
   sessionId: 's',
@@ -12,18 +11,18 @@ const manifest: Manifest = {
   ],
 };
 
-describe('SearchPagesQuery', () => {
+describe('SearchPagesHandler', () => {
   it('returns all pages when query empty', async () => {
-    const q = new SearchPagesQuery();
-    const res = await q.execute({ manifest, query: '   ' });
+    const q = new SearchPagesHandler();
+    const res = await q.handle({ manifest, query: '   ' });
     expect(res).toHaveLength(2);
   });
 
   it('filters by title or tag', async () => {
-    const q = new SearchPagesQuery();
-    const byTitle = await q.execute({ manifest, query: 'beta' });
+    const q = new SearchPagesHandler();
+    const byTitle = await q.handle({ manifest, query: 'beta' });
     expect(byTitle).toHaveLength(1);
-    const byTag = await q.execute({ manifest, query: 'one' });
+    const byTag = await q.handle({ manifest, query: 'one' });
     expect(byTag[0].id).toBe('1');
   });
 });

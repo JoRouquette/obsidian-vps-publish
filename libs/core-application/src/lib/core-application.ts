@@ -34,3 +34,6 @@ export * from './publishing/ports/manifest-storage.port';
 
 // Vault parsing & HTTP helpers for Obsidian plugin
 export * from './vault-parsing';
+
+// Catalog (site) queries
+export * from './catalog';

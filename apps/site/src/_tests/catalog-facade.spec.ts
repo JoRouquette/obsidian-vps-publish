@@ -1,8 +1,6 @@
 import { CatalogFacade } from '../application/facades/catalog-facade';
-import { Manifest } from '../domain/models/manifest';
-import { ManifestRepository } from '../domain/ports/manifest-repository.port';
 import { ContentRepository } from '../domain/ports/content-repository.port';
-import { Slug } from '../domain/value-objects/slug.value-object';
+import { Manifest, ManifestRepository, Slug } from '@core-domain';
 
 describe('CatalogFacade', () => {
   const page = {

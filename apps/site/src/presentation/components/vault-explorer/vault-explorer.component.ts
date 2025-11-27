@@ -11,11 +11,7 @@ import { RouterLink } from '@angular/router';
 
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { MatTooltip } from '@angular/material/tooltip';
-import {
-  BuildTreeQuery,
-  defaultTreeNode,
-  TreeNode,
-} from '../../../application/queries/build-tree.query';
+import { BuildTreeHandler, defaultTreeNode, TreeNode } from '@core-application';
 
 @Component({
   standalone: true,
@@ -40,6 +36,7 @@ export class VaultExplorerComponent implements OnInit {
   tree = signal<TreeNode>(defaultTreeNode);
   q = signal<string>('');
   readonly EMPTY: ReadonlyArray<TreeNode> = [];
+  private readonly buildTree = new BuildTreeHandler();
   rootChildren = computed(() => this.filteredRoot()?.children ?? (this.EMPTY as TreeNode[]));
 
   @ViewChild('treeScroller', { static: false })
@@ -63,10 +60,7 @@ export class VaultExplorerComponent implements OnInit {
     return root;
   });
 
-  constructor(
-    private readonly facade: CatalogFacade,
-    private readonly buildTree: BuildTreeQuery
-  ) {
+  constructor(private readonly facade: CatalogFacade) {
     effect(() => {
       this.rootChildren();
       queueMicrotask(() => this.measureScrollWidth());
@@ -76,7 +70,7 @@ export class VaultExplorerComponent implements OnInit {
   ngOnInit(): void {
     this.facade.ensureManifest().then(async () => {
       const m = this.facade.manifest();
-      this.tree.set(m ? await this.buildTree.execute(m) : defaultTreeNode);
+      this.tree.set(m ? await this.buildTree.handle(m) : defaultTreeNode);
     });
   }
 

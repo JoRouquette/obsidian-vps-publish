@@ -18,64 +18,61 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
     this.logger.debug('ObsidianVaultAdapter initialized');
   }
 
-  async collectFromFolder(params: {
-    folderConfig: FolderConfig;
-    vpsConfig: VpsConfig;
-  }): Promise<CollectedNote[]> {
-    const { folderConfig, vpsConfig } = params;
-
+  async collectFromFolder(params: { folderConfig: FolderConfig[] }): Promise<CollectedNote[]> {
+    const { folderConfig } = params;
     const result: CollectedNote[] = [];
 
-    const rootPath = folderConfig.vaultFolder?.trim();
-    if (!rootPath) {
-      this.logger.warn('No rootPath specified in FolderConfig', { folderCfg: vpsConfig });
-      return result;
-    }
-
-    const root = this.app.vault.getAbstractFileByPath(rootPath);
-    if (!root) {
-      this.logger.warn('Root folder not found in vault', { rootPath });
-      return result;
-    }
-
-    const walk = async (node: TAbstractFile) => {
-      if (node instanceof TFolder) {
-        this.logger.debug('Walking folder', { path: node.path });
-        for (const child of node.children) {
-          await walk(child);
-        }
-      } else if (node instanceof TFile) {
-        if ((node.extension || '').toLowerCase() !== 'md') {
-          this.logger.debug('Skipping non-markdown file', { path: node.path });
-          return;
-        }
-
-        this.logger.debug('Reading file', { path: node.path });
-        const content = await this.app.vault.read(node);
-        const cache = this.app.metadataCache.getFileCache(node);
-        const frontmatter: Record<string, any> = (cache?.frontmatter as any) ?? {};
-
-        result.push({
-          noteId: this.guidGenerator.generateGuid(),
-          title: node.basename,
-          vaultPath: node.path,
-          relativePath: this.computeRelative(node.path, rootPath),
-          content,
-          frontmatter: { flat: frontmatter, nested: {}, tags: [] },
-          folderConfig: folderConfig,
-          vpsConfig: vpsConfig,
-        });
-        this.logger.info('Collected note', { path: node.path });
+    for (const cfg of folderConfig) {
+      const rootPath = cfg.vaultFolder?.trim();
+      if (!rootPath) {
+        this.logger.warn('No rootPath specified in FolderConfig', { folderCfg: cfg });
+        continue;
       }
-    };
 
-    this.logger.info('Starting note collection', { rootPath });
-    await walk(root);
-    this.logger.info('Finished note collection', {
-      count: result.length,
-      rootPath,
-    });
+      const root = this.app.vault.getAbstractFileByPath(rootPath);
+      if (!root) {
+        this.logger.warn('Root folder not found in vault', { rootPath });
+        continue;
+      }
 
+      const walk = async (node: TAbstractFile) => {
+        if (node instanceof TFolder) {
+          this.logger.debug('Walking folder', { path: node.path });
+          for (const child of node.children) {
+            await walk(child);
+          }
+        } else if (node instanceof TFile) {
+          if ((node.extension || '').toLowerCase() !== 'md') {
+            this.logger.debug('Skipping non-markdown file', { path: node.path });
+            return;
+          }
+
+          this.logger.debug('Reading file', { path: node.path });
+          const content = await this.app.vault.read(node);
+          const cache = this.app.metadataCache.getFileCache(node);
+          const frontmatter: Record<string, any> = (cache?.frontmatter as any) ?? {};
+
+          result.push({
+            noteId: this.guidGenerator.generateGuid(),
+            title: node.basename,
+            vaultPath: node.path,
+            relativePath: this.computeRelative(node.path, rootPath),
+            content,
+            frontmatter: { flat: frontmatter, nested: {}, tags: [] },
+            folderConfig: cfg,
+          });
+          this.logger.info('Collected note', { path: node.path });
+        }
+      };
+
+      this.logger.info('Starting note collection', { rootPath });
+      await walk(root);
+      this.logger.info('Finished note collection for folder', {
+        rootPath,
+      });
+    }
+
+    this.logger.info('Total notes collected', { count: result.length });
     return result;
   }
 

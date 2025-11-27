@@ -1,3 +1,3 @@
 export interface AssetStoragePort {
-  save(params: { filename: string; content: Buffer }[]): Promise<void>;
+  save(params: { filename: string; content: Uint8Array }[]): Promise<void>;
 }

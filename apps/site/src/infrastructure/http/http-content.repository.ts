@@ -13,8 +13,6 @@ export class HttpContentRepository implements ContentRepository {
   fetch(path: string): Promise<string> {
     const fullPath = StringUtils.buildRoute(CONTENT_ROOT, path);
 
-    console.log(`Fetching HTML content from: ${fullPath}`);
-
     return firstValueFrom(this.http.get(fullPath, { responseType: 'text' }));
   }
 }

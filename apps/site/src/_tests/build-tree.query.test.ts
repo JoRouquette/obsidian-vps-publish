@@ -1,6 +1,5 @@
-import { BuildTreeQuery } from '../application/queries/build-tree.query';
-import { Manifest } from '../domain/models/manifest';
-import { Slug } from '../domain/value-objects/slug.value-object';
+import { BuildTreeHandler } from '@core-application';
+import { Manifest, Slug } from '@core-domain';
 
 const manifest: Manifest = {
   sessionId: 's',
@@ -15,10 +14,10 @@ const manifest: Manifest = {
   ],
 };
 
-describe('BuildTreeQuery', () => {
+describe('BuildTreeHandler', () => {
   it('builds folder/file tree with counts and sorting', async () => {
-    const q = new BuildTreeQuery();
-    const tree = await q.execute(manifest);
+    const q = new BuildTreeHandler();
+    const tree = await q.handle(manifest);
 
     expect(tree.children?.find((c) => c.name === 'guide')?.count).toBe(3);
     const guide = tree.children?.find((c) => c.name === 'guide');

@@ -5,3 +5,4 @@ export * from './progress-port';
 export * from './settings-export-port';
 export * from './uploader-port';
 export * from './vault-port';
+export * from './manifest-repository.port';

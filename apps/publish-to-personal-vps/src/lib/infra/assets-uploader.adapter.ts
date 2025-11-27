@@ -37,9 +37,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
 
     let apiAssets: ApiAsset[];
     try {
-      apiAssets = await Promise.all(
-        assets.map(async (asset) => await this.buildApiAsset(asset))
-      );
+      apiAssets = await Promise.all(assets.map(async (asset) => await this.buildApiAsset(asset)));
     } catch (err) {
       this._logger.error('Failed to build API assets', err);
       throw err;
@@ -67,9 +65,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
     this._logger.debug('Building API asset', { fileName: asset.fileName });
 
     const mimeType =
-      asset.mimeType ??
-      this.guessMimeType(asset.fileName) ??
-      'application/octet-stream';
+      asset.mimeType ?? this.guessMimeType(asset.fileName) ?? 'application/octet-stream';
 
     const content = asset.content;
     if (!content) {
@@ -93,11 +89,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
       return Buffer.from(content).toString('base64');
     }
     if (content instanceof Uint8Array) {
-      return Buffer.from(
-        content.buffer,
-        content.byteOffset,
-        content.byteLength
-      ).toString('base64');
+      return Buffer.from(content.buffer, content.byteOffset, content.byteLength).toString('base64');
     }
     this._logger.error('Unsupported asset content type', {
       contentType: typeof content,

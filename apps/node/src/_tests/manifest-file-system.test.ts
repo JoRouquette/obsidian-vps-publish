@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { Manifest } from '@core-domain';
+import { Manifest, Slug } from '@core-domain';
 import { ManifestFileSystem } from '../infra/filesystem/manifest-file-system';
 
 describe('ManifestFileSystem', () => {
@@ -19,14 +19,14 @@ describe('ManifestFileSystem', () => {
         id: 'p1',
         title: 'Home',
         route: '/home',
-        slug: 'home',
+        slug: Slug.from('home'),
         publishedAt: new Date('2024-01-01T00:00:00Z'),
       },
       {
         id: 'p2',
         title: 'Guide',
         route: '/guide/start',
-        slug: 'start',
+        slug: Slug.from('start'),
         publishedAt: new Date('2024-01-01T00:00:00Z'),
       },
     ],

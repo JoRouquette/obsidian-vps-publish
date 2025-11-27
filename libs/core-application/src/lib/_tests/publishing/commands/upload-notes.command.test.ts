@@ -20,7 +20,6 @@ describe('UploadNotesCommand', () => {
     relativePath: 'notes/sample-note.md',
     frontmatter: { tags: ['tag1'], flat: {}, nested: {} },
     folderConfig: { id: 'folder-1', vaultFolder: 'notes', routeBase: '/notes', vpsId: 'vps-1' },
-    vpsConfig: { id: 'vps-1', name: 'Default VPS', url: 'https://example.test', apiKey: 'dummy' },
     eligibility: { isPublishable: true },
   };
 

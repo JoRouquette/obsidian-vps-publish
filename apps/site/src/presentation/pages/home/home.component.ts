@@ -10,7 +10,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatButtonModule } from '@angular/material/button';
 
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
-import { Page } from '../../../domain/models/page';
+import { ManifestPage } from '@core-domain/entities/manifest-page';
 
 type Section = {
   key: string;
@@ -52,9 +52,12 @@ export class HomeComponent {
       return [];
     }
 
-    const groups = new Map<string, { landing?: Page | undefined; children: Page[] }>();
+    const groups = new Map<
+      string,
+      { landing?: ManifestPage | undefined; children: ManifestPage[] }
+    >();
 
-    for (const p of pages as Page[]) {
+    for (const p of pages as ManifestPage[]) {
       const route: string = p.route ?? '';
       const clean = route.replace(/^\/+|\/+$/g, '');
       const [key, ...rest] = clean.split('/');

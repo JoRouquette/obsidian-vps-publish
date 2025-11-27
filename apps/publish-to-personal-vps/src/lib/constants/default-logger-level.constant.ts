@@ -1,3 +1,3 @@
 import { LogLevel } from '@core-domain/ports/logger-port';
 
-export const defaultLoggerLevel: LogLevel = LogLevel.warn;
+export const DEFAULT_LOGGER_LEVEL: LogLevel = LogLevel.warn;

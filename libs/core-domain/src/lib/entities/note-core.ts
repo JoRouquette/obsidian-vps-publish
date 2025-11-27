@@ -51,9 +51,4 @@ export interface NoteCore {
    * Config du folder depuis lequel la note a été collectée.
    */
   folderConfig: FolderConfig;
-
-  /**
-   * Config du VPS cible pour cette note.
-   */
-  vpsConfig: VpsConfig;
 }

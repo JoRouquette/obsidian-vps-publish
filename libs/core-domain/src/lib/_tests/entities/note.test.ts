@@ -8,7 +8,6 @@ import {
   AssetRef,
   AssetDisplayOptions,
   FolderConfig,
-  VpsConfig,
   WikilinkRef,
   ResolvedWikilink,
 } from '@core-domain';
@@ -26,13 +25,6 @@ describe('Note Entities', () => {
     routeBase: '/notes',
     vpsId: 'vps1',
     sanitization: [{ name: 'Remove fenced code blocks', regex: '```[\\s\\S]*?```', replacement: '', isEnabled: true }],
-  };
-
-  const vpsConfig: VpsConfig = {
-    id: 'vps1',
-    name: 'Main VPS',
-    url: 'https://example.com',
-    apiKey: 'secret',
   };
 
   const assetDisplay: AssetDisplayOptions = {
@@ -80,7 +72,6 @@ describe('Note Entities', () => {
     content: 'This is a test note.',
     frontmatter: baseFrontmatter,
     folderConfig,
-    vpsConfig,
   };
 
   const publishableNote: PublishableNote = {
@@ -96,7 +87,7 @@ describe('Note Entities', () => {
     expect(noteCore.noteId).toBe('note1');
     expect(noteCore.frontmatter.tags).toContain('test');
     expect(noteCore.folderConfig.sanitization?.[0].isEnabled).toBe(true);
-    expect(noteCore.vpsConfig.url).toBe('https://example.com');
+    expect(noteCore.folderConfig.vpsId).toBe('vps1');
   });
 
   it('should create a valid PublishableNote', () => {

@@ -1,18 +1,14 @@
 import { computed, Inject, Injectable, signal } from '@angular/core';
-import { defaultManifest, Manifest } from '../../domain/models/manifest';
 import { ContentRepository } from '../../domain/ports/content-repository.port';
-import { ManifestRepository } from '../../domain/ports/manifest-repository.port';
 import { CONTENT_REPOSITORY, MANIFEST_REPOSITORY } from '../../domain/ports/tokens';
-import { LoadManifestQuery } from '../queries/load-manifest.query';
-import { SearchPagesQuery } from '../queries/search-pages.query';
-import { FindPageQuery } from '../queries/find-page.query';
-import { Page } from '../../domain/models/page';
+import { FindPageHandler, LoadManifestHandler, SearchPagesHandler } from '@core-application';
+import { Manifest, ManifestRepository, ManifestPage, defaultManifest } from '@core-domain';
 
 @Injectable({ providedIn: 'root' })
 export class CatalogFacade {
-  private readonly loadManifestQuery: LoadManifestQuery;
-  private readonly searchQuery: SearchPagesQuery;
-  private readonly findQuery: FindPageQuery;
+  private readonly loadManifestQuery: LoadManifestHandler;
+  private readonly searchQuery: SearchPagesHandler;
+  private readonly findQuery: FindPageHandler;
 
   manifest = signal<Manifest>(defaultManifest);
   query = signal('');
@@ -23,19 +19,19 @@ export class CatalogFacade {
     @Inject(MANIFEST_REPOSITORY) private readonly manifestRepository: ManifestRepository,
     @Inject(CONTENT_REPOSITORY) private readonly contentRepository: ContentRepository
   ) {
-    this.loadManifestQuery = new LoadManifestQuery(this.manifestRepository);
-    this.loadManifestQuery.execute().then((m) => {
+    this.loadManifestQuery = new LoadManifestHandler(this.manifestRepository);
+    this.loadManifestQuery.handle().then((m) => {
       this.manifest.set(m);
     });
 
-    this.searchQuery = new SearchPagesQuery();
-    this.findQuery = new FindPageQuery();
+    this.searchQuery = new SearchPagesHandler();
+    this.findQuery = new FindPageHandler();
   }
 
   results = computed(() => {
     const m = this.manifest();
     if (!m) return [];
-    return this.searchQuery.execute({ manifest: m, query: this.query() });
+    return this.searchQuery.handle({ manifest: m, query: this.query() });
   });
 
   async ensureManifest(): Promise<void> {
@@ -45,7 +41,7 @@ export class CatalogFacade {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const m = await this.loadManifestQuery.execute();
+      const m = await this.loadManifestQuery.handle();
       this.manifest.set(m);
     } catch (e) {
       this.error.set(
@@ -64,13 +60,13 @@ export class CatalogFacade {
       return null;
     }
 
-    const page = await this.findQuery.execute({ manifest: m, slugOrRoute });
+    const page = await this.findQuery.handle({ manifest: m, slugOrRoute });
 
     if (!page) {
       return null;
     }
 
-    const raw = await this.contentRepository.fetch((page as Page).route);
+    const raw = await this.contentRepository.fetch((page as ManifestPage).route);
 
     return { title: page.title, html: raw };
   }

@@ -1,4 +1,4 @@
-import { Slug } from '../domain/value-objects/slug.value-object';
+import { Slug } from '@core-domain';
 
 describe('Slug', () => {
   it('creates from value and keeps string', () => {

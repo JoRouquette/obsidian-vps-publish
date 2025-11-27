@@ -1,8 +1,14 @@
 import { Notice, Setting } from 'obsidian';
 import { FolderSuggest } from '../../suggesters/folder-suggester';
-import { createDefaultFolderConfig, defaultSanitizationRules } from '../../utils/create-default-folder-config.util';
+import {
+  createDefaultFolderConfig,
+  defaultSanitizationRules,
+} from '../../utils/create-default-folder-config.util';
 import type { SettingsViewContext } from '../context';
-import type { SanitizationRules } from '@core-domain/entities/sanitization-rules';
+import type {
+  SanitizationRules,
+  SanitizationRulesDefaults,
+} from '@core-domain/entities/sanitization-rules';
 
 export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext): void {
   const { t, settings, logger } = ctx;
@@ -168,11 +174,9 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
 }
 
 function ensureSanitizationArray(folderCfg: any) {
-  // Migration depuis l'ancien booléen removeFencedCodeBlocks.
   if (!Array.isArray(folderCfg.sanitization)) {
-    if (folderCfg.sanitization && typeof folderCfg.sanitization.removeFencedCodeBlocks === 'boolean') {
+    if (folderCfg.sanitization) {
       const defaults = defaultSanitizationRules();
-      defaults[0].isEnabled = !!folderCfg.sanitization.removeFencedCodeBlocks;
       folderCfg.sanitization = defaults;
     } else {
       folderCfg.sanitization = defaultSanitizationRules();
@@ -182,64 +186,91 @@ function ensureSanitizationArray(folderCfg: any) {
 
 function renderSanitizationRule(
   container: HTMLElement,
-  rule: SanitizationRules,
+  rule: SanitizationRules | SanitizationRulesDefaults,
   getRules: () => SanitizationRules[],
   onDelete: () => Promise<void>,
   onSave: () => Promise<void>,
   tFolders: any,
   logger: any
 ) {
+  const isDefaultRule = (rule as any)?.isDefault === true;
   const wrapper = container.createDiv({ cls: 'ptpv-sanitization-rule' });
 
-  const titleSetting = new Setting(wrapper)
-    .setName(tFolders.ruleNameLabel ?? 'Rule name')
-    .addText((text) =>
-      text.setValue(rule.name || '').onChange(async (value) => {
+  const defaultRuleHeader = wrapper.createDiv({ cls: 'ptpv-sanitization-rule-default-banner' });
+  defaultRuleHeader
+    .createEl('h6', {
+      text: tFolders.defaultSanitizationRuleBanner,
+    })
+    .setCssProps({ display: isDefaultRule ? 'block' : 'none' });
+
+  const header = new Setting(wrapper).setName(tFolders.ruleNameLabel ?? 'Rule name');
+
+  header.addText((text) =>
+    text
+      .setValue(rule.name || '')
+      .setDisabled(isDefaultRule)
+      .onChange(async (value) => {
         rule.name = value;
         await onSave();
       })
-    );
+  );
 
-  titleSetting.addExtraButton((btn) =>
-    btn
-      .setIcon('trash')
-      .setTooltip(tFolders.deleteSanitizationRule ?? 'Delete rule')
-      .onClick(async () => {
-        if ((getRules()?.length ?? 0) <= 1) {
-          logger.warn('Attempted to delete last sanitization rule; keeping at least one.');
-          return;
-        }
-        await onDelete();
+  header.addToggle((toggle) =>
+    toggle
+      .setValue(rule.isEnabled ?? true)
+      .setTooltip(tFolders.ruleEnabledLabel ?? 'Enabled')
+      .onChange(async (value) => {
+        rule.isEnabled = value;
+        await onSave();
       })
   );
 
-  new Setting(wrapper)
+  if (!isDefaultRule) {
+    header.addExtraButton((btn) =>
+      btn
+        .setIcon('trash')
+        .setTooltip(tFolders.deleteSanitizationRule ?? 'Delete rule')
+        .onClick(async () => {
+          if ((getRules()?.length ?? 0) <= 1) {
+            logger.warn('Attempted to delete last sanitization rule; keeping at least one.');
+            return;
+          }
+          await onDelete();
+        })
+    );
+  }
+
+  const patternSetting = new Setting(wrapper)
     .setName(tFolders.rulePatternLabel ?? 'Pattern (regex)')
     .addText((text) =>
       text
         .setPlaceholder('e.g. ```[\\s\\S]*?```')
         .setValue(typeof rule.regex === 'string' ? rule.regex : rule.regex?.source || '')
+        .setDisabled(isDefaultRule)
         .onChange(async (value) => {
           rule.regex = value;
           await onSave();
         })
     );
 
-  new Setting(wrapper)
+  const replacementSetting = new Setting(wrapper)
     .setName(tFolders.ruleReplacementLabel ?? 'Replacement')
     .addText((text) =>
-      text.setValue(rule.replacement || '').onChange(async (value) => {
-        rule.replacement = value;
-        await onSave();
-      })
+      text
+        .setValue(rule.replacement || '')
+        .setDisabled((rule as any)?.isDefault === true)
+        .onChange(async (value) => {
+          rule.replacement = value;
+          await onSave();
+        })
     );
 
-  new Setting(wrapper)
-    .setName(tFolders.ruleEnabledLabel ?? 'Enabled')
-    .addToggle((toggle) =>
-      toggle.setValue(rule.isEnabled ?? true).onChange(async (value) => {
-        rule.isEnabled = value;
-        await onSave();
-      })
-    );
+  // Visually dim when disabled but inputs stay editable; toggle remains the single enable control.
+  const syncDisabled = () => {
+    const enabled = rule.isEnabled ?? true;
+    patternSetting.settingEl.toggleClass('ptpv-disabled', !enabled);
+    replacementSetting.settingEl.toggleClass('ptpv-disabled', !enabled);
+  };
+
+  syncDisabled();
 }

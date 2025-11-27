@@ -1,12 +1,13 @@
 import { ManifestPage } from '../../entities/manifest-page';
 import { Manifest } from '../../entities/manifest';
+import { Slug } from '../../value-objects/slug.value-object';
 
 describe('Manifest Entity', () => {
   const now = new Date();
   const page: ManifestPage = {
     id: 'page1',
     title: 'Test Page',
-    slug: 'test-page',
+    slug: Slug.from('test-page'),
     route: '/test-page',
     description: 'A test page',
     publishedAt: now,
@@ -26,13 +27,13 @@ describe('Manifest Entity', () => {
     const minimalPage: ManifestPage = {
       id: 'page2',
       title: 'Minimal Page',
-      slug: 'minimal-page',
+      slug: Slug.from('minimal-page'),
       route: '/minimal-page',
       publishedAt: now,
     };
     expect(minimalPage.id).toBe('page2');
     expect(minimalPage.title).toBe('Minimal Page');
-    expect(minimalPage.slug).toBe('minimal-page');
+    expect(minimalPage.slug.toString()).toBe('minimal-page');
     expect(minimalPage.route).toBe('/minimal-page');
     expect(minimalPage.publishedAt).toBe(now);
     expect(minimalPage.description).toBeUndefined();
@@ -61,7 +62,7 @@ describe('Manifest Entity', () => {
     const pageNoOptional: ManifestPage = {
       id: 'page3',
       title: 'No Optional',
-      slug: 'no-optional',
+      slug: Slug.from('no-optional'),
       route: '/no-optional',
       publishedAt: now,
     };

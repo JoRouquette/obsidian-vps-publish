@@ -13,7 +13,6 @@ export class NotesMapper implements Mapper<CollectedNote, PublishableNote> {
       content,
       frontmatter,
       folderConfig,
-      vpsConfig,
     } = note;
 
     // Provide default routing info (must be replaced with actual logic as needed)
@@ -36,7 +35,6 @@ export class NotesMapper implements Mapper<CollectedNote, PublishableNote> {
       content,
       frontmatter,
       folderConfig,
-      vpsConfig,
       routing,
       publishedAt,
       eligibility,

@@ -1,15 +1,14 @@
-import { LoadManifestQuery } from '../application/queries/load-manifest.query';
-import { Manifest } from '../domain/models/manifest';
-import { ManifestRepository } from '../domain/ports/manifest-repository.port';
+import { LoadManifestHandler } from '@core-application';
+import { Manifest, ManifestRepository } from '@core-domain';
 
-describe('LoadManifestQuery', () => {
+describe('LoadManifestHandler', () => {
   it('delegates to repository', async () => {
     const mockRepo: ManifestRepository = {
       load: jest.fn().mockResolvedValue({ sessionId: 's', createdAt: '', lastUpdatedAt: '', pages: [] } as Manifest),
     };
 
-    const q = new LoadManifestQuery(mockRepo);
-    const res = await q.execute(undefined as any);
+    const q = new LoadManifestHandler(mockRepo);
+    const res = await q.handle();
 
     expect(mockRepo.load).toHaveBeenCalledTimes(1);
     expect(res.sessionId).toBe('s');

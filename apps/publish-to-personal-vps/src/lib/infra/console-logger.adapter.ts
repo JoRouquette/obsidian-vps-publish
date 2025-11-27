@@ -1,5 +1,5 @@
 import { LoggerPort, LogLevel } from '@core-domain/ports/logger-port';
-import { defaultLoggerLevel } from '../constants/default-logger-level.constant';
+import { DEFAULT_LOGGER_LEVEL } from '../constants/default-logger-level.constant';
 
 /*
 export enum LogLevel {
@@ -17,7 +17,7 @@ export class ConsoleLoggerAdapter implements LoggerPort {
 
   constructor(context: Record<string, unknown>, level?: LogLevel) {
     this._context = context;
-    this._level = this.getComposedLevel(level ?? defaultLoggerLevel);
+    this._level = this.getComposedLevel(level ?? DEFAULT_LOGGER_LEVEL);
   }
 
   public set level(level: LogLevel) {
@@ -95,7 +95,7 @@ export class ConsoleLoggerAdapter implements LoggerPort {
       case LogLevel.error:
         return LogLevel.error;
       default:
-        return this.getComposedLevel(defaultLoggerLevel);
+        return this.getComposedLevel(DEFAULT_LOGGER_LEVEL);
     }
   }
 }

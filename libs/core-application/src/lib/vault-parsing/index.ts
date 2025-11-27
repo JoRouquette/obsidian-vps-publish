@@ -1,5 +1,3 @@
-export * from './commands/publish-notes.command';
-export * from './commands/publish-assets.command';
 export * from './services/detect-assets.service';
 export * from './services/detect-wikilinks.service';
 export * from './services/compute-routing.service';
@@ -10,4 +8,3 @@ export * from './services/resolve-wikilinks.service';
 export * from './requests/http-request.request';
 export * from './services/content-sanitizer.service';
 export * from './handler/http-response.handler';
-export * from './handler/http-request.handler';

@@ -3,13 +3,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PLUGIN_DIR_NAME = 'publish-to-personal-vps';
-const ROOT_DIR = path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), '..'));
+const APP_ROOT = path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), '..'));
+const WORKSPACE_ROOT = path.resolve(APP_ROOT, '..', '..');
 
-const mainJs = path.join(ROOT_DIR, 'dist', 'apps', PLUGIN_DIR_NAME, 'main.js');
-const manifest = path.join(ROOT_DIR, 'manifest.json');
-const styles = path.join(ROOT_DIR, 'styles.css');
-const versions = path.join(ROOT_DIR, 'versions.json');
-const outDir = path.join(ROOT_DIR, 'dist', PLUGIN_DIR_NAME);
+const mainJs = path.join(WORKSPACE_ROOT, 'dist', 'apps', PLUGIN_DIR_NAME, 'main.js');
+const manifest = path.join(APP_ROOT, 'manifest.json');
+const styles = path.join(APP_ROOT, 'styles.css');
+const versions = path.join(APP_ROOT, 'versions.json');
+const outDir = path.join(WORKSPACE_ROOT, 'dist', PLUGIN_DIR_NAME);
 
 const ensureFile = (filePath, name) => {
   if (!fs.existsSync(filePath)) {
@@ -23,7 +24,7 @@ const copyIfExists = (src, dest) => {
   }
 };
 
-console.log(`[package-plugin] Packaging from ${ROOT_DIR}`);
+console.log(`[package-plugin] Packaging from ${APP_ROOT}`);
 console.log(` - main: ${mainJs}`);
 console.log(` - manifest: ${manifest}`);
 console.log(` - styles: ${styles}`);
