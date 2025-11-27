@@ -1,3 +1,4 @@
+import { Slug } from '@core-domain';
 import { renderFolderIndex, renderRootIndex } from '../infra/filesystem/site-index-templates';
 
 describe('site-index-templates', () => {
@@ -15,7 +16,13 @@ describe('site-index-templates', () => {
     const html = renderFolderIndex(
       '/guide',
       [
-        { id: 'p1', title: 'Intro', route: '/guide/intro', slug: 'intro', publishedAt: new Date() },
+        {
+          id: 'p1',
+          title: 'Intro',
+          route: '/guide/intro',
+          slug: Slug.from('intro'),
+          publishedAt: new Date(),
+        },
       ],
       [{ name: 'advanced', link: '/guide/advanced', count: 1 }]
     );
