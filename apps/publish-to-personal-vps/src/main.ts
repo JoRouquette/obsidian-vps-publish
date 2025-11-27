@@ -267,7 +267,7 @@ export default class PublishToPersonalVpsPlugin extends Plugin {
           this.logger.error('Failed to abort session', abortErr);
         }
       }
-      new Notice('? Publishing failed (see console).');
+      new Notice('❌ Publishing failed (see console).');
     }
   }
 
