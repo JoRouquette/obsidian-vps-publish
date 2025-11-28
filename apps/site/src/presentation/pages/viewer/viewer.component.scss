@@ -206,6 +206,37 @@
       aspect-ratio: 16 / 9;
       margin: 0.6rem auto;
     }
+
+    .index-list {
+      list-style: none;
+      padding-left: 0;
+      margin: 0.5rem 0 0;
+    }
+
+    .index-list li {
+      margin: 0.25rem 0;
+    }
+
+    .index-link {
+      color: var(--c-secondary);
+      text-decoration: underline;
+      text-underline-offset: 0.12em;
+      font-weight: 600;
+      transition: text-decoration 0.15s;
+    }
+
+    .index-link:hover,
+    .index-link:focus {
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+    }
+
+    .index-count {
+      color: color-mix(in oklab, var(--c-on-surface) 65%, transparent);
+      font-weight: 400;
+      margin-left: 0.25rem;
+      font-size: 0.92em;
+    }
   }
 
   @media (max-width: 600px) {

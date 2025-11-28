@@ -1,9 +1,15 @@
-import { Component, computed } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  Inject,
+  OnInit,
+  signal,
+  ViewEncapsulation,
+} from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 // Angular Material
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatIconModule } from '@angular/material/icon';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
@@ -11,6 +17,9 @@ import { MatButtonModule } from '@angular/material/button';
 
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { ManifestPage } from '@core-domain/entities/manifest-page';
+import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
+import { HttpContentRepository } from '../../../infrastructure/http/http-content.repository';
+import { SearchBarComponent } from '../../components/search-bar/search-bar.component';
 
 type Section = {
   key: string;
@@ -23,25 +32,39 @@ type Section = {
   standalone: true,
   selector: 'app-home',
   imports: [
-    MatFormFieldModule,
-    MatInputModule,
-    MatIconModule,
     MatDividerModule,
     MatCardModule,
     MatListModule,
     MatButtonModule,
+    SearchBarComponent,
   ],
   templateUrl: `./home.component.html`,
   styleUrls: [`./home.component.scss`],
+  encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class HomeComponent {
-  constructor(public catalog: CatalogFacade) {
+export class HomeComponent implements OnInit {
+  rootIndexHtml = signal<SafeHtml | null>(null);
+
+  constructor(
+    public catalog: CatalogFacade,
+    @Inject(CONTENT_REPOSITORY) private readonly contentRepo: HttpContentRepository,
+    private readonly sanitizer: DomSanitizer
+  ) {
     this.catalog.ensureManifest();
   }
 
-  onQueryInput(event: Event) {
-    const value = (event.target as HTMLInputElement).value;
-    this.catalog.query.set(value);
+  ngOnInit(): void {
+    this.contentRepo
+      .fetch('/index.html')
+      .then((html) => this.rootIndexHtml.set(this.sanitizer.bypassSecurityTrustHtml(html)))
+      .catch(() =>
+        this.rootIndexHtml.set(this.sanitizer.bypassSecurityTrustHtml('<p>Index introuvable.</p>'))
+      );
+  }
+
+  onQueryInput(value: string) {
+    this.catalog.query.set(value ?? '');
   }
 
   sections = computed<Section[]>(() => {

@@ -35,9 +35,11 @@ export class CatalogFacade {
   });
 
   async ensureManifest(): Promise<void> {
-    if (this.manifest()) {
+    const current = this.manifest();
+    if (current && (current.pages?.length ?? 0) > 0) {
       return;
     }
+
     this.loading.set(true);
     this.error.set(null);
     try {

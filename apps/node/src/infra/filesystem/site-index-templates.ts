@@ -18,14 +18,14 @@ export function renderRootIndex(dirs: { name: string; link: string; count: numbe
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(
       (d) =>
-        `<li><a [routerLink]="${d.link}/index.html">${escapeHtml(d.name)}</a> <small>(${d.count})</small></li>`
+        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(d.name)}</a><span class="index-count">(${d.count})</span></li>`
     )
     .join('');
 
   return `
 <div class="markdown-body">
   <h1>Dossiers</h1>
-  <ul>${items || '<li><em>Aucun dossier</em></li>'}</ul>
+  <ul class="index-list">${items || '<li><em>Aucun dossier</em></li>'}</ul>
 </div>`;
 }
 
@@ -41,24 +41,31 @@ export function renderFolderIndex(
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(
       (d) =>
-        `<li><a [routerLink]="${d.link}/index.html">${escapeHtml(d.name)}</a> <small>(${d.count})</small></li>`
+        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(d.name)}</a><span class="index-count">(${d.count})</span></li>`
     )
     .join('');
 
   const pageList = pages
     .sort((a, b) => a.title.localeCompare(b.title))
-    .map((p) => `<li><a [routerLink]="${p.route}.html">${escapeHtml(p.title)}</a></li>`)
+    .map(
+      (p) => `<li><a class="index-link" href="${withLeadingSlash(p.route)}">${escapeHtml(p.title)}</a></li>`
+    )
     .join('');
 
   return `<div class="markdown-body">
   <h1>${escapeHtml(folderTitle)}</h1>
   <section>
     <h2>Sous-dossiers</h2>
-    <ul>${subfoldList || '<li><em>Aucun sous dossier</em></li>'}</ul>
+    <ul class="index-list">${subfoldList || '<li><em>Aucun sous dossier</em></li>'}</ul>
   </section>
   <section>
     <h2>Pages</h2>
-    <ul>${pageList || '<li><em>Aucune page</em></li>'}</ul>
+    <ul class="index-list">${pageList || '<li><em>Aucune page</em></li>'}</ul>
   </section>
 </div>`;
+}
+
+function withLeadingSlash(route: string): string {
+  if (!route) return '/';
+  return route.startsWith('/') ? route : `/${route}`;
 }

@@ -1,0 +1,18 @@
+<mat-form-field appearance="outline" class="search-field">
+  <mat-icon matPrefix class="search-ico">search</mat-icon>
+  <input
+    matInput
+    [type]="type"
+    [placeholder]="placeholder"
+    [value]="value"
+    (input)="onInput($event)"
+    autocomplete="off"
+    spellcheck="false"
+    aria-label="Rechercher"
+  />
+  @if (value) {
+    <button mat-icon-button matSuffix type="button" aria-label="Effacer" (click)="clear()">
+      <mat-icon>close</mat-icon>
+    </button>
+  }
+</mat-form-field>

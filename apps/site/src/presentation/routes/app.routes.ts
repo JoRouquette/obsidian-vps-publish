@@ -1,5 +1,4 @@
-// app.routes.ts
-import { Routes, UrlMatchResult, UrlSegment } from '@angular/router';
+import { Routes } from '@angular/router';
 import { ShellComponent } from '../shell/shell.component';
 import { HomeComponent } from '../pages/home/home.component';
 import { ViewerComponent } from '../pages/viewer/viewer.component';

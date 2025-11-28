@@ -14,6 +14,7 @@ import {
 import { SessionInvalidError, SessionNotFoundError } from '@core-domain';
 
 import { BYTES_LIMIT } from '../app';
+import { StagingManager } from '../../../filesystem/staging-manager';
 import { CreateSessionBodyDto } from '../dto/create-session-body.dto';
 import { FinishSessionBodyDto } from '../dto/finish-session-body.dto';
 import { ApiAssetsBodyDto } from '../dto/upload-assets.dto';
@@ -25,6 +26,7 @@ export function createSessionController(
   abortSessionHandler: AbortSessionHandler,
   notePublicationHandler: UploadNotesHandler,
   assetPublicationHandler: UploadAssetsHandler,
+  stagingManager: StagingManager,
   logger?: LoggerPort
 ): Router {
   const router = Router();
@@ -182,6 +184,9 @@ export function createSessionController(
       const result = await finishSessionHandler.handle(command);
       routeLogger?.info('Session finished', { sessionId: result.sessionId });
 
+      await stagingManager.promoteSession(req.params.sessionId);
+      routeLogger?.info('Staging promoted to production', { sessionId: req.params.sessionId });
+
       return res.status(200).json(result);
     } catch (err) {
       if (err instanceof SessionNotFoundError) {
@@ -212,6 +217,8 @@ export function createSessionController(
     try {
       const result = await abortSessionHandler.handle(command);
       routeLogger?.info('Session aborted', { sessionId: result.sessionId });
+
+      await stagingManager.discardSession(req.params.sessionId);
 
       return res.status(200).json(result);
     } catch (err) {

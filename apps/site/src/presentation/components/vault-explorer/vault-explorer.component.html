@@ -1,22 +1,11 @@
 <nav class="explorer">
-  <mat-form-field class="search" appearance="outline">
-    <mat-icon matPrefix aria-hidden="true">search</mat-icon>
-    <input
-      matInput
-      type="search"
+  <div class="search">
+    <app-search-bar
+      placeholder="Rechercher dossiers/fichiers/tags"
       [value]="q()"
-      (input)="onInputQuery($any($event.target).value)"
-      placeholder="Rechercher…"
-      aria-label="Rechercher dans le contenu"
-      autocomplete="off"
-      spellcheck="false"
-    />
-    @if (q()) {
-    <button mat-icon-button matSuffix type="button" aria-label="Effacer" (click)="onInputQuery('')">
-      <mat-icon>close</mat-icon>
-    </button>
-    }
-  </mat-form-field>
+      (queryChange)="onInputQuery($event)"
+    ></app-search-bar>
+  </div>
 
   <mat-divider class="sep"></mat-divider>
 

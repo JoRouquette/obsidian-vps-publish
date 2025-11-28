@@ -75,7 +75,7 @@ function withDecryptedApiKeys(settings: PluginSettings): PluginSettings {
 export default class ObsidianVpsPublishPlugin extends Plugin {
   settings!: PluginSettings;
   responseHandler!: HttpResponseHandler<RequestUrlResponse>;
-  logger = new ConsoleLoggerAdapter({ plugin: 'ObsidianVpsPublish' }, LogLevel.debug);
+  logger = new ConsoleLoggerAdapter({ plugin: 'ObsidianVpsPublish' });
 
   async onload() {
     await this.loadSettings();

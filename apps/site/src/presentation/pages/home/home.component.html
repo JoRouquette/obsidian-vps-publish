@@ -4,26 +4,15 @@
       <h2 class="title">Bienvenue sur votre site de lore.</h2>
     </div>
 
-    <form class="search" (submit)="$event.preventDefault()">
-      <mat-form-field appearance="outline" class="search-field">
-        <mat-icon matPrefix class="search-ico">search</mat-icon>
-        <input
-          matInput
-          id="q"
-          type="search"
-          placeholder="Rechercher…"
-          [value]="catalog.query()"
-          (input)="onQueryInput($event)"
-          autocomplete="off"
-          spellcheck="false"
-          aria-label="Rechercher"
-        />
-        @if (catalog.loading()) {
-        <mat-icon matSuffix class="spin">hourglass_empty</mat-icon>
-        }
-      </mat-form-field>
-    </form>
+    <app-search-bar
+      class="home-search"
+      placeholder="Rechercher titre, tag..."
+      [value]="catalog.query()"
+      (queryChange)="onQueryInput($event)"
+    ></app-search-bar>
   </header>
 
   <mat-divider class="sep"></mat-divider>
+
+  <div class="content" [innerHTML]="rootIndexHtml()"></div>
 </section>

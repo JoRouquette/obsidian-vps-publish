@@ -11,13 +11,16 @@ export interface PublishNotesOutput {
   errors: { noteId: string; message: string }[];
 }
 
+type ContentStorageFactory = (sessionId: string) => ContentStoragePort;
+type ManifestStorageFactory = (sessionId: string) => ManifestPort;
+
 export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, UploadNotesResult> {
   private readonly logger?: LoggerPort;
 
   constructor(
     private readonly markdownRenderer: MarkdownRendererPort,
-    private readonly contentStorage: ContentStoragePort,
-    private readonly manifestStorage: ManifestPort,
+    private readonly contentStorage: ContentStoragePort | ContentStorageFactory,
+    private readonly manifestStorage: ManifestPort | ManifestStorageFactory,
     logger?: LoggerPort
   ) {
     this.logger = logger?.child({ handler: 'UploadNotesHandler' });
@@ -25,6 +28,8 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
 
   async handle(command: UploadNotesCommand): Promise<UploadNotesResult> {
     const { sessionId, notes } = command;
+    const contentStorage = this.resolveContentStorage(sessionId);
+    const manifestStorage = this.resolveManifestStorage(sessionId);
     const logger = this.logger?.child({ method: 'handle', sessionId });
 
     let published = 0;
@@ -42,7 +47,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
         const fullHtml = this.buildHtmlPage(note, bodyHtml);
 
         noteLogger?.debug('Saving content to storage', { route: note.routing?.routeBase });
-        await this.contentStorage.save({
+        await contentStorage.save({
           route: note.routing.fullPath,
           content: fullHtml,
           slug: note.routing.slug,
@@ -76,7 +81,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
         manifestPages: pages.map((p) => ({ id: p.id, route: p.route })),
       });
 
-      await this.updateManifestForSession(sessionId, pages, logger);
+      await this.updateManifestForSession(sessionId, pages, manifestStorage, logger);
     }
 
     logger?.info(`Publishing complete: ${published} notes published, ${errors.length} errors`);
@@ -90,9 +95,10 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
   private async updateManifestForSession(
     sessionId: string,
     newPages: ManifestPage[],
+    manifestStorage: ManifestPort,
     logger?: LoggerPort
   ): Promise<void> {
-    const existing = await this.manifestStorage.load();
+    const existing = await manifestStorage.load();
     const now = new Date();
 
     let manifest: Manifest;
@@ -126,8 +132,8 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       (a, b) => b.publishedAt.getTime() - a.publishedAt.getTime()
     );
 
-    await this.manifestStorage.save(manifest);
-    await this.manifestStorage.rebuildIndex(manifest);
+    await manifestStorage.save(manifest);
+    await manifestStorage.rebuildIndex(manifest);
     logger?.info('Site manifest and indexes updated', {
       sessionId,
       pageCount: manifest.pages.length,
@@ -139,5 +145,19 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
   <div class="markdown-body">
     ${bodyHtml}
   </div>`;
+  }
+
+  private resolveContentStorage(sessionId: string): ContentStoragePort {
+    if (typeof this.contentStorage === 'function') {
+      return (this.contentStorage as ContentStorageFactory)(sessionId);
+    }
+    return this.contentStorage;
+  }
+
+  private resolveManifestStorage(sessionId: string): ManifestPort {
+    if (typeof this.manifestStorage === 'function') {
+      return (this.manifestStorage as ManifestStorageFactory)(sessionId);
+    }
+    return this.manifestStorage;
   }
 }

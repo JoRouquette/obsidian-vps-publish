@@ -42,8 +42,6 @@ export class ViewerComponent implements OnDestroy {
           const htmlUrl = normalized === '/' ? '/index.html' : `${normalized}.html`;
           const manifest = this.catalog.manifest();
 
-          console.log('Loading content for', normalized);
-
           if (manifest.pages.length > 0) {
             const p = manifest.pages.find((x) => x.route === normalized);
 
@@ -53,7 +51,7 @@ export class ViewerComponent implements OnDestroy {
           } else {
             const parts = normalized.split('/').filter(Boolean);
             const last = parts.at(-1);
-            this.title.set(last ? decodeURIComponent(last) : '');
+            this.title.set(last ? this.capitalize(decodeURIComponent(last)) : '');
           }
 
           return this.contentRepository.fetch(htmlUrl);
