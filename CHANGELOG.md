@@ -1,3 +1,18 @@
+## 3.1.0 (2025-12-03)
+
+* Merge branch 'fix/site-navigation-and-default' into release ([9495cbb](https://github.com/JoRouquette/obsidian-vps-publish/commit/9495cbb))
+* Merge branch 'hotfix/activate-pipeline' into release ([d681447](https://github.com/JoRouquette/obsidian-vps-publish/commit/d681447))
+* Merge branch 'hotfix/fix-tests' ([374bcd0](https://github.com/JoRouquette/obsidian-vps-publish/commit/374bcd0))
+* Merge branch 'release' ([3ff7a7e](https://github.com/JoRouquette/obsidian-vps-publish/commit/3ff7a7e))
+* test: fix localStorage mock in http-manifest-repository tests ([db7d5fa](https://github.com/JoRouquette/obsidian-vps-publish/commit/db7d5fa))
+* refactor: asset style and display ([5d06f4c](https://github.com/JoRouquette/obsidian-vps-publish/commit/5d06f4c))
+* refactor: filter empty frontmatter values from rendering ([85cb15c](https://github.com/JoRouquette/obsidian-vps-publish/commit/85cb15c))
+* refactor: normalize frontmatter consistently and handle DomainFrontmatter input ([5468784](https://github.com/JoRouquette/obsidian-vps-publish/commit/5468784))
+* feat: detect and render assets and wikilinks from frontmatter ([19aa1e6](https://github.com/JoRouquette/obsidian-vps-publish/commit/19aa1e6))
+* feat: improve asset rendering, progress, and ignore rules UI ([705e811](https://github.com/JoRouquette/obsidian-vps-publish/commit/705e811))
+* feat: improve asset resolution and frontmatter sanitization ([8beb38e](https://github.com/JoRouquette/obsidian-vps-publish/commit/8beb38e))
+* feat(site): add reusable search bar and improve index rendering ([01da2c0](https://github.com/JoRouquette/obsidian-vps-publish/commit/01da2c0))
+
 ## <small>3.0.2 (2025-11-27)</small>
 
 * Merge branch 'hotfix/activate-pipeline' ([c9f5d84](https://github.com/JoRouquette/obsidian-vps-publish/commit/c9f5d84))

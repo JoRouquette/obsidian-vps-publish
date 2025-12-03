@@ -1,7 +1,7 @@
 {
   "id": "obsidian-vps-publish",
   "name": "Publish To personal VPS",
-  "version": "3.0.2",
+  "version": "3.1.0",
   "minAppVersion": "1.5.0",
   "description": "Publie des dossiers de votre vault Obsidian vers un VPS personnel, avec filtrage par propriétés.",
   "author": "JRouquette",
