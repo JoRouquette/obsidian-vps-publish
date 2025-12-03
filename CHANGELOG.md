@@ -1,3 +1,8 @@
+## <small>3.0.2 (2025-11-27)</small>
+
+* Merge branch 'hotfix/activate-pipeline' ([c9f5d84](https://github.com/JoRouquette/obsidian-vps-publish/commit/c9f5d84))
+* refactor(plugin): rename publish-to-personal-vps to obsidian-vps-publish everywhere ([5c84080](https://github.com/JoRouquette/obsidian-vps-publish/commit/5c84080))
+
 ## <small>3.0.1 (2025-11-27)</small>
 
 - Merge branch 'fix/actions' into release ([63d7d21](https://github.com/JoRouquette/obsidian-vps-publish/commit/63d7d21))
