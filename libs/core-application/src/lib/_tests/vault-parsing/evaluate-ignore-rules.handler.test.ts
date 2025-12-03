@@ -31,7 +31,6 @@ describe('EvaluateIgnoreRulesHandler', () => {
     content: 'c',
     frontmatter: { flat: {}, nested: { publish: false }, tags: [] },
     folderConfig: { id: 'f', vaultFolder: 'Vault', routeBase: '/blog', vpsId: 'vps' },
-    vpsConfig: { id: 'vps', name: 'v', url: 'http://x', apiKey: 'k' },
     routing: { slug: '', path: '', routeBase: '', fullPath: '' },
     publishedAt: new Date(),
     eligibility: { isPublishable: true },

@@ -208,3 +208,114 @@
   padding: 0.4rem 0.6rem;
   background-color: var(--background-secondary);
 }
+
+/* --------------------- Ignore rules layout --------------------- */
+.obsidian-vps-publish-settings .ptpv-ignore-rule {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  background: var(--background-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  margin-top: 0.6rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__title {
+  font-weight: 700;
+  color: var(--text-normal);
+  margin-bottom: 0.4rem;
+  letter-spacing: 0.01em;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__inputs {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.obsidian-vps-publish-settings .ptpv-input {
+  width: 100%;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+.obsidian-vps-publish-settings .ptpv-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--interactive-accent) 24%, transparent);
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0.15rem 0 0.25rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__values.is-values .setting-item {
+  flex: 1 1 280px;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__values.is-hidden,
+.obsidian-vps-publish-settings .ptpv-ignore-rule__chips.is-hidden {
+  display: none;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__boolean {
+  margin: 0.15rem 0 0.25rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__boolean.is-hidden {
+  display: none;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__chips {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.1rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__chips-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__chips-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.35rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__actions button {
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+}
+
+@media (max-width: 720px) {
+  .obsidian-vps-publish-settings .ptpv-ignore-rule__inputs {
+    grid-template-columns: 1fr;
+  }
+}

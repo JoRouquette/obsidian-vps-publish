@@ -1,0 +1,69 @@
+:host {
+  display: block;
+  inline-size: 100%;
+}
+
+.search-field {
+  inline-size: 100%;
+  // position: relative;
+
+  .search-ico {
+    opacity: 0.85;
+  }
+
+  .mdc-notched-outline__leading,
+  .mdc-notched-outline__notch,
+  .mdc-notched-outline__trailing {
+    border-color: color-mix(in oklab, var(--mat-sys-outline-variant) 80%, transparent);
+  }
+
+  input {
+    font-size: 0.9rem;
+    height: 32px;
+    padding-block: 0.1rem;
+    padding-inline-end: 2.5rem; /* laisse la place pour le bouton clear overlay */
+  }
+
+  .mat-mdc-form-field-icon-suffix,
+  .mat-mdc-form-field-suffix {
+    position: absolute;
+    inset-inline-end: 6px;
+    inset-block-start: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 32px;
+    block-size: 32px;
+    padding: 0;
+    pointer-events: auto;
+  }
+
+  .clear-btn {
+    display: relative;
+    padding: 0;
+    margin: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    align-items: center;
+    justify-content: center;
+    z-index: 1; /* au-dessus de l'outline */
+    --mdc-icon-button-state-layer-size: 28px;
+    --mat-icon-button-state-layer-size: 28px;
+    --mdc-icon-button-icon-size: 20px;
+    color: var(--mat-sys-on-surface-variant);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+  }
+
+  .clear-btn .visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .clear-btn .mat-icon {
+    font-size: 20px;
+    line-height: 1;
+  }
+}

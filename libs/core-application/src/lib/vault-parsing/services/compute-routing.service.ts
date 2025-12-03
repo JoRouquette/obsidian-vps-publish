@@ -11,7 +11,7 @@ export class ComputeRoutingService implements BaseService {
   }
 
   process(notes: PublishableNote[]): PublishableNote[] {
-    return notes.map((note) => {
+    const routed = notes.map((note) => {
       this._logger.debug('Computing routing for note', {
         relativePath: note.relativePath,
         folderConfig: note.folderConfig,
@@ -80,6 +80,26 @@ export class ComputeRoutingService implements BaseService {
         ...note,
         routing,
       };
+    });
+
+    const routingById = new Map<string, NoteRoutingInfo>();
+    for (const note of routed) {
+      routingById.set(note.noteId, note.routing);
+    }
+
+    return routed.map((note) => {
+      if (!note.resolvedWikilinks || note.resolvedWikilinks.length === 0) {
+        return note;
+      }
+
+      const updatedLinks = note.resolvedWikilinks.map((link) => {
+        if (link.targetNoteId && routingById.has(link.targetNoteId)) {
+          return { ...link, href: routingById.get(link.targetNoteId)!.fullPath };
+        }
+        return link;
+      });
+
+      return { ...note, resolvedWikilinks: updatedLinks };
     });
   }
 

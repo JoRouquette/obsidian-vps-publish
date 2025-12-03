@@ -110,18 +110,30 @@ function getNestedValue(nested: Record<string, unknown>, propertyPath: string): 
 
   let current: any = nested;
   for (const segment of segments) {
-    if (typeof current !== 'object' || current === null || !(segment in current)) {
+    if (typeof current !== 'object' || current === null) {
       return undefined;
     }
 
-    current = current[segment];
+    const matchKey = Object.keys(current).find(
+      (k) => normalizePropertyKey(k) === segment
+    );
+    if (!matchKey) {
+      return undefined;
+    }
+
+    current = (current as Record<string, unknown>)[matchKey];
   }
 
   return current;
 }
 
 function isEqualPrimitive(value: unknown, target: IgnorePrimitive): boolean {
-  return value === target;
+    if (typeof value === 'string' && typeof target === 'string') {
+      const normalize = (s: string) =>
+        s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+      return normalize(value) === normalize(target);
+    }
+    return value === target;
 }
 
 function matchesAnyPrimitive(

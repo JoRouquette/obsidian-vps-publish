@@ -9,7 +9,7 @@ describe('site-index-templates', () => {
     ]);
     expect(html).toContain('Dossiers');
     expect(html).toContain('guide');
-    expect(html).toContain('/guide/index.html');
+    expect(html).toContain('/guide/index');
   });
 
   it('renders folder index with subfolders and pages', () => {

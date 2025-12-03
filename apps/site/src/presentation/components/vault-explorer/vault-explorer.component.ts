@@ -12,6 +12,7 @@ import { RouterLink } from '@angular/router';
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { MatTooltip } from '@angular/material/tooltip';
 import { BuildTreeHandler, defaultTreeNode, TreeNode } from '@core-application';
+import { SearchBarComponent } from '../search-bar/search-bar.component';
 
 @Component({
   standalone: true,
@@ -27,6 +28,7 @@ import { BuildTreeHandler, defaultTreeNode, TreeNode } from '@core-application';
     MatTreeModule,
     RouterLink,
     MatTooltip,
+    SearchBarComponent,
   ],
   templateUrl: './vault-explorer.component.html',
   styleUrls: ['./vault-explorer.component.scss'],
@@ -94,7 +96,10 @@ export class VaultExplorerComponent implements OnInit {
   }
 
   private markVisible(node: TreeNode, q: string): boolean {
-    const selfMatch = (node.label || node.name).toLowerCase().includes(q);
+    const label = (node.label || node.name).toLowerCase();
+    const tags = (node as any).tags as string[] | undefined;
+    const tagsMatch = tags?.some((t) => t.toLowerCase().includes(q)) ?? false;
+    const selfMatch = label.includes(q) || tagsMatch;
     if (node.kind === 'file') return selfMatch;
     const kids = node.children ?? [];
     const vis: TreeNode[] = [];

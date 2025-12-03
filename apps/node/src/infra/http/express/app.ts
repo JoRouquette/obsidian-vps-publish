@@ -15,6 +15,7 @@ import { AssetsFileSystemStorage } from '../../filesystem/assets-file-system.sto
 import { FileSystemSessionRepository } from '../../filesystem/file-system-session.repository';
 import { ManifestFileSystem } from '../../filesystem/manifest-file-system';
 import { NotesFileSystemStorage } from '../../filesystem/notes-file-system.storage';
+import { StagingManager } from '../../filesystem/staging-manager';
 import { UuidIdGenerator } from '../../id/uuid-id.generator';
 import { MarkdownItRenderer } from '../../markdown/markdown-it.renderer';
 
@@ -47,10 +48,18 @@ export function createApp(rootLogger?: LoggerPort) {
     allowedOrigins: EnvConfig.allowedOrigins(),
   });
 
-  const markdownRenderer = new MarkdownItRenderer();
-  const noteStorage = new NotesFileSystemStorage(EnvConfig.contentRoot(), rootLogger);
-  const manifestFileSystem = new ManifestFileSystem(EnvConfig.contentRoot(), rootLogger);
-  const assetStorage = new AssetsFileSystemStorage(EnvConfig.assetsRoot(), rootLogger);
+  const markdownRenderer = new MarkdownItRenderer(rootLogger);
+  const stagingManager = new StagingManager(
+    EnvConfig.contentRoot(),
+    EnvConfig.assetsRoot(),
+    rootLogger
+  );
+  const noteStorage = (sessionId: string) =>
+    new NotesFileSystemStorage(stagingManager.contentStagingPath(sessionId), rootLogger);
+  const manifestFileSystem = (sessionId: string) =>
+    new ManifestFileSystem(stagingManager.contentStagingPath(sessionId), rootLogger);
+  const assetStorage = (sessionId: string) =>
+    new AssetsFileSystemStorage(stagingManager.assetsStagingPath(sessionId), rootLogger);
   const sessionRepository = new FileSystemSessionRepository(EnvConfig.contentRoot());
   const idGenerator = new UuidIdGenerator();
   const uploadNotesHandler = new UploadNotesHandler(
@@ -77,6 +86,7 @@ export function createApp(rootLogger?: LoggerPort) {
       abortSessionHandler,
       uploadNotesHandler,
       uploadAssetsHandler,
+      stagingManager,
       rootLogger
     )
   );

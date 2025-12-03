@@ -2,17 +2,24 @@
   <!-- Colonne gauche : Breadcrumbs -->
   <nav class="breadcrumbs" aria-label="Fil d’Ariane">
     @for (c of crumbs; track c.url; let last = $last) {
-    <a class="crumb" [routerLink]="c.url" (click)="crumbClicked.emit(c)">
-      <span [class.last]="last">{{ c.label }}</span>
-    </a>
-    @if (!last) {
-    <mat-icon class="sep" aria-hidden="true">chevron_right</mat-icon>
-    } }
+      <span class="crumb" aria-current="{{ last ? 'page' : undefined }}">
+        <span [class.last]="last">{{ c.label }}</span>
+      </span>
+      @if (!last) {
+        <mat-icon class="sep" aria-hidden="true">chevron_right</mat-icon>
+      }
+    }
   </nav>
 
   <a class="site-name" [routerLink]="'/'" aria-label="Accueil">
     {{ siteName || 'Scribe d’Ektaron' }}
   </a>
+
+  <app-search-bar
+    placeholder="Rechercher titre, tag..."
+    [value]="catalog.query()"
+    (queryChange)="onQueryInput($event)"
+  ></app-search-bar>
 
   <div
     class="toolbar-actions"
@@ -25,8 +32,12 @@
       (click)="toggleTheme.emit()"
       [attr.aria-label]="isDark ? 'Activer le thème clair' : 'Activer le thème sombre'"
     >
-      @if (!isDark) { <mat-icon>dark_mode</mat-icon> } @if (isDark) {
-      <mat-icon>light_mode</mat-icon> }
+      @if (!isDark) {
+        <mat-icon>dark_mode</mat-icon>
+      }
+      @if (isDark) {
+        <mat-icon>light_mode</mat-icon>
+      }
     </button>
   </div>
 </mat-toolbar>

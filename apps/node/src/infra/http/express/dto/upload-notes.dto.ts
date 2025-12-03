@@ -10,6 +10,8 @@ export const AssetDisplayOptionsDto = z.object({
 
 // AssetRef
 export const AssetRefDto = z.object({
+  origin: z.enum(['content', 'frontmatter']).optional(),
+  frontmatterPath: z.string().optional(),
   raw: z.string(),
   target: z.string(),
   kind: z.enum(['image', 'audio', 'video', 'pdf', 'other']),
@@ -18,6 +20,8 @@ export const AssetRefDto = z.object({
 
 // WikilinkRef
 export const WikilinkRefDto = z.object({
+  origin: z.enum(['content', 'frontmatter']).optional(),
+  frontmatterPath: z.string().optional(),
   raw: z.string(),
   target: z.string(),
   path: z.string(),

@@ -11,32 +11,31 @@ export class FrontmatterPropertySuggester extends AbstractInputSuggest<Frontmatt
   }
 
   getSuggestions(query: string): FrontmatterPropertySuggestion[] {
-    const normalized = (query || '').toLowerCase();
-    const cacheAny = this.app.metadataCache as any;
-    const fileCacheGetter =
-      typeof cacheAny.getFileCache === 'function' ? cacheAny.getFileCache.bind(cacheAny) : null;
-    const cachedFiles: string[] =
-      (typeof cacheAny.getCachedFiles === 'function' ? cacheAny.getCachedFiles() : []) || [];
-
+    const normalizedQuery = (query || '').toLowerCase();
     const counts = new Map<string, number>();
 
-    for (const path of cachedFiles) {
-      const fileCache = fileCacheGetter ? fileCacheGetter(path) : null;
-      const fm = fileCache?.frontmatter;
+    const files: TFile[] = this.app.vault.getMarkdownFiles();
+    for (const file of files) {
+      const cache = this.app.metadataCache.getFileCache(file);
+      const fm = cache?.frontmatter;
       if (!fm || typeof fm !== 'object') continue;
 
       for (const key of Object.keys(fm)) {
         // Clés internes d'Obsidian à ignorer
         if (key === 'position' || key === 'tags') continue;
-        const current = counts.get(key) ?? 0;
-        counts.set(key, current + 1);
+        const k = key.trim();
+        if (!k) continue;
+        counts.set(k, (counts.get(k) ?? 0) + 1);
       }
     }
 
     return Array.from(counts.entries())
       .map(([key, count]) => ({ key, count }))
-      .filter((s) => !normalized || s.key.toLowerCase().includes(normalized))
-      .sort((a, b) => b.count - a.count);
+      .filter((s) => !normalizedQuery || s.key.toLowerCase().includes(normalizedQuery))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.key.localeCompare(b.key);
+      });
   }
 
   renderSuggestion(suggestion: FrontmatterPropertySuggestion, el: HTMLElement): void {

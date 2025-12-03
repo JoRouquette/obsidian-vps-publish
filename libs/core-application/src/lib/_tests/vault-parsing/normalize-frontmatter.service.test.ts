@@ -1,6 +1,6 @@
 import { NormalizeFrontmatterService } from '../../vault-parsing/services/normalize-frontmatter.service';
+import type { CollectedNote } from '@core-domain/entities';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
-import type { CollectedNote } from '@core-domain/entities/collected-note';
 
 class NoopLogger implements LoggerPort {
   private _level: any = 0;
@@ -23,27 +23,42 @@ describe('NormalizeFrontmatterService', () => {
   const logger = new NoopLogger();
   const service = new NormalizeFrontmatterService(logger);
 
-  const baseNote: CollectedNote = {
-    noteId: '1',
+  const baseNote: Omit<CollectedNote, 'frontmatter'> = {
+    noteId: 'note-id',
     title: 'Note',
     vaultPath: 'Vault/Note.md',
     relativePath: 'Note.md',
-    content: 'c',
-    frontmatter: { 'Foo.Bar': 'baz', tags: ['a', 'b'], nested: { keep: true } } as any,
-    folderConfig: { id: 'f', vaultFolder: 'Vault', routeBase: '/blog', vpsId: 'vps' },
+    content: '',
+    folderConfig: {
+      id: 'folder',
+      vaultFolder: 'Vault',
+      routeBase: '/',
+      vpsId: 'vps',
+    },
   };
 
-  it('normalizes keys and builds flat/nested/tags', () => {
-    const [note] = service.process([baseNote]);
-    expect(note.frontmatter.flat['foobar']).toBe('baz');
-    expect((note.frontmatter.nested as any).foobar).toBe('baz');
-    expect(note.frontmatter.tags).toEqual(['a', 'b']);
-  });
+  it('normalizes a DomainFrontmatter payload by using its flat raw frontmatter', () => {
+    const [normalized] = service.process([
+      {
+        ...baseNote,
+        frontmatter: {
+          flat: {
+            Publish: false,
+            'dg-publish': true,
+            'section.done': 'yes',
+            tags: ['a', 'b'],
+          },
+          nested: {},
+          tags: ['outdated'],
+        } as any,
+      },
+    ]);
 
-  it('handles missing frontmatter', () => {
-    const clone = { ...baseNote, frontmatter: undefined as any };
-    const [note] = service.process([clone]);
-    expect(note.frontmatter.flat).toEqual({});
-    expect(note.frontmatter.tags).toEqual([]);
+    expect(normalized.frontmatter.flat.publish).toBe(false);
+    expect(normalized.frontmatter.flat.dgpublish).toBe(true);
+    expect((normalized.frontmatter.nested as any).publish).toBe(false);
+    expect((normalized.frontmatter.nested as any).dgpublish).toBe(true);
+    expect((normalized.frontmatter.nested as any).section.done).toBe('yes');
+    expect(normalized.frontmatter.tags).toEqual(['a', 'b']);
   });
 });

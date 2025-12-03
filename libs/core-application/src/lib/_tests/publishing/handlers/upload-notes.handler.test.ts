@@ -9,7 +9,9 @@ describe('UploadNotesHandler', () => {
   let logger: any;
 
   beforeEach(() => {
-    markdownRenderer = { render: jest.fn(async (content) => `<p>${content}</p>`) };
+    markdownRenderer = {
+      render: jest.fn(async (note: PublishableNote) => `<p>${note.content}</p>`),
+    };
     contentStorage = { save: jest.fn(async () => {}) };
     manifestStorage = {
       load: jest.fn(async () => undefined),
@@ -68,7 +70,7 @@ describe('UploadNotesHandler', () => {
 
     const result = await handler.handle(command);
 
-    expect(markdownRenderer.render).toHaveBeenCalledWith(note.content);
+    expect(markdownRenderer.render).toHaveBeenCalledWith(note);
     expect(contentStorage.save).toHaveBeenCalledWith({
       route: note.routing.fullPath,
       content: expect.stringContaining('<div class="markdown-body">'),

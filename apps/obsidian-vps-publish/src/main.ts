@@ -20,6 +20,7 @@ import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
 import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
 import { NotesUploaderAdapter } from './lib/infra/notes-uploader.adapter';
 import { ObsidianAssetsVaultAdapter } from './lib/infra/obsidian-assets-vault.adapter';
+import { NoticeProgressAdapter } from './lib/infra/notice-progress.adapter';
 import { ObsidianVaultAdapter } from './lib/infra/obsidian-vault.adapter';
 import { testVpsConnection } from './lib/services/http-connection.service';
 import { SessionApiClient } from './lib/services/session-api.client';
@@ -75,7 +76,7 @@ function withDecryptedApiKeys(settings: PluginSettings): PluginSettings {
 export default class ObsidianVpsPublishPlugin extends Plugin {
   settings!: PluginSettings;
   responseHandler!: HttpResponseHandler<RequestUrlResponse>;
-  logger = new ConsoleLoggerAdapter({ plugin: 'ObsidianVpsPublish' }, LogLevel.debug);
+  logger = new ConsoleLoggerAdapter({ plugin: 'ObsidianVpsPublish' });
 
   async onload() {
     await this.loadSettings();
@@ -169,7 +170,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     }
     if (!settings.folders || settings.folders.length === 0) {
       this.logger.warn('No folders configured');
-      new Notice('?? No folders configured for publishing.');
+      new Notice('No folders configured for publishing.');
       return;
     }
 
@@ -185,13 +186,23 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     const parseContentHandler = this.buildParseContentHandler(settings, scopedLogger);
     let publishables = await parseContentHandler.handle(notes);
 
+    const publishableCount = publishables.length;
     const notesWithAssets = publishables.filter((n) => n.assets && n.assets.length > 0);
     const assetsPlanned = notesWithAssets.reduce(
       (sum, n) => sum + (Array.isArray(n.assets) ? n.assets.length : 0),
       0
     );
 
-    scopedLogger.info('Total notes collected and parsed', { count: notes.length });
+    scopedLogger.info('Total notes collected and parsed', {
+      collected: notes.length,
+      publishable: publishableCount,
+    });
+
+    if (publishableCount === 0) {
+      this.logger.warn('No publishable notes after filtering; aborting upload.');
+      new Notice('No publishable notes to upload.');
+      return;
+    }
 
     const sessionClient = new SessionApiClient(
       vps.url,
@@ -204,10 +215,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     const maxBytesRequested = 5 * 1024 * 1024;
     let maxBytesPerRequest = maxBytesRequested;
     let assetsUploaded = 0;
+    const totalPlanned = publishableCount + assetsPlanned;
+    const progress =
+      totalPlanned > 0 ? new NoticeProgressAdapter('Publishing to VPS') : null;
+    let progressStarted = false;
 
     try {
       const started = await sessionClient.startSession({
-        notesPlanned: notes.length,
+        notesPlanned: publishableCount,
         assetsPlanned: assetsPlanned,
         maxBytesPerRequest: maxBytesRequested,
       });
@@ -216,11 +231,17 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       maxBytesPerRequest = started.maxBytesPerRequest;
       this.logger.info('Session started', { sessionId, maxBytesPerRequest });
 
+      if (progress && !progressStarted) {
+        progress.start(totalPlanned);
+        progressStarted = true;
+      }
+
       const notesUploader = new NotesUploaderAdapter(
         sessionClient,
         sessionId,
         this.logger,
-        maxBytesPerRequest
+        maxBytesPerRequest,
+        progress ?? undefined
       );
       await notesUploader.upload(publishables);
 
@@ -230,7 +251,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           sessionClient,
           sessionId,
           this.logger,
-          maxBytesPerRequest
+          maxBytesPerRequest,
+          progress ?? undefined
         );
 
         const resolvedAssets = await assetsVault.resolveAssetsFromNotes(
@@ -246,18 +268,18 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       }
 
       await sessionClient.finishSession(sessionId, {
-        notesProcessed: notes.length,
+        notesProcessed: publishableCount,
         assetsProcessed: assetsUploaded,
       });
 
-      new Notice(
-        '' +
-          ('Published ' +
-            notes.length +
-            ' note(s)' +
-            (assetsPlanned ? ' and ' + assetsUploaded + ' asset(s)' : '') +
-            '.')
-      );
+      if (progressStarted) {
+        progress?.finish();
+      }
+
+      const successMsg = `Published ${publishableCount} note(s)${
+        assetsPlanned ? ` and ${assetsUploaded} asset(s)` : ''
+      }.`;
+      new Notice(successMsg);
     } catch (err) {
       this.logger.error('Publishing failed, aborting session if created', err);
       if (sessionId) {
@@ -267,7 +289,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           this.logger.error('Failed to abort session', abortErr);
         }
       }
-      new Notice('❌ Publishing failed (see console).');
+      if (progressStarted) {
+        progress?.finish();
+      }
+      new Notice('Publishing failed (see console).');
     }
   }
 

@@ -1,50 +1,44 @@
-// Représente un wikilink brut détecté dans le contenu markdown.
-// Syntaxe type Obsidian: [[cible]], [[cible|alias]], [[cible#heading]], etc.
+// Represents a raw wikilink detected in markdown content.
+// Obsidian-like syntax: [[target]], [[target|alias]], [[target#heading]], etc.
 
 export type WikilinkKind = 'note' | 'file';
 
 export interface WikilinkRef {
   /**
-   * Wikilink tel qu'il apparaît dans le markdown.
-   * ex: "[[Thormak]]", "[[puissances/Thormak#Bio|Le Briseur]]"
+   * Where the wikilink was detected (note content or frontmatter).
+   */
+  origin?: 'content' | 'frontmatter';
+  /**
+   * Path of the frontmatter property that contains the link (if any).
+   */
+  frontmatterPath?: string;
+  /**
+   * Wikilink as it appears in markdown, e.g. "[[Thormak]]".
    */
   raw: string;
 
   /**
-   * Partie "cible" sans l'alias, c'est-à-dire le contenu
-   * à gauche de "|" s'il existe.
-   * ex:
-   *  - "Thormak"
-   *  - "puissances/Thormak#Bio"
+   * Target part without the alias (left side of "|" when present).
    */
   target: string;
 
   /**
-   * Chemin principal utilisé pour la résolution, sans subpath.
-   * -> tout ce qui est avant un éventuel "#".
-   * ex:
-   *  - "Thormak"
-   *  - "puissances/Thormak"
+   * Main path used for resolution, without subpath (before "#").
    */
   path: string;
 
   /**
-   * Partie après le "#", quand présente.
-   * ex:
-   *  - "Bio"
-   *  - "^block-id"
+   * Optional part after "#", e.g. "Bio" or "^block-id".
    */
   subpath?: string;
 
   /**
-   * Alias d'affichage éventuel (la partie après "|").
-   * ex: "Le Briseur"
+   * Optional display alias (the part after "|").
    */
   alias?: string;
 
   /**
-   * Classification grossière : "note" (par défaut) ou "file"
-   * si la cible ressemble à un fichier (extension).
+   * Coarse classification: "note" (default) or "file" if it looks like a file.
    */
   kind: WikilinkKind;
 }

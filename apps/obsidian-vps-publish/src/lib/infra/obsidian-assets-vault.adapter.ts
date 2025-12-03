@@ -46,13 +46,15 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
           continue;
         }
 
+        const normalizedTarget = this.normalizeTarget(target);
+
         this._logger.debug('Searching for asset target', {
-          target,
+          target: normalizedTarget,
           assetsFolder: normalizedAssetsFolder,
           note: note.vaultPath,
         });
 
-        const baseName = target.split('/').pop() ?? target;
+        const baseName = normalizedTarget.split('/').pop() ?? normalizedTarget;
 
         // 2. Recherche prioritaire dans le dossier d’assets
         let file: TFile | undefined;
@@ -61,7 +63,7 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
           file = allFiles.find((f) => {
             if (!this.isUnderFolder(f.path, normalizedAssetsFolder)) return false;
 
-            if (f.path.endsWith('/' + target) || f.path === target) return true;
+            if (f.path.endsWith('/' + normalizedTarget) || f.path === normalizedTarget) return true;
 
             return f.name === baseName;
           });
@@ -82,7 +84,7 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
         // 3. Fallback : tout le vault
         if (!file && enableVaultFallback) {
           file = allFiles.find((f) => {
-            if (f.path.endsWith('/' + target) || f.path === target) return true;
+            if (f.path.endsWith('/' + normalizedTarget) || f.path === normalizedTarget) return true;
             return f.name === baseName;
           });
 
@@ -112,7 +114,8 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
 
         const content = await this.app.vault.readBinary(file);
 
-        const relativeAssetPath = this.computeRelativeAssetPath(file.path, normalizedAssetsFolder);
+        const relativeAssetPath =
+          normalizedTarget || this.computeRelativeAssetPath(file.path, normalizedAssetsFolder);
 
         const resolved: ResolvedAssetFile = {
           vaultPath: file.path,
@@ -197,5 +200,13 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
     }
 
     return p;
+  }
+
+  private normalizeTarget(target: string): string {
+    if (!target) return '';
+    let t = target.trim().replace(/\\/g, '/');
+    t = t.replace(/^\.\/+/, '');
+    t = t.replace(/^\/+/, '');
+    return t;
   }
 }

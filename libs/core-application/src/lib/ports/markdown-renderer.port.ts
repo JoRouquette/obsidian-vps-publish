@@ -1,3 +1,5 @@
+import { PublishableNote } from '@core-domain';
+
 export interface MarkdownRendererPort {
-  render(markdown: string): Promise<string>;
+  render(note: PublishableNote): Promise<string>;
 }

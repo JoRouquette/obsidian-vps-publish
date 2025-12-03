@@ -168,4 +168,18 @@ describe('Note Entities', () => {
     expect(noteLink.kind).toBe('note');
     expect(fileLink.kind).toBe('file');
   });
+
+  it('should support origin metadata on asset and wikilink references', () => {
+    const fmAsset: AssetRef = { ...assetRef, origin: 'frontmatter', frontmatterPath: 'cover' };
+    const fmLink: ResolvedWikilink = {
+      ...resolvedWikilink,
+      origin: 'frontmatter',
+      frontmatterPath: 'related',
+    };
+
+    expect(fmAsset.origin).toBe('frontmatter');
+    expect(fmAsset.frontmatterPath).toBe('cover');
+    expect(fmLink.origin).toBe('frontmatter');
+    expect(fmLink.frontmatterPath).toBe('related');
+  });
 });

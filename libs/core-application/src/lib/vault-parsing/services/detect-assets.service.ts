@@ -5,12 +5,14 @@ import { AssetDisplayOptions } from '@core-domain/entities/asset-display-options
 import { AssetKind } from '@core-domain/entities/asset-kind';
 import { AssetRef } from '@core-domain/entities/asset-ref';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
+import { extractFrontmatterStrings } from '../utils/frontmatter-strings.util';
 
 /**
  * Regex pour capturer les embeds Obsidian : ![[...]]
  * - groupe 1 = contenu interne sans les crochets.
  */
 const EMBED_REGEX = /!\[\[([^\]]+)\]\]/g;
+type AssetOrigin = 'content' | 'frontmatter';
 
 export class DetectAssetsService implements BaseService {
   private readonly _logger: LoggerPort;
@@ -21,52 +23,9 @@ export class DetectAssetsService implements BaseService {
 
   process(notes: PublishableNote[]): PublishableNote[] {
     return notes.map((note) => {
-      const markdown = note.content;
-      const assets: AssetRef[] = [];
-
-      let match: RegExpExecArray | null;
-      let embedCount = 0;
-      while ((match = EMBED_REGEX.exec(markdown)) !== null) {
-        embedCount++;
-        const raw = match[0]; // "![[...]]"
-        const inner = match[1].trim(); // contenu interne
-
-        if (!inner) {
-          this._logger.debug(`Skipped empty embed at match #${embedCount}`);
-          continue;
-        }
-
-        const segments = inner
-          .split('|')
-          .map((s) => s.trim())
-          .filter(Boolean);
-        if (segments.length === 0) {
-          this._logger.debug(`Skipped embed with no segments at match #${embedCount}: "${raw}"`);
-          continue;
-        }
-
-        const target = segments[0]; // ex: "Tenebra1.jpg"
-        const modifierTokens = segments.slice(1);
-
-        const kind = this.classifyAssetKind(target);
-        const display = this.parseModifiers(modifierTokens, this._logger);
-
-        if (kind === 'other' && !target.includes('.')) {
-          this._logger.debug(`Skipped non-asset embed: "${target}" at match #${embedCount}`);
-          continue;
-        }
-
-        this._logger.debug(
-          `Detected asset: target="${target}", kind="${kind}", display=${JSON.stringify(display)}`
-        );
-
-        assets.push({
-          raw,
-          target,
-          kind,
-          display,
-        });
-      }
+      const contentAssets = this.detectInText(note.content, 'content');
+      const frontmatterAssets = this.detectInFrontmatter(note);
+      const assets = [...contentAssets, ...frontmatterAssets];
 
       if (assets.length === 0) {
         this._logger.info(`No assets detected in note "${note.title}"`);
@@ -99,6 +58,79 @@ export class DetectAssetsService implements BaseService {
     if (lower === 'right') return 'right';
     if (lower === 'center' || lower === 'centre') return 'center';
     return undefined;
+  }
+
+  private detectInFrontmatter(note: PublishableNote): AssetRef[] {
+    if (!note.frontmatter?.nested || typeof note.frontmatter.nested !== 'object') {
+      return [];
+    }
+
+    const entries = extractFrontmatterStrings(note.frontmatter.nested);
+    const assets: AssetRef[] = [];
+
+    for (const entry of entries) {
+      const found = this.detectInText(entry.value, 'frontmatter', entry.path);
+      assets.push(...found);
+    }
+
+    return assets;
+  }
+
+  private detectInText(
+    markdown: string,
+    origin: AssetOrigin,
+    frontmatterPath?: string
+  ): AssetRef[] {
+    const assets: AssetRef[] = [];
+    EMBED_REGEX.lastIndex = 0;
+
+    let match: RegExpExecArray | null;
+    let embedCount = 0;
+    while ((match = EMBED_REGEX.exec(markdown)) !== null) {
+      embedCount++;
+      const raw = match[0]; // "![[...]]"
+      const inner = match[1].trim(); // contenu interne
+
+      if (!inner) {
+        this._logger.debug(`Skipped empty embed at match #${embedCount}`);
+        continue;
+      }
+
+      const segments = inner
+        .split('|')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (segments.length === 0) {
+        this._logger.debug(`Skipped embed with no segments at match #${embedCount}: "${raw}"`);
+        continue;
+      }
+
+      const target = this.normalizeTarget(segments[0]); // ex: "Tenebra1.jpg"
+      const modifierTokens = segments.slice(1);
+
+      const kind = this.classifyAssetKind(target);
+      const display = this.parseModifiers(modifierTokens, this._logger);
+
+      if (kind === 'other' && !target.includes('.')) {
+        this._logger.debug(`Skipped non-asset embed: "${target}" at match #${embedCount}`);
+        continue;
+      }
+
+      this._logger.debug(
+        `Detected asset: target="${target}", origin="${origin}", kind="${kind}", display=${JSON.stringify(display)}`
+      );
+
+      assets.push({
+        origin,
+        frontmatterPath,
+        raw,
+        target,
+        kind,
+        display,
+      });
+    }
+
+    return assets;
   }
 
   private parseModifiers(tokens: string[], logger?: LoggerPort): AssetDisplayOptions {
@@ -141,5 +173,13 @@ export class DetectAssetsService implements BaseService {
       classes,
       rawModifiers,
     };
+  }
+
+  private normalizeTarget(target: string): string {
+    if (!target) return '';
+    let t = target.trim().replace(/\\/g, '/');
+    t = t.replace(/^\.\/+/, '');
+    t = t.replace(/^\/+/, '');
+    return t;
   }
 }

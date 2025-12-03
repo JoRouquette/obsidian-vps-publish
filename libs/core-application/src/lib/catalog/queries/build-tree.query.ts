@@ -10,6 +10,7 @@ export interface TreeNode {
   path: string;
   count: number;
   route?: string;
+  tags?: string[];
   children?: TreeNode[];
 }
 
@@ -51,6 +52,7 @@ export class BuildTreeHandler implements QueryHandler<Manifest, TreeNode> {
           label: page.title?.trim() || this.pretty(segment),
           path: (current.path ? current.path + '/' : '') + segment,
           route: page.route,
+          tags: page.tags ?? [],
           count: 1,
         };
 

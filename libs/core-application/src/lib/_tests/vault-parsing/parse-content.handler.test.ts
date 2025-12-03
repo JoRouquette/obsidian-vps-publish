@@ -77,6 +77,8 @@ describe('ParseContentHandler', () => {
         publish: true,
         secret: 'hide',
         tags: ['public', 'private'],
+        cover: '![[cover.png]]',
+        links: ['[[NoteB.md|Friend]]'],
       } as any,
       folderConfig: baseFolder,
     };
@@ -96,12 +98,18 @@ describe('ParseContentHandler', () => {
     expect(result.length).toBe(2);
 
     const parsedA = result.find((n) => n.noteId === 'a')!;
-    expect(parsedA.assets?.length).toBe(1);
+    expect(parsedA.assets?.length).toBe(2);
+    expect(parsedA.assets?.some((a) => a.origin === 'frontmatter' && a.target === 'cover.png')).toBe(
+      true
+    );
     expect(parsedA.content).toContain('Hello');
     expect(parsedA.content).toContain('Note A'); // inline dataview replaced
     expect(parsedA.frontmatter.flat.secret).toBeUndefined();
     expect(parsedA.frontmatter.tags).toEqual(['public']); // private removed
-    expect(parsedA.resolvedWikilinks?.[0].isResolved).toBe(true);
+    expect(parsedA.resolvedWikilinks?.some((l) => l.isResolved)).toBe(true);
+    const fmLink = parsedA.resolvedWikilinks?.find((l) => l.origin === 'frontmatter');
+    expect(fmLink?.isResolved).toBe(true);
+    expect(fmLink?.frontmatterPath).toBe('links[0]');
     expect(parsedA.routing.fullPath).toBe('/blog/notea');
   });
 
@@ -114,6 +122,26 @@ describe('ParseContentHandler', () => {
       relativePath: 'NoteA.md',
       content: 'hello',
       frontmatter: { publish: false } as any,
+      folderConfig: baseFolder,
+    };
+
+    const result = await handler.handle([note]);
+    expect(result.length).toBe(0);
+  });
+
+  it('drops notes when frontmatter is already wrapped as DomainFrontmatter', async () => {
+    const handler = buildHandler([{ property: 'publish', ignoreIf: false } as any]);
+    const note: CollectedNote = {
+      noteId: 'a',
+      title: 'Note A',
+      vaultPath: 'Vault/Blog/NoteA.md',
+      relativePath: 'NoteA.md',
+      content: 'hello',
+      frontmatter: {
+        flat: { publish: false, tags: ['keep'] },
+        nested: {},
+        tags: ['stale'],
+      } as any,
       folderConfig: baseFolder,
     };
 

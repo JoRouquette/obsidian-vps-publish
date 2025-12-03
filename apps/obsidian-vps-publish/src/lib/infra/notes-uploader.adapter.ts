@@ -1,6 +1,7 @@
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import type { UploaderPort } from '@core-domain/ports/uploader-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
+import type { ProgressPort } from '@core-domain/ports/progress-port';
 import { batchByBytes } from '../utils/batch-by-bytes.util';
 import { SessionApiClient } from '../services/session-api.client';
 
@@ -11,7 +12,8 @@ export class NotesUploaderAdapter implements UploaderPort {
     private readonly sessionClient: SessionApiClient,
     private readonly sessionId: string,
     logger: LoggerPort,
-    private readonly maxBytesPerRequest: number
+    private readonly maxBytesPerRequest: number,
+    private readonly progress?: ProgressPort
   ) {
     this._logger = logger.child({ component: 'NotesUploaderAdapter' });
   }
@@ -39,6 +41,7 @@ export class NotesUploaderAdapter implements UploaderPort {
     for (const batch of batches) {
       await this.sessionClient.uploadNotes(this.sessionId, batch);
       this._logger.debug('Notes batch uploaded', { batchSize: batch.length });
+      this.progress?.advance(batch.length);
     }
 
     this._logger.info('Successfully uploaded notes to session');

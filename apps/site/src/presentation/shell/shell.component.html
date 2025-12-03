@@ -4,35 +4,42 @@
   </div>
 
   <div class="TopBar mat-elevation-z2">
-    <app-topbar
-      [siteName]="siteName()"
-      [crumbs]="crumbs()"
-      [isDark]="theme.isDark()"
-      (toggleTheme)="theme.toggle()"
-      (crumbClicked)="onCrumbClicked($event)"
-    >
-    </app-topbar>
+    @defer {
+      <app-topbar
+        [siteName]="siteName()"
+        [crumbs]="crumbs()"
+        [isDark]="theme.isDark()"
+        (toggleTheme)="theme.toggle()"
+      >
+      </app-topbar>
+    } @placeholder {
+      <div class="topbar-placeholder"></div>
+    }
   </div>
 
   <div class="vault-explorer">
-    <app-vault-explorer></app-vault-explorer>
+    <ng-container
+      *ngIf="vaultExplorerComponent as explorer"
+      [ngComponentOutlet]="explorer"
+    ></ng-container>
   </div>
 
   <div class="main">
     <router-outlet></router-outlet>
 
     <footer class="footer">
-      <mat-icon>copyright</mat-icon> {{ currentYear }} {{ author() }}
-      @if(repo() !== '') { —
-      <a class="repo-link" [href]="repo()" target="_blank" rel="noopener">
-        <mat-icon aria-hidden="true">open_in_new</mat-icon>
-        Code
-      </a>
-      } @if (reportIssues() !== '') { —
-      <a class="repo-link" [href]="reportIssues()" target="_blank" rel="noopener">
-        <mat-icon aria-hidden="true">bug_report</mat-icon>
-        Bugs
-      </a>
+      <span class="icon">©</span> {{ currentYear }} {{ author() }}
+      @if (repo() !== '') {
+        <a class="repo-link" [href]="repo()" target="_blank" rel="noopener">
+          <mat-icon aria-hidden="true">open_in_new</mat-icon>
+          Code
+        </a>
+      }
+      @if (reportIssues() !== '') {
+        <a class="repo-link" [href]="reportIssues()" target="_blank" rel="noopener">
+          <mat-icon aria-hidden="true">bug_report</mat-icon>
+          Bugs
+        </a>
       }
     </footer>
   </div>

@@ -3,19 +3,27 @@ import type { AssetDisplayOptions } from './asset-display-options';
 
 export interface AssetRef {
   /**
-   * Texte brut de l'embed, ex: "![[Tenebra1.jpg|right|300]]"
+   * Where the asset reference was detected (note content or frontmatter).
+   */
+  origin?: 'content' | 'frontmatter';
+  /**
+   * Path of the frontmatter property that contains the asset reference (if any).
+   */
+  frontmatterPath?: string;
+  /**
+   * Raw embed text, e.g. "![[Tenebra1.jpg|right|300]]".
    */
   raw: string;
   /**
-   * Chemin tel qu'écrit dans l'embed (sans modifiers), ex: "Tenebra1.jpg".
+   * Path as written in the embed (without modifiers), e.g. "Tenebra1.jpg".
    */
   target: string;
   /**
-   * Type d'asset déduit de l'extension.
+   * Asset kind inferred from the extension.
    */
   kind: AssetKind;
   /**
-   * Options d'affichage déduites des modifiers (ITS, etc.).
+   * Display options inferred from modifiers (ITS, etc.).
    */
   display: AssetDisplayOptions;
 }

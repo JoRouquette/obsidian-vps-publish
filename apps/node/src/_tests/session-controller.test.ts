@@ -21,6 +21,10 @@ describe('sessionController', () => {
   const uploadAssetsHandler = {
     handle: jest.fn().mockResolvedValue({ sessionId: 's1', published: 0, errors: [] }),
   };
+  const stagingManager = {
+    promoteSession: jest.fn().mockResolvedValue(undefined),
+    discardSession: jest.fn().mockResolvedValue(undefined),
+  };
 
   const buildApp = () => {
     const app = express();
@@ -31,7 +35,8 @@ describe('sessionController', () => {
         finishSessionHandler as any,
         abortSessionHandler as any,
         uploadNotesHandler as any,
-        uploadAssetsHandler as any
+        uploadAssetsHandler as any,
+        stagingManager as any
       )
     );
     return app;
@@ -112,7 +117,6 @@ describe('sessionController', () => {
             vpsId: 'vps',
             sanitization: [],
           },
-          vpsConfig: { id: 'vps', name: 'vps', url: 'http://x', apiKey: 'k' },
         },
       ],
     });
@@ -182,7 +186,6 @@ describe('sessionController', () => {
             vpsId: 'vps',
             sanitization: [],
           },
-          vpsConfig: { id: 'vps', name: 'vps', url: 'http://x', apiKey: 'k' },
         },
       ],
     });

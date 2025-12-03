@@ -3,7 +3,25 @@ import { HttpManifestRepository } from '../infrastructure/http/http-manifest.rep
 import { Manifest } from '@core-domain';
 
 describe('HttpManifestRepository', () => {
-  const mockManifest: Manifest = { sessionId: 's1' } as Manifest;
+  const mockManifest: Manifest = {
+    sessionId: 's1',
+    createdAt: new Date(),
+    lastUpdatedAt: new Date(),
+    pages: [],
+  };
+  const storage = new Map<string, string>();
+
+  beforeEach(() => {
+    storage.clear();
+    (global as any).localStorage = {
+      getItem: (k: string) => storage.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        storage.set(k, v);
+      },
+      removeItem: (k: string) => storage.delete(k),
+      clear: () => storage.clear(),
+    };
+  });
 
   it('loads and maps manifest, using cache', async () => {
     const get = jest.fn().mockReturnValue(of(mockManifest));

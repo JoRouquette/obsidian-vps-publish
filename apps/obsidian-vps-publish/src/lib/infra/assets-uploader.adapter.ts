@@ -1,6 +1,7 @@
 import { UploaderPort } from '@core-domain/ports/uploader-port';
 import type { ResolvedAssetFile } from '@core-domain/entities/resolved-asset-file';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
+import type { ProgressPort } from '@core-domain/ports/progress-port';
 import { SessionApiClient } from '../services/session-api.client';
 import { batchByBytes } from '../utils/batch-by-bytes.util';
 
@@ -19,7 +20,8 @@ export class AssetsUploaderAdapter implements UploaderPort {
     private readonly sessionClient: SessionApiClient,
     private readonly sessionId: string,
     logger: LoggerPort,
-    private readonly maxBytesPerRequest: number
+    private readonly maxBytesPerRequest: number,
+    private readonly progress?: ProgressPort
   ) {
     this._logger = logger.child({ adapter: 'AssetsUploaderAdapter' });
     this._logger.debug('AssetsUploaderAdapter initialized');
@@ -55,6 +57,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
     for (const batch of batches) {
       await this.sessionClient.uploadAssets(this.sessionId, batch);
       this._logger.debug('Assets batch uploaded', { batchSize: batch.length });
+      this.progress?.advance(batch.length);
     }
 
     this._logger.info('Assets upload completed');

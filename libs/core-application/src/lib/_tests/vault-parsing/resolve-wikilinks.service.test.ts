@@ -33,7 +33,6 @@ describe('ResolveWikilinksService', () => {
     content: 'Link to [[B.md]]',
     frontmatter: { flat: {}, nested: {}, tags: [] },
     folderConfig: { id: 'f', vaultFolder: 'Vault', routeBase: '/blog', vpsId: 'vps' },
-    vpsConfig: { id: 'vps', name: 'v', url: 'http://x', apiKey: 'k' },
     publishedAt: new Date(),
     eligibility: { isPublishable: true },
     routing: { slug: '', path: '', routeBase: '', fullPath: '' },
@@ -52,10 +51,24 @@ describe('ResolveWikilinksService', () => {
     const [note] = service.process([baseNote, targetNote]);
     expect(note.resolvedWikilinks?.[0].isResolved).toBe(true);
     expect(note.resolvedWikilinks?.[0].targetNoteId).toBe('2');
+    expect(note.resolvedWikilinks?.[0].origin).toBe('content');
   });
 
   it('marks wikilinks as unresolved when target missing', () => {
     const [note] = service.process([baseNote]);
     expect(note.resolvedWikilinks?.[0].isResolved).toBe(false);
+  });
+
+  it('detects frontmatter wikilinks and keeps their origin', () => {
+    const withFrontmatter: PublishableNote = {
+      ...baseNote,
+      content: 'nothing to see here',
+      frontmatter: { flat: {}, nested: { related: '[[B.md]]' }, tags: [] },
+    };
+
+    const [note] = service.process([withFrontmatter, targetNote]);
+    expect(note.resolvedWikilinks?.[0].origin).toBe('frontmatter');
+    expect(note.resolvedWikilinks?.[0].frontmatterPath).toBe('related');
+    expect(note.resolvedWikilinks?.[0].isResolved).toBe(true);
   });
 });
