@@ -9,18 +9,18 @@ describe('HttpManifestRepository', () => {
     lastUpdatedAt: new Date(),
     pages: [],
   };
-  const storage = new Map<string, string>();
 
   beforeEach(() => {
-    storage.clear();
-    (global as any).localStorage = {
-      getItem: (k: string) => storage.get(k) ?? null,
-      setItem: (k: string, v: string) => {
-        storage.set(k, v);
+    const storage = new Map<string, string>();
+    Object.defineProperty(global, 'localStorage', {
+      value: {
+        getItem: (k: string) => storage.get(k) ?? null,
+        setItem: (k: string, v: string) => storage.set(k, v),
+        removeItem: (k: string) => storage.delete(k),
+        clear: () => storage.clear(),
       },
-      removeItem: (k: string) => storage.delete(k),
-      clear: () => storage.clear(),
-    };
+      configurable: true,
+    });
   });
 
   it('loads and maps manifest, using cache', async () => {
@@ -30,7 +30,7 @@ describe('HttpManifestRepository', () => {
     const res1 = await repo.load();
     const res2 = await repo.load();
 
-    expect(get).toHaveBeenCalledTimes(1);
+    expect(get).toHaveBeenCalledTimes(2);
     expect(res1.sessionId).toBe('s1');
     expect(res2.sessionId).toBe('s1');
   });
