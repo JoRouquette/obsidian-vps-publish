@@ -62,7 +62,8 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
 
     const valuesRow = ruleContainer.createDiv({ cls: 'ptpv-ignore-rule__values' });
     const chipsRow = ruleContainer.createDiv({ cls: 'ptpv-ignore-rule__chips' });
-    const chipsLabel = chipsRow.createDiv({ cls: 'ptpv-ignore-rule__chips-label', text: t.settings.ignoreRules.valueLabel ?? 'Valeurs à ignorer' });
+    const booleanRow = ruleContainer.createDiv({ cls: 'ptpv-ignore-rule__boolean' });
+    const chipsLabel = chipsRow.createDiv({ cls: 'ptpv-ignore-rule__chips-label', text: t.settings.ignoreRules.valueLabel ?? 'Values to ignore' });
     const chipsWrap = chipsRow.createDiv({ cls: 'ptpv-ignore-rule__chips-list' });
 
     const renderChips = () => {
@@ -75,7 +76,7 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
       values.forEach((v, i) => {
         const chip = chipsWrap.createDiv({ cls: 'ptpv-chip' });
         chip.createSpan({ text: String(v) });
-        const removeBtn = chip.createSpan({ cls: 'ptpv-chip-remove', text: '✕' });
+        const removeBtn = chip.createSpan({ cls: 'ptpv-chip-remove', text: '×' });
         removeBtn.onclick = async () => {
           const next = [...values];
           next.splice(i, 1);
@@ -89,7 +90,7 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
     const valuesField = valuesRow.createDiv({ cls: 'ptpv-ignore-rule__field ptpv-ignore-rule__field--values' });
     valuesField.createEl('label', {
       cls: 'ptpv-ignore-rule__label',
-      text: t.settings.ignoreRules.valueLabel ?? 'Valeurs à ignorer',
+      text: t.settings.ignoreRules.valueLabel ?? 'Values to ignore',
     });
     const valuesInput = valuesField.createEl('input', {
       type: 'text',
@@ -134,9 +135,24 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
     });
     valuesInput.addEventListener('blur', () => addValue(valuesInput.value));
 
+    let boolDropdown: import('obsidian').DropdownComponent | undefined;
+    new Setting(booleanRow).addDropdown((dropdown) => {
+      boolDropdown = dropdown;
+      dropdown
+        .addOption('true', 'true')
+        .addOption('false', 'false')
+        .setValue(rule.ignoreIf === false ? 'false' : 'true')
+        .onChange(async (value) => {
+          logger.debug('Ignore rule boolean value changed', { index, value });
+          rule.ignoreIf = value === 'true';
+          await ctx.save();
+        });
+    });
+
     const showValues = (show: boolean) => {
       valuesRow.toggleClass('is-hidden', !show);
       chipsRow.toggleClass('is-hidden', !show);
+      booleanRow.toggleClass('is-hidden', show);
     };
 
     const setMode = async (value: 'boolean' | 'values') => {
@@ -145,6 +161,7 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
         if (typeof rule.ignoreIf !== 'boolean') {
           rule.ignoreIf = true;
         }
+        boolDropdown?.setValue(rule.ignoreIf === false ? 'false' : 'true');
         showValues(false);
       } else {
         rule.ignoreIf = undefined;
@@ -155,27 +172,17 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
       await ctx.save();
     };
 
-    typeSelect.addEventListener('change', async () => {
-      await setMode(typeSelect.value as 'boolean' | 'values');
-    });
-
     if (mode === 'values') {
       showValues(true);
       renderChips();
     } else {
       showValues(false);
-      new Setting(valuesRow).addDropdown((dropdown) =>
-        dropdown
-          .addOption('true', 'true')
-          .addOption('false', 'false')
-          .setValue(rule.ignoreIf === false ? 'false' : 'true')
-          .onChange(async (value) => {
-            logger.debug('Ignore rule boolean value changed', { index, value });
-            rule.ignoreIf = value === 'true';
-            await ctx.save();
-          })
-      );
+      boolDropdown?.setValue(rule.ignoreIf === false ? 'false' : 'true');
     }
+
+    typeSelect.addEventListener('change', async () => {
+      await setMode(typeSelect.value as 'boolean' | 'values');
+    });
 
     const actionRow = ruleContainer.createDiv({ cls: 'ptpv-ignore-rule__actions' });
     const deleteBtn = actionRow.createEl('button', {

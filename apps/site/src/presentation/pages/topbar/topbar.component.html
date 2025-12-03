@@ -2,9 +2,9 @@
   <!-- Colonne gauche : Breadcrumbs -->
   <nav class="breadcrumbs" aria-label="Fil d’Ariane">
     @for (c of crumbs; track c.url; let last = $last) {
-      <a class="crumb" [routerLink]="c.url" (click)="crumbClicked.emit(c)">
+      <span class="crumb" aria-current="{{ last ? 'page' : undefined }}">
         <span [class.last]="last">{{ c.label }}</span>
-      </a>
+      </span>
       @if (!last) {
         <mat-icon class="sep" aria-hidden="true">chevron_right</mat-icon>
       }

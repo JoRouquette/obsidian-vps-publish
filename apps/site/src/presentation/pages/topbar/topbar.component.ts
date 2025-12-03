@@ -29,7 +29,6 @@ export class TopbarComponent {
   @Input() isDark = false;
 
   @Output() toggleTheme = new EventEmitter<void>();
-  @Output() crumbClicked = new EventEmitter<Crumb>();
 
   constructor(public catalog: CatalogFacade) {}
 

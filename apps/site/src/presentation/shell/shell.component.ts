@@ -14,8 +14,10 @@ import { VaultExplorerComponent } from '../components/vault-explorer/vault-explo
 import { LogoComponent } from '../pages/logo/logo.component';
 import { TopbarComponent } from '../pages/topbar/topbar.component';
 import { ThemeService } from '../services/theme.service';
+import type { ManifestPage } from '@core-domain';
 
 type Crumb = { label: string; url: string };
+
 
 @Component({
   standalone: true,
@@ -57,6 +59,7 @@ export class ShellComponent implements OnInit {
   private _crumbs: Crumb[] = [];
   crumbs = () => this._crumbs;
   private readonly pageTitleCache = new Map<string, string>();
+  private readonly pageByRoute = new Map<string, ManifestPage>();
 
   ngOnInit() {
     this.theme.init();
@@ -75,10 +78,6 @@ export class ShellComponent implements OnInit {
     });
   }
 
-  onCrumbClicked(crumb: Crumb) {
-    this.router.navigateByUrl(crumb.url);
-  }
-
   private updateFromUrl() {
     const url = this.router.url.split('?')[0].split('#')[0].replace(/\/+$/, '') || '/';
 
@@ -88,15 +87,20 @@ export class ShellComponent implements OnInit {
       return;
     }
 
-    const parts = url.replace(/^\/+/, '').split('/').filter(Boolean);
+    const rawParts = url.replace(/^\/+/, '').split('/').filter(Boolean);
+    const parts = rawParts.at(-1) === 'index' ? rawParts.slice(0, -1) : rawParts;
 
-    this._crumbs = parts.map((seg, i) => ({
-      url: this.normalizeRoute('/' + parts.slice(0, i + 1).join('/')),
-      label: this.getPageTitle('/' + parts.slice(0, i + 1).join('/')) ?? decodeURIComponent(seg),
-    }));
+    this._crumbs = parts.map((seg, i) => {
+      const partial = this.normalizeRoute('/' + parts.slice(0, i + 1).join('/'));
+      const page = this.findPageForRoute(partial);
+      return {
+        url: page?.route ?? partial,
+        label: page?.title ?? decodeURIComponent(seg),
+      };
+    });
 
-    this.currentTitle =
-      this.getPageTitle(url) ?? decodeURIComponent(parts.at(-1) || '');
+    const page = this.findPageForRoute(url);
+    this.currentTitle = page?.title ?? decodeURIComponent(parts.at(-1) || '');
   }
 
   private normalizeRoute(route: string): string {
@@ -106,10 +110,12 @@ export class ShellComponent implements OnInit {
 
   private hydrateManifestCache(): void {
     this.pageTitleCache.clear();
+    this.pageByRoute.clear();
     const manifest = this.catalog.manifest?.();
     manifest?.pages?.forEach((p) => {
       const key = this.normalizeRoute(p.route);
       this.pageTitleCache.set(key, p.title);
+      this.pageByRoute.set(key, { ...p, route: key });
     });
   }
 
@@ -119,5 +125,28 @@ export class ShellComponent implements OnInit {
     }
     const normalized = this.normalizeRoute(route);
     return this.pageTitleCache.get(normalized);
+  }
+
+  private findPageForRoute(route: string): ManifestPage | undefined {
+    if (this.pageByRoute.size === 0) {
+      this.hydrateManifestCache();
+    }
+
+    const normalized = this.normalizeRoute(route);
+
+    const exact = this.pageByRoute.get(normalized);
+    if (exact) return exact;
+
+    const indexRoute = this.normalizeRoute(normalized + '/index');
+    const indexPage = this.pageByRoute.get(indexRoute);
+    if (indexPage) return indexPage;
+
+    if (normalized.endsWith('/index')) {
+      const parent = this.normalizeRoute(normalized.replace(/\/index$/, '') || '/');
+      const parentIndex = this.pageByRoute.get(this.normalizeRoute(parent + '/index'));
+      if (parentIndex) return parentIndex;
+    }
+
+    return undefined;
   }
 }

@@ -45,7 +45,7 @@ export class DetectAssetsService implements BaseService {
           continue;
         }
 
-        const target = segments[0]; // ex: "Tenebra1.jpg"
+        const target = this.normalizeTarget(segments[0]); // ex: "Tenebra1.jpg"
         const modifierTokens = segments.slice(1);
 
         const kind = this.classifyAssetKind(target);
@@ -141,5 +141,13 @@ export class DetectAssetsService implements BaseService {
       classes,
       rawModifiers,
     };
+  }
+
+  private normalizeTarget(target: string): string {
+    if (!target) return '';
+    let t = target.trim().replace(/\\/g, '/');
+    t = t.replace(/^\.\/+/, '');
+    t = t.replace(/^\/+/, '');
+    return t;
   }
 }

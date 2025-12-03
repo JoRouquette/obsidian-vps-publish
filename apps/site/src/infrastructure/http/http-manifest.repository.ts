@@ -18,12 +18,16 @@ export class HttpManifestRepository implements ManifestRepository {
   }
 
   async load(): Promise<Manifest> {
-    if (this.inMemory) {
-      return this.inMemory;
-    }
-
     if (this.inFlight) {
       return this.inFlight;
+    }
+
+    if (this.inMemory) {
+      // Serve from memory but trigger a refresh to detect new uploads
+      this.inFlight = this.fetchRemote().finally(() => {
+        this.inFlight = null;
+      });
+      return this.inMemory;
     }
 
     const cached = this.readCache();
@@ -48,9 +52,18 @@ export class HttpManifestRepository implements ManifestRepository {
   private async fetchRemote(): Promise<Manifest> {
     const raw = await firstValueFrom(this.http.get<Manifest>(this.url));
     const normalized = this.normalize(raw);
-    this.persist(normalized);
-    this.inMemory = normalized;
-    return normalized;
+    const previous = this.inMemory;
+    const changed =
+      !previous ||
+      normalized.lastUpdatedAt.getTime() !== previous.lastUpdatedAt.getTime() ||
+      normalized.pages.length !== previous.pages.length;
+
+    if (changed) {
+      this.persist(normalized);
+      this.inMemory = normalized;
+    }
+
+    return this.inMemory ?? normalized;
   }
 
   private normalize(input: Manifest): Manifest {

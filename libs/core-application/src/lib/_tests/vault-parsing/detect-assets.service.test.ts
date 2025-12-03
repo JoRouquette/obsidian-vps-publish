@@ -43,5 +43,6 @@ describe('DetectAssetsService', () => {
     expect(withAssets.assets?.[0].kind).toBe('image');
     expect(withAssets.assets?.[0].display?.alignment).toBe('center');
     expect(withAssets.assets?.[1].kind).toBe('pdf');
+    expect(withAssets.assets?.[0].target).toBe('img.png');
   });
 });

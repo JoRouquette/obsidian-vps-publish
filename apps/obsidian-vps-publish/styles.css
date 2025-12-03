@@ -277,6 +277,14 @@
   display: none;
 }
 
+.obsidian-vps-publish-settings .ptpv-ignore-rule__boolean {
+  margin: 0.15rem 0 0.25rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-rule__boolean.is-hidden {
+  display: none;
+}
+
 .obsidian-vps-publish-settings .ptpv-ignore-rule__chips {
   display: flex;
   flex-direction: column;
