@@ -155,6 +155,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
 
     const entries: Array<{ key: string; value: unknown; path: string }> = [];
     for (const [k, v] of Object.entries(fm)) {
+      if (!this.hasRenderableFrontmatterValue(v)) continue;
       entries.push({ key: k, value: v, path: k });
     }
     if (tags.length > 0 && !('tags' in fm)) {
@@ -164,22 +165,29 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     if (entries.length === 0) return '';
 
     const renderValue = (value: unknown, depth: number, path: string): string => {
+      if (!this.hasRenderableFrontmatterValue(value)) return '';
+
       if (value === null || value === undefined) return '<span class="fm-value is-empty">""</span>';
       if (typeof value === 'boolean') {
         const checked = value ? 'checked' : '';
         return `<label class="fm-boolean"><input type="checkbox" disabled ${checked}>${value ? 'Oui' : 'Non'}</label>`;
       }
       if (Array.isArray(value)) {
-        if (value.length === 0) return '<span class="fm-value is-empty">""</span>';
         const rendered = value
           .map((v, idx) => renderValue(v, depth + 1, `${path}[${idx}]`))
+          .filter((v): v is string => Boolean(v))
           .join('<span class="fm-array-sep">, </span>');
+
+        if (rendered.length === 0) return '';
         return `<div class="fm-array">${rendered}</div>`;
       }
       if (typeof value === 'object') {
         const rows = Object.entries(value as Record<string, unknown>)
           .map(([ck, cv]) => renderEntry(ck, cv, depth + 1, path ? `${path}.${ck}` : ck))
+          .filter((v): v is string => Boolean(v))
           .join('');
+
+        if (rows.length === 0) return '';
         return `<div class="fm-group depth-${depth}">${rows}</div>`;
       }
       const renderedText =
@@ -190,6 +198,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     };
 
     const renderEntry = (key: string, value: unknown, depth: number, path: string): string => {
+      if (!this.hasRenderableFrontmatterValue(value)) return '';
       return `
       <div class="fm-row depth-${depth}">
         <span class="fm-label">${this.escapeHtml(key)}</span>
@@ -201,13 +210,29 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     const rows = entries
       .sort((a, b) => a.key.localeCompare(b.key, 'fr', { sensitivity: 'base' }))
       .map((e) => renderEntry(e.key, e.value, 0, e.path))
+      .filter((v): v is string => Boolean(v))
       .join('');
-    return `<section class="frontmatter-card">
-      <div class="fm-title">Frontmatter</div>
+
+    if (!rows) return '';
+
+    return `<details class="frontmatter-card">
+      <summary class="fm-title">Frontmatter</summary>
       <div class="fm-grid">
         ${rows}
       </div>
-    </section>`;
+    </details>`;
+  }
+
+  private hasRenderableFrontmatterValue(value: unknown): boolean {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string') return value.trim().length > 0;
+    if (Array.isArray(value)) return value.some((item) => this.hasRenderableFrontmatterValue(item));
+    if (typeof value === 'object') {
+      return Object.values(value as Record<string, unknown>).some((v) =>
+        this.hasRenderableFrontmatterValue(v)
+      );
+    }
+    return true;
   }
 
   private resolveContentStorage(sessionId: string): ContentStoragePort {

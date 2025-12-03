@@ -10,20 +10,14 @@ import { LogoComponent } from '../pages/logo/logo.component';
 import { TopbarComponent } from '../pages/topbar/topbar.component';
 import { ThemeService } from '../services/theme.service';
 import type { ManifestPage } from '@core-domain';
+import { MatIconModule } from '@angular/material/icon';
 
 type Crumb = { label: string; url: string };
-
 
 @Component({
   standalone: true,
   selector: 'app-shell',
-  imports: [
-    CommonModule,
-    RouterOutlet,
-    // Feature components
-    TopbarComponent,
-    LogoComponent,
-  ],
+  imports: [CommonModule, RouterOutlet, TopbarComponent, LogoComponent, MatIconModule],
   templateUrl: './shell.component.html',
   styleUrls: ['./shell.component.scss'],
 })
