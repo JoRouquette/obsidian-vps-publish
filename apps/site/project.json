@@ -85,6 +85,18 @@
         "staticFilePath": "dist/apps/site/browser",
         "spa": true
       }
+    },
+    "format": {
+      "executor": "@nx/js:prettier",
+      "options": {
+        "lintFilePatterns": [
+          "apps/site/**/*.ts",
+          "apps/site/**/*.json",
+          "apps/site/**/*.md",
+          "apps/site/**/*.scss",
+          "apps/site/**/*.html"
+        ]
+      }
     }
   }
 }

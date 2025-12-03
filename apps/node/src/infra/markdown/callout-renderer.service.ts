@@ -25,19 +25,19 @@ export interface CalloutStylePayload {
 }
 
 const BASE_DEFINITIONS: CalloutDefinition[] = [
-  { type: 'note', label: 'Note', icon: 'N' },
-  { type: 'abstract', label: 'Abstract', icon: 'A', aliases: ['summary', 'tldr'] },
-  { type: 'info', label: 'Info', icon: 'I' },
-  { type: 'todo', label: 'Todo', icon: 'T' },
-  { type: 'tip', label: 'Tip', icon: 'T', aliases: ['hint', 'important'] },
-  { type: 'success', label: 'Success', icon: 'S', aliases: ['check', 'done'] },
-  { type: 'question', label: 'Question', icon: '?', aliases: ['help', 'faq'] },
-  { type: 'warning', label: 'Warning', icon: '!', aliases: ['caution', 'attention'] },
-  { type: 'failure', label: 'Failure', icon: '!', aliases: ['fail', 'missing'] },
-  { type: 'danger', label: 'Danger', icon: '!', aliases: ['error'] },
-  { type: 'bug', label: 'Bug', icon: 'B' },
-  { type: 'example', label: 'Example', icon: 'E' },
-  { type: 'quote', label: 'Quote', icon: '"', aliases: ['cite'] },
+  { type: 'note', label: 'Note', icon: 'sticky_note_2' },
+  { type: 'abstract', label: 'Abstract', icon: 'description', aliases: ['summary', 'tldr'] },
+  { type: 'info', label: 'Info', icon: 'info' },
+  { type: 'todo', label: 'Todo', icon: 'task_alt' },
+  { type: 'tip', label: 'Tip', icon: 'lightbulb' },
+  { type: 'success', label: 'Success', icon: 'check_circle', aliases: ['check', 'done'] },
+  { type: 'question', label: 'Question', icon: 'help', aliases: ['help', 'faq'] },
+  { type: 'warning', label: 'Warning', icon: 'warning', aliases: ['caution', 'attention'] },
+  { type: 'failure', label: 'Failure', icon: 'error', aliases: ['fail', 'missing'] },
+  { type: 'danger', label: 'Danger', icon: 'report', aliases: ['error'] },
+  { type: 'bug', label: 'Bug', icon: 'bug_report' },
+  { type: 'example', label: 'Example', icon: 'auto_awesome' },
+  { type: 'quote', label: 'Quote', icon: 'format_quote', aliases: ['cite'] },
 ];
 
 export class CalloutRendererService {
@@ -57,7 +57,9 @@ export class CalloutRendererService {
         existing.icon = def.icon || existing.icon;
         existing.label = def.label || existing.label;
         existing.aliases = Array.from(
-          new Set([...(existing.aliases ?? []), ...(def.aliases ?? [])].map(this.sanitizeCalloutType))
+          new Set(
+            [...(existing.aliases ?? []), ...(def.aliases ?? [])].map(this.sanitizeCalloutType)
+          )
         );
       } else {
         const normalized: CalloutDefinition = {
@@ -138,6 +140,7 @@ export class CalloutRendererService {
       const title = callout.title || callout.label;
       const titleHtml = md.renderInline(title, env);
       const typeAttr = ` data-callout="${callout.type}"`;
+      const iconName = this.normalizeIconName(callout.icon);
       const bodyHtml = callout.inlineBodyHtml ?? '';
 
       if (callout.isFoldable) {
@@ -145,7 +148,7 @@ export class CalloutRendererService {
         const openAttr = callout.fold !== 'closed' ? ' open' : '';
         return `<details class="callout"${typeAttr}${foldAttr}${openAttr}>
 <summary class="callout-title">
-  <span class="callout-icon" aria-hidden="true">${callout.icon}</span>
+  <span class="callout-icon material-symbols-outlined" data-icon="${this.escapeHtml(iconName)}" aria-hidden="true">${this.escapeHtml(iconName)}</span>
   <span class="callout-label">${titleHtml}</span>
 </summary>
 <div class="callout-content">
@@ -155,7 +158,7 @@ ${bodyHtml}
 
       return `<div class="callout"${typeAttr}>
   <div class="callout-title">
-    <span class="callout-icon" aria-hidden="true">${callout.icon}</span>
+    <span class="callout-icon material-symbols-outlined" data-icon="${this.escapeHtml(iconName)}" aria-hidden="true">${this.escapeHtml(iconName)}</span>
     <span class="callout-label">${titleHtml}</span>
   </div>
   <div class="callout-content">
@@ -187,17 +190,15 @@ ${bodyHtml}
     start: number,
     end: number,
     blockquoteLevel: number
-  ):
-    | {
-        paragraphOpen: number;
-        inlineIndex: number;
-        paragraphClose: number;
-        inline: Token;
-        definition: CalloutDefinition;
-        firstLine: string;
-        body: string;
-      }
-    | null {
+  ): {
+    paragraphOpen: number;
+    inlineIndex: number;
+    paragraphClose: number;
+    inline: Token;
+    definition: CalloutDefinition;
+    firstLine: string;
+    body: string;
+  } | null {
     for (let i = start; i < end; i++) {
       const inline = tokens[i];
       if (inline.type !== 'inline' || inline.level !== blockquoteLevel + 2) {
@@ -230,12 +231,7 @@ ${bodyHtml}
     return null;
   }
 
-  private findNextTokenOfType(
-    tokens: Token[],
-    start: number,
-    end: number,
-    type: string
-  ): number {
+  private findNextTokenOfType(tokens: Token[], start: number, end: number, type: string): number {
     for (let i = start; i < end; i++) {
       if (tokens[i].type === type) return i;
     }
@@ -247,11 +243,13 @@ ${bodyHtml}
     if (!match) return null;
 
     const rawType = this.sanitizeCalloutType(match[1]);
-    return this.lookup[rawType] ?? {
-      type: rawType,
-      label: this.capitalize(rawType),
-      icon: rawType.charAt(0).toUpperCase(),
-    };
+    return (
+      this.lookup[rawType] ?? {
+        type: rawType,
+        label: this.capitalize(rawType),
+        icon: rawType.charAt(0).toUpperCase(),
+      }
+    );
   }
 
   private parseCalloutMeta(firstLine: string, def: CalloutDefinition): CalloutMeta | null {
@@ -261,11 +259,7 @@ ${bodyHtml}
     const [, rawType, foldSymbol, titlePart] = match;
     const typeInfo = this.lookup[this.sanitizeCalloutType(rawType)] ?? def;
     const isFoldable = foldSymbol === '+' || foldSymbol === '-';
-    const fold: CalloutFold | null = isFoldable
-      ? foldSymbol === '-'
-        ? 'closed'
-        : 'open'
-      : null;
+    const fold: CalloutFold | null = isFoldable ? (foldSymbol === '-' ? 'closed' : 'open') : null;
     const title = (titlePart ?? '').trim() || typeInfo.label;
 
     return {
@@ -289,7 +283,10 @@ ${bodyHtml}
   }
 
   private sanitizeCalloutType = (raw: string): string => {
-    const normalized = raw.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-');
+    const normalized = raw
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/-+/g, '-');
     const trimmed = normalized.replace(/^-+|-+$/g, '');
     return trimmed || 'note';
   };
@@ -322,9 +319,8 @@ ${bodyHtml}
       const selectorPart = rule.slice(0, rule.indexOf('{'));
       const body = rule.slice(rule.indexOf('{') + 1, rule.lastIndexOf('}'));
 
-      const names = Array.from(
-        selectorPart.matchAll(/data-callout=['"]?([^'"\]]+)['"]?/gi),
-        (m) => this.sanitizeCalloutType(m[1])
+      const names = Array.from(selectorPart.matchAll(/data-callout=['"]?([^'"\]]+)['"]?/gi), (m) =>
+        this.sanitizeCalloutType(m[1])
       );
       if (names.length === 0) continue;
 
@@ -341,5 +337,33 @@ ${bodyHtml}
     }
 
     return defs;
+  }
+
+  private escapeHtml(input: string): string {
+    return input
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private normalizeIconName(raw: string): string {
+    const cleaned = raw
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, '_');
+    const aliases: Record<string, string> = {
+      sticky_note: 'sticky_note_2',
+      sticky_note_2: 'sticky_note_2',
+      note: 'sticky_note_2',
+      quote: 'format_quote',
+      quotation_mark: 'format_quote',
+      task: 'task_alt',
+      checklist: 'task_alt',
+      warning_amber: 'warning',
+      danger: 'report',
+    };
+    return aliases[cleaned] ?? cleaned;
   }
 }

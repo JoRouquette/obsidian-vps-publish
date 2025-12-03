@@ -101,6 +101,18 @@
         "jestConfig": "apps/obsidian-vps-publish/jest.config.cjs",
         "runInBand": true
       }
+    },
+    "format": {
+      "executor": "@nx/js:prettier",
+      "options": {
+        "lintFilePatterns": [
+          "apps/obsidian-vps-publish/**/*.ts",
+          "apps/obsidian-vps-publish/**/*.json",
+          "apps/obsidian-vps-publish/**/*.md",
+          "apps/obsidian-vps-publish/**/*.css",
+          "apps/obsidian-vps-publish/**/*.scss"
+        ]
+      }
     }
   }
 }

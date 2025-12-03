@@ -38,9 +38,7 @@ describe('MarkdownItRenderer', () => {
 
     const html = await renderer.render(note);
 
-    expect(html).toContain(
-      '<img class="md-asset md-asset-image align-right is-inline rounded"'
-    );
+    expect(html).toContain('<img class="md-asset md-asset-image align-right is-inline rounded"');
     expect(html).toContain('src="/assets/images/pic.png"');
     expect(html).toContain('max-width:300px');
   });
@@ -123,6 +121,7 @@ describe('MarkdownItRenderer', () => {
 
     expect(html).toContain('class="callout"');
     expect(html).toContain('data-callout="warning"');
+    expect(html).toContain('class="callout-icon material-symbols-outlined"');
     expect(html).toContain('<span class="callout-label">Attention</span>');
     expect(html).toContain('<div class="callout-content">');
     expect(html).toContain('<p>Something went wrong.</p>');
@@ -138,6 +137,7 @@ describe('MarkdownItRenderer', () => {
 
     expect(html).toContain('<details class="callout"');
     expect(html).toContain('data-callout-fold="closed"');
+    expect(html).toContain('class="callout-icon material-symbols-outlined"');
     expect(html).not.toContain('[!note]-');
   });
 });

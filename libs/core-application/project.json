@@ -32,6 +32,16 @@
       "options": {
         "lintFilePatterns": ["libs/core-application/**/*.ts"]
       }
+    },
+    "format": {
+      "executor": "@nx/js:prettier",
+      "options": {
+        "lintFilePatterns": [
+          "libs/core-application/**/*.ts",
+          "libs/core-application/**/*.json",
+          "libs/core-application/**/*.md"
+        ]
+      }
     }
   }
 }

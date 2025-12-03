@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+
+set -euo pipefail
+
+STAGED_FILES=$(git diff --cached --name-only --relative --diff-filter=ACMRT | tr '\n' ',' | sed 's/,$//')
+
+if [ -z "$STAGED_FILES" ]; then
+  echo "pre-commit: aucun fichier à formater"
+  exit 0
+fi
+
+echo "pre-commit: format des fichiers impactés..."
+npx nx format:write --files "$STAGED_FILES"
+
+echo "pre-commit: ré-ajout des fichiers formatés"
+git add $(echo "$STAGED_FILES" | tr ',' ' ')

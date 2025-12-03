@@ -12,12 +12,14 @@ import { distinctUntilChanged, map, Subscription, switchMap } from 'rxjs';
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
 import { HttpContentRepository } from '../../../infrastructure/http/http-content.repository';
+import { MatIconModule } from '@angular/material/icon';
 
 @Component({
   standalone: true,
   selector: 'app-viewer',
   templateUrl: './viewer.component.html',
   styleUrls: ['./viewer.component.scss'],
+  imports: [MatIconModule],
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

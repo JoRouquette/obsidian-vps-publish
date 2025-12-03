@@ -72,6 +72,34 @@
       "args": ["nx", "run", "obsidian-vps-publish:package"],
       "dependsOn": ["Plugin: build"],
       "problemMatcher": []
+    },
+    {
+      "label": "Build all",
+      "type": "shell",
+      "command": "npx",
+      "args": ["nx", "run-many", "--target=build", "--all"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Lint all",
+      "type": "shell",
+      "command": "npx",
+      "args": ["nx", "run-many", "--target=lint", "--all"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Test all",
+      "type": "shell",
+      "command": "npx",
+      "args": ["nx", "run-many", "--target=test", "--all", "--code-coverage"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Format all",
+      "type": "shell",
+      "command": "npx",
+      "args": ["nx", "run-many", "--target=format", "--all", "--check"],
+      "problemMatcher": []
     }
   ]
 }

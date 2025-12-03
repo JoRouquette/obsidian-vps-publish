@@ -91,6 +91,16 @@
           "codeCoverage": true
         }
       }
+    },
+    "format": {
+      "executor": "@nx/js:prettier",
+      "options": {
+        "lintFilePatterns": [
+          "libs/core-domain/**/*.ts",
+          "libs/core-domain/**/*.json",
+          "libs/core-domain/**/*.md"
+        ]
+      }
     }
   }
 }
