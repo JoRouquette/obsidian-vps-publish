@@ -65,6 +65,8 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       wrapperStyles.push('margin-inline:auto; text-align:center');
     } else if (asset.display.alignment === 'right') {
       wrapperStyles.push('margin-inline-start:auto');
+    } else if (asset.display.alignment === 'left') {
+      wrapperStyles.push('margin-inline-end:auto');
     }
 
     const styleAttr = wrapperStyles.length ? ` style="${wrapperStyles.join(';')}"` : '';
@@ -73,8 +75,8 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     let inner = '';
     switch (asset.kind) {
       case 'image':
-        inner = `<img src="${src}" alt="" loading="lazy"${mediaStyleAttr}>`;
-        break;
+        inner = `<img class="${classes.join(' ')}" src="${src}" alt="" loading="lazy"${mediaStyleAttr}${styleAttr}>`;
+        return inner;
       case 'audio':
         inner = `<audio controls src="${src}"${mediaStyleAttr}></audio>`;
         break;

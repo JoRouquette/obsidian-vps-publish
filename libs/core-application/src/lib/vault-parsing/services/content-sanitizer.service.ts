@@ -21,7 +21,7 @@ export class ContentSanitizerService implements BaseService {
       notes = this.sanitizeTags(notes);
     }
 
-    notes = this.rewriteFrontmatterInContent(notes);
+    notes = notes.map((n) => ({ ...n, content: this.stripFrontmatter(n.content) }));
 
     notes = this.sanitizeContent(notes);
 
@@ -80,20 +80,6 @@ export class ContentSanitizerService implements BaseService {
     }
 
     return notes;
-  }
-
-  private rewriteFrontmatterInContent(notes: PublishableNote[]): PublishableNote[] {
-    return notes.map((note) => {
-      const frontmatterBlock = this.serializeFrontmatter(note.frontmatter.nested, note.frontmatter.tags);
-      const body = this.stripFrontmatter(note.content);
-
-      if (!frontmatterBlock) {
-        return { ...note, content: body };
-      }
-
-      const rebuilt = `---\n${frontmatterBlock}\n---\n\n${body.trimStart()}`;
-      return { ...note, content: rebuilt };
-    });
   }
 
   private sanitizeContent(notes: PublishableNote[]): PublishableNote[] {
@@ -203,53 +189,5 @@ export class ContentSanitizerService implements BaseService {
       return content.replace(fmRegex, '');
     }
     return content;
-  }
-
-  private serializeFrontmatter(
-    frontmatter: Record<string, unknown>,
-    tags: string[] | undefined
-  ): string {
-    const lines: string[] = [];
-
-    for (const [key, value] of Object.entries(frontmatter || {})) {
-      if (value === undefined || value === null) continue;
-      lines.push(this.serializeEntry(key, value));
-    }
-
-    const tagList = Array.isArray(tags) ? tags.filter((t) => typeof t === 'string') : [];
-    if (tagList.length) {
-      lines.push('tags:');
-      for (const t of tagList) {
-        lines.push(`  - ${this.formatScalar(t)}`);
-      }
-    }
-
-    return lines.join('\n').trim();
-  }
-
-  private serializeEntry(key: string, value: unknown): string {
-    if (Array.isArray(value)) {
-      const primitives = value.every(
-        (v) => ['string', 'number', 'boolean'].includes(typeof v)
-      );
-      if (primitives) {
-        const items = value as Array<string | number | boolean>;
-        const lines = items.map((v) => `  - ${this.formatScalar(v)}`).join('\n');
-        return `${key}:\n${lines}`;
-      }
-    }
-
-    return `${key}: ${this.formatScalar(value)}`;
-  }
-
-  private formatScalar(value: unknown): string {
-    if (typeof value === 'string') {
-      const needsQuoting = /[:\[\]{}#,&*!?|>'"%@`]|^\s|\s$/.test(value);
-      return needsQuoting ? JSON.stringify(value) : value;
-    }
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      return String(value);
-    }
-    return JSON.stringify(value);
   }
 }

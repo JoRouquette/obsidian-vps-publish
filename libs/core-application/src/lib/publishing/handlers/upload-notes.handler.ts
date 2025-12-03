@@ -141,10 +141,69 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
   }
 
   private buildHtmlPage(note: PublishableNote, bodyHtml: string): string {
+    const meta = this.renderFrontmatter(note);
     return `
   <div class="markdown-body">
+    ${meta}
     ${bodyHtml}
   </div>`;
+  }
+
+  private renderFrontmatter(note: PublishableNote): string {
+    const fm = note.frontmatter?.nested ?? {};
+    const tags = Array.isArray(note.frontmatter?.tags) ? note.frontmatter.tags : [];
+
+    const entries: Array<{ key: string; value: unknown }> = [];
+    for (const [k, v] of Object.entries(fm)) {
+      entries.push({ key: k, value: v });
+    }
+    if (tags.length > 0 && !('tags' in fm)) {
+      entries.push({ key: 'tags', value: tags });
+    }
+
+    if (entries.length === 0) return '';
+
+    const renderValue = (value: unknown, depth: number): string => {
+      if (value === null || value === undefined) return '<span class="fm-value is-empty">—</span>';
+      if (typeof value === 'boolean') {
+        const checked = value ? 'checked' : '';
+        return `<label class="fm-boolean"><input type="checkbox" disabled ${checked}>${value ? 'Oui' : 'Non'}</label>`;
+      }
+      if (Array.isArray(value)) {
+        const csv = value
+          .map((v) => (typeof v === 'string' ? v : String(v ?? '')))
+          .filter((v) => v.length > 0)
+          .join(', ');
+        return `<span class="fm-value">${csv}</span>`;
+      }
+      if (typeof value === 'object') {
+        const rows = Object.entries(value as Record<string, unknown>)
+          .map(([ck, cv]) => renderEntry(ck, cv, depth + 1))
+          .join('');
+        return `<div class="fm-group depth-${depth}">${rows}</div>`;
+      }
+      return `<span class="fm-value">${String(value)}</span>`;
+    };
+
+    const renderEntry = (key: string, value: unknown, depth: number): string => {
+      return `
+      <div class="fm-row depth-${depth}">
+        <span class="fm-label">${key}</span>
+        <span class="fm-sep">:</span>
+        ${renderValue(value, depth)}
+      </div>`;
+    };
+
+    const rows = entries
+      .sort((a, b) => a.key.localeCompare(b.key, 'fr', { sensitivity: 'base' }))
+      .map((e) => renderEntry(e.key, e.value, 0))
+      .join('');
+    return `<section class="frontmatter-card">
+      <div class="fm-title">Frontmatter</div>
+      <div class="fm-grid">
+        ${rows}
+      </div>
+    </section>`;
   }
 
   private resolveContentStorage(sessionId: string): ContentStoragePort {
