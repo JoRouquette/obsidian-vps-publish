@@ -1,9 +1,11 @@
 import MarkdownIt from 'markdown-it';
 import type { LoggerPort, MarkdownRendererPort } from '@core-application';
 import { AssetRef, PublishableNote, ResolvedWikilink } from '@core-domain';
+import { CalloutRendererService } from './callout-renderer.service';
 
 export class MarkdownItRenderer implements MarkdownRendererPort {
   private readonly md: MarkdownIt;
+  private readonly calloutRenderer = new CalloutRendererService();
 
   constructor(private readonly logger?: LoggerPort) {
     this.md = new MarkdownIt({
@@ -11,6 +13,8 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       linkify: true,
       typographer: true,
     });
+
+    this.calloutRenderer.register(this.md);
   }
 
   async render(note: PublishableNote): Promise<string> {

@@ -113,4 +113,31 @@ describe('MarkdownItRenderer', () => {
     expect(html).toContain('<span class="wikilink wikilink-unresolved"');
     expect(html).not.toContain('[[Missing]]');
   });
+
+  it('renders obsidian callouts with title and body', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = ['> [!warning] Attention', '> Something went wrong.'].join('\n');
+
+    const html = await renderer.render(note);
+
+    expect(html).toContain('class="callout"');
+    expect(html).toContain('data-callout="warning"');
+    expect(html).toContain('<span class="callout-label">Attention</span>');
+    expect(html).toContain('<div class="callout-content">');
+    expect(html).toContain('<p>Something went wrong.</p>');
+    expect(html).not.toContain('[!warning]');
+  });
+
+  it('supports collapsible callouts syntax', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = ['> [!note]- Collapsible', '> Hidden by default.'].join('\n');
+
+    const html = await renderer.render(note);
+
+    expect(html).toContain('<details class="callout"');
+    expect(html).toContain('data-callout-fold="closed"');
+    expect(html).not.toContain('[!note]-');
+  });
 });
