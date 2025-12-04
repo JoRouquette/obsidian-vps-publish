@@ -107,7 +107,7 @@
       "command": "bash",
       "args": [
         "-c",
-        "CURRENT_BRANCH=$(git branch --show-current) && git checkout release && git pull origin release && git merge --no-ff $CURRENT_BRANCH && git push origin release && git checkout $CURRENT_BRANCH"
+        "CURRENT_BRANCH=$(git branch --show-current) && git checkout release && git pull origin release && git merge --no-ff $CURRENT_BRANCH && git push origin release"
       ],
       "problemMatcher": []
     },
@@ -117,7 +117,7 @@
       "command": "bash",
       "args": [
         "-c",
-        "git checkout main && git pull origin main && git merge --no-ff release && git push origin main && git checkout release"
+        "git checkout main && git pull origin main && git merge --no-ff release && git push origin main"
       ],
       "problemMatcher": []
     }
