@@ -164,10 +164,10 @@ export type Translations = {
 
 export const en: Translations = {
   plugin: {
-    name: 'Publish To Personal VPS',
-    commandPublish: 'Launch publishing to Personal VPS',
+    name: 'Publish to VPS',
+    commandPublish: 'Launch publishing to VPS',
     commandTestConnection: 'Test VPS connection',
-    commandOpenSettings: 'Open Publish To Personal VPS Settings',
+    commandOpenSettings: 'Open Publish to VPS Settings',
     publishSuccess: 'Publishing completed.',
     publishError: 'Error during publishing (see console).',
     noConfig: 'No VPS or folder configuration defined.',
@@ -176,7 +176,7 @@ export const en: Translations = {
     },
   },
   settings: {
-    tabTitle: 'Publish To Personal VPS',
+    tabTitle: 'Publish to VPS',
     errors: {
       missingVpsConfig: 'VPS configuration not found for folder: ',
     },

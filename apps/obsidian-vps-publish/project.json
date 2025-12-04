@@ -86,7 +86,7 @@
     "package": {
       "executor": "nx:run-commands",
       "dependsOn": ["build"],
-      "outputs": ["{workspaceRoot}/dist/obsidian-vps-publish"],
+      "outputs": ["{workspaceRoot}/dist/vps-publish"],
       "options": {
         "command": "node apps/obsidian-vps-publish/scripts/package-plugin.mjs"
       }

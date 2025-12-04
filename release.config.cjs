@@ -26,7 +26,7 @@ module.exports = {
       '@semantic-release/exec',
       {
         prepareCmd:
-          'RELEASE_VERSION=${nextRelease.version} node scripts/sync-version.mjs && node apps/obsidian-vps-publish/scripts/update-obsidian-version.mjs ${nextRelease.version} && npx nx run obsidian-vps-publish:build --skip-nx-cache && node apps/obsidian-vps-publish/scripts/package-plugin.mjs && cd dist && zip -r obsidian-vps-publish.zip obsidian-vps-publish',
+          'RELEASE_VERSION=${nextRelease.version} node scripts/sync-version.mjs && node apps/obsidian-vps-publish/scripts/update-obsidian-version.mjs ${nextRelease.version} && npx nx run obsidian-vps-publish:build --skip-nx-cache && node apps/obsidian-vps-publish/scripts/package-plugin.mjs && cd dist && zip -r vps-publish.zip vps-publish',
       },
     ],
     [
@@ -47,7 +47,7 @@ module.exports = {
     [
       '@semantic-release/github',
       {
-        assets: [{ path: 'dist/obsidian-vps-publish.zip', label: 'Obsidian plugin bundle' }],
+        assets: [{ path: 'dist/vps-publish.zip', label: 'Plugin bundle' }],
       },
     ],
     ['@semantic-release/npm', { npmPublish: false }],

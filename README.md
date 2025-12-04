@@ -1,62 +1,54 @@
-# Publish to personnal VPS
+# Publish to personal VPS
 
-Self-hosted publishing stack (Nx monorepo) that turns Markdown notes into a browsable site and ships an Obsidian plugin to push content to your server.
+Self-hosted publishing stack (Nx monorepo) that turns Markdown notes into a searchable/browsable site, ships an Obsidian plugin to push content to your own server, and packages the API + SPA into a single container image.
 
-## Monorepo structure
+## Monorepo map
 
-- `apps/node`: Node.js backend (Express) that renders Markdown to HTML and maintains `_manifest.json`.
+- `apps/node`: Node.js backend (Express) that renders Markdown to HTML, maintains `_manifest.json`, and serves API + static assets.
 - `apps/site`: Angular SPA that consumes the manifest to render the published site (routing, search, viewer).
-- `apps/publish-to-personal-vps`: Obsidian plugin that packages notes and pushes them to the backend.
+- `apps/obsidian-vps-publish`: Obsidian plugin that packages notes and pushes them to the backend.
 - Shared libs: `libs/core-domain`, `libs/core-application`.
 
-## Applications
+## Backend API (`apps/node`)
 
-### Backend — `apps/node`
+- Stack: Express, TypeScript; CI builds on Node.js 22, container runtime is Node 20-alpine.
+- Serves:
+  - API under `/api/**` (protected by `x-api-key`).
+  - Static content under `/content/**` and assets under `/assets/**` (from mounted volumes).
+  - SPA at `/` from the built Angular files (copied into `UI_ROOT` during the image build).
+  - Health: `GET /health` (used by the Docker healthcheck).
+  - Public config: `GET /public-config` exposes `siteName`, `author`, `repoUrl`, `reportIssuesUrl`.
+- Main API routes (all require `x-api-key`):
+  - `GET /api/ping` - liveness.
+  - `POST /api/session/start` - create a publish session (note/asset counts, optional callout styles).
+  - `POST /api/session/:sessionId/notes/upload` - upload Markdown + frontmatter batch.
+  - `POST /api/session/:sessionId/assets/upload` - upload binary assets.
+  - `POST /api/session/:sessionId/finish` - finalize and publish staged content.
+  - `POST /api/session/:sessionId/abort` - cancel and drop staged content.
+- Key environment variables (see `.env.dev.example` / `.env.prod.example`):
+  - `API_KEY` (required), `ALLOWED_ORIGINS`, `LOGGER_LEVEL`, `PORT`, `NODE_ENV`.
+  - Roots: `CONTENT_ROOT` (rendered HTML + `_manifest.json`, default `/content`), `ASSETS_ROOT` (default `/assets`), `UI_ROOT` (default `/ui`).
+  - Metadata: `SITE_NAME`, `AUTHOR`, `REPO_URL`, `REPORT_ISSUES_URL`.
 
-- Stack: Node.js 22, Express, markdown-it, Zod (validation), TypeScript.
-- Responsibilities:
-  - Receive uploads (Markdown + frontmatter), render HTML, persist files, update `_manifest.json`.
-  - Serve API and static content (`/content/**`), plus SPA fallback for the frontend.
-- Main routes:
-  - `GET /api/ping` — health/status.
-  - `POST /api/upload` — batch upload; expects `x-api-key` header and JSON payload (notes array with markdown/frontmatter).
-  - Static: `/content/**` served from `CONTENT_ROOT`.
-- Environment (TODO: document concrete values):
-  - TODO: `API_KEY` (required for uploads).
-  - TODO: `CONTENT_ROOT` (filesystem root for generated HTML/manifest).
-  - TODO: `PORT`, `UI_ROOT`, `NODE_ENV`.
-- Scripts: `npm run build:node`, `npm run start node`, tests via `npm run test`.
+## Frontend (`apps/site`)
 
-### Frontend — `apps/site`
+- Angular SPA that reads `/content/_manifest.json`, renders pages via `filePath`, and provides search on title/tags.
+- Build: `npm run build:site`; dev: `npm run start site`.
+- The Docker image copies the built `browser` output into `UI_ROOT` so the container can serve the SPA directly.
 
-- Stack: Angular, TypeScript, SCSS.
-- Responsibilities:
-  - Fetch `/content/_manifest.json`.
-  - Routes: home (listing/search), `p/:slug` viewer that fetches the page HTML via `filePath`.
-  - Search on title/tags; manifest-driven navigation.
-- Build: `npm run build:site`; dev serve: `npm run start site`.
-- TODO: Add branding/theme assets and link to screenshots in `docs/assets`.
-
-### Obsidian plugin — `apps/publish-to-personal-vps`
+## Obsidian plugin (`apps/obsidian-vps-publish`)
 
 - Stack: TypeScript, Obsidian API, esbuild bundle.
-- Responsibilities:
-  - Package the plugin (`dist/publish-to-personal-vps`), keep `manifest.json` and `versions.json` in sync.
-  - Release flow zips the plugin and publishes it as a GitHub release asset.
-- Build/package: `npm run build:plugin` then `npm run package:plugin`.
-- Release config: `apps/publish-to-personal-vps/.releaserc.json` (used via root semantic-release).
-- TODO: Add marketplace listing link once approved; add usage instructions and screenshots (place in `docs/assets`).
-
-### Shared libraries
-
-- `libs/core-domain`: entities, value objects, ports, errors, utilities.
-- `libs/core-application`: application services/use-cases (catalog, publishing, sessions, vault parsing, etc.).
+- Responsibilities: bundle the plugin, keep `manifest.json` and `versions.json` in sync, and ship a zipped release asset.
+- Local packaging: `npm run build:plugin` then `npm run package:plugin` -> `dist/vps-publish/` (contains `main.js`, `manifest.json`, `styles.css`, `versions.json`).
+- Release packaging: `semantic-release` rebuilds the plugin, packages it, and creates `dist/vps-publish.zip`, which is attached to the GitHub release assets for download.
+- Release config lives in `apps/obsidian-vps-publish/.releaserc.json` (invoked by the root `semantic-release` flow).
 
 ## Development
 
 Prerequisites: Node.js 22+, npm.
 
-Install:
+Install dependencies:
 
 ```bash
 npm install --no-audit --no-fund
@@ -71,47 +63,45 @@ Useful scripts:
 - `npm run package:plugin`
 - `npm run start node` / `npm run start site`
 
+## Docker and deployment
+
+- Unified image that serves the API, static content, and the Angular SPA.
+- Published image: `jorouquette/obsidian-vps-publish` (CI also pushes to the private registry).
+- Ports: container listens on `PORT` (default 3000) and exposes `/health`, `/api/**`, `/content/**`, `/assets/**`, `/`.
+- Example run (PowerShell):
+
+```bash
+docker run -d --name obsidian-vps-publish `
+  -p 3000:3000 `
+  -e NODE_ENV=production `
+  -e PORT=3000 `
+  -e API_KEY=change-me `
+  -e CONTENT_ROOT=/content `
+  -e ASSETS_ROOT=/assets `
+  -e UI_ROOT=/ui `
+  -v ${PWD}/content:/content `
+  -v ${PWD}/assets:/assets `
+  jorouquette/obsidian-vps-publish:latest
+```
+
+- Compose:
+  - `docker-compose.dev.yml` builds the image locally for development.
+  - `docker-compose.prod.yml` pulls `${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG:-latest}` and reads `.env.prod`.
+- Healthcheck uses `http://localhost:3000/health`; adjust `PORT` if you remap.
+
+## Plugin artifacts and releases
+
+- GitHub Releases include `dist/vps-publish.zip` (ready to drop into Obsidian `.obsidian/plugins/`).
+- CI `quality` job also uploads the entire `dist` directory as a short-lived artifact (contains built apps and the packaged plugin folder).
+
 ## Release and CI/CD
 
 Workflow: `.github/workflows/ci-release.yml`
 
-- `quality`: lint, test, build (Nx), publish `dist` artifact.
-- `semantic-release`: bumps versions (including plugin manifest/versions), rebuilds and packages the plugin, zips it, creates a GitHub release with the asset.
-- `docker-images`: builds and pushes Docker images to the private registry and Docker Hub (version tag, short SHA, latest).
+- `quality`: lint, test, build (Nx), upload `dist` artifact.
+- `semantic-release`: syncs versions (workspace + plugin manifests), rebuilds and packages the plugin, zips it, creates the GitHub release and attaches the plugin asset.
+- `docker-images`: builds and pushes the Docker image to the private registry and Docker Hub `jorouquette/obsidian-vps-publish` (tags: version, short SHA, `latest`).
 
 Release config: `release.config.cjs` (version sync, changelog, git commits/tags, plugin packaging, GitHub assets).
 
-Required secrets/vars (CI): `REGISTRY_URL`, `IMAGE_NAME`, `REGISTRY_USER`, `REGISTRY_PASSWORD`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `GITHUB_TOKEN` (provided by Actions).
-
-TODO: Document API keys/vars per environment and how to trigger workflow_dispatch for releases.
-
-## Docker
-
-- Single container runs the backend and serves the Angular build plus static `/content`.
-- Build: multi-stage Dockerfile that builds frontend + backend, then runs a Node runtime image.
-- Runtime behavior:
-  - Serves `/api/**` (backend).
-  - Serves `/content/**` from `CONTENT_ROOT` volume.
-  - Serves Angular build at `/` with SPA fallback.
-- Example:
-
-```bash
-docker build -t obsidian-vps-publish:latest .
-docker run -d --name obsidian-vps-publish \
-  -p 3000:3000 \
-  -e NODE_ENV=production \
-  -e PORT=3000 \
-  -e API_KEY=change-me \
-  -e CONTENT_ROOT=/content \
-  -e UI_ROOT=/ui \
-  -v $(pwd)/content:/content \
-  obsidian-vps-publish:latest
-```
-
-- TODO: Add docker compose/K8s examples and registry settings.
-
-## Obsidian submission
-
-- Latest release ships `dist/publish-to-personal-vps.zip` plus updated `manifest.json` and `versions.json`.
-- Follow https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin for marketplace submission.
-- TODO: Add link to the published plugin entry once available.
+Required secrets/vars (CI): `REGISTRY_URL`, `IMAGE_NAME`, `REGISTRY_USER`, `REGISTRY_PASSWORD`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `GITHUB_TOKEN` (Actions-provided).

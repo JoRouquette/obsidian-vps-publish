@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '..');
 
 const manifestPath = path.join(ROOT, 'manifest.json');
+const rootManifestPath = path.resolve(ROOT, '..', '..', 'manifest.json');
 const versionsPath = path.join(ROOT, 'versions.json');
 
 const newVersion = process.argv[2];
@@ -33,6 +34,9 @@ if (!existsSync(manifestPath)) {
 const manifest = readJson(manifestPath);
 manifest.version = newVersion;
 writeJson(manifestPath, manifest);
+if (existsSync(rootManifestPath)) {
+  writeJson(rootManifestPath, manifest);
+}
 
 let versions = {};
 if (existsSync(versionsPath)) {
@@ -45,13 +49,9 @@ if (minAppVersion) {
   versions[newVersion] = minAppVersion;
   writeJson(versionsPath, versions);
 } else {
-  console.warn(
-    'minAppVersion manquant dans manifest.json, versions.json non mis à jour.'
-  );
+  console.warn('minAppVersion manquant dans manifest.json, versions.json non mis à jour.');
 }
 
 console.log(`✓ Version mise à jour à ${newVersion}
   - manifest.json (racine)
-  - versions.json ${
-    minAppVersion ? `(minAppVersion = ${minAppVersion})` : '(inchangé)'
-  }`);
+  - versions.json ${minAppVersion ? `(minAppVersion = ${minAppVersion})` : '(inchangé)'}`);

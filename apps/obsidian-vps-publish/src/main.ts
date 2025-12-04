@@ -96,7 +96,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     this.addSettingTab(new ObsidianVpsPublishSettingTab(this.app, this, this.logger));
 
     this.addCommand({
-      id: 'obsidian-vps-publish',
+      id: 'vps-publish',
       name: t.plugin.commandPublish,
       callback: async () => this.publishToSiteAsync(),
     });

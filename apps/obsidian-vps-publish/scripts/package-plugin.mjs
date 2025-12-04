@@ -2,15 +2,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const PLUGIN_DIR_NAME = 'obsidian-vps-publish';
+const BUILD_DIR_NAME = 'obsidian-vps-publish'; // Nx build output folder
+const PLUGIN_ID = 'vps-publish'; // final plugin folder name (must match manifest.id)
 const APP_ROOT = path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), '..'));
 const WORKSPACE_ROOT = path.resolve(APP_ROOT, '..', '..');
 
-const mainJs = path.join(WORKSPACE_ROOT, 'dist', 'apps', PLUGIN_DIR_NAME, 'main.js');
+const mainJs = path.join(WORKSPACE_ROOT, 'dist', 'apps', BUILD_DIR_NAME, 'main.js');
 const manifest = path.join(APP_ROOT, 'manifest.json');
 const styles = path.join(APP_ROOT, 'styles.css');
 const versions = path.join(APP_ROOT, 'versions.json');
-const outDir = path.join(WORKSPACE_ROOT, 'dist', PLUGIN_DIR_NAME);
+const outDir = path.join(WORKSPACE_ROOT, 'dist', PLUGIN_ID);
 
 const ensureFile = (filePath, name) => {
   if (!fs.existsSync(filePath)) {

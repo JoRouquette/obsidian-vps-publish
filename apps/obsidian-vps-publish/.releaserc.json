@@ -17,7 +17,7 @@
           "package.json",
           "apps/obsidian-vps-publish/manifest.json",
           "apps/obsidian-vps-publish/versions.json",
-          "dist/obsidian-vps-publish/**"
+          "dist/vps-publish/**"
         ],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
@@ -27,8 +27,8 @@
       {
         "assets": [
           {
-            "path": "dist/obsidian-vps-publish",
-            "label": "Obsidian plugin folder"
+            "path": "dist/vps-publish",
+            "label": "Plugin folder"
           }
         ]
       }
