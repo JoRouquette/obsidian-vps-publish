@@ -28,12 +28,25 @@ export class HttpSearchIndexRepository implements SearchIndexRepository {
   }
 
   private async fetchRemote(): Promise<ContentSearchIndex> {
-    const raw = await firstValueFrom(this.http.get<ContentSearchIndex>(this.url));
-    return {
-      ...raw,
-      entries: Array.isArray(raw.entries) ? raw.entries : [],
-      builtAt: (raw as any).builtAt ?? '',
-      sessionId: (raw as any).sessionId,
-    };
+    try {
+      const raw = await firstValueFrom(
+        this.http.get<ContentSearchIndex>(this.url, {
+          headers: { 'Cache-Control': 'no-cache' },
+        })
+      );
+      return {
+        ...raw,
+        entries: Array.isArray(raw.entries) ? raw.entries : [],
+        builtAt: (raw as any).builtAt ?? '',
+        sessionId: (raw as any).sessionId,
+      };
+    } catch (error: any) {
+      // Si l'index a été supprimé (cleanup), renvoyer un index vide pour que le UI reflète le reset.
+      return {
+        entries: [],
+        builtAt: '',
+        sessionId: '',
+      };
+    }
   }
 }

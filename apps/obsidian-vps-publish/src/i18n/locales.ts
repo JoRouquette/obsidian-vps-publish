@@ -119,6 +119,25 @@ export type AdvancedTranslations = {
   calloutStylesLabel: string;
   calloutStylesDescription: string;
   calloutStylesPlaceholder: string;
+  cleanup: {
+    title: string;
+    description: string;
+    button: string;
+    targetLabel: string;
+    confirmTitle: string;
+    confirmDescription: string;
+    confirmCta: string;
+    secondTitle: string;
+    secondDescription: string;
+    secondPlaceholder: string;
+    secondCta: string;
+    cancel: string;
+    nameMismatch: string;
+    missingVps: string;
+    missingName: string;
+    success: string;
+    error: string;
+  };
 };
 
 export type SettingsTranslations = {
@@ -264,6 +283,28 @@ export const en: Translations = {
       calloutStylesDescription:
         'Paths (one per line or comma separated) to CSS files in the vault. They will be uploaded, parsed and used to extend callout definitions on the server.',
       calloutStylesPlaceholder: '.obsidian/snippets/callouts.css',
+      cleanup: {
+        title: 'VPS cleanup',
+        description:
+          'Delete all published content and assets on the selected VPS. This cannot be undone.',
+        button: 'Clean VPS',
+        targetLabel: 'Target VPS',
+        confirmTitle: 'Confirm VPS cleanup',
+        confirmDescription:
+          'This will permanently delete every page, manifest, search index and asset stored on the VPS. Visitors will see an empty site until you publish again. This action is irreversible.',
+        confirmCta: 'I understand, continue',
+        secondTitle: 'Type VPS name to confirm',
+        secondDescription:
+          'Type the VPS name "{name}" exactly (case sensitive). Copy/paste is disabled to ensure manual confirmation.',
+        secondPlaceholder: 'Enter VPS name',
+        secondCta: 'Confirm cleanup',
+        cancel: 'Cancel',
+        nameMismatch: 'The entered value does not match the VPS name.',
+        missingVps: 'No VPS configuration available for cleanup.',
+        missingName: 'Please set a VPS name before running a cleanup.',
+        success: 'VPS content and assets have been deleted.',
+        error: 'VPS cleanup failed.',
+      },
     },
   },
 };
@@ -392,6 +433,28 @@ export const fr: Translations = {
       calloutStylesDescription:
         'Chemins (un par ligne ou separes par des virgules) vers des fichiers CSS du vault. Ils seront envoyes, parses et utilises pour etendre la configuration des callouts cote serveur.',
       calloutStylesPlaceholder: '.obsidian/snippets/callouts.css',
+      cleanup: {
+        title: 'Nettoyage du VPS',
+        description:
+          'Supprime tout le contenu publie et les assets du VPS cible. Operation irreversible.',
+        button: 'Nettoyer le VPS',
+        targetLabel: 'VPS cible',
+        confirmTitle: 'Confirmer le nettoyage',
+        confirmDescription:
+          'Cette action va supprimer definitivement toutes les pages, manifests, index de recherche et assets stockes sur ce VPS. Les visiteurs verront un site vide tant que vous ne republiez pas. Action irreversible.',
+        confirmCta: 'Je comprends, continuer',
+        secondTitle: 'Validation finale',
+        secondDescription:
+          'Saisissez le nom du VPS "{name}" exactement (respect de la casse). Le copier/coller est desactive pour forcer la saisie manuelle.',
+        secondPlaceholder: 'Nom exact du VPS',
+        secondCta: 'Confirmer le nettoyage',
+        cancel: 'Annuler',
+        nameMismatch: 'La saisie ne correspond pas au nom du VPS cible.',
+        missingVps: 'Aucun VPS configure pour lancer un nettoyage.',
+        missingName: 'Veuillez definir un nom pour ce VPS avant de lancer le nettoyage.',
+        success: 'Contenus et assets supprimes du VPS.',
+        error: 'Echec du nettoyage du VPS.',
+      },
     },
   },
 };

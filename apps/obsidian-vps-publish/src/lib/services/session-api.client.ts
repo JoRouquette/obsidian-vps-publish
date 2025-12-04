@@ -92,6 +92,12 @@ export class SessionApiClient {
     const result = await this.postJson(`/api/session/${sessionId}/abort`, {});
     if (result.isError) throw result.error ?? new Error('abortSession failed');
   }
+
+  async cleanupVps(targetName: string): Promise<void> {
+    const result = await this.postJson('/api/maintenance/cleanup', { targetName });
+    if (result.isError) throw result.error ?? new Error('cleanupVps failed');
+    this.logger.info('VPS cleanup completed', { targetName });
+  }
 }
 
 function parseLimit(value: unknown): number {

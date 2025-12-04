@@ -6,6 +6,7 @@ import {
   ResolvedWikilink,
   Slug,
 } from '@core-domain';
+import { humanizePropertyKey } from '@core-domain/utils/string.utils';
 import { CommandHandler } from '../../common/command-handler';
 import { LoggerPort } from '../../ports/logger.port';
 import type { MarkdownRendererPort } from '../../ports/markdown-renderer.port';
@@ -217,9 +218,10 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
 
     const renderEntry = (key: string, value: unknown, depth: number, path: string): string => {
       if (!this.hasRenderableFrontmatterValue(value)) return '';
+      const label = humanizePropertyKey(key) || key;
       return `
       <div class="fm-row depth-${depth}">
-        <span class="fm-label">${this.escapeHtml(key)}</span>
+        <span class="fm-label">${this.escapeHtml(label)}</span>
         <span class="fm-sep">:</span>
         ${renderValue(value, depth, path)}
       </div>`;
