@@ -107,7 +107,9 @@ describe('MarkdownItRenderer', () => {
 
     const html = await renderer.render(note);
 
-    expect(html).toContain('<a class="wikilink" href="/notes/resolved">Alias</a>');
+    expect(html).toContain(
+      '<a class="wikilink" data-wikilink="Resolved" href="/notes/resolved">Alias</a>'
+    );
     expect(html).toContain('<span class="wikilink wikilink-unresolved"');
     expect(html).not.toContain('[[Missing]]');
   });

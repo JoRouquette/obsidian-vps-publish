@@ -1,17 +1,18 @@
-import { LoggerPort, LogMeta } from '@core-application';
+import { LoggerPort, LogLevel } from '@core-domain';
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type ConsoleLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogMeta = Record<string, unknown>;
 
 export interface ConsoleLoggerOptions {
-  level?: LogLevel;
+  level?: ConsoleLevel | LogLevel;
   context?: LogMeta;
 }
 
 export class ConsoleLogger implements LoggerPort {
-  private readonly level: LogLevel;
+  private _level: LogLevel;
   private readonly context: LogMeta;
 
-  private static levelOrder: Record<LogLevel, number> = {
+  private static levelOrder: Record<ConsoleLevel, number> = {
     debug: 10,
     info: 20,
     warn: 30,
@@ -19,40 +20,51 @@ export class ConsoleLogger implements LoggerPort {
   };
 
   constructor(options: ConsoleLoggerOptions = {}) {
-    this.level = options.level ?? 'info';
+    this._level = this.normalizeLevel(options.level ?? 'info');
     this.context = options.context ?? {};
   }
 
-  child(context: LogMeta): LoggerPort {
+  set level(level: LogLevel) {
+    this._level = level;
+  }
+
+  get level(): LogLevel {
+    return this._level;
+  }
+
+  child(context: LogMeta, level?: LogLevel): LoggerPort {
     return new ConsoleLogger({
-      level: this.level,
+      level: level ?? this._level,
       context: { ...this.context, ...context },
     });
   }
 
   debug(message: string, meta?: LogMeta): void {
-    this.log('debug', message, meta);
+    this.log(LogLevel.debug, message, meta);
   }
 
   info(message: string, meta?: LogMeta): void {
-    this.log('info', message, meta);
+    this.log(LogLevel.info, message, meta);
   }
 
   warn(message: string, meta?: LogMeta): void {
-    this.log('warn', message, meta);
+    this.log(LogLevel.warn, message, meta);
   }
 
   error(message: string, meta?: LogMeta): void {
-    this.log('error', message, meta);
+    this.log(LogLevel.error, message, meta);
   }
 
   private log(level: LogLevel, message: string, meta?: LogMeta): void {
-    if (ConsoleLogger.levelOrder[level] < ConsoleLogger.levelOrder[this.level]) {
+    const normalized = this.levelToConsole(level);
+    const current = this.levelToConsole(this._level);
+
+    if (ConsoleLogger.levelOrder[normalized] < ConsoleLogger.levelOrder[current]) {
       return;
     }
 
     const payload = {
-      level,
+      level: normalized,
       message,
       ...this.context,
       ...(meta ?? {}),
@@ -61,7 +73,7 @@ export class ConsoleLogger implements LoggerPort {
 
     const line = JSON.stringify(payload);
 
-    switch (level) {
+    switch (normalized) {
       case 'debug':
         console.debug(line);
         break;
@@ -74,6 +86,37 @@ export class ConsoleLogger implements LoggerPort {
       case 'error':
         console.error(line);
         break;
+    }
+  }
+
+  private normalizeLevel(level: ConsoleLevel | LogLevel): LogLevel {
+    if (typeof level === 'number') {
+      return level;
+    }
+    switch (level) {
+      case 'debug':
+        return LogLevel.debug;
+      case 'warn':
+        return LogLevel.warn;
+      case 'error':
+        return LogLevel.error;
+      case 'info':
+      default:
+        return LogLevel.info;
+    }
+  }
+
+  private levelToConsole(level: LogLevel): ConsoleLevel {
+    switch (level) {
+      case LogLevel.debug:
+        return 'debug';
+      case LogLevel.warn:
+        return 'warn';
+      case LogLevel.error:
+        return 'error';
+      case LogLevel.info:
+      default:
+        return 'info';
     }
   }
 }

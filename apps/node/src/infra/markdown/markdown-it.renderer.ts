@@ -124,10 +124,15 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     if (link.isResolved) {
       const hrefTarget = link.href ?? link.path ?? link.target;
       const href = this.escapeAttribute(encodeURI(hrefTarget));
-      return `<a class="wikilink" href="${href}">${label}</a>`;
+      return `<a class="wikilink" data-wikilink="${this.escapeAttribute(link.target)}" href="${href}">${label}</a>`;
     }
 
-    return `<span class="wikilink wikilink-unresolved" style="color: var(--mat-sys-primary);">${label}</span>`;
+    const tooltip = 'Cette page arrive prochainement';
+    return `<span class="wikilink wikilink-unresolved" role="link" aria-disabled="true" title="${this.escapeAttribute(
+      tooltip
+    )}" data-tooltip="${this.escapeAttribute(tooltip)}" data-wikilink="${this.escapeAttribute(
+      link.target
+    )}">${label}</span>`;
   }
 
   private buildAssetUrl(target: string): string {

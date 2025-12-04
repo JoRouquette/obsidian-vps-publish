@@ -1,10 +1,18 @@
-import { AssetRef, Manifest, ManifestPage, PublishableNote, ResolvedWikilink, Slug } from '@core-domain';
+import {
+  AssetRef,
+  Manifest,
+  ManifestPage,
+  PublishableNote,
+  ResolvedWikilink,
+  Slug,
+} from '@core-domain';
 import { CommandHandler } from '../../common/command-handler';
 import { LoggerPort } from '../../ports/logger.port';
 import type { MarkdownRendererPort } from '../../ports/markdown-renderer.port';
 import { UploadNotesCommand, UploadNotesResult } from '../commands/upload-notes.command';
 import { ContentStoragePort } from '../ports/content-storage.port';
 import type { ManifestPort } from '../ports/manifest-storage.port';
+import type { SessionNotesStoragePort } from '../ports/session-notes-storage.port';
 
 export interface PublishNotesOutput {
   published: number;
@@ -21,7 +29,8 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     private readonly markdownRenderer: MarkdownRendererPort,
     private readonly contentStorage: ContentStoragePort | ContentStorageFactory,
     private readonly manifestStorage: ManifestPort | ManifestStorageFactory,
-    logger?: LoggerPort
+    logger?: LoggerPort,
+    private readonly notesStorage?: SessionNotesStoragePort
   ) {
     this.logger = logger?.child({ handler: 'UploadNotesHandler' });
   }
@@ -31,6 +40,15 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     const contentStorage = this.resolveContentStorage(sessionId);
     const manifestStorage = this.resolveManifestStorage(sessionId);
     const logger = this.logger?.child({ method: 'handle', sessionId });
+
+    if (this.notesStorage) {
+      try {
+        await this.notesStorage.append(sessionId, notes);
+        logger?.debug('Session notes persisted for rebuild', { count: notes.length });
+      } catch (err) {
+        logger?.warn('Failed to persist raw notes for session', { error: err });
+      }
+    }
 
     let published = 0;
     const errors: { noteId: string; message: string }[] = [];
@@ -216,7 +234,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     if (!rows) return '';
 
     return `<details class="frontmatter-card">
-      <summary class="fm-title">Frontmatter</summary>
+      <summary class="fm-title">Propriétés</summary>
       <div class="fm-grid">
         ${rows}
       </div>
@@ -252,11 +270,14 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
   private renderFrontmatterText(text: string, note: PublishableNote, path: string): string {
     const tokensRegex = /(!?\[\[[^\]]+\]\])/g;
     const assets = (note.assets ?? []).filter(
-      (a) => (a.origin === 'frontmatter' || !a.origin) && (!a.frontmatterPath || a.frontmatterPath === path)
+      (a) =>
+        (a.origin === 'frontmatter' || !a.origin) &&
+        (!a.frontmatterPath || a.frontmatterPath === path)
     );
     const wikilinks = (note.resolvedWikilinks ?? []).filter(
       (l) =>
-        (l.origin === 'frontmatter' || !l.origin) && (!l.frontmatterPath || l.frontmatterPath === path)
+        (l.origin === 'frontmatter' || !l.origin) &&
+        (!l.frontmatterPath || l.frontmatterPath === path)
     );
 
     let lastIndex = 0;
@@ -324,7 +345,10 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     if (!match) return null;
     const inner = match[1].trim();
     if (!inner) return null;
-    const [first] = inner.split('|').map((s) => s.trim()).filter(Boolean);
+    const [first] = inner
+      .split('|')
+      .map((s) => s.trim())
+      .filter(Boolean);
     return first || null;
   }
 

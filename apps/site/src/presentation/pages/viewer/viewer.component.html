@@ -2,5 +2,11 @@
   @if (title()) {
     <h1 class="title">{{ title() }}</h1>
   }
-  <div class="content" [innerHTML]="html()"></div>
+  <div class="content" #contentEl [innerHTML]="html()"></div>
+  <span
+    #tooltipTarget
+    class="wikilink-tooltip-proxy"
+    matTooltip="{{ tooltipMessage }}"
+    matTooltipPosition="above"
+  ></span>
 </article>

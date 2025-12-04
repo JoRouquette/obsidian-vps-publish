@@ -21,6 +21,9 @@ describe('sessionController', () => {
   const uploadAssetsHandler = {
     handle: jest.fn().mockResolvedValue({ sessionId: 's1', published: 0, errors: [] }),
   };
+  const sessionFinalizer = {
+    rebuildFromStored: jest.fn().mockResolvedValue(undefined),
+  };
   const calloutRenderer = {
     extendFromStyles: jest.fn(),
   };
@@ -39,6 +42,7 @@ describe('sessionController', () => {
         abortSessionHandler as any,
         uploadNotesHandler as any,
         uploadAssetsHandler as any,
+        sessionFinalizer as any,
         stagingManager as any,
         calloutRenderer as any
       )
@@ -52,11 +56,13 @@ describe('sessionController', () => {
 
   it('creates session with valid payload', async () => {
     const app = buildApp();
-    const res = await request(app).post('/session/start').send({
-      notesPlanned: 1,
-      assetsPlanned: 1,
-      batchConfig: { maxBytesPerRequest: 1000 },
-    });
+    const res = await request(app)
+      .post('/session/start')
+      .send({
+        notesPlanned: 1,
+        assetsPlanned: 1,
+        batchConfig: { maxBytesPerRequest: 1000 },
+      });
     expect(res.status).toBe(201);
     expect(createSessionHandler.handle).toHaveBeenCalled();
   });
@@ -76,14 +82,20 @@ describe('sessionController', () => {
     });
     expect(res404.status).toBe(404);
 
-    finishSessionHandler.handle.mockRejectedValueOnce(
-      new SessionInvalidError('invalid', 'abc')
-    );
+    finishSessionHandler.handle.mockRejectedValueOnce(new SessionInvalidError('invalid', 'abc'));
     const res409 = await request(app).post('/session/abc/finish').send({
       notesProcessed: 1,
       assetsProcessed: 1,
     });
     expect(res409.status).toBe(409);
+
+    finishSessionHandler.handle.mockResolvedValueOnce({ sessionId: 'abc', success: true });
+    const resOk = await request(app).post('/session/abc/finish').send({
+      notesProcessed: 1,
+      assetsProcessed: 1,
+    });
+    expect(resOk.status).toBe(200);
+    expect(sessionFinalizer.rebuildFromStored).toHaveBeenCalledWith('abc');
   });
 
   it('returns 400 on invalid finish payload', async () => {
@@ -102,28 +114,30 @@ describe('sessionController', () => {
   it('uploads notes and assets', async () => {
     const app = buildApp();
 
-    const notesRes = await request(app).post('/session/abc/notes/upload').send({
-      notes: [
-        {
-          noteId: '1',
-          title: 'T',
-          content: 'c',
-          publishedAt: new Date().toISOString(),
-          routing: { fullPath: '/t', slug: 't', path: '/t', routeBase: '/t' },
-          eligibility: { isPublishable: true },
-          vaultPath: 'v',
-          relativePath: 'r',
-          frontmatter: { tags: [], flat: {}, nested: {} },
-          folderConfig: {
-            id: 'f',
-            vaultFolder: 'v',
-            routeBase: '/t',
-            vpsId: 'vps',
-            sanitization: [],
+    const notesRes = await request(app)
+      .post('/session/abc/notes/upload')
+      .send({
+        notes: [
+          {
+            noteId: '1',
+            title: 'T',
+            content: 'c',
+            publishedAt: new Date().toISOString(),
+            routing: { fullPath: '/t', slug: 't', path: '/t', routeBase: '/t' },
+            eligibility: { isPublishable: true },
+            vaultPath: 'v',
+            relativePath: 'r',
+            frontmatter: { tags: [], flat: {}, nested: {} },
+            folderConfig: {
+              id: 'f',
+              vaultFolder: 'v',
+              routeBase: '/t',
+              vpsId: 'vps',
+              sanitization: [],
+            },
           },
-        },
-      ],
-    });
+        ],
+      });
     expect(notesRes.status).toBe(200);
     expect(uploadNotesHandler.handle).toHaveBeenCalled();
 
@@ -171,42 +185,46 @@ describe('sessionController', () => {
   it('returns 500 when upload handlers throw', async () => {
     const app = buildApp();
     uploadNotesHandler.handle.mockRejectedValueOnce(new Error('notes fail'));
-    const notesRes = await request(app).post('/session/abc/notes/upload').send({
-      notes: [
-        {
-          noteId: '1',
-          title: 'T',
-          content: 'c',
-          publishedAt: new Date().toISOString(),
-          routing: { fullPath: '/t', slug: 't', path: '/t', routeBase: '/t' },
-          eligibility: { isPublishable: true },
-          vaultPath: 'v',
-          relativePath: 'r',
-          frontmatter: { tags: [], flat: {}, nested: {} },
-          folderConfig: {
-            id: 'f',
-            vaultFolder: 'v',
-            routeBase: '/t',
-            vpsId: 'vps',
-            sanitization: [],
+    const notesRes = await request(app)
+      .post('/session/abc/notes/upload')
+      .send({
+        notes: [
+          {
+            noteId: '1',
+            title: 'T',
+            content: 'c',
+            publishedAt: new Date().toISOString(),
+            routing: { fullPath: '/t', slug: 't', path: '/t', routeBase: '/t' },
+            eligibility: { isPublishable: true },
+            vaultPath: 'v',
+            relativePath: 'r',
+            frontmatter: { tags: [], flat: {}, nested: {} },
+            folderConfig: {
+              id: 'f',
+              vaultFolder: 'v',
+              routeBase: '/t',
+              vpsId: 'vps',
+              sanitization: [],
+            },
           },
-        },
-      ],
-    });
+        ],
+      });
     expect(notesRes.status).toBe(500);
 
     uploadAssetsHandler.handle.mockRejectedValueOnce(new Error('assets fail'));
-    const assetsRes = await request(app).post('/session/abc/assets/upload').send({
-      assets: [
-        {
-          fileName: 'a',
-          mimeType: 'text/plain',
-          contentBase64: 'YQ==',
-          relativePath: 'a',
-          vaultPath: 'a',
-        },
-      ],
-    });
+    const assetsRes = await request(app)
+      .post('/session/abc/assets/upload')
+      .send({
+        assets: [
+          {
+            fileName: 'a',
+            mimeType: 'text/plain',
+            contentBase64: 'YQ==',
+            relativePath: 'a',
+            vaultPath: 'a',
+          },
+        ],
+      });
     expect(assetsRes.status).toBe(500);
   });
 });

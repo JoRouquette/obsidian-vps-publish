@@ -5,14 +5,15 @@ import {
   CreateSessionCommand,
   CreateSessionHandler,
   FinishSessionHandler,
-  LoggerPort,
   UploadAssetsCommand,
   UploadAssetsHandler,
   UploadNotesCommand,
   UploadNotesHandler,
 } from '@core-application';
+import { LoggerPort } from '@core-domain';
 import { SessionInvalidError, SessionNotFoundError } from '@core-domain';
 import { CalloutRendererService } from '../../../markdown/callout-renderer.service';
+import { SessionFinalizerService } from '../../../sessions/session-finalizer.service';
 
 import { BYTES_LIMIT } from '../app';
 import { StagingManager } from '../../../filesystem/staging-manager';
@@ -27,6 +28,7 @@ export function createSessionController(
   abortSessionHandler: AbortSessionHandler,
   notePublicationHandler: UploadNotesHandler,
   assetPublicationHandler: UploadAssetsHandler,
+  sessionFinalizer: SessionFinalizerService,
   stagingManager: StagingManager,
   calloutRenderer: CalloutRendererService,
   logger?: LoggerPort
@@ -192,6 +194,11 @@ export function createSessionController(
     try {
       const result = await finishSessionHandler.handle(command);
       routeLogger?.info('Session finished', { sessionId: result.sessionId });
+
+      await sessionFinalizer.rebuildFromStored(req.params.sessionId);
+      routeLogger?.info('Session content rebuilt from full batch', {
+        sessionId: req.params.sessionId,
+      });
 
       await stagingManager.promoteSession(req.params.sessionId);
       routeLogger?.info('Staging promoted to production', { sessionId: req.params.sessionId });

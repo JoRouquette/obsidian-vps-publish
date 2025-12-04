@@ -129,6 +129,17 @@
     text-underline-offset: 0.12em;
   }
 
+  .wikilink {
+    text-decoration: underline dotted;
+    text-decoration-thickness: 1px;
+    color: var(--c-secondary);
+  }
+
+  .wikilink-unresolved {
+    color: color-mix(in oklab, var(--c-on-surface) 65%, transparent);
+    cursor: not-allowed;
+  }
+
   /* Material icons/ligatures inside markdown */
   .material-icons,
   .material-icons-outlined,

@@ -79,6 +79,10 @@ export class StagingManager {
     await fs.mkdir(dest, { recursive: true });
     const entries = await fs.readdir(src, { withFileTypes: true });
     for (const entry of entries) {
+      if (entry.name === '_raw-notes') {
+        this.logger?.debug('Skipping raw notes cache during promotion', { path: entry.name });
+        continue;
+      }
       const from = path.join(src, entry.name);
       const to = path.join(dest, entry.name);
       if (entry.isDirectory()) {

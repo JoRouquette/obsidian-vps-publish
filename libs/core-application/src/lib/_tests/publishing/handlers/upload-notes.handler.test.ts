@@ -230,4 +230,21 @@ describe('UploadNotesHandler', () => {
     expect(result.errors).toHaveLength(0);
     expect(manifestStorage.save).not.toHaveBeenCalled();
   });
+
+  it('persists raw notes when a storage adapter is provided', async () => {
+    const notesStorage = {
+      append: jest.fn(async () => {}),
+    };
+    const handler = new UploadNotesHandler(
+      markdownRenderer,
+      contentStorage,
+      manifestStorage,
+      logger,
+      notesStorage as any
+    );
+    const note = createNote();
+    await handler.handle({ sessionId: 's-raw', notes: [note] });
+
+    expect(notesStorage.append).toHaveBeenCalledWith('s-raw', [note]);
+  });
 });

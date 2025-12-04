@@ -9,6 +9,26 @@
   min-height: 0;
 }
 
+.wikilink-tooltip-proxy {
+  position: fixed;
+  inline-size: 0;
+  block-size: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* Tooltip styling for unresolved wikilinks */
+.mat-mdc-tooltip .mdc-tooltip__surface {
+  background-color: color-mix(in oklab, var(--c-surface-variant, #2b2b2b) 90%, #000);
+  color: var(--c-on-surface, #f5f5f5);
+  border: 1px solid color-mix(in oklab, var(--c-outline, #555) 60%, transparent);
+  box-shadow: 0 4px 16px color-mix(in oklab, #000 40%, transparent);
+  text-align: center;
+  inline-size: fit-content;
+  max-inline-size: 32ch;
+  padding: 0.4rem 0.6rem;
+}
+
 .viewer {
   /* ITS aliases (fallback Material) */
   --c-surface: var(--its-surface, var(--mat-sys-surface));
@@ -123,6 +143,18 @@
       color: var(--c-secondary);
       text-decoration: underline;
       text-underline-offset: 0.12em;
+    }
+
+    /* Wikilinks */
+    .wikilink {
+      text-decoration: underline dotted;
+      text-decoration-thickness: 1px;
+      color: var(--c-secondary);
+    }
+
+    .wikilink-unresolved {
+      color: color-mix(in oklab, var(--c-on-surface) 65%, transparent);
+      cursor: not-allowed;
     }
 
     /* Material icons/ligatures inside markdown */

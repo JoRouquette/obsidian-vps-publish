@@ -59,6 +59,36 @@ describe('ResolveWikilinksService', () => {
     expect(note.resolvedWikilinks?.[0].isResolved).toBe(false);
   });
 
+  it('resolves wikilinks without extension against matching note files', () => {
+    const noteWithoutExt = {
+      ...baseNote,
+      content: 'See [[B]]',
+    };
+
+    const [note] = service.process([noteWithoutExt, targetNote]);
+    expect(note.resolvedWikilinks?.[0].isResolved).toBe(true);
+    expect(note.resolvedWikilinks?.[0].targetNoteId).toBe('2');
+  });
+
+  it('matches wikilinks using slug/diacritics-insensitive comparison', () => {
+    const accentTarget = {
+      ...targetNote,
+      noteId: 'tenebra-id',
+      title: 'Ténébra',
+      relativePath: 'Divinites/Tenebra.md',
+    };
+    const noteWithAccent = {
+      ...baseNote,
+      content: 'Vers [[Ténébra]]',
+    };
+
+    const [note] = service.process([noteWithAccent, accentTarget]);
+
+    expect(note.resolvedWikilinks?.[0].isResolved).toBe(true);
+    expect(note.resolvedWikilinks?.[0].targetNoteId).toBe('tenebra-id');
+    expect(note.resolvedWikilinks?.[0].path).toContain('Divinites');
+  });
+
   it('detects frontmatter wikilinks and keeps their origin', () => {
     const withFrontmatter: PublishableNote = {
       ...baseNote,
