@@ -97,6 +97,12 @@
       "options": {
         "command": "npx prettier --check \"apps/node/**/*.{ts,js,json,md,cjs}\""
       }
+    },
+    "format:write": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx prettier --write \"apps/node/**/*.{ts,js,json,md,cjs}\""
+      }
     }
   }
 }

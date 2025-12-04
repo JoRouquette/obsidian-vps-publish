@@ -91,6 +91,12 @@
       "options": {
         "command": "npx prettier --check \"apps/site/**/*.{ts,scss,html,json,md}\""
       }
+    },
+    "format:write": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx prettier --write \"apps/site/**/*.{ts,scss,html,json,md}\""
+      }
     }
   }
 }
