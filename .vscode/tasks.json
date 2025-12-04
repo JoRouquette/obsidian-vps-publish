@@ -62,14 +62,14 @@
       "label": "Plugin: build",
       "type": "shell",
       "command": "npx",
-      "args": ["nx", "run", "obsidian-vps-publish:build"],
+      "args": ["nx", "run", "obsidian-vps-publish:build", "--tui false"],
       "problemMatcher": []
     },
     {
       "label": "Plugin: package",
       "type": "shell",
       "command": "npx",
-      "args": ["nx", "run", "obsidian-vps-publish:package"],
+      "args": ["nx", "run", "obsidian-vps-publish:package", "--tui false"],
       "dependsOn": ["Plugin: build"],
       "problemMatcher": []
     },

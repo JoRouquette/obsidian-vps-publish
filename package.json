@@ -12,6 +12,7 @@
     "build:application": "nx build core-application",
     "build:plugin": "nx run obsidian-vps-publish:build --skip-nx-cache",
     "package:plugin": "nx run obsidian-vps-publish:package",
+    "check:plugin": "node apps/obsidian-vps-publish/scripts/check-plugin-compliance.mjs",
     "test": "nx run-many -t test --projects core-domain,core-application,node,site,obsidian-vps-publish --skip-nx-cache --tui false --nx-ignore-flaky-tasks",
     "lint": "nx run-many -t lint --projects core-domain,core-application,node,site,obsidian-vps-publish --skip-nx-cache --tui false",
     "format": "nx run-many -t format:write --projects core-domain,core-application,node,site,obsidian-vps-publish --skip-nx-cache --tui false --fix",

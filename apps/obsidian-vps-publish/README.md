@@ -1,14 +1,8 @@
 # Publish to VPS
 
-Publish selected folders from your vault to your own VPS (self-hosted alternative to Obsidian Publish). Notes are filtered with frontmatter rules, routed per folder, and uploaded over HTTPS along with assets.
+## Description
 
-## What it does
-
-- Publish one or more vault folders to a personal VPS using your API key.
-- Route content per folder (`/blog`, `/docs`, etc.) and keep relative paths intact.
-- Apply frontmatter ignore rules before upload (publish flags, tags, custom fields).
-- Upload assets and optionally fall back to an assets vault folder.
-- Multi-language UI (locale stored in plugin settings).
+Publish selected folders from your vault to your own VPS (self-hosted alternative to Obsidian Publish). Notes are filtered with frontmatter rules, routed per folder, and uploaded over HTTPS along with assets. Multi-language UI, ignore rules, and assets handling are included.
 
 ## Requirements
 
@@ -16,52 +10,39 @@ Publish selected folders from your vault to your own VPS (self-hosted alternativ
 - Obsidian 1.5.0+ (desktop; mobile not tested).
 - A VPS endpoint that accepts uploads (see `libs` and `apps/node` in this repo for the backend pieces).
 
-## Build and bundle the plugin
+## Installation
 
-At the workspace root:
+### From release (recommended)
+
+1. Download the latest release assets (`manifest.json`, `main.js`, `styles.css`, `versions.json`) from GitHub Releases.
+2. Create `<your-vault>/.obsidian/plugins/vps-publish/` and drop the files there.
+3. Reload plugins in Obsidian and enable **Publish to VPS**.
+
+### Local development
 
 ```bash
 npm install
 npm run package:plugin          # builds via Nx + esbuild and packages to dist/vps-publish
 ```
 
-Outputs:
+Then copy or symlink `dist/vps-publish` to `<your-vault>/.obsidian/plugins/vps-publish`.
 
-- `dist/vps-publish/main.js`
-- `dist/vps-publish/manifest.json`
-- `dist/vps-publish/styles.css`
-- `dist/vps-publish/versions.json`
+## Usage
 
-## Install locally in Obsidian
+1. In plugin settings, configure VPS URL, API key, target folders, routes, and ignore rules.
+2. Run the command **Publish to VPS** from the command palette.
+3. (Optional) Use **Test VPS connection** if enabled.
 
-1. Build the bundle (`npm run package:plugin`).
-2. Copy or symlink `dist/vps-publish` to `<your-vault>/.obsidian/plugins/vps-publish`.
-3. Restart Obsidian or reload plugins, then enable **Publish to VPS**.
-4. In the plugin settings, configure VPS URL, API key, target folders, routes, and ignore rules.
-5. Run the command **Publish to VPS** from the command palette.
+## Build and release
 
-## Release workflow (tags -> GitHub Release)
-
-- Create an annotated tag that matches the plugin version in `apps/obsidian-vps-publish/manifest.json`, e.g.:
-  ```bash
-  git tag v3.0.2
-  git push origin v3.0.2
-  ```
-- Workflow: `.github/workflows/obsidian-release.yml`
-  - Checks out the repo and installs dependencies.
-  - Runs `npm run package:plugin` to bundle to `dist/vps-publish`.
-  - Verifies the tag version matches `manifest.json`.
-  - Creates a GitHub Release for the tag and uploads `manifest.json`, `main.js`, `styles.css`, and `versions.json` from `dist/vps-publish`.
-
-## versions.json
-
-- Maps plugin versions to the minimum Obsidian version required.
-- Keep `versions.json` in sync with `manifest.json` (version and `minAppVersion`) when cutting a release.
+- Create an annotated tag matching `apps/obsidian-vps-publish/manifest.json`, e.g. `git tag v3.0.2 && git push origin v3.0.2`.
+- CI packages to `dist/vps-publish` and uploads release assets (`manifest.json`, `main.js`, `styles.css`, `versions.json`).
+- `versions.json` maps plugin versions to `minAppVersion`; keep it in sync when bumping versions.
 
 ## Publish to Obsidian Community Plugins
 
 1. Fork `obsidianmd/obsidian-releases`.
-2. In your fork, append to `community-plugins.json`:
+2. Append to `community-plugins.json`:
    ```json
    {
      "id": "vps-publish",
@@ -79,3 +60,7 @@ Outputs:
 - Branch from `main`, keep changes scoped, and add tests where it makes sense (`npm test`).
 - Format/lint before pushing: `npm run lint` (or the Nx equivalents per target).
 - For release changes, align the tag with `manifest.json` and `versions.json`.
+
+## License
+
+This project is licensed under the terms of the repository’s root `LICENSE`.
