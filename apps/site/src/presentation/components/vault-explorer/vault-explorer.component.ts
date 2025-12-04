@@ -35,11 +35,31 @@ import { SearchBarComponent } from '../search-bar/search-bar.component';
 })
 export class VaultExplorerComponent implements OnInit {
   private visible = new WeakMap<TreeNode, TreeNode[]>();
+  private matches = new WeakMap<TreeNode, boolean>();
   tree = signal<TreeNode>(defaultTreeNode);
   q = signal<string>('');
   readonly EMPTY: ReadonlyArray<TreeNode> = [];
   private readonly buildTree = new BuildTreeHandler();
-  rootChildren = computed(() => this.filteredRoot()?.children ?? (this.EMPTY as TreeNode[]));
+  hasQuery = computed(() => this.q().trim().length > 0);
+  rootChildren = computed(() => {
+    const root = this.filteredRoot();
+    if (!root) return this.EMPTY as TreeNode[];
+    if (!this.q().trim()) return (root.children ?? []) as TreeNode[];
+    return this.visible.get(root) ?? (this.EMPTY as TreeNode[]);
+  });
+  noResult = computed(() => {
+    if (!this.hasQuery()) return false;
+    const root = this.filteredRoot();
+    if (!root) return false;
+    const visibles = this.visible.get(root) ?? [];
+    return visibles.length === 0;
+  });
+  noData = computed(() => {
+    const root = this.tree();
+    if (!root) return true;
+    const children = root.children ?? [];
+    return children.length === 0;
+  });
 
   @ViewChild('treeScroller', { static: false })
   private readonly treeScroller?: ElementRef<HTMLDivElement>;
@@ -57,6 +77,7 @@ export class VaultExplorerComponent implements OnInit {
     if (!root) return null;
     const query = this.q().trim().toLowerCase();
     this.visible = new WeakMap<TreeNode, TreeNode[]>();
+    this.matches = new WeakMap<TreeNode, boolean>();
     if (!query) return root;
     this.markVisible(root, query);
     return root;
@@ -95,11 +116,19 @@ export class VaultExplorerComponent implements OnInit {
     if (w !== this.treeScrollWidth) this.treeScrollWidth = w;
   }
 
+  shouldAutoExpand(node: TreeNode): boolean {
+    if (!this.hasQuery() || node.kind !== 'folder') return false;
+    const hasVisibleChildren = (this.visible.get(node)?.length ?? 0) > 0;
+    const selfMatch = this.matches.get(node) ?? false;
+    return hasVisibleChildren || selfMatch;
+  }
+
   private markVisible(node: TreeNode, q: string): boolean {
     const label = (node.label || node.name).toLowerCase();
     const tags = (node as any).tags as string[] | undefined;
     const tagsMatch = tags?.some((t) => t.toLowerCase().includes(q)) ?? false;
     const selfMatch = label.includes(q) || tagsMatch;
+    this.matches.set(node, selfMatch);
     if (node.kind === 'file') return selfMatch;
     const kids = node.children ?? [];
     const vis: TreeNode[] = [];

@@ -53,6 +53,38 @@
     padding-bottom: 4px;
   }
 
+  .empty-state {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    text-align: center;
+    color: color-mix(in oklab, var(--on-surface) 70%, transparent);
+    pointer-events: none;
+
+    .mat-icon {
+      font-size: 26px;
+      color: color-mix(in oklab, var(--on-surface) 55%, transparent);
+    }
+
+    .title {
+      margin: 0;
+      font-weight: 600;
+      font-size: 0.98rem;
+      color: var(--on-surface);
+    }
+
+    .hint {
+      margin: 0;
+      font-size: 0.9rem;
+      color: color-mix(in oklab, var(--on-surface) 65%, transparent);
+    }
+  }
+
   .tree {
     display: block;
     min-width: 100%;

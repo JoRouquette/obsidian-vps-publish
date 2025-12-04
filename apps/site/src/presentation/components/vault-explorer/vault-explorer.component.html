@@ -10,6 +10,22 @@
   <mat-divider class="sep"></mat-divider>
 
   <div class="tree-wrap" #treeScroller (scroll)="syncX('tree')">
+    @if (noData()) {
+      <div class="empty-state" aria-live="polite">
+        <mat-icon aria-hidden="true">folder_off</mat-icon>
+        <p class="title">Aucune donnée</p>
+        <p class="hint">Le site ne contient pas encore de dossiers ou fichiers publiés.</p>
+      </div>
+    }
+
+    @if (!noData() && noResult()) {
+      <div class="empty-state" aria-live="polite">
+        <mat-icon aria-hidden="true">search_off</mat-icon>
+        <p class="title">Aucun résultat</p>
+        <p class="hint">Aucun dossier, fichier ou tag ne correspond à cette recherche.</p>
+      </div>
+    }
+
     <mat-tree
       class="tree"
       [dataSource]="rootChildren()"
@@ -21,7 +37,7 @@
         *matTreeNodeDef="let n; when: isFolder"
         #node="matNestedTreeNode"
         class="node folder"
-        [attr.aria-expanded]="node.isExpanded"
+        [attr.aria-expanded]="node.isExpanded || shouldAutoExpand(n)"
         matTreeNodePadding
         [matTreeNodePaddingIndent]="'0.4em'"
       >
@@ -33,14 +49,18 @@
           [routerLink]="['/' + n.path + '/index']"
         >
           <mat-icon class="ico folder-ico" aria-hidden="true">
-            {{ node.isExpanded ? 'folder_open' : 'folder' }}
+            {{ node.isExpanded || shouldAutoExpand(n) ? 'folder_open' : 'folder' }}
           </mat-icon>
           <span class="label" [title]="n.label || n.name || 'root'">
             {{ n.label || n.name || 'root' }}
           </span>
         </button>
 
-        <div class="children" [class.open]="node.isExpanded" [attr.aria-hidden]="!node.isExpanded">
+        <div
+          class="children"
+          [class.open]="node.isExpanded || shouldAutoExpand(n)"
+          [attr.aria-hidden]="!(node.isExpanded || shouldAutoExpand(n))"
+        >
           <div class="children-inner">
             <ng-container matTreeNodeOutlet></ng-container>
           </div>
