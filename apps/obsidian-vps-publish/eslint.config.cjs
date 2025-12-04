@@ -11,7 +11,7 @@ module.exports = [
       parserOptions: {
         ...tsBaseConfig.languageOptions.parserOptions,
         tsconfigRootDir: __dirname,
-        project: ['./tsconfig.app.json', './tsconfig.spec.json'],
+        project: ['./tsconfig.json'],
         sourceType: 'module',
       },
     },
@@ -20,14 +20,7 @@ module.exports = [
     },
     rules: {
       ...tsBaseConfig.rules,
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: ['@angular/*'],
-        },
-      ],
-
-      'no-console': 'off',
+      'no-console': 'warn',
     },
   },
 ];

@@ -6,12 +6,11 @@
   "implicitDependencies": ["core-domain"],
   "targets": {
     "build": {
-      "executor": "@nx/js:tsc",
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
       "outputs": ["{workspaceRoot}/dist/libs/core-application"],
       "options": {
-        "tsConfig": "libs/core-application/tsconfig.lib.json",
-        "main": "libs/core-application/src/index.ts",
-        "outputPath": "dist/libs/core-application"
+        "command": "npx tsc -b libs/core-application/tsconfig.lib.json"
       }
     },
     "test": {

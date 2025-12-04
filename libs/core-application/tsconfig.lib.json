@@ -6,10 +6,7 @@
     "declaration": true,
     "declarationMap": true,
     "types": ["node", "jest"],
-    "paths": {
-      "@core-domain": ["dist/libs/core-domain/src/index"],
-      "@core-domain/*": ["dist/libs/core-domain/src/lib/*"]
-    }
+    "disableSourceOfProjectReferenceRedirect": true
   },
   "include": ["src/**/*.ts"],
   "exclude": ["jest.config.ts", "**/*.spec.ts", "**/*.test.ts"],

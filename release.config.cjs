@@ -28,12 +28,12 @@ module.exports = {
     [
       '@semantic-release/exec',
       {
-        prepareCmd:
-          'RELEASE_VERSION=${nextRelease.version} node scripts/sync-version.mjs && ' +
-          "node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const manifestPath=path.join(root,'manifest.json');const versionsPath=path.join(root,'apps','obsidian-vps-publish','versions.json');const manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'));manifest.version='${nextRelease.version}';fs.writeFileSync(manifestPath,JSON.stringify(manifest,null,2)+'\\n');let versions={};if(fs.existsSync(versionsPath))versions=JSON.parse(fs.readFileSync(versionsPath,'utf8'));if(manifest.minAppVersion){versions[manifest.version]=manifest.minAppVersion;fs.writeFileSync(versionsPath,JSON.stringify(versions,null,2)+'\\n');}\" && " +
-          'npx nx run obsidian-vps-publish:build --skip-nx-cache && ' +
-          'npm run package:plugin && cd dist && zip -r ' +
-          `${PLUGIN_ID}.zip ${PLUGIN_ID}`,
+        prepareCmd: [
+          'RELEASE_VERSION=${nextRelease.version} node scripts/sync-version.mjs',
+          'npx nx run obsidian-vps-publish:build --skip-nx-cache',
+          'npm run package:plugin',
+          `cd dist && zip -r ${PLUGIN_ID}.zip ${PLUGIN_ID}`,
+        ].join(' && '),
       },
     ],
     [
@@ -47,6 +47,9 @@ module.exports = {
           'apps/node/src/version.ts',
           'manifest.json',
           'apps/obsidian-vps-publish/versions.json',
+          'apps/obsidian-vps-publish/package.json',
+          'libs/core-application/package.json',
+          'libs/core-domain/package.json',
         ],
         message: 'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
       },
@@ -57,6 +60,5 @@ module.exports = {
         assets: [{ path: `dist/${PLUGIN_ID}.zip`, label: 'Plugin bundle' }],
       },
     ],
-    ['@semantic-release/npm', { npmPublish: false }],
   ],
 };

@@ -92,7 +92,11 @@
       }
     },
     "lint": {
-      "executor": "nx:noop"
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{workspaceRoot}/coverage/apps/obsidian-vps-publish"],
+      "options": {
+        "lintFilePatterns": ["apps/obsidian-vps-publish/**/*.ts"]
+      }
     },
     "test": {
       "executor": "@nx/jest:jest",
