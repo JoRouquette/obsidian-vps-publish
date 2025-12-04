@@ -4,14 +4,14 @@ import { firstValueFrom } from 'rxjs';
 
 import { StringUtils } from '../../application/utils/string.utils';
 import { CONTENT_ROOT } from '../../domain/constants/content-root.constant';
-import { Manifest, ManifestRepository } from '@core-domain';
+import { Manifest, ManifestRepository, defaultManifest } from '@core-domain';
 
 @Injectable({ providedIn: 'root' })
 export class HttpManifestRepository implements ManifestRepository {
   private readonly url: string;
   private readonly storageKey = 'vps-manifest-cache';
-  private inMemory: Manifest | null = null;
   private inFlight: Promise<Manifest> | null = null;
+  private inMemory: Manifest | null = null;
 
   constructor(private http: HttpClient) {
     this.url = StringUtils.buildRoute(CONTENT_ROOT, '_manifest.json');
@@ -22,48 +22,40 @@ export class HttpManifestRepository implements ManifestRepository {
       return this.inFlight;
     }
 
-    if (this.inMemory) {
-      // Serve from memory but trigger a refresh to detect new uploads
-      this.inFlight = this.fetchRemote().finally(() => {
-        this.inFlight = null;
-      });
-      return this.inMemory;
-    }
-
-    const cached = this.readCache();
-    if (cached) {
-      this.inMemory = cached;
-      // stale-while-revalidate : retourne le cache et rafraîchit en arrière-plan
-      this.inFlight = this.fetchRemote().finally(() => {
-        this.inFlight = null;
-      });
-      return cached;
-    }
-
     this.inFlight = this.fetchRemote().finally(() => {
       this.inFlight = null;
     });
 
-    const fresh = await this.inFlight;
-    this.inMemory = fresh;
-    return fresh;
+    this.inMemory = await this.inFlight;
+    return this.inMemory;
   }
 
   private async fetchRemote(): Promise<Manifest> {
-    const raw = await firstValueFrom(this.http.get<Manifest>(this.url));
-    const normalized = this.normalize(raw);
-    const previous = this.inMemory;
-    const changed =
-      !previous ||
-      normalized.lastUpdatedAt.getTime() !== previous.lastUpdatedAt.getTime() ||
-      normalized.pages.length !== previous.pages.length;
-
-    if (changed) {
+    try {
+      const raw = await firstValueFrom(
+        this.http.get<Manifest>(this.url, {
+          headers: { 'Cache-Control': 'no-cache' },
+        })
+      );
+      const normalized = this.normalize(raw);
       this.persist(normalized);
-      this.inMemory = normalized;
-    }
+      return normalized;
+    } catch (error: any) {
+      const status = error?.status;
 
-    return this.inMemory ?? normalized;
+      // Si le manifest a disparu (cleanup), on invalide le cache et on retourne un manifest vide.
+      if (status === 404 || status === 410) {
+        this.clearCache();
+        return this.makeEmpty();
+      }
+
+      const cached = this.readCache();
+      if (cached) {
+        return cached;
+      }
+
+      return this.makeEmpty();
+    }
   }
 
   private normalize(input: Manifest): Manifest {
@@ -76,6 +68,15 @@ export class HttpManifestRepository implements ManifestRepository {
     };
   }
 
+  private makeEmpty(): Manifest {
+    return {
+      ...defaultManifest,
+      createdAt: new Date(0),
+      lastUpdatedAt: new Date(0),
+      pages: [],
+    };
+  }
+
   private readCache(): Manifest | null {
     try {
       if (typeof localStorage === 'undefined') return null;
@@ -85,6 +86,15 @@ export class HttpManifestRepository implements ManifestRepository {
       return this.normalize(parsed);
     } catch {
       return null;
+    }
+  }
+
+  private clearCache(): void {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      localStorage.removeItem(this.storageKey);
+    } catch {
+      // Ignore
     }
   }
 

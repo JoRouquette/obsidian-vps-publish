@@ -46,6 +46,10 @@ describe('NormalizeFrontmatterService', () => {
             Publish: false,
             'dg-publish': true,
             'section.done': 'yes',
+            'effet-secondaire': 'one',
+            effetSecondaire: 'two',
+            type_creature: 'dragon',
+            'type-creature': 'gobelin',
             tags: ['a', 'b'],
           },
           nested: {},
@@ -55,10 +59,14 @@ describe('NormalizeFrontmatterService', () => {
     ]);
 
     expect(normalized.frontmatter.flat.publish).toBe(false);
-    expect(normalized.frontmatter.flat.dgpublish).toBe(true);
+    expect(normalized.frontmatter.flat.dgPublish).toBe(true);
     expect((normalized.frontmatter.nested as any).publish).toBe(false);
-    expect((normalized.frontmatter.nested as any).dgpublish).toBe(true);
+    expect((normalized.frontmatter.nested as any).dgPublish).toBe(true);
     expect((normalized.frontmatter.nested as any).section.done).toBe('yes');
+    expect(normalized.frontmatter.flat.effetSecondaire).toBe('two');
+    expect(normalized.frontmatter.flat.typeCreature).toBe('gobelin');
+    expect((normalized.frontmatter.nested as any).effetSecondaire).toBe('two');
+    expect((normalized.frontmatter.nested as any).typeCreature).toBe('gobelin');
     expect(normalized.frontmatter.tags).toEqual(['a', 'b']);
   });
 });

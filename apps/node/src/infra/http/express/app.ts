@@ -23,6 +23,7 @@ import { MarkdownItRenderer } from '../../markdown/markdown-it.renderer';
 import { SessionFinalizerService } from '../../sessions/session-finalizer.service';
 
 import { createHealthCheckController } from './controllers/health-check.controller';
+import { createMaintenanceController } from './controllers/maintenance-controller';
 import { createPingController } from './controllers/ping.controller';
 import { createSessionController } from './controllers/session-controller';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
@@ -38,9 +39,29 @@ export function createApp(rootLogger?: LoggerPort) {
   app.use(createCorsMiddleware(EnvConfig.allowedOrigins()));
   const apiKeyMiddleware = createApiKeyAuthMiddleware(EnvConfig.apiKey());
 
+  const disableCache = (
+    _req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    next();
+  };
+
   // Static assets
-  app.use('/assets', express.static(EnvConfig.assetsRoot()));
-  app.use('/content', express.static(EnvConfig.contentRoot()));
+  app.use(
+    '/assets',
+    disableCache,
+    express.static(EnvConfig.assetsRoot(), { etag: false, cacheControl: false, maxAge: 0 })
+  );
+  app.use(
+    '/content',
+    disableCache,
+    express.static(EnvConfig.contentRoot(), { etag: false, cacheControl: false, maxAge: 0 })
+  );
 
   // Log app startup and config
   rootLogger?.info('Initializing Express app', {
@@ -92,6 +113,8 @@ export function createApp(rootLogger?: LoggerPort) {
   apiRouter.use(apiKeyMiddleware);
 
   apiRouter.use(createPingController(rootLogger));
+
+  apiRouter.use(createMaintenanceController(stagingManager, rootLogger));
 
   apiRouter.use(
     createSessionController(

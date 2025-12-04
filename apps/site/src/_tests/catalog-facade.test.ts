@@ -10,12 +10,13 @@ describe('CatalogFacade', () => {
     tags: ['guide'],
     relativePath: 'docs/start.md',
     slug: Slug.from('start'),
+    publishedAt: new Date(),
   };
 
   const manifest: Manifest = {
     sessionId: 's1',
-    createdAt: '',
-    lastUpdatedAt: '',
+    createdAt: new Date(),
+    lastUpdatedAt: new Date(),
     pages: [page],
   };
 
@@ -33,7 +34,7 @@ describe('CatalogFacade', () => {
     expect(manifestRepo.load).toHaveBeenCalledTimes(1);
 
     await facade.ensureManifest();
-    expect(manifestRepo.load).toHaveBeenCalledTimes(1); // cached
+    expect(manifestRepo.load).toHaveBeenCalledTimes(2); // re-fetched on ensure
   });
 
   it('searches and fetches html by slug', async () => {

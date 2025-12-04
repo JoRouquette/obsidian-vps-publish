@@ -39,7 +39,8 @@ describe('HttpManifestRepository', () => {
     const get = jest.fn().mockReturnValue(throwError(() => new Error('fail')));
     const repo = new HttpManifestRepository({ get } as any);
 
-    await expect(repo.load()).rejects.toThrow('fail');
+    const res = await repo.load();
+    expect(res.pages.length).toBe(0);
     expect(get).toHaveBeenCalledTimes(1);
   });
 
@@ -59,6 +60,19 @@ describe('HttpManifestRepository', () => {
     const res1 = await repo.load();
     const res2 = await repo.load();
 
-    expect(res1).toBe(res2);
+    expect(res1).not.toBeNull();
+    expect(res2).not.toBeNull();
+  });
+
+  it('clears cache and returns empty manifest on 404', async () => {
+    const get = jest.fn().mockReturnValue(throwError(() => ({ status: 404 })));
+    const repo = new HttpManifestRepository({ get } as any);
+
+    // seed cache to verify it is not reused
+    (global as any).localStorage.setItem(repo['storageKey' as any], JSON.stringify(mockManifest));
+
+    const res = await repo.load();
+    expect(res.pages.length).toBe(0);
+    expect((global as any).localStorage.getItem(repo['storageKey' as any])).toBeNull();
   });
 });

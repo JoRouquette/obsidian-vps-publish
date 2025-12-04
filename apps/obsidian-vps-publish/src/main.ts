@@ -9,7 +9,7 @@ import { DetectWikilinksService } from '@core-application/vault-parsing/services
 import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
-import { CollectedNote, LogLevel } from '@core-domain';
+import { CollectedNote, LogLevel, VpsConfig } from '@core-domain';
 import { HttpResponse } from '@core-domain/entities/http-response';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import { Notice, Plugin, RequestUrlResponse } from 'obsidian';
@@ -357,6 +357,39 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         }`
       );
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // VPS Maintenance
+  // ---------------------------------------------------------------------------
+  async cleanupVps(target: VpsConfig, confirmationName: string): Promise<void> {
+    if (!target) {
+      throw new Error('Missing VPS configuration');
+    }
+
+    const targetName = (target.name ?? '').trim();
+    if (!targetName) {
+      throw new Error('Missing VPS name');
+    }
+    if (!target.url) {
+      throw new Error('Invalid VPS URL');
+    }
+    if (!target.apiKey) {
+      throw new Error('Missing API key');
+    }
+    if (confirmationName !== targetName) {
+      throw new Error('Confirmation name mismatch');
+    }
+
+    const clientLogger = this.logger.child({ vps: target.id ?? targetName });
+    const client = new SessionApiClient(
+      target.url,
+      target.apiKey,
+      this.responseHandler,
+      clientLogger
+    );
+
+    await client.cleanupVps(confirmationName);
   }
 
   private buildParseContentHandler(
