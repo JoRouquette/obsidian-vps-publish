@@ -16,7 +16,7 @@
         "main": "apps/obsidian-vps-publish/src/main.ts",
         "tsConfig": "apps/obsidian-vps-publish/tsconfig.json",
         "assets": [
-          "apps/obsidian-vps-publish/manifest.json",
+          "manifest.json",
           "apps/obsidian-vps-publish/versions.json",
           "apps/obsidian-vps-publish/styles.css"
         ],
@@ -55,7 +55,7 @@
         "main": "apps/obsidian-vps-publish/src/main.ts",
         "tsConfig": "apps/obsidian-vps-publish/tsconfig.json",
         "assets": [
-          "apps/obsidian-vps-publish/manifest.json",
+          "manifest.json",
           "apps/obsidian-vps-publish/versions.json",
           "apps/obsidian-vps-publish/styles.css"
         ],
@@ -88,7 +88,7 @@
       "dependsOn": ["build"],
       "outputs": ["{workspaceRoot}/dist/vps-publish"],
       "options": {
-        "command": "node apps/obsidian-vps-publish/scripts/package-plugin.mjs"
+        "command": "node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));const id=manifest.id;const buildDir=path.join(root,'dist','apps','obsidian-vps-publish');const outDir=path.join(root,'dist',id);const ensure=(p,n)=>{if(!fs.existsSync(p)) throw new Error(`${n} not found: ${p}`)};const main=path.join(buildDir,'main.js');ensure(main,'main.js');fs.rmSync(outDir,{recursive:true,force:true});fs.mkdirSync(outDir,{recursive:true});fs.copyFileSync(main,path.join(outDir,'main.js'));fs.copyFileSync(path.join(root,'manifest.json'),path.join(outDir,'manifest.json'));const styles=path.join(root,'apps','obsidian-vps-publish','styles.css');if(fs.existsSync(styles)) fs.copyFileSync(styles,path.join(outDir,'styles.css'));const versions=path.join(root,'apps','obsidian-vps-publish','versions.json');if(fs.existsSync(versions)) fs.copyFileSync(versions,path.join(outDir,'versions.json'));\""
       }
     },
     "lint": {

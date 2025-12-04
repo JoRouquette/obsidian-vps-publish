@@ -12,9 +12,10 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PLUGIN_ROOT = path.resolve(__dirname, '..');
-const MANIFEST_PATH = path.join(PLUGIN_ROOT, 'manifest.json');
-const README_PATH = path.join(PLUGIN_ROOT, 'README.md');
+const WORKSPACE_ROOT = path.resolve(__dirname, '..');
+const PLUGIN_ROOT = path.join(WORKSPACE_ROOT, 'apps', 'obsidian-vps-publish');
+const MANIFEST_PATH = path.join(WORKSPACE_ROOT, 'manifest.json'); // single source of truth
+const README_PATH = path.join(WORKSPACE_ROOT, 'README.md');
 const VERSIONS_PATH = path.join(PLUGIN_ROOT, 'versions.json');
 
 const requiredKeys = [
@@ -85,7 +86,7 @@ if (!fs.existsSync(MANIFEST_PATH)) {
     }
 
     // Packaged assets check (best-effort)
-    const packagedDir = path.resolve(PLUGIN_ROOT, '..', '..', 'dist', manifest.id);
+    const packagedDir = path.join(WORKSPACE_ROOT, 'dist', manifest.id);
     const packagedMain = path.join(packagedDir, 'main.js');
     const packagedManifest = path.join(packagedDir, 'manifest.json');
     if (!fs.existsSync(packagedMain) || !fs.existsSync(packagedManifest)) {
@@ -101,14 +102,14 @@ if (!fs.existsSync(README_PATH)) {
 }
 
 if (errors.length) {
-  console.error('✖ Compliance check failed:');
+  console.error('Compliance check failed:');
   errors.forEach((e) => console.error(` - ${e}`));
 } else {
-  console.log('✔ manifest and README present with required keys.');
+  console.log('Manifest and README present with required keys.');
 }
 
 if (warnings.length) {
-  console.warn('⚠ Warnings:');
+  console.warn('Warnings:');
   warnings.forEach((w) => console.warn(` - ${w}`));
 }
 

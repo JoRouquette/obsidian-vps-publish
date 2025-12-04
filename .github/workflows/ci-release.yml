@@ -192,11 +192,19 @@ jobs:
       - name: Package Obsidian plugin
         run: npm run package:plugin
 
+      - name: Read manifest data (id/version)
+        id: manifest
+        run: |
+          PLUGIN_ID=$(node -e "console.log(require('./manifest.json').id)")
+          VERSION=$(node -e "console.log(require('./manifest.json').version)")
+          echo "plugin_id=$PLUGIN_ID" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Verify tag matches manifest.json version
         id: versions
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          MANIFEST_VERSION=$(node -p "require('./apps/obsidian-vps-publish/manifest.json').version")
+          MANIFEST_VERSION=$(node -p "require('./manifest.json').version")
 
           if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
             echo "Tag version ($TAG_VERSION) does not match manifest.json version ($MANIFEST_VERSION)"
@@ -211,9 +219,9 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Publish to VPS v${{ steps.versions.outputs.version }}
           files: |
-            dist/vps-publish/manifest.json
-            dist/vps-publish/versions.json
-            dist/vps-publish/main.js
-            dist/vps-publish/styles.css
+            dist/${{ steps.manifest.outputs.plugin_id }}/manifest.json
+            dist/${{ steps.manifest.outputs.plugin_id }}/versions.json
+            dist/${{ steps.manifest.outputs.plugin_id }}/main.js
+            dist/${{ steps.manifest.outputs.plugin_id }}/styles.css
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
