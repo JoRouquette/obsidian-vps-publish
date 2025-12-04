@@ -58,6 +58,17 @@ export class StagingManager {
     this.logger?.info('Discarded staging session', { sessionId });
   }
 
+  /**
+   * Supprime totalement le contenu et les assets (y compris le staging).
+   * Le rÇ¸pertoire racine reste prÇ¸sent mais vidÇ¸.
+   */
+  async purgeAll(): Promise<void> {
+    this.logger?.warn('Purging all content and assets from VPS');
+    await this.clearRootExcept(this.contentRoot, []);
+    await this.clearRootExcept(this.assetsRoot, []);
+    this.logger?.info('Content and assets purged');
+  }
+
   private async cleanupStaging(sessionId: string) {
     const contentStage = this.contentStagingPath(sessionId);
     const assetsStage = this.assetsStagingPath(sessionId);
