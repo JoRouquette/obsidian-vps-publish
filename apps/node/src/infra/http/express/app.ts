@@ -26,6 +26,7 @@ import { createMaintenanceController } from './controllers/maintenance-controlle
 import { createPingController } from './controllers/ping.controller';
 import { createSessionController } from './controllers/session-controller';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
+import { ChunkedUploadMiddleware } from './middleware/chunked-upload.middleware';
 import { createCorsMiddleware } from './middleware/cors.middleware';
 
 export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
@@ -110,6 +111,10 @@ export function createApp(rootLogger?: LoggerPort) {
   // API routes (protégées par API key)
   const apiRouter = express.Router();
   apiRouter.use(apiKeyMiddleware);
+
+  // Chunked upload middleware (must be before session controller)
+  const chunkedUploadMiddleware = new ChunkedUploadMiddleware(rootLogger);
+  apiRouter.use(chunkedUploadMiddleware.handle());
 
   apiRouter.use(createPingController(rootLogger));
 
