@@ -46,13 +46,24 @@ export class AssetsUploaderAdapter implements UploaderPort {
       throw err;
     }
 
-    const batches = batchByBytes(apiAssets, this.maxBytesPerRequest, (batch) => ({
+    const { batches, oversized } = batchByBytes(apiAssets, this.maxBytesPerRequest, (batch) => ({
       assets: batch,
     }));
+
+    if (oversized.length > 0) {
+      this._logger.warn('Some assets exceed maxBytesPerRequest and will be skipped', {
+        oversizedCount: oversized.length,
+        maxBytesPerRequest: this.maxBytesPerRequest,
+        skippedAssets: oversized.map((a) => ({ fileName: a.fileName, vaultPath: a.vaultPath })),
+      });
+      // Advance progress for skipped assets
+      this.progress?.advance(oversized.length);
+    }
 
     this._logger.info('Uploading assets to session', {
       batchCount: batches.length,
       assetCount: apiAssets.length,
+      skippedCount: oversized.length,
     });
 
     for (const batch of batches) {

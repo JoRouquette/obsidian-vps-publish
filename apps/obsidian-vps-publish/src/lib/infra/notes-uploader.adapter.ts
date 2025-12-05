@@ -25,12 +25,25 @@ export class NotesUploaderAdapter implements UploaderPort {
       return false;
     }
 
-    const batches = batchByBytes(notes, this.maxBytesPerRequest, (batch) => ({
+    const { batches, oversized } = batchByBytes(notes, this.maxBytesPerRequest, (batch) => ({
       notes: batch,
     }));
 
+    if (oversized.length > 0) {
+      this._logger.warn('Some notes exceed maxBytesPerRequest and will be skipped', {
+        oversizedCount: oversized.length,
+        maxBytesPerRequest: this.maxBytesPerRequest,
+        skippedNotes: oversized.map((n) => ({
+          slug: n.routing.slug,
+          fullPath: n.routing.fullPath,
+        })),
+      });
+      // Advance progress for skipped notes
+      this.progress?.advance(oversized.length);
+    }
+
     this._logger.info(
-      `Uploading ${notes.length} notes in ${batches.length} batch(es) (maxBytes=${this.maxBytesPerRequest})`
+      `Uploading ${notes.length} notes in ${batches.length} batch(es) (maxBytes=${this.maxBytesPerRequest}, skipped=${oversized.length})`
     );
     this._logger.debug('Notes upload batches details', {
       batches: batches.map((batch) => ({

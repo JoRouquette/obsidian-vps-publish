@@ -235,7 +235,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       return;
     }
 
-    // TODO: Handle multiple VPS - for now use first one
     const vps = settings.vpsConfigs[0];
 
     if (!vps.folders || vps.folders.length === 0) {
@@ -282,8 +281,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     const calloutStyles = await this.loadCalloutStyles(settings.calloutStylePaths ?? []);
 
     let sessionId = null;
-    const maxBytesRequested = 5 * 1024 * 1024;
-    let maxBytesPerRequest = maxBytesRequested;
+    const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
     let assetsUploaded = 0;
     const totalPlanned = publishableCount + assetsPlanned;
     const progress = totalPlanned > 0 ? new NoticeProgressAdapter('Publishing to VPS') : null;
@@ -293,13 +291,13 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const started = await sessionClient.startSession({
         notesPlanned: publishableCount,
         assetsPlanned: assetsPlanned,
-        maxBytesPerRequest: maxBytesRequested,
+        maxBytesPerRequest: defaultNginxLimit,
         calloutStyles,
       });
 
       sessionId = started.sessionId;
-      maxBytesPerRequest = started.maxBytesPerRequest;
-      this.logger.info('Session started', { sessionId, maxBytesPerRequest });
+      const serverRequestLimit = started.maxBytesPerRequest;
+      this.logger.info('Session started', { sessionId, maxBytesPerRequest: serverRequestLimit });
 
       if (progress && !progressStarted) {
         progress.start(totalPlanned);
@@ -310,7 +308,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         sessionClient,
         sessionId,
         this.logger,
-        maxBytesPerRequest,
+        serverRequestLimit,
         progress ?? undefined
       );
       await notesUploader.upload(publishables);
@@ -321,7 +319,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           sessionClient,
           sessionId,
           this.logger,
-          maxBytesPerRequest,
+          serverRequestLimit,
           progress ?? undefined
         );
 

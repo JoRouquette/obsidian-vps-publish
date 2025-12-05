@@ -28,7 +28,7 @@ import { createSessionController } from './controllers/session-controller';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
 import { createCorsMiddleware } from './middleware/cors.middleware';
 
-export const BYTES_LIMIT = '10mb';
+export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
 
 export function createApp(rootLogger?: LoggerPort) {
   const app = express();

@@ -7,16 +7,22 @@ export function jsonSizeBytes(payload: unknown): number {
   return encoder.encode(json).byteLength;
 }
 
+export type BatchResult<T> = {
+  batches: T[][];
+  oversized: T[];
+};
+
 export function batchByBytes<T>(
   items: T[],
   maxBytes: number,
   wrapBody: (batch: T[]) => unknown
-): T[][] {
+): BatchResult<T> {
   if (maxBytes <= 0) {
     throw new Error('maxBytes must be > 0');
   }
 
   const batches: T[][] = [];
+  const oversized: T[] = [];
   let current: T[] = [];
 
   for (const item of items) {
@@ -29,7 +35,9 @@ export function batchByBytes<T>(
     }
 
     if (current.length === 0) {
-      throw new Error('Single item exceeds maxBytes limit');
+      // Single item exceeds limit - mark as oversized and continue
+      oversized.push(item);
+      continue;
     }
 
     batches.push(current);
@@ -40,5 +48,5 @@ export function batchByBytes<T>(
     batches.push(current);
   }
 
-  return batches;
+  return { batches, oversized };
 }
