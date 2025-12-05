@@ -1,9 +1,9 @@
-import { IgnorePrimitive } from '@core-domain/entities/ignore-primitive';
-import type { NoteEligibility } from '@core-domain/entities/note-eligibility';
+import { type IgnoreRule, type PublishableNote } from '@core-domain';
+import { type IgnorePrimitive } from '@core-domain/entities/ignore-primitive';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import { normalizePropertyKey } from '@core-domain/utils/string.utils';
-import { CommandHandler } from '../../common/command-handler';
-import { IgnoreRule, PublishableNote } from '@core-domain';
+
+import { type CommandHandler } from '../../common/command-handler';
 
 export class EvaluateIgnoreRulesHandler
   implements CommandHandler<PublishableNote[], PublishableNote[]>
@@ -108,7 +108,7 @@ export class EvaluateIgnoreRulesHandler
 function getNestedValue(nested: Record<string, unknown>, propertyPath: string): unknown {
   const segments = propertyPath.split('.').map(normalizePropertyKey);
 
-  let current: any = nested;
+  let current: unknown = nested;
   for (const segment of segments) {
     if (typeof current !== 'object' || current === null) {
       return undefined;

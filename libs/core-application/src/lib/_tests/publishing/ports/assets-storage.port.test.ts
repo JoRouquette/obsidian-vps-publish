@@ -1,4 +1,4 @@
-import { AssetStoragePort } from '../../../publishing/ports/assets-storage.port';
+import { type AssetStoragePort } from '../../../publishing/ports/assets-storage.port';
 
 describe('AssetStoragePort', () => {
   let assetStorage: AssetStoragePort;

@@ -1,7 +1,8 @@
-import { Setting } from 'obsidian';
-import type { SettingsViewContext } from '../context';
-import { TagSuggester } from '../../suggesters/tag-suggester';
+import { type DropdownComponent, Setting } from 'obsidian';
+
 import { FrontmatterPropertySuggester } from '../../suggesters/frontmatter-property-suggester';
+import { TagSuggester } from '../../suggesters/tag-suggester';
+import type { SettingsViewContext } from '../context';
 
 export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewContext): void {
   const { t, settings, logger } = ctx;
@@ -40,9 +41,9 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
       cls: 'ptpv-input',
     });
     new FrontmatterPropertySuggester(ctx.app, propInput);
-    propInput.addEventListener('input', async () => {
+    propInput.addEventListener('input', () => {
       rule.property = propInput.value.trim();
-      await ctx.save();
+      void ctx.save();
     });
 
     const typeField = inputsRow.createDiv({ cls: 'ptpv-ignore-rule__field' });
@@ -62,7 +63,7 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
     const valuesRow = ruleContainer.createDiv({ cls: 'ptpv-ignore-rule__values' });
     const chipsRow = ruleContainer.createDiv({ cls: 'ptpv-ignore-rule__chips' });
     const booleanRow = ruleContainer.createDiv({ cls: 'ptpv-ignore-rule__boolean' });
-    const chipsLabel = chipsRow.createDiv({
+    chipsRow.createDiv({
       cls: 'ptpv-ignore-rule__chips-label',
       text: t.settings.ignoreRules.valueLabel ?? 'Values to ignore',
     });
@@ -82,12 +83,11 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
         const chip = chipsWrap.createDiv({ cls: 'ptpv-chip' });
         chip.createSpan({ text: String(v) });
         const removeBtn = chip.createSpan({ cls: 'ptpv-chip-remove', text: '×' });
-        removeBtn.onclick = async () => {
+        removeBtn.onclick = () => {
           const next = [...values];
           next.splice(i, 1);
           rule.ignoreValues = next;
-          await ctx.save();
-          renderChips();
+          void ctx.save().then(() => renderChips());
         };
       });
     };
@@ -106,7 +106,7 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
       value: '',
     });
 
-    const addValue = async (raw: string) => {
+    const addValue = (raw: string) => {
       const nextValues = raw
         .split(',')
         .map((v) => v.trim())
@@ -124,8 +124,7 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
       });
       rule.ignoreValues = merged;
       valuesInput.value = '';
-      await ctx.save();
-      renderChips();
+      void ctx.save().then(() => renderChips());
     };
 
     valuesInput.addEventListener('keydown', (evt) => {
@@ -136,17 +135,17 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
     });
     valuesInput.addEventListener('blur', () => addValue(valuesInput.value));
 
-    let boolDropdown: import('obsidian').DropdownComponent | undefined;
+    let boolDropdown: DropdownComponent | undefined;
     new Setting(booleanRow).addDropdown((dropdown) => {
       boolDropdown = dropdown;
       dropdown
         .addOption('true', 'true')
         .addOption('false', 'false')
         .setValue(rule.ignoreIf === false ? 'false' : 'true')
-        .onChange(async (value) => {
+        .onChange((value) => {
           logger.debug('Ignore rule boolean value changed', { index, value });
           rule.ignoreIf = value === 'true';
-          await ctx.save();
+          void ctx.save();
         });
     });
 
@@ -181,8 +180,8 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
       boolDropdown?.setValue(rule.ignoreIf === false ? 'false' : 'true');
     }
 
-    typeSelect.addEventListener('change', async () => {
-      await setMode(typeSelect.value as 'boolean' | 'values');
+    typeSelect.addEventListener('change', () => {
+      void setMode(typeSelect.value as 'boolean' | 'values');
     });
 
     const actionRow = ruleContainer.createDiv({ cls: 'ptpv-ignore-rule__actions' });
@@ -190,11 +189,10 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
       text: t.settings.ignoreRules.deleteButton ?? 'Delete ignore rule',
       cls: 'mod-warning',
     });
-    deleteBtn.onclick = async () => {
+    deleteBtn.onclick = () => {
       logger.info('Ignore rule deleted', { index, rule });
       settings.ignoreRules?.splice(index, 1);
-      await ctx.save();
-      ctx.refresh();
+      void ctx.save().then(() => ctx.refresh());
     };
   });
 
@@ -205,7 +203,7 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
     text: t.settings.ignoreRules.addButton ?? 'Add ignore rule',
   });
   btnAddIgnoreRule.addClass('mod-cta');
-  btnAddIgnoreRule.onclick = async () => {
+  btnAddIgnoreRule.onclick = () => {
     const rules = settings.ignoreRules ?? [];
     logger.info('Adding new ignore rule');
     rules.push({
@@ -213,8 +211,7 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
       ignoreIf: false,
     });
     settings.ignoreRules = rules;
-    await ctx.save();
-    ctx.refresh();
+    void ctx.save().then(() => ctx.refresh());
   };
 }
 
@@ -256,7 +253,7 @@ function renderFrontmatterKeysExclude(parent: HTMLElement, ctx: SettingsViewCont
     text.setPlaceholder(t.settings.ignoreRules.frontmatterKeysPlaceholder);
     new FrontmatterPropertySuggester(ctx.app, text.inputEl);
 
-    const addKey = async () => {
+    const addKey = () => {
       const raw = text.getValue().trim();
       if (!raw) return;
       const keys = settings.frontmatterKeysToExclude || [];
@@ -269,8 +266,7 @@ function renderFrontmatterKeysExclude(parent: HTMLElement, ctx: SettingsViewCont
       keys.push(raw);
       settings.frontmatterKeysToExclude = keys;
       text.setValue('');
-      await ctx.save();
-      refreshTags();
+      void ctx.save().then(() => refreshTags());
     };
 
     text.inputEl.addEventListener('keydown', (evt) => {
@@ -304,10 +300,9 @@ function renderFrontmatterTagsExclude(parent: HTMLElement, ctx: SettingsViewCont
       const chip = chipsContainer.createDiv({ cls: 'ptpv-chip' });
       chip.createSpan({ text: tag });
       const removeBtn = chip.createSpan({ cls: 'ptpv-chip-remove', text: '×' });
-      removeBtn.onclick = async () => {
+      removeBtn.onclick = () => {
         settings.frontmatterTagsToExclude.splice(index, 1);
-        await ctx.save();
-        refresh();
+        void ctx.save().then(() => refresh());
       };
     });
   };
@@ -322,7 +317,7 @@ function renderFrontmatterTagsExclude(parent: HTMLElement, ctx: SettingsViewCont
     text.setPlaceholder(t.settings.ignoreRules.tagsPlaceholder);
     new TagSuggester(ctx.app, text.inputEl);
 
-    const addTag = async () => {
+    const addTag = () => {
       const raw = text.getValue().trim();
       if (!raw) return;
       const tags = settings.frontmatterTagsToExclude || [];
@@ -335,8 +330,7 @@ function renderFrontmatterTagsExclude(parent: HTMLElement, ctx: SettingsViewCont
       tags.push(raw);
       settings.frontmatterTagsToExclude = tags;
       text.setValue('');
-      await ctx.save();
-      refresh();
+      void ctx.save().then(() => refresh());
     };
 
     text.inputEl.addEventListener('keydown', (evt) => {

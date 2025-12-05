@@ -4,8 +4,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
-import { SearchBarComponent } from '../../components/search-bar/search-bar.component';
+
 import { SearchFacade } from '../../../application/facades/search-facade';
+import { SearchBarComponent } from '../../components/search-bar/search-bar.component';
 
 type Crumb = { label: string; url: string };
 
@@ -43,7 +44,7 @@ export class TopbarComponent {
       const target = this.router.url.startsWith('/search')
         ? this.lastVisited || '/'
         : this.router.url;
-      this.router.navigateByUrl(target || '/');
+      await this.router.navigateByUrl(target || '/');
       return;
     }
 
@@ -51,6 +52,6 @@ export class TopbarComponent {
       await this.search.ensureIndex();
     }
 
-    this.router.navigate(['/search'], { queryParams: { q: query } });
+    await this.router.navigate(['/search'], { queryParams: { q: query } });
   }
 }

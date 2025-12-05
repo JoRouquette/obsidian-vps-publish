@@ -1,4 +1,4 @@
-import { PublishableNote } from '@core-domain/entities/publishable-note';
+import { type PublishableNote } from '@core-domain/entities/publishable-note';
 
 export interface UploadNotesCommand {
   sessionId: string;

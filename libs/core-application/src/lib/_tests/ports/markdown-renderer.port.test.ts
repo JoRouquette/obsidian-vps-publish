@@ -1,5 +1,6 @@
-import { MarkdownRendererPort } from '../../ports/markdown-renderer.port';
-import { PublishableNote } from '@core-domain';
+import { type PublishableNote } from '@core-domain';
+
+import { type MarkdownRendererPort } from '../../ports/markdown-renderer.port';
 
 describe('MarkdownRendererPort', () => {
   let renderer: MarkdownRendererPort;

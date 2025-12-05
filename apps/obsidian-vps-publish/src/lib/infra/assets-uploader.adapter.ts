@@ -1,8 +1,9 @@
-import { UploaderPort } from '@core-domain/ports/uploader-port';
 import type { ResolvedAssetFile } from '@core-domain/entities/resolved-asset-file';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { ProgressPort } from '@core-domain/ports/progress-port';
-import { SessionApiClient } from '../services/session-api.client';
+import { type UploaderPort } from '@core-domain/ports/uploader-port';
+
+import { type SessionApiClient } from '../services/session-api.client';
 import { batchByBytes } from '../utils/batch-by-bytes.util';
 
 type ApiAsset = {

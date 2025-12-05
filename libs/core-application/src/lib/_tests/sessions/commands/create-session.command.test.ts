@@ -1,4 +1,4 @@
-import { CreateSessionCommand } from '../../../sessions/commands/create-session.command';
+import { type CreateSessionCommand } from '../../../sessions/commands/create-session.command';
 
 describe('CreateSessionCommand', () => {
   it('should create a valid command object', () => {

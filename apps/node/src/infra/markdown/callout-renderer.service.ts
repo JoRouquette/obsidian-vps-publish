@@ -1,4 +1,5 @@
-import MarkdownIt, { type Token } from 'markdown-it';
+import type MarkdownIt from 'markdown-it';
+import { type Token } from 'markdown-it';
 
 export type CalloutFold = 'open' | 'closed';
 

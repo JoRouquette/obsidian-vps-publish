@@ -1,7 +1,8 @@
-import { PublishableNote } from '@core-domain';
+import { type PublishableNote } from '@core-domain';
+
 import {
-  UploadNotesCommand,
-  UploadNotesResult,
+  type UploadNotesCommand,
+  type UploadNotesResult,
 } from '../../../publishing/commands/upload-notes.command';
 
 describe('UploadNotesCommand', () => {

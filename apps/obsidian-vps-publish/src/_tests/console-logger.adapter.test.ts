@@ -1,5 +1,6 @@
-import { ConsoleLoggerAdapter } from '../lib/infra/console-logger.adapter';
 import { LogLevel } from '@core-domain/ports/logger-port';
+
+import { ConsoleLoggerAdapter } from '../lib/infra/console-logger.adapter';
 
 describe('ConsoleLoggerAdapter', () => {
   beforeEach(() => {

@@ -1,8 +1,8 @@
+import { type IdGeneratorPort } from '../../../ports/id-generator.port';
+import { type LoggerPort } from '../../../ports/logger.port';
+import { type CreateSessionCommand } from '../../../sessions/commands/create-session.command';
 import { CreateSessionHandler } from '../../../sessions/handlers/create-session.handler';
-import { IdGeneratorPort } from '../../../ports/id-generator.port';
-import { LoggerPort } from '../../../ports/logger.port';
-import { CreateSessionCommand } from '../../../sessions/commands/create-session.command';
-import { SessionRepository } from '../../../sessions/ports/session.repository';
+import { type SessionRepository } from '../../../sessions/ports/session.repository';
 
 describe('CreateSessionHandler', () => {
   let idGenerator: jest.Mocked<IdGeneratorPort>;

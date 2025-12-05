@@ -9,25 +9,26 @@ import { DetectWikilinksService } from '@core-application/vault-parsing/services
 import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
-import { CollectedNote, LogLevel, VpsConfig } from '@core-domain';
-import { HttpResponse } from '@core-domain/entities/http-response';
+import { type CollectedNote, type VpsConfig } from '@core-domain';
+import { type HttpResponse } from '@core-domain/entities/http-response';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
-import { Notice, Plugin, RequestUrlResponse } from 'obsidian';
+import { type DataAdapter, Notice, Plugin, type RequestUrlResponse } from 'obsidian';
+
 import { getTranslations } from './i18n';
 import { decryptApiKey, encryptApiKey } from './lib/api-key-crypto';
+import { DEFAULT_LOGGER_LEVEL } from './lib/constants/default-logger-level.constant';
 import { AssetsUploaderAdapter } from './lib/infra/assets-uploader.adapter';
 import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
 import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
 import { NotesUploaderAdapter } from './lib/infra/notes-uploader.adapter';
-import { ObsidianAssetsVaultAdapter } from './lib/infra/obsidian-assets-vault.adapter';
 import { NoticeProgressAdapter } from './lib/infra/notice-progress.adapter';
+import { ObsidianAssetsVaultAdapter } from './lib/infra/obsidian-assets-vault.adapter';
 import { ObsidianVaultAdapter } from './lib/infra/obsidian-vault.adapter';
 import { testVpsConnection } from './lib/services/http-connection.service';
 import { SessionApiClient } from './lib/services/session-api.client';
 import { ObsidianVpsPublishSettingTab } from './lib/setting-tab.view';
 import type { PluginSettings } from './lib/settings/plugin-settings.type';
 import { RequestUrlResponseMapper } from './lib/utils/http-response-status.mapper';
-import { DEFAULT_LOGGER_LEVEL } from './lib/constants/default-logger-level.constant';
 
 const defaultSettings: PluginSettings = {
   vpsConfigs: [],
@@ -122,7 +123,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       try {
         await this.publishToSiteAsync();
       } catch (e) {
-        console.error('Publish failed from ribbon', e);
+        this.logger.error('Publish failed from ribbon', e);
         new Notice(t.plugin.publishError);
       }
     });
@@ -135,9 +136,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
   // ---------------------------------------------------------------------------
   async loadSettings() {
     const internalRaw = (await this.loadData()) ?? {};
-    let snapshotRaw: any = null;
+    let snapshotRaw: unknown = null;
     try {
-      const adapter: any = this.app.vault.adapter;
+      const adapter = this.app.vault.adapter;
       const pluginDir = `.obsidian/plugins/${this.manifest.id}`;
       const filePath = `${pluginDir}/settings.json`;
       if (await adapter.exists(filePath)) {
@@ -303,7 +304,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
   private async loadCalloutStyles(paths: string[]): Promise<Array<{ path: string; css: string }>> {
     const styles: Array<{ path: string; css: string }> = [];
-    const adapter: any = this.app.vault.adapter;
+    const adapter: DataAdapter = this.app.vault.adapter;
 
     for (const raw of paths ?? []) {
       const path = raw.trim();

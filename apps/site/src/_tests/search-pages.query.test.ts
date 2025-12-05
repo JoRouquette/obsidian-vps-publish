@@ -1,10 +1,11 @@
 import { SearchPagesHandler } from '@core-application';
-import { Manifest, Slug } from '@core-domain';
+import type { Manifest } from '@core-domain';
+import { Slug } from '@core-domain';
 
 const manifest: Manifest = {
   sessionId: 's',
-  createdAt: '',
-  lastUpdatedAt: '',
+  createdAt: new Date(),
+  lastUpdatedAt: new Date(),
   pages: [
     {
       id: '1',

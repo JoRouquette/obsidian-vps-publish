@@ -1,17 +1,18 @@
 import {
-  AssetRef,
-  Manifest,
-  ManifestPage,
-  PublishableNote,
-  ResolvedWikilink,
+  type AssetRef,
+  type Manifest,
+  type ManifestPage,
+  type PublishableNote,
+  type ResolvedWikilink,
   Slug,
 } from '@core-domain';
 import { humanizePropertyKey } from '@core-domain/utils/string.utils';
-import { CommandHandler } from '../../common/command-handler';
-import { LoggerPort } from '../../ports/logger.port';
+
+import { type CommandHandler } from '../../common/command-handler';
+import { type LoggerPort } from '../../ports/logger.port';
 import type { MarkdownRendererPort } from '../../ports/markdown-renderer.port';
-import { UploadNotesCommand, UploadNotesResult } from '../commands/upload-notes.command';
-import { ContentStoragePort } from '../ports/content-storage.port';
+import { type UploadNotesCommand, type UploadNotesResult } from '../commands/upload-notes.command';
+import { type ContentStoragePort } from '../ports/content-storage.port';
 import type { ManifestPort } from '../ports/manifest-storage.port';
 import type { SessionNotesStoragePort } from '../ports/session-notes-storage.port';
 

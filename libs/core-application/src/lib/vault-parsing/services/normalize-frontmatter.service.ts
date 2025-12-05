@@ -1,8 +1,9 @@
-import { BaseService } from '../../common/base-service';
-import { CollectedNote } from '@core-domain';
+import { type CollectedNote } from '@core-domain';
 import type { DomainFrontmatter } from '@core-domain/entities/domain-frontmatter';
-import { LoggerPort } from '@core-domain/ports/logger-port';
+import { type LoggerPort } from '@core-domain/ports/logger-port';
 import { normalizePropertyKey } from '@core-domain/utils/string.utils';
+
+import { type BaseService } from '../../common/base-service';
 
 export class NormalizeFrontmatterService implements BaseService {
   private readonly _logger: LoggerPort;
@@ -44,7 +45,7 @@ export class NormalizeFrontmatterService implements BaseService {
       }
 
       const tagsRaw =
-        (source as any)['tags'] ??
+        (source as Record<string, unknown>)['tags'] ??
         (this.isDomainFrontmatter(frontmatter) ? frontmatter.tags : undefined);
       const tags =
         Array.isArray(tagsRaw) && tagsRaw.every((t) => typeof t === 'string')
@@ -82,7 +83,7 @@ export class NormalizeFrontmatterService implements BaseService {
 
   private setNestedValue(target: Record<string, unknown>, path: string, value: unknown): void {
     const segments = path.split('.').map(normalizePropertyKey);
-    let current: any = target;
+    let current: Record<string, unknown> = target;
 
     for (let i = 0; i < segments.length; i++) {
       const key = segments[i];
@@ -96,7 +97,7 @@ export class NormalizeFrontmatterService implements BaseService {
       if (typeof current[key] !== 'object' || current[key] === null) {
         current[key] = {};
       }
-      current = current[key];
+      current = current[key] as Record<string, unknown>;
     }
   }
 }

@@ -1,9 +1,9 @@
-import { AssetRef } from '@core-domain/entities/asset-ref';
+import { type AssetRef } from '@core-domain/entities/asset-ref';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
-import { ResolvedAssetFile } from '@core-domain/entities/resolved-asset-file';
-import { AssetsVaultPort } from '@core-domain/ports/assets-vault-port';
+import { type ResolvedAssetFile } from '@core-domain/entities/resolved-asset-file';
+import { type AssetsVaultPort } from '@core-domain/ports/assets-vault-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
-import { App, TFile } from 'obsidian';
+import { type App, type TFile } from 'obsidian';
 
 export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
   private readonly _logger: LoggerPort;
@@ -136,28 +136,31 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
 
   private extractLinkTarget(asset: AssetRef): string | null {
     this._logger.debug('Extracting link target from asset', { asset });
-    const anyAsset = asset as any;
+    const assetWithExtras = asset as AssetRef & {
+      fileName?: unknown;
+      linkText?: unknown;
+    };
 
-    if (typeof anyAsset.fileName === 'string' && anyAsset.fileName.trim()) {
-      const v = anyAsset.fileName.trim();
+    if (typeof assetWithExtras.fileName === 'string' && assetWithExtras.fileName.trim()) {
+      const v = assetWithExtras.fileName.trim();
       this._logger.debug('Link target found via fileName', { fileName: v });
       return v;
     }
 
-    if (typeof anyAsset.target === 'string' && anyAsset.target.trim()) {
-      const v = anyAsset.target.trim();
+    if (typeof assetWithExtras.target === 'string' && assetWithExtras.target.trim()) {
+      const v = assetWithExtras.target.trim();
       this._logger.debug('Link target found via target', { target: v });
       return v;
     }
 
-    if (typeof anyAsset.linkText === 'string' && anyAsset.linkText.trim()) {
-      const v = anyAsset.linkText.trim();
+    if (typeof assetWithExtras.linkText === 'string' && assetWithExtras.linkText.trim()) {
+      const v = assetWithExtras.linkText.trim();
       this._logger.debug('Link target found via linkText', { linkText: v });
       return v;
     }
 
-    if (typeof anyAsset.raw === 'string') {
-      const raw: string = anyAsset.raw;
+    if (typeof assetWithExtras.raw === 'string') {
+      const raw: string = assetWithExtras.raw;
       const match = raw.match(/!\[\[([^\]]+)\]\]/);
       const inner = (match ? match[1] : raw).trim();
 

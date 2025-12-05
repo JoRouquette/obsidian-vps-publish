@@ -1,8 +1,8 @@
-import { HttpResponse } from '@core-domain/entities/http-response';
+import { type HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
+import { type HttpResponse } from '@core-domain/entities/http-response';
 import type { VpsConfig } from '@core-domain/entities/vps-config';
 import { type LoggerPort } from '@core-domain/ports/logger-port';
-import { HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
-import { requestUrl, RequestUrlResponse } from 'obsidian';
+import { requestUrl, type RequestUrlResponse } from 'obsidian';
 
 function normalizeBaseUrl(url: string): string {
   let u = url.trim();

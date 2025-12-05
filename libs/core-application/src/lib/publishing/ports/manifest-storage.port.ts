@@ -1,4 +1,4 @@
-import { Manifest } from '@core-domain';
+import { type Manifest } from '@core-domain';
 
 /**
  * Gestion de l'indexation du site (manifest + index des dossiers).

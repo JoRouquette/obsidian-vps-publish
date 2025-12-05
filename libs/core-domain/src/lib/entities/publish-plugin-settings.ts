@@ -1,7 +1,7 @@
-import { FolderConfig } from './folder-config';
-import { IgnoreRule } from './ignore-rule';
-import { PluginLocale } from './plugin-locale';
-import { VpsConfig } from './vps-config';
+import type { FolderConfig } from './folder-config';
+import type { IgnoreRule } from './ignore-rule';
+import type { PluginLocale } from './plugin-locale';
+import type { VpsConfig } from './vps-config';
 
 export interface PublishPluginSettings {
   locale?: PluginLocale;

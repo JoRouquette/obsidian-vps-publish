@@ -1,4 +1,4 @@
-import { AbortSessionCommand } from '../../../sessions/commands/abort-session.command';
+import { type AbortSessionCommand } from '../../../sessions/commands/abort-session.command';
 
 describe('AbortSessionCommand', () => {
   it('should have a sessionId property of type string', () => {

@@ -1,4 +1,4 @@
-import { NoteCore } from './note-core';
+import type { NoteCore } from './note-core';
 
 export interface CollectedNote extends NoteCore {
   noteId: string;

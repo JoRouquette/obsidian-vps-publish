@@ -1,16 +1,17 @@
-import { ParseContentHandler } from '../../vault-parsing/handler/parse-content.handler';
-import { NormalizeFrontmatterService } from '../../vault-parsing/services/normalize-frontmatter.service';
-import { EvaluateIgnoreRulesHandler } from '../../vault-parsing/handler/evaluate-ignore-rules.handler';
-import { RenderInlineDataviewService } from '../../vault-parsing/services/render-inline-dataview.service';
-import { ContentSanitizerService } from '../../vault-parsing/services/content-sanitizer.service';
-import { DetectAssetsService } from '../../vault-parsing/services/detect-assets.service';
-import { DetectWikilinksService } from '../../vault-parsing/services/detect-wikilinks.service';
-import { ResolveWikilinksService } from '../../vault-parsing/services/resolve-wikilinks.service';
-import { ComputeRoutingService } from '../../vault-parsing/services/compute-routing.service';
-import { NotesMapper } from '../../vault-parsing/mappers/notes.mapper';
 import type { CollectedNote } from '@core-domain/entities/collected-note';
 import type { IgnoreRule } from '@core-domain/entities/ignore-rule';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
+
+import { EvaluateIgnoreRulesHandler } from '../../vault-parsing/handler/evaluate-ignore-rules.handler';
+import { ParseContentHandler } from '../../vault-parsing/handler/parse-content.handler';
+import { NotesMapper } from '../../vault-parsing/mappers/notes.mapper';
+import { ComputeRoutingService } from '../../vault-parsing/services/compute-routing.service';
+import { ContentSanitizerService } from '../../vault-parsing/services/content-sanitizer.service';
+import { DetectAssetsService } from '../../vault-parsing/services/detect-assets.service';
+import { DetectWikilinksService } from '../../vault-parsing/services/detect-wikilinks.service';
+import { NormalizeFrontmatterService } from '../../vault-parsing/services/normalize-frontmatter.service';
+import { RenderInlineDataviewService } from '../../vault-parsing/services/render-inline-dataview.service';
+import { ResolveWikilinksService } from '../../vault-parsing/services/resolve-wikilinks.service';
 
 class NoopLogger implements LoggerPort {
   private _level: any = 0;

@@ -1,4 +1,4 @@
-import { AbstractInputSuggest, App } from 'obsidian';
+import { AbstractInputSuggest, type App } from 'obsidian';
 
 type TagSuggestion = { tag: string; count: number };
 
@@ -15,7 +15,10 @@ export class TagSuggester extends AbstractInputSuggest<TagSuggestion> {
 
   getSuggestions(query: string): TagSuggestion[] {
     const normalized = (query || '').toLowerCase();
-    const tags = ((this.app.metadataCache as any).getTags?.() as Record<string, unknown>) ?? {};
+    const metaCache = this.app.metadataCache as typeof this.app.metadataCache & {
+      getTags?: () => Record<string, number>;
+    };
+    const tags = metaCache.getTags?.() ?? {};
 
     return Object.entries(tags)
       .map(([tag, count]) => ({

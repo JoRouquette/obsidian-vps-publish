@@ -1,11 +1,13 @@
+import type { HttpClient } from '@angular/common/http';
 import { of } from 'rxjs';
+
 import { HttpConfigRepository } from '../infrastructure/http/http-config.repository';
 
 describe('HttpConfigRepository', () => {
   it('caches config load', async () => {
     const payload = { siteName: 'Site', author: 'Me', repoUrl: '', reportIssuesUrl: '' };
     const get = jest.fn().mockReturnValue(of(payload));
-    const repo = new HttpConfigRepository({ get } as any);
+    const repo = new HttpConfigRepository({ get } as unknown as HttpClient);
 
     const c1 = await repo.load();
     const c2 = await repo.load();

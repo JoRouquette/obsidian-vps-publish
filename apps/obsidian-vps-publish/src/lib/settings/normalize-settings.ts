@@ -1,7 +1,8 @@
-import type { PluginSettings } from './plugin-settings.type';
-import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { VpsConfig } from '@core-domain/entities/vps-config';
+import type { LoggerPort } from '@core-domain/ports/logger-port';
+
 import { DEFAULT_LOGGER_LEVEL } from '../constants/default-logger-level.constant';
+import type { PluginSettings } from './plugin-settings.type';
 
 export function normalizeSettings(settings: PluginSettings, logger?: LoggerPort): void {
   if (!Array.isArray(settings.vpsConfigs)) {

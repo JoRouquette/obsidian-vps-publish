@@ -1,7 +1,12 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { ContentSearchIndex, ContentSearchIndexEntry, LoggerPort, Manifest } from '@core-domain';
+import {
+  type ContentSearchIndex,
+  type ContentSearchIndexEntry,
+  type LoggerPort,
+  type Manifest,
+} from '@core-domain';
 
 export class ContentSearchIndexer {
   constructor(
@@ -17,7 +22,7 @@ export class ContentSearchIndexer {
       try {
         const html = await fs.readFile(filePath, 'utf8');
         const sentences = this.splitSentences(this.extractText(html));
-        const title = page.title ?? (page.slug as any)?.toString?.() ?? page.route;
+        const title = page.title ?? String(page.slug ?? page.route);
         entries.push({
           route: page.route,
           title,

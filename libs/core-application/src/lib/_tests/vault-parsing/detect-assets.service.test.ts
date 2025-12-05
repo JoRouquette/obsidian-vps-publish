@@ -1,6 +1,7 @@
-import { DetectAssetsService } from '../../vault-parsing/services/detect-assets.service';
-import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
+import type { LoggerPort } from '@core-domain/ports/logger-port';
+
+import { DetectAssetsService } from '../../vault-parsing/services/detect-assets.service';
 
 class NoopLogger implements LoggerPort {
   private _level: any = 0;

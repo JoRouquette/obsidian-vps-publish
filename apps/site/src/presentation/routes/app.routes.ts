@@ -1,4 +1,5 @@
-import { Routes } from '@angular/router';
+import { type Routes } from '@angular/router';
+
 import { ShellComponent } from '../shell/shell.component';
 
 export const APP_ROUTES: Routes = [

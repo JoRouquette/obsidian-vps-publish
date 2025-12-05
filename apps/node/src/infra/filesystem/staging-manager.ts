@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { LoggerPort } from '@core-application';
+import { type LoggerPort } from '@core-application';
 
 /**
  * Gère le cycle de vie du répertoire de staging pour une session.

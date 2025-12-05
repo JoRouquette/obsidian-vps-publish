@@ -1,8 +1,9 @@
+import { type Asset } from '@core-domain';
+
 import {
-  UploadAssetsCommand,
-  UploadAssetsResult,
+  type UploadAssetsCommand,
+  type UploadAssetsResult,
 } from '../../../publishing/commands/upload-assets.command';
-import { Asset } from '@core-domain';
 
 describe('UploadAssetsCommand', () => {
   it('should have a sessionId and assets array', () => {

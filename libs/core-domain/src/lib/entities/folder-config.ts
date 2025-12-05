@@ -1,4 +1,4 @@
-import { SanitizationRules } from './sanitization-rules';
+import type { SanitizationRules } from './sanitization-rules';
 
 export interface FolderConfig {
   id: string;

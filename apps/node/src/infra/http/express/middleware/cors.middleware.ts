@@ -1,5 +1,5 @@
-import { NextFunction, Request, Response } from 'express';
-import { LoggerPort } from '@core-application';
+import { type LoggerPort } from '@core-application';
+import { type NextFunction, type Request, type Response } from 'express';
 
 export function createCorsMiddleware(allowedOrigins: string[], logger?: LoggerPort) {
   const allowAll = allowedOrigins.includes('*');

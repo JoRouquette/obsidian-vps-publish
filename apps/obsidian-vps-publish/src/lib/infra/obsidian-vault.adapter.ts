@@ -1,10 +1,9 @@
 import type { CollectedNote } from '@core-domain/entities/collected-note';
-import { App, TAbstractFile, TFile, TFolder } from 'obsidian';
 import type { FolderConfig } from '@core-domain/entities/folder-config';
+import { type GuidGeneratorPort } from '@core-domain/ports/guid-generator-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { VaultPort } from '@core-domain/ports/vault-port';
-import { GuidGeneratorPort } from '@core-domain/ports/guid-generator-port';
-import { VpsConfig } from '@core-domain';
+import { type App, type TAbstractFile, TFile, TFolder } from 'obsidian';
 
 export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
   private readonly logger: LoggerPort;
@@ -50,7 +49,8 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
           this.logger.debug('Reading file', { path: node.path });
           const content = await this.app.vault.read(node);
           const cache = this.app.metadataCache.getFileCache(node);
-          const frontmatter: Record<string, any> = (cache?.frontmatter as any) ?? {};
+          const frontmatter: Record<string, unknown> =
+            (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
 
           result.push({
             noteId: this.guidGenerator.generateGuid(),

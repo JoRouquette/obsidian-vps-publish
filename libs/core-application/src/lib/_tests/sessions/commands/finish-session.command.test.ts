@@ -1,4 +1,4 @@
-import { FinishSessionCommand } from '../../../sessions/commands/finish-session.command';
+import { type FinishSessionCommand } from '../../../sessions/commands/finish-session.command';
 
 describe('FinishSessionCommand', () => {
   it('should create a valid FinishSessionCommand object', () => {

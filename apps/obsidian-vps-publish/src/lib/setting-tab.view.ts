@@ -1,14 +1,15 @@
-import { App, PluginSettingTab } from 'obsidian';
-import { LoggerPort } from '@core-domain/ports/logger-port';
-import ObsidianVpsPublishPlugin from '../main';
+import { type LoggerPort } from '@core-domain/ports/logger-port';
+import { type App, PluginSettingTab } from 'obsidian';
+
+import type ObsidianVpsPublishPlugin from '../main';
 import { buildSettingsContext } from './settings/context';
 import { normalizeSettings } from './settings/normalize-settings';
-import { renderLanguageSection } from './settings/sections/language-section';
-import { renderVaultSection } from './settings/sections/vault-section';
+import { renderAdvancedSection } from './settings/sections/advanced-section';
 import { renderFoldersSection } from './settings/sections/folders-section';
 import { renderIgnoreRulesSection } from './settings/sections/ignore-rules-section';
+import { renderLanguageSection } from './settings/sections/language-section';
+import { renderVaultSection } from './settings/sections/vault-section';
 import { renderVpsSection } from './settings/sections/vps-section';
-import { renderAdvancedSection } from './settings/sections/advanced-section';
 
 export class ObsidianVpsPublishSettingTab extends PluginSettingTab {
   private readonly plugin: ObsidianVpsPublishPlugin;

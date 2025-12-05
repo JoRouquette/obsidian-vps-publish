@@ -1,6 +1,7 @@
-import { ContentSanitizerService } from '../../vault-parsing/services/content-sanitizer.service';
-import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
+import type { LoggerPort } from '@core-domain/ports/logger-port';
+
+import { ContentSanitizerService } from '../../vault-parsing/services/content-sanitizer.service';
 
 class NoopLogger implements LoggerPort {
   private _level: any = 0;

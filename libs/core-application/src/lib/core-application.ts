@@ -14,7 +14,6 @@ export * from './sessions/commands/create-session.command';
 export * from './sessions/commands/create-session.result';
 export * from './sessions/commands/finish-session.command';
 export * from './sessions/commands/finish-session.result';
-
 export * from './sessions/handlers/abort-session.handler';
 export * from './sessions/handlers/create-session.handler';
 export * from './sessions/handlers/finish-session.handler';
@@ -23,10 +22,8 @@ export * from './sessions/ports/session.repository';
 // Publishing
 export * from './publishing/commands/upload-assets.command';
 export * from './publishing/commands/upload-notes.command';
-
 export * from './publishing/handlers/upload-assets.handler';
 export * from './publishing/handlers/upload-notes.handler';
-
 export * from './publishing/ports/assets-index.port';
 export * from './publishing/ports/assets-storage.port';
 export * from './publishing/ports/content-storage.port';

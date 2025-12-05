@@ -19,7 +19,7 @@ export function batchByBytes<T>(
   const batches: T[][] = [];
   let current: T[] = [];
 
-  for (const [index, item] of items.entries()) {
+  for (const item of items) {
     const tentative = [...current, item];
     const size = jsonSizeBytes(wrapBody(tentative));
 

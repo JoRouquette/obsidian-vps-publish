@@ -1,4 +1,4 @@
-import { Asset } from '@core-domain';
+import { type Asset } from '@core-domain';
 
 export interface UploadAssetsCommand {
   sessionId: string;

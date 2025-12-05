@@ -1,10 +1,11 @@
-import { BaseService } from '../../common/base-service';
-import { PublishableNote } from '@core-domain/entities';
-import { AssetAlignment } from '@core-domain/entities/asset-alignment';
-import { AssetDisplayOptions } from '@core-domain/entities/asset-display-options';
-import { AssetKind } from '@core-domain/entities/asset-kind';
-import { AssetRef } from '@core-domain/entities/asset-ref';
+import { type PublishableNote } from '@core-domain/entities';
+import { type AssetAlignment } from '@core-domain/entities/asset-alignment';
+import { type AssetDisplayOptions } from '@core-domain/entities/asset-display-options';
+import { type AssetKind } from '@core-domain/entities/asset-kind';
+import { type AssetRef } from '@core-domain/entities/asset-ref';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
+
+import { type BaseService } from '../../common/base-service';
 import { extractFrontmatterStrings } from '../utils/frontmatter-strings.util';
 
 /**

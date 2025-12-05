@@ -1,4 +1,4 @@
-const { baseConfigs, tsBaseConfig } = require('../../eslint.config.cjs');
+const { baseConfigs, tsBaseConfig, tsTestConfig } = require('../../eslint.config.cjs');
 
 module.exports = [
   ...baseConfigs,
@@ -21,6 +21,19 @@ module.exports = [
     rules: {
       ...tsBaseConfig.rules,
       'no-console': 'warn',
+    },
+  },
+  {
+    ...tsTestConfig,
+    files: ['**/*.spec.ts', '**/*.test.ts'],
+    languageOptions: {
+      ...tsTestConfig.languageOptions,
+      parserOptions: {
+        ...tsTestConfig.languageOptions.parserOptions,
+        tsconfigRootDir: __dirname,
+        project: ['./tsconfig.spec.json'],
+        sourceType: 'module',
+      },
     },
   },
 ];

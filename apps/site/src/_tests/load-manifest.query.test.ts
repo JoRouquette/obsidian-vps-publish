@@ -1,15 +1,15 @@
 import { LoadManifestHandler } from '@core-application';
-import { Manifest, ManifestRepository } from '@core-domain';
+import type { ManifestRepository } from '@core-domain';
 
 describe('LoadManifestHandler', () => {
   it('delegates to repository', async () => {
     const mockRepo: ManifestRepository = {
       load: jest.fn().mockResolvedValue({
         sessionId: 's',
-        createdAt: '',
-        lastUpdatedAt: '',
+        createdAt: new Date(),
+        lastUpdatedAt: new Date(),
         pages: [],
-      } as Manifest),
+      }),
     };
 
     const q = new LoadManifestHandler(mockRepo);

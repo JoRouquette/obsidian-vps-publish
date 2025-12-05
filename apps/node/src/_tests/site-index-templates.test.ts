@@ -1,4 +1,5 @@
 import { Slug } from '@core-domain';
+
 import { renderFolderIndex, renderRootIndex } from '../infra/filesystem/site-index-templates';
 
 describe('site-index-templates', () => {

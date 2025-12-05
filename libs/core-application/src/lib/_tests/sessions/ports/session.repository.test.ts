@@ -1,5 +1,6 @@
-import { SessionRepository } from '../../../sessions/ports/session.repository';
-import { Session, SessionStatus } from '@core-domain';
+import { type Session, type SessionStatus } from '@core-domain';
+
+import { type SessionRepository } from '../../../sessions/ports/session.repository';
 
 const mockSession: Session = {
   id: 'session-123',

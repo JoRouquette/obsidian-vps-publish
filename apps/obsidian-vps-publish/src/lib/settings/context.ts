@@ -1,7 +1,8 @@
-import type ObsidianVpsPublishPlugin from '../../main';
-import { getTranslations } from '../../i18n';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
-import type { SettingsContext as BaseContext, PluginSettings } from './plugin-settings.type';
+
+import { getTranslations } from '../../i18n';
+import type ObsidianVpsPublishPlugin from '../../main';
+import type { PluginSettings, SettingsContext as BaseContext } from './plugin-settings.type';
 
 export type SettingsViewContext = BaseContext & {
   plugin: ObsidianVpsPublishPlugin;

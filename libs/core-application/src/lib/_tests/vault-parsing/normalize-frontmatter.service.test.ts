@@ -1,6 +1,7 @@
-import { NormalizeFrontmatterService } from '../../vault-parsing/services/normalize-frontmatter.service';
 import type { CollectedNote } from '@core-domain/entities';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
+
+import { NormalizeFrontmatterService } from '../../vault-parsing/services/normalize-frontmatter.service';
 
 class NoopLogger implements LoggerPort {
   private _level: any = 0;

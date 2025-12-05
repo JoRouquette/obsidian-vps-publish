@@ -1,5 +1,6 @@
-import { AssetsUploaderAdapter } from '../lib/infra/assets-uploader.adapter';
 import { Buffer } from 'buffer';
+
+import { AssetsUploaderAdapter } from '../lib/infra/assets-uploader.adapter';
 
 const makeLogger = () =>
   ({

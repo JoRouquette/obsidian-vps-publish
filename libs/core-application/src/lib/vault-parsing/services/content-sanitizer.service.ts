@@ -1,8 +1,9 @@
-import { BaseService } from '../../common/base-service';
-import { LoggerPort } from '@core-domain';
-import { PublishableNote } from '@core-domain/entities/publishable-note';
-import { SanitizationRules } from '@core-domain/entities/sanitization-rules';
+import { type LoggerPort } from '@core-domain';
+import { type PublishableNote } from '@core-domain/entities/publishable-note';
+import { type SanitizationRules } from '@core-domain/entities/sanitization-rules';
 import { normalizePropertyKey } from '@core-domain/utils/string.utils';
+
+import { type BaseService } from '../../common/base-service';
 
 export class ContentSanitizerService implements BaseService {
   constructor(

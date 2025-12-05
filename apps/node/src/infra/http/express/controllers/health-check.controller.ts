@@ -1,6 +1,5 @@
-import { Router, Request, Response } from 'express';
-
-import { LoggerPort } from '@core-application';
+import { type LoggerPort } from '@core-application';
+import { type Request, type Response, Router } from 'express';
 
 export function createHealthCheckController(logger?: LoggerPort): Router {
   logger = logger?.child({ module: 'HealthCheckController' });

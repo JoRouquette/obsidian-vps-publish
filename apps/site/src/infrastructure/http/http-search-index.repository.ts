@@ -1,11 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import type { ContentSearchIndex } from '@core-domain';
 import { firstValueFrom } from 'rxjs';
 
 import { StringUtils } from '../../application/utils/string.utils';
 import { CONTENT_ROOT } from '../../domain/constants/content-root.constant';
-import { SearchIndexRepository } from '../../domain/ports/search-index-repository.port';
-import { ContentSearchIndex } from '@core-domain';
+import type { SearchIndexRepository } from '../../domain/ports/search-index-repository.port';
 
 @Injectable({ providedIn: 'root' })
 export class HttpSearchIndexRepository implements SearchIndexRepository {
@@ -37,10 +37,10 @@ export class HttpSearchIndexRepository implements SearchIndexRepository {
       return {
         ...raw,
         entries: Array.isArray(raw.entries) ? raw.entries : [],
-        builtAt: (raw as any).builtAt ?? '',
-        sessionId: (raw as any).sessionId,
+        builtAt: raw.builtAt ?? '',
+        sessionId: raw.sessionId,
       };
-    } catch (error: any) {
+    } catch {
       // Si l'index a été supprimé (cleanup), renvoyer un index vide pour que le UI reflète le reset.
       return {
         entries: [],

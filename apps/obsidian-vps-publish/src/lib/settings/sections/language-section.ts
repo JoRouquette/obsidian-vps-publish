@@ -1,4 +1,5 @@
 import { Setting } from 'obsidian';
+
 import type { SettingsViewContext } from '../context';
 
 export function renderLanguageSection(root: HTMLElement, ctx: SettingsViewContext): void {
@@ -17,11 +18,11 @@ export function renderLanguageSection(root: HTMLElement, ctx: SettingsViewContex
         .addOption('en', 'English')
         .addOption('fr', 'Français')
         .setValue(settings.locale ?? 'system')
-        .onChange(async (value) => {
-          logger.info('Language changed', { locale: value });
-          settings.locale = value as any;
-          await ctx.save();
-          ctx.refresh(); // re-render pour appliquer les nouvelles traductions
+        .onChange((value) => {
+          const nextLocale = value as SettingsViewContext['settings']['locale'] | 'system';
+          logger.info('Language changed', { locale: nextLocale });
+          settings.locale = nextLocale;
+          void ctx.save().then(() => ctx.refresh()); // re-render pour appliquer les nouvelles traductions
         });
     });
 }

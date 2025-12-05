@@ -3,12 +3,25 @@ import { ThemeService } from '../presentation/services/theme.service';
 describe('ThemeService', () => {
   const originalMatch = window.matchMedia;
   const originalSetItem = localStorage.setItem;
+  const createMatchMedia = (matches: boolean): MediaQueryList => ({
+    matches,
+    media: '',
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  });
 
   beforeEach(() => {
     document.documentElement.className = '';
     document.documentElement.style.colorScheme = '';
     localStorage.clear();
-    window.matchMedia = jest.fn().mockReturnValue({ matches: false }) as any;
+    const mockMatch = jest
+      .fn<(query: string) => MediaQueryList>()
+      .mockReturnValue(createMatchMedia(false));
+    window.matchMedia = mockMatch;
     localStorage.setItem = jest.fn();
   });
 
@@ -26,7 +39,10 @@ describe('ThemeService', () => {
   });
 
   it('uses prefers-color-scheme when not saved', () => {
-    window.matchMedia = jest.fn().mockReturnValue({ matches: true }) as any;
+    const mockMatch = jest
+      .fn<(query: string) => MediaQueryList>()
+      .mockReturnValue(createMatchMedia(true));
+    window.matchMedia = mockMatch;
     const svc = new ThemeService();
     svc.init();
     expect(svc.isDark()).toBe(true);

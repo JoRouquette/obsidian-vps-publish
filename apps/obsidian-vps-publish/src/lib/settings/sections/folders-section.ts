@@ -1,14 +1,17 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
+import type { FolderConfig } from '@core-domain/entities/folder-config';
+import type {
+  SanitizationRules,
+  SanitizationRulesDefaults,
+} from '@core-domain/entities/sanitization-rules';
 import { Notice, Setting } from 'obsidian';
+
 import { FolderSuggest } from '../../suggesters/folder-suggester';
 import {
   createDefaultFolderConfig,
   defaultSanitizationRules,
 } from '../../utils/create-default-folder-config.util';
 import type { SettingsViewContext } from '../context';
-import type {
-  SanitizationRules,
-  SanitizationRulesDefaults,
-} from '@core-domain/entities/sanitization-rules';
 
 export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext): void {
   const { t, settings, logger } = ctx;
@@ -46,7 +49,7 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
     );
 
     folderSetting.addButton((btn) => {
-      btn.setIcon('trash').onClick(async () => {
+      btn.setIcon('trash').onClick(() => {
         if (settings.folders.length <= 1) {
           logger.warn('Attempted to delete last folder, forbidden.');
           new Notice(t.settings.folders.deleteLastForbidden ?? 'At least one folder is required.');
@@ -54,14 +57,14 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
         }
         logger.info('Folder deleted', { index, folder: folderCfg });
         settings.folders.splice(index, 1);
-        await ctx.save();
-        ctx.refresh();
+        void ctx.save().then(() => ctx.refresh());
       });
     });
 
     new Setting(singleFolderFieldset)
       .setName(t.settings.folders.vpsLabel)
       .setDesc(t.settings.folders.vpsDescription)
+
       .addDropdown((dropdown) => {
         const currentVpsId =
           (folderCfg.vpsId && vpsOptions.find((v) => v.id === folderCfg.vpsId)?.id) ||
@@ -69,10 +72,10 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
 
         vpsOptions.forEach((vps) => dropdown.addOption(vps.id, vps.name || vps.id));
 
-        dropdown.setValue(currentVpsId).onChange(async (value) => {
+        dropdown.setValue(currentVpsId).onChange((value) => {
           logger.debug('Folder vpsId changed', { index, value });
           folderCfg.vpsId = value;
-          await ctx.save();
+          void ctx.save();
         });
       });
 
@@ -84,10 +87,10 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
       text
         .setPlaceholder('Blog')
         .setValue(folderCfg.vaultFolder)
-        .onChange(async (value) => {
+        .onChange((value) => {
           logger.debug('Folder vaultFolder changed', { index, value });
           folderCfg.vaultFolder = value.trim();
-          await ctx.save();
+          void ctx.save();
         });
 
       new FolderSuggest(ctx.app, text.inputEl);
@@ -101,7 +104,7 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
       text
         .setPlaceholder('/blog')
         .setValue(folderCfg.routeBase)
-        .onChange(async (value) => {
+        .onChange((value) => {
           let route = value.trim();
           if (!route) {
             route = '/';
@@ -111,11 +114,11 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
           }
           logger.debug('Folder routeBase changed', { index, route });
           folderCfg.routeBase = route;
-          await ctx.save();
+          void ctx.save();
         })
     );
 
-    const sanitizeSetting = new Setting(singleFolderFieldset)
+    new Setting(singleFolderFieldset)
       .setName(t.settings.folders.sanitizationTitle)
       .setDesc(t.settings.folders.sanitizationHelp ?? '');
 
@@ -144,7 +147,7 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
       text: t.settings.folders.addSanitizationRule ?? 'Add rule',
     });
     addRuleBtn.addClass('mod-cta');
-    addRuleBtn.onclick = async () => {
+    addRuleBtn.onclick = () => {
       folderCfg.sanitization = folderCfg.sanitization || [];
       folderCfg.sanitization.push({
         name: 'Custom rule',
@@ -152,8 +155,7 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
         replacement: '',
         isEnabled: true,
       });
-      await ctx.save();
-      ctx.refresh();
+      void ctx.save().then(() => ctx.refresh());
     };
   });
 
@@ -164,16 +166,15 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
     text: t.settings.folders.addButton ?? 'Add folder',
   });
   btnAddFolder.addClass('mod-cta');
-  btnAddFolder.onclick = async () => {
+  btnAddFolder.onclick = () => {
     const vpsId = settings.vpsConfigs?.[0]?.id ?? 'default';
     logger.info('Adding new folder config', { vpsId });
     settings.folders.push(createDefaultFolderConfig(vpsId));
-    await ctx.save();
-    ctx.refresh();
+    void ctx.save().then(() => ctx.refresh());
   };
 }
 
-function ensureSanitizationArray(folderCfg: any) {
+function ensureSanitizationArray(folderCfg: FolderConfig) {
   if (!Array.isArray(folderCfg.sanitization)) {
     if (folderCfg.sanitization) {
       const defaults = defaultSanitizationRules();
@@ -190,10 +191,10 @@ function renderSanitizationRule(
   getRules: () => SanitizationRules[],
   onDelete: () => Promise<void>,
   onSave: () => Promise<void>,
-  tFolders: any,
-  logger: any
+  tFolders: SettingsViewContext['t']['settings']['folders'],
+  logger: SettingsViewContext['logger']
 ) {
-  const isDefaultRule = (rule as any)?.isDefault === true;
+  const isDefaultRule = 'isDefault' in rule && rule.isDefault === true;
   const wrapper = container.createDiv({ cls: 'ptpv-sanitization-rule' });
 
   const defaultRuleHeader = wrapper.createDiv({ cls: 'ptpv-sanitization-rule-default-banner' });
@@ -209,9 +210,9 @@ function renderSanitizationRule(
     text
       .setValue(rule.name || '')
       .setDisabled(isDefaultRule)
-      .onChange(async (value) => {
+      .onChange((value) => {
         rule.name = value;
-        await onSave();
+        void onSave();
       })
   );
 
@@ -219,9 +220,9 @@ function renderSanitizationRule(
     toggle
       .setValue(rule.isEnabled ?? true)
       .setTooltip(tFolders.ruleEnabledLabel ?? 'Enabled')
-      .onChange(async (value) => {
+      .onChange((value) => {
         rule.isEnabled = value;
-        await onSave();
+        void onSave();
       })
   );
 
@@ -230,12 +231,12 @@ function renderSanitizationRule(
       btn
         .setIcon('trash')
         .setTooltip(tFolders.deleteSanitizationRule ?? 'Delete rule')
-        .onClick(async () => {
+        .onClick(() => {
           if ((getRules()?.length ?? 0) <= 1) {
             logger.warn('Attempted to delete last sanitization rule; keeping at least one.');
             return;
           }
-          await onDelete();
+          void onDelete();
         })
     );
   }
@@ -247,9 +248,9 @@ function renderSanitizationRule(
         .setPlaceholder('e.g. ```[\\s\\S]*?```')
         .setValue(typeof rule.regex === 'string' ? rule.regex : rule.regex?.source || '')
         .setDisabled(isDefaultRule)
-        .onChange(async (value) => {
+        .onChange((value) => {
           rule.regex = value;
-          await onSave();
+          void onSave();
         })
     );
 
@@ -258,10 +259,10 @@ function renderSanitizationRule(
     .addText((text) =>
       text
         .setValue(rule.replacement || '')
-        .setDisabled((rule as any)?.isDefault === true)
-        .onChange(async (value) => {
+        .setDisabled(isDefaultRule === true)
+        .onChange((value) => {
           rule.replacement = value;
-          await onSave();
+          void onSave();
         })
     );
 

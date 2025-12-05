@@ -1,5 +1,6 @@
-import { Setting } from 'obsidian';
 import type { VpsConfig } from '@core-domain/entities/vps-config';
+import { Setting } from 'obsidian';
+
 import type { SettingsViewContext } from '../context';
 
 export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): void {
@@ -119,7 +120,6 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
       logger.info('VPS connection test succeeded');
     } catch (e) {
       logger.error('VPS connection test failed', e);
-      console.error('Connection test failed', e);
     }
   };
 }

@@ -1,4 +1,4 @@
-import { IdGeneratorPort } from '../../ports/id-generator.port';
+import { type IdGeneratorPort } from '../../ports/id-generator.port';
 
 describe('IdGeneratorPort', () => {
   // Example implementation for testing

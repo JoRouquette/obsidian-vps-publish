@@ -1,5 +1,3 @@
-import { SessionApiClient } from '../lib/services/session-api.client';
-
 const mockLogger = () =>
   ({
     child: jest.fn().mockReturnThis(),

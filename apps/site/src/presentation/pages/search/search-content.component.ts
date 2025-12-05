@@ -1,11 +1,6 @@
 import { CommonModule } from '@angular/common';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  OnInit,
-  ViewEncapsulation,
-  computed,
-} from '@angular/core';
+import type { OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ViewEncapsulation } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -30,13 +25,13 @@ export class SearchContentComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.search.ensureIndex().catch(() => undefined);
+    void this.search.ensureIndex().catch(() => undefined);
 
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
       const q = params.get('q') ?? '';
       this.search.setQuery(q);
       if (q.trim().length >= 3) {
-        this.search.ensureIndex().catch(() => undefined);
+        void this.search.ensureIndex().catch(() => undefined);
       }
     });
   }

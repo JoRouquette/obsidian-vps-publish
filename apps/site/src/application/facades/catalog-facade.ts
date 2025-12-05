@@ -1,8 +1,10 @@
 import { computed, Inject, Injectable, signal } from '@angular/core';
-import { ContentRepository } from '../../domain/ports/content-repository.port';
-import { CONTENT_REPOSITORY, MANIFEST_REPOSITORY } from '../../domain/ports/tokens';
 import { FindPageHandler, LoadManifestHandler, SearchPagesHandler } from '@core-application';
-import { Manifest, ManifestRepository, ManifestPage, defaultManifest } from '@core-domain';
+import type { Manifest, ManifestPage, ManifestRepository } from '@core-domain';
+import { defaultManifest } from '@core-domain';
+
+import type { ContentRepository } from '../../domain/ports/content-repository.port';
+import { CONTENT_REPOSITORY, MANIFEST_REPOSITORY } from '../../domain/ports/tokens';
 
 @Injectable({ providedIn: 'root' })
 export class CatalogFacade {
@@ -20,7 +22,7 @@ export class CatalogFacade {
     @Inject(CONTENT_REPOSITORY) private readonly contentRepository: ContentRepository
   ) {
     this.loadManifestQuery = new LoadManifestHandler(this.manifestRepository);
-    this.loadManifestQuery.handle().then((m) => {
+    void this.loadManifestQuery.handle().then((m) => {
       this.manifest.set(m);
     });
 

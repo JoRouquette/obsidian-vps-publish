@@ -1,7 +1,8 @@
-import { EvaluateIgnoreRulesHandler } from '../../vault-parsing/handler/evaluate-ignore-rules.handler';
-import type { LoggerPort } from '@core-domain/ports/logger-port';
-import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import type { IgnoreRule } from '@core-domain/entities/ignore-rule';
+import type { PublishableNote } from '@core-domain/entities/publishable-note';
+import type { LoggerPort } from '@core-domain/ports/logger-port';
+
+import { EvaluateIgnoreRulesHandler } from '../../vault-parsing/handler/evaluate-ignore-rules.handler';
 
 class NoopLogger implements LoggerPort {
   private _level: any = 0;

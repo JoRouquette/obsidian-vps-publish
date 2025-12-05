@@ -1,4 +1,4 @@
-import { PublishableNote } from '@core-domain';
+import { type PublishableNote } from '@core-domain';
 
 /**
  * Persists the raw notes of a publishing session so we can rebuild

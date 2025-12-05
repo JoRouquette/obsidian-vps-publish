@@ -1,8 +1,9 @@
-import { BaseService } from '../../common/base-service';
 import type { DomainFrontmatter } from '@core-domain/entities/domain-frontmatter';
 import type { InlineDataviewExpression } from '@core-domain/entities/inline-dataview-expression';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
+
+import { type BaseService } from '../../common/base-service';
 
 const INLINE_CODE_REGEX = /`([^`]*?)`/g;
 
@@ -85,14 +86,14 @@ export class RenderInlineDataviewService implements BaseService {
     logger: LoggerPort
   ): unknown {
     const segments = propertyPath.split('.').filter(Boolean);
-    let current: any = frontmatter.nested;
+    let current: unknown = frontmatter.nested;
 
     for (const segment of segments) {
       if (current == null || typeof current !== 'object') {
         logger.debug(`Property path segment '${segment}' not found in frontmatter.`);
         return undefined;
       }
-      current = current[segment];
+      current = (current as Record<string, unknown>)[segment];
     }
 
     logger.debug(`Resolved property path '${propertyPath}' to value:`, current);

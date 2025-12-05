@@ -1,5 +1,5 @@
-import type { AssetKind } from './asset-kind';
 import type { AssetDisplayOptions } from './asset-display-options';
+import type { AssetKind } from './asset-kind';
 
 export interface AssetRef {
   /**

@@ -1,30 +1,30 @@
+import type { OnInit } from '@angular/core';
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
   Inject,
-  OnInit,
   signal,
   ViewEncapsulation,
 } from '@angular/core';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 // Angular Material
 import { MatDividerModule } from '@angular/material/divider';
-import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
-import { MatButtonModule } from '@angular/material/button';
+import type { SafeHtml } from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
+import type { ManifestPage } from '@core-domain/entities/manifest-page';
 
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
-import { ManifestPage } from '@core-domain/entities/manifest-page';
+import type { ContentRepository } from '../../../domain/ports/content-repository.port';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
-import { HttpContentRepository } from '../../../infrastructure/http/http-content.repository';
 
 type Section = {
   key: string;
   title: string;
   count: number;
-  link: { segments: any[]; disabled?: boolean };
+  link: { segments: string[]; disabled?: boolean };
 };
 
 @Component({
@@ -41,14 +41,14 @@ export class HomeComponent implements OnInit {
 
   constructor(
     public catalog: CatalogFacade,
-    @Inject(CONTENT_REPOSITORY) private readonly contentRepo: HttpContentRepository,
+    @Inject(CONTENT_REPOSITORY) private readonly contentRepo: ContentRepository,
     private readonly sanitizer: DomSanitizer
   ) {
-    this.catalog.ensureManifest();
+    void this.catalog.ensureManifest();
   }
 
   ngOnInit(): void {
-    this.contentRepo
+    void this.contentRepo
       .fetch('/index.html')
       .then((html) => this.rootIndexHtml.set(this.sanitizer.bypassSecurityTrustHtml(html)))
       .catch(() =>
@@ -58,7 +58,7 @@ export class HomeComponent implements OnInit {
 
   sections = computed<Section[]>(() => {
     const manifest = this.catalog.manifest();
-    const pages = manifest?.pages ?? [];
+    const pages: ManifestPage[] = manifest?.pages ?? [];
 
     if (pages.length === 0) {
       return [];
@@ -69,7 +69,7 @@ export class HomeComponent implements OnInit {
       { landing?: ManifestPage | undefined; children: ManifestPage[] }
     >();
 
-    for (const p of pages as ManifestPage[]) {
+    for (const p of pages) {
       const route: string = p.route ?? '';
       const clean = route.replace(/^\/+|\/+$/g, '');
       const [key, ...rest] = clean.split('/');

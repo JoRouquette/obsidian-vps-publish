@@ -1,4 +1,4 @@
-import { IdGeneratorPort } from '@core-application';
+import { type IdGeneratorPort } from '@core-application';
 
 export class UuidIdGenerator implements IdGeneratorPort {
   generateId(): string {

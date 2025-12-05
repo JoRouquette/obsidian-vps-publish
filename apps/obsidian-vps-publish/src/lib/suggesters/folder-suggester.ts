@@ -1,4 +1,4 @@
-import { AbstractInputSuggest, TFolder, App } from 'obsidian';
+import { AbstractInputSuggest, type App, TFolder } from 'obsidian';
 
 /**
  * Suggestion de dossiers du vault pour un input texte.

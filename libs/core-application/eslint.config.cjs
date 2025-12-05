@@ -1,4 +1,4 @@
-const { baseConfigs, tsBaseConfig } = require('../../eslint.config.cjs');
+const { baseConfigs, tsBaseConfig, tsTestConfig } = require('../../eslint.config.cjs');
 
 module.exports = [
   ...baseConfigs,
@@ -61,6 +61,19 @@ module.exports = [
             'La config doit être injectée via des ports, pas lue directement depuis process.env.',
         },
       ],
+    },
+  },
+  {
+    ...tsTestConfig,
+    files: ['**/*.spec.ts', '**/*.test.ts'],
+    languageOptions: {
+      ...tsTestConfig.languageOptions,
+      parserOptions: {
+        ...tsTestConfig.languageOptions.parserOptions,
+        tsconfigRootDir: __dirname,
+        project: ['./tsconfig.spec.json'],
+        sourceType: 'module',
+      },
     },
   },
 ];

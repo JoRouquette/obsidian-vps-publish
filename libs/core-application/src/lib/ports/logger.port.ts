@@ -1,10 +1,10 @@
 export type LogMeta = Record<string, unknown>;
 
 export interface LoggerPort {
-  debug(message: string, ...args: any[]): void;
-  info(message: string, ...args: any[]): void;
-  warn(message: string, ...args: any[]): void;
-  error(message: string, ...args: any[]): void;
+  debug(message: string, ...args: unknown[]): void;
+  info(message: string, ...args: unknown[]): void;
+  warn(message: string, ...args: unknown[]): void;
+  error(message: string, ...args: unknown[]): void;
 
   /**
    * Permet d’ajouter du contexte (module, use case, requestId, etc.)

@@ -1,4 +1,4 @@
-import { AbstractInputSuggest, App, TFile } from 'obsidian';
+import { AbstractInputSuggest, type App, type TFile } from 'obsidian';
 
 type FrontmatterPropertySuggestion = { key: string; count: number };
 

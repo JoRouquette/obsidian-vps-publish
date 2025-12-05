@@ -1,4 +1,4 @@
-import { Session } from '@core-domain';
+import { type Session } from '@core-domain';
 
 export interface SessionRepository {
   create(session: Session): Promise<void>;

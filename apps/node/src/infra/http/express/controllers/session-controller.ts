@@ -1,22 +1,22 @@
-import { Request, Response, Router } from 'express';
-
+/* eslint-disable @typescript-eslint/no-misused-promises */
 import {
-  AbortSessionHandler,
-  CreateSessionCommand,
-  CreateSessionHandler,
-  FinishSessionHandler,
-  UploadAssetsCommand,
-  UploadAssetsHandler,
-  UploadNotesCommand,
-  UploadNotesHandler,
+  type AbortSessionHandler,
+  type CreateSessionCommand,
+  type CreateSessionHandler,
+  type FinishSessionHandler,
+  type UploadAssetsCommand,
+  type UploadAssetsHandler,
+  type UploadNotesCommand,
+  type UploadNotesHandler,
 } from '@core-application';
-import { LoggerPort } from '@core-domain';
+import { type LoggerPort } from '@core-domain';
 import { SessionInvalidError, SessionNotFoundError } from '@core-domain';
-import { CalloutRendererService } from '../../../markdown/callout-renderer.service';
-import { SessionFinalizerService } from '../../../sessions/session-finalizer.service';
+import { type Request, type Response, Router } from 'express';
 
+import { type StagingManager } from '../../../filesystem/staging-manager';
+import { type CalloutRendererService } from '../../../markdown/callout-renderer.service';
+import { type SessionFinalizerService } from '../../../sessions/session-finalizer.service';
 import { BYTES_LIMIT } from '../app';
-import { StagingManager } from '../../../filesystem/staging-manager';
 import { CreateSessionBodyDto } from '../dto/create-session-body.dto';
 import { FinishSessionBodyDto } from '../dto/finish-session-body.dto';
 import { ApiAssetsBodyDto } from '../dto/upload-assets.dto';
@@ -76,8 +76,6 @@ export function createSessionController(
 
       const result = await createSessionHandler.handle(command);
       routeLogger?.info('Session created', { sessionId: result.sessionId });
-
-      const base = '/api/session';
 
       return res.status(201).json({
         sessionId: result.sessionId,

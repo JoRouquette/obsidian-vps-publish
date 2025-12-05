@@ -1,5 +1,6 @@
+import { type PublishableNote } from '@core-domain';
+
 import { MarkdownItRenderer } from '../infra/markdown/markdown-it.renderer';
-import { PublishableNote } from '@core-domain';
 
 describe('MarkdownItRenderer', () => {
   const baseNote = (): PublishableNote => ({
