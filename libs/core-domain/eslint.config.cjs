@@ -1,28 +1,26 @@
-const baseConfig = require('../../eslint.config.cjs');
-const tsParser = require('@typescript-eslint/parser');
-const tsPlugin = require('@typescript-eslint/eslint-plugin');
+const { baseConfigs, tsBaseConfig } = require('../../eslint.config.cjs');
 
 module.exports = [
-  ...baseConfig,
+  ...baseConfigs,
 
   {
+    ...tsBaseConfig,
     files: ['**/*.ts'],
     ignores: ['dist/**', 'jest.config.*', '**/*.spec.ts', '**/tests/**/*', '**/*.test.ts'],
     languageOptions: {
-      parser: tsParser,
+      ...tsBaseConfig.languageOptions,
       parserOptions: {
+        ...tsBaseConfig.languageOptions.parserOptions,
         tsconfigRootDir: __dirname,
         project: ['./tsconfig.lib.json', './tsconfig.spec.json'],
         sourceType: 'module',
       },
     },
-    plugins: {
-      '@typescript-eslint': tsPlugin,
-    },
     linterOptions: {
       reportUnusedDisableDirectives: 'error',
     },
     rules: {
+      ...tsBaseConfig.rules,
       'no-restricted-imports': [
         'error',
         {

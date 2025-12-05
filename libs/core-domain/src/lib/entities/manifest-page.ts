@@ -1,4 +1,4 @@
-import { Slug } from '../value-objects/slug.value-object';
+import type { Slug } from '../value-objects/slug.value-object';
 
 export interface ManifestPage {
   id: string;

@@ -1,7 +1,8 @@
+import { type Session } from '@core-domain';
+
+import { type FinishSessionCommand } from '../../../../lib/sessions/commands/finish-session.command';
 import { FinishSessionHandler } from '../../../../lib/sessions/handlers/finish-session.handler';
-import { FinishSessionCommand } from '../../../../lib/sessions/commands/finish-session.command';
-import { SessionRepository } from '../../../../lib/sessions/ports/session.repository';
-import { Session } from '@core-domain';
+import { type SessionRepository } from '../../../../lib/sessions/ports/session.repository';
 
 describe('FinishSessionHandler', () => {
   let sessionRepository: jest.Mocked<SessionRepository>;

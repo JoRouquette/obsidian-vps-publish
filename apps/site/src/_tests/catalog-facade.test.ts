@@ -1,6 +1,7 @@
+import { type Manifest, type ManifestRepository, Slug } from '@core-domain';
+
 import { CatalogFacade } from '../application/facades/catalog-facade';
-import { ContentRepository } from '../domain/ports/content-repository.port';
-import { Manifest, ManifestRepository, Slug } from '@core-domain';
+import type { ContentRepository } from '../domain/ports/content-repository.port';
 
 describe('CatalogFacade', () => {
   const page = {

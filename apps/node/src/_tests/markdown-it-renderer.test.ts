@@ -1,5 +1,6 @@
+import { type PublishableNote } from '@core-domain';
+
 import { MarkdownItRenderer } from '../infra/markdown/markdown-it.renderer';
-import { PublishableNote } from '@core-domain';
 
 describe('MarkdownItRenderer', () => {
   const baseNote = (): PublishableNote => ({
@@ -9,7 +10,13 @@ describe('MarkdownItRenderer', () => {
     relativePath: 'note-1.md',
     content: '',
     frontmatter: { flat: {}, nested: {}, tags: [] },
-    folderConfig: { id: 'folder', vaultFolder: 'notes', routeBase: '/notes', vpsId: 'vps' },
+    folderConfig: {
+      id: 'folder',
+      vaultFolder: 'notes',
+      routeBase: '/notes',
+      vpsId: 'vps',
+      ignoredCleanupRuleIds: [],
+    },
     routing: { slug: 'note-1', path: '', routeBase: '/notes', fullPath: '/notes/note-1' },
     publishedAt: new Date('2024-01-01T00:00:00Z'),
     eligibility: { isPublishable: true },

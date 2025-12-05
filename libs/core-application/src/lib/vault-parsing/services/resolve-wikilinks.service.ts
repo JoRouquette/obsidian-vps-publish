@@ -1,7 +1,8 @@
-import { LoggerPort, WikilinkRef } from '@core-domain';
-import { PublishableNote, ResolvedWikilink } from '@core-domain';
-import { DetectWikilinksService } from './detect-wikilinks.service';
-import { BaseService } from '../../common/base-service';
+import { type LoggerPort, type WikilinkRef } from '@core-domain';
+import { type PublishableNote, type ResolvedWikilink } from '@core-domain';
+
+import { type BaseService } from '../../common/base-service';
+import { type DetectWikilinksService } from './detect-wikilinks.service';
 
 export class ResolveWikilinksService implements BaseService {
   private readonly _logger: LoggerPort;

@@ -1,4 +1,3 @@
-import express from 'express';
 import path from 'node:path';
 
 import {
@@ -8,7 +7,8 @@ import {
   UploadAssetsHandler,
   UploadNotesHandler,
 } from '@core-application';
-import { LoggerPort } from '@core-domain';
+import { type LoggerPort } from '@core-domain';
+import express from 'express';
 
 import { EnvConfig } from '../../config/env-config';
 import { AssetsFileSystemStorage } from '../../filesystem/assets-file-system.storage';
@@ -21,7 +21,6 @@ import { UuidIdGenerator } from '../../id/uuid-id.generator';
 import { CalloutRendererService } from '../../markdown/callout-renderer.service';
 import { MarkdownItRenderer } from '../../markdown/markdown-it.renderer';
 import { SessionFinalizerService } from '../../sessions/session-finalizer.service';
-
 import { createHealthCheckController } from './controllers/health-check.controller';
 import { createMaintenanceController } from './controllers/maintenance-controller';
 import { createPingController } from './controllers/ping.controller';

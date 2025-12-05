@@ -20,7 +20,15 @@ describe('testVpsConnection', () => {
     const handler = { handleResponseAsync: jest.fn() };
     const logger = mockLogger();
     const res = await testVpsConnection(
-      { id: 'v', name: 'v', url: 'http://x', apiKey: '' },
+      {
+        id: 'v',
+        name: 'v',
+        baseUrl: 'http://x',
+        apiKey: '',
+        ignoreRules: [],
+        cleanupRules: [],
+        folders: [],
+      },
       handler as any,
       logger
     );
@@ -32,7 +40,15 @@ describe('testVpsConnection', () => {
     const handler = { handleResponseAsync: jest.fn() };
     const logger = mockLogger();
     const res = await testVpsConnection(
-      { id: 'v', name: 'v', url: '', apiKey: 'k' },
+      {
+        id: 'v',
+        name: 'v',
+        baseUrl: '',
+        apiKey: 'k',
+        ignoreRules: [],
+        cleanupRules: [],
+        folders: [],
+      },
       handler as any,
       logger
     );
@@ -48,7 +64,15 @@ describe('testVpsConnection', () => {
     const logger = mockLogger();
 
     const res = await testVpsConnection(
-      { id: 'v', name: 'v', url: 'http://example.com/', apiKey: 'k' },
+      {
+        id: 'v',
+        name: 'v',
+        baseUrl: 'http://example.com/',
+        apiKey: 'k',
+        ignoreRules: [],
+        cleanupRules: [],
+        folders: [],
+      },
       handler as any,
       logger
     );
@@ -73,7 +97,15 @@ describe('testVpsConnection', () => {
     const handler = { handleResponseAsync: jest.fn() };
     const logger = mockLogger();
     const res = await testVpsConnection(
-      { id: 'v', name: 'v', url: 'http://example.com', apiKey: 'k' },
+      {
+        id: 'v',
+        name: 'v',
+        baseUrl: 'http://example.com',
+        apiKey: 'k',
+        ignoreRules: [],
+        cleanupRules: [],
+        folders: [],
+      },
       handler as any,
       logger
     );

@@ -1,4 +1,4 @@
-import { FinishSessionResult } from '../../../sessions/commands/finish-session.result';
+import { type FinishSessionResult } from '../../../sessions/commands/finish-session.result';
 
 describe('FinishSessionResult', () => {
   it('should have required properties', () => {

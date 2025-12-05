@@ -1,8 +1,8 @@
-import { HttpResponse } from '@core-domain/entities/http-response';
+import { type HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
+import { type HttpResponse } from '@core-domain/entities/http-response';
 import type { VpsConfig } from '@core-domain/entities/vps-config';
 import { type LoggerPort } from '@core-domain/ports/logger-port';
-import { HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
-import { requestUrl, RequestUrlResponse } from 'obsidian';
+import { requestUrl, type RequestUrlResponse } from 'obsidian';
 
 function normalizeBaseUrl(url: string): string {
   let u = url.trim();
@@ -22,11 +22,11 @@ export async function testVpsConnection(
     return { isError: true, error: new Error('Missing API key') };
   }
 
-  if (!vps.url) {
+  if (!vps.baseUrl) {
     return { isError: true, error: new Error('Invalid URL') };
   }
 
-  const baseUrl = normalizeBaseUrl(vps.url);
+  const baseUrl = normalizeBaseUrl(vps.baseUrl);
   const url = `${baseUrl}/api/ping`;
 
   logger.debug(`Pinging VPS at ${url}`);

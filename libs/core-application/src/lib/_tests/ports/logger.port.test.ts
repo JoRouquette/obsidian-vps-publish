@@ -1,4 +1,4 @@
-import { LoggerPort, LogMeta } from '../../ports/logger.port';
+import { type LoggerPort, type LogMeta } from '../../ports/logger.port';
 
 describe('LoggerPort', () => {
   let logger: LoggerPort;

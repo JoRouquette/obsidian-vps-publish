@@ -1,29 +1,53 @@
-import type { PluginSettings } from './plugin-settings.type';
+import { VpsConfigInvariants } from '@core-domain/entities/vps-config';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
-import type { VpsConfig } from '@core-domain/entities/vps-config';
+
 import { DEFAULT_LOGGER_LEVEL } from '../constants/default-logger-level.constant';
+import type { PluginSettings } from './plugin-settings.type';
 
 export function normalizeSettings(settings: PluginSettings, logger?: LoggerPort): void {
+  logger?.debug('Normalizing settings...');
+
+  // Ensure vpsConfigs is an array
   if (!Array.isArray(settings.vpsConfigs)) {
     logger?.warn('settings.vpsConfigs was not an array, resetting.');
     settings.vpsConfigs = [];
   }
 
-  if (settings.vpsConfigs.length === 0) {
-    logger?.info('No VPS config found, creating default.');
-    settings.vpsConfigs.push(defaultVpsConfig());
+  // Apply domain invariants
+  try {
+    VpsConfigInvariants.validateMinimumVps(settings.vpsConfigs);
+  } catch (e) {
+    logger?.error('VPS invariant violation, creating default VPS', e);
+    settings.vpsConfigs = [createDefaultVps()];
   }
 
-  if (!Array.isArray(settings.folders)) {
-    logger?.warn('settings.folders was not an array, resetting.');
-    settings.folders = [];
-  }
+  // Validate each VPS
+  settings.vpsConfigs.forEach((vps, index) => {
+    try {
+      VpsConfigInvariants.validateMinimumFolders(vps);
+      VpsConfigInvariants.validateUniqueName(settings.vpsConfigs, vps.name, vps.id);
+      VpsConfigInvariants.validateUniqueUrl(settings.vpsConfigs, vps.baseUrl, vps.id);
+    } catch (e) {
+      logger?.error(`VPS #${index} validation failed`, e);
+      // Fix the VPS
+      if (!vps.folders || vps.folders.length === 0) {
+        vps.folders = [createDefaultFolder(vps.id)];
+      }
+    }
 
-  if (!Array.isArray(settings.ignoreRules)) {
-    logger?.info('No ignoreRules found, initializing empty array.');
-    settings.ignoreRules = [];
-  }
+    // Ensure arrays exist
+    if (!Array.isArray(vps.ignoreRules)) {
+      vps.ignoreRules = [];
+    }
+    if (!Array.isArray(vps.cleanupRules)) {
+      vps.cleanupRules = [];
+    }
+    if (!Array.isArray(vps.folders)) {
+      vps.folders = [createDefaultFolder(vps.id)];
+    }
+  });
 
+  // Normalize global settings
   if (!settings.assetsFolder) {
     logger?.info('No assetsFolder found, setting default "assets".');
     settings.assetsFolder = 'assets';
@@ -53,24 +77,28 @@ export function normalizeSettings(settings: PluginSettings, logger?: LoggerPort)
     settings.logLevel = DEFAULT_LOGGER_LEVEL;
   }
 
-  const availableVpsIds = new Set(settings.vpsConfigs.map((v) => v.id));
-  const fallbackVpsId = settings.vpsConfigs[0]?.id;
-
-  for (const folder of settings.folders) {
-    if (!folder.vpsId || !availableVpsIds.has(folder.vpsId)) {
-      if (fallbackVpsId) {
-        logger?.debug('Assigning fallback VPS to folder', { folderId: folder.id, fallbackVpsId });
-        folder.vpsId = fallbackVpsId;
-      }
-    }
-  }
+  logger?.debug('Settings normalized successfully');
 }
 
-function defaultVpsConfig(): VpsConfig {
+function createDefaultVps(): PluginSettings['vpsConfigs'][0] {
+  const vpsId = `vps-${Date.now()}`;
   return {
-    id: 'default',
+    id: vpsId,
     name: 'VPS',
-    url: '',
+    baseUrl: '',
     apiKey: '',
+    ignoreRules: [],
+    cleanupRules: [],
+    folders: [createDefaultFolder(vpsId)],
+  };
+}
+
+function createDefaultFolder(vpsId: string): PluginSettings['vpsConfigs'][0]['folders'][0] {
+  return {
+    id: `folder-${Date.now()}`,
+    vpsId,
+    vaultFolder: '',
+    routeBase: '/',
+    ignoredCleanupRuleIds: [],
   };
 }

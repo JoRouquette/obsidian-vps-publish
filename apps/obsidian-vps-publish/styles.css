@@ -319,3 +319,90 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* --- Styles pour les règles de nettoyage (cleanup rules) --- */
+
+.obsidian-vps-publish-settings .ptpv-cleanup-rule {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 2px solid var(--background-modifier-border);
+  background-color: var(--background-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+}
+
+.obsidian-vps-publish-settings .ptpv-cleanup-rule:hover {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Règles par défaut - Style distinctif */
+.obsidian-vps-publish-settings .ptpv-cleanup-rule-default {
+  background: linear-gradient(
+    135deg,
+    var(--background-secondary) 0%,
+    var(--background-primary) 100%
+  );
+  border-color: var(--interactive-accent);
+  border-left-width: 4px;
+  position: relative;
+}
+
+.obsidian-vps-publish-settings .ptpv-cleanup-rule-default::before {
+  content: '★';
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  font-size: 1.2rem;
+  color: var(--interactive-accent);
+  opacity: 0.5;
+}
+
+.obsidian-vps-publish-settings .ptpv-cleanup-rule-default:hover {
+  border-left-color: var(--interactive-accent-hover);
+}
+
+/* Règles personnalisées - Style plus léger */
+.obsidian-vps-publish-settings .ptpv-cleanup-rule:not(.ptpv-cleanup-rule-default) {
+  border-style: dashed;
+}
+
+/* Règle désactivée - Style atténué */
+.obsidian-vps-publish-settings .ptpv-cleanup-rule .ptpv-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Espacement entre les settings à l'intérieur des règles */
+.obsidian-vps-publish-settings .ptpv-cleanup-rule .setting-item {
+  padding: 0.5rem 0;
+  margin: 0;
+}
+
+.obsidian-vps-publish-settings .ptpv-cleanup-rule .setting-item:first-of-type {
+  padding-top: 0;
+}
+
+.obsidian-vps-publish-settings .ptpv-cleanup-rule .setting-item:last-of-type {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* Titre de la règle avec badge pour les règles par défaut */
+.obsidian-vps-publish-settings .ptpv-cleanup-rule-default .setting-item-name {
+  font-weight: 600;
+}
+
+/* Inputs désactivés dans les règles par défaut */
+.obsidian-vps-publish-settings .ptpv-cleanup-rule-default input[type='text']:disabled {
+  background-color: var(--background-modifier-form-field);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Séparateur visuel entre les règles */
+.obsidian-vps-publish-settings .ptpv-cleanup-rule + .ptpv-cleanup-rule {
+  margin-top: 1.5rem;
+}

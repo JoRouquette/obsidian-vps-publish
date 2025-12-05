@@ -1,7 +1,8 @@
-import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import type { NoteRoutingInfo } from '@core-domain/entities/note-routing-info';
+import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
-import { BaseService } from '../../common/base-service';
+
+import { type BaseService } from '../../common/base-service';
 
 export class ComputeRoutingService implements BaseService {
   private readonly _logger: LoggerPort;
@@ -52,8 +53,6 @@ export class ComputeRoutingService implements BaseService {
 
         const sluggedDirs = dirSegments.map(this.slugifySegment).filter(Boolean);
         const path = sluggedDirs.join('/');
-
-        const id = note.noteId;
 
         const parts = [routeBase || ''];
         if (path) {

@@ -1,6 +1,7 @@
-import { DetectAssetsService } from '../../vault-parsing/services/detect-assets.service';
-import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
+import type { LoggerPort } from '@core-domain/ports/logger-port';
+
+import { DetectAssetsService } from '../../vault-parsing/services/detect-assets.service';
 
 class NoopLogger implements LoggerPort {
   private _level: any = 0;
@@ -30,7 +31,13 @@ describe('DetectAssetsService', () => {
     relativePath: 'A.md',
     content: 'Image ![[img.png|center]] and pdf ![[doc.pdf]]',
     frontmatter: { flat: {}, nested: {}, tags: [] },
-    folderConfig: { id: 'f', vaultFolder: 'Vault', routeBase: '/blog', vpsId: 'vps' },
+    folderConfig: {
+      id: 'f',
+      vaultFolder: 'Vault',
+      routeBase: '/blog',
+      vpsId: 'vps',
+      ignoredCleanupRuleIds: [],
+    },
     publishedAt: new Date(),
     eligibility: { isPublishable: true },
     routing: { slug: '', path: '', routeBase: '', fullPath: '' },

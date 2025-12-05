@@ -1,6 +1,7 @@
+import { type PublishableNote } from '@core-domain';
+
+import { type UploadNotesCommand } from '../../../publishing/commands/upload-notes.command';
 import { UploadNotesHandler } from '../../../publishing/handlers/upload-notes.handler';
-import { UploadNotesCommand } from '../../../publishing/commands/upload-notes.command';
-import { PublishableNote } from '@core-domain';
 
 describe('UploadNotesHandler', () => {
   let markdownRenderer: any;
@@ -48,7 +49,7 @@ describe('UploadNotesHandler', () => {
         vaultFolder: 'notes',
         routeBase: '/notes',
         vpsId: 'vps-1',
-        sanitization: [],
+        ignoredCleanupRuleIds: [],
       },
       eligibility: { isPublishable: true },
       ...overrides,

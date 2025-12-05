@@ -1,7 +1,7 @@
+import { type LoggerPort } from '../../../ports/logger.port';
+import { type UploadAssetsCommand } from '../../../publishing/commands/upload-assets.command';
 import { UploadAssetsHandler } from '../../../publishing/handlers/upload-assets.handler';
-import { AssetStoragePort } from '../../../publishing/ports/assets-storage.port';
-import { LoggerPort } from '../../../ports/logger.port';
-import { UploadAssetsCommand } from '../../../publishing/commands/upload-assets.command';
+import { type AssetStoragePort } from '../../../publishing/ports/assets-storage.port';
 
 describe('UploadAssetsHandler', () => {
   let assetStorage: { upload: jest.Mock<any, any> } & jest.Mocked<AssetStoragePort>;

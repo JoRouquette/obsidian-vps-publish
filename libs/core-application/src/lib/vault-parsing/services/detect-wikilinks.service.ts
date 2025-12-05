@@ -1,7 +1,8 @@
-import { PublishableNote } from '@core-domain/entities';
+import { type PublishableNote } from '@core-domain/entities';
 import type { WikilinkKind, WikilinkRef } from '@core-domain/entities/wikilink-ref';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
-import { BaseService } from '../../common/base-service';
+
+import { type BaseService } from '../../common/base-service';
 import { extractFrontmatterStrings } from '../utils/frontmatter-strings.util';
 
 /**

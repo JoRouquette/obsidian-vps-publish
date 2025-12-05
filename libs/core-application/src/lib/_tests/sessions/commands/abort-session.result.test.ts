@@ -1,4 +1,4 @@
-import { AbortSessionResult } from '../../../sessions/commands/abort-session.result';
+import { type AbortSessionResult } from '../../../sessions/commands/abort-session.result';
 
 describe('AbortSessionResult', () => {
   it('should have a valid sessionId and success true', () => {

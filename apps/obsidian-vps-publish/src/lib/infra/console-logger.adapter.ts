@@ -1,4 +1,6 @@
-import { LoggerPort, LogLevel } from '@core-domain/ports/logger-port';
+/* eslint-disable no-console */
+import { type LoggerPort, LogLevel } from '@core-domain/ports/logger-port';
+
 import { DEFAULT_LOGGER_LEVEL } from '../constants/default-logger-level.constant';
 
 /*

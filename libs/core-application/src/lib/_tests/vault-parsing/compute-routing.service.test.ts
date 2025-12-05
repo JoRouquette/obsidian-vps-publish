@@ -1,6 +1,7 @@
-import { ComputeRoutingService } from '../../vault-parsing/services/compute-routing.service';
-import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
+import type { LoggerPort } from '@core-domain/ports/logger-port';
+
+import { ComputeRoutingService } from '../../vault-parsing/services/compute-routing.service';
 
 class NoopLogger implements LoggerPort {
   private _level: any = 0;
@@ -30,7 +31,13 @@ describe('ComputeRoutingService', () => {
     relativePath: 'Folder/Note.md',
     content: 'c',
     frontmatter: { flat: {}, nested: {}, tags: [] },
-    folderConfig: { id: 'f', vaultFolder: 'Vault', routeBase: '/blog', vpsId: 'vps' },
+    folderConfig: {
+      id: 'f',
+      vaultFolder: 'Vault',
+      routeBase: '/blog',
+      vpsId: 'vps',
+      ignoredCleanupRuleIds: [],
+    },
     publishedAt: new Date(),
     eligibility: { isPublishable: true },
     routing: { slug: '', path: '', routeBase: '', fullPath: '' },

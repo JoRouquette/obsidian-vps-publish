@@ -1,27 +1,25 @@
-const baseConfig = require('../../eslint.config.cjs');
-const tsParser = require('@typescript-eslint/parser');
-const tsPlugin = require('@typescript-eslint/eslint-plugin');
+const { baseConfigs, tsBaseConfig, tsTestConfig } = require('../../eslint.config.cjs');
 
 module.exports = [
-  ...baseConfig,
+  ...baseConfigs,
   {
+    ...tsBaseConfig,
     files: ['**/*.ts'],
     ignores: ['dist/**', 'jest.config.*', '**/*.spec.ts'],
     languageOptions: {
-      parser: tsParser,
+      ...tsBaseConfig.languageOptions,
       parserOptions: {
+        ...tsBaseConfig.languageOptions.parserOptions,
         tsconfigRootDir: __dirname,
         project: ['./tsconfig.lib.json', './tsconfig.spec.json'],
         sourceType: 'module',
       },
     },
-    plugins: {
-      '@typescript-eslint': tsPlugin,
-    },
     linterOptions: {
       reportUnusedDisableDirectives: 'error',
     },
     rules: {
+      ...tsBaseConfig.rules,
       'no-restricted-imports': [
         'error',
         {
@@ -63,6 +61,19 @@ module.exports = [
             'La config doit être injectée via des ports, pas lue directement depuis process.env.',
         },
       ],
+    },
+  },
+  {
+    ...tsTestConfig,
+    files: ['**/*.spec.ts', '**/*.test.ts'],
+    languageOptions: {
+      ...tsTestConfig.languageOptions,
+      parserOptions: {
+        ...tsTestConfig.languageOptions.parserOptions,
+        tsconfigRootDir: __dirname,
+        project: ['./tsconfig.spec.json'],
+        sourceType: 'module',
+      },
     },
   },
 ];

@@ -1,5 +1,6 @@
-import { QueryHandler } from '../../common/query-handler';
 import type { Manifest, ManifestPage } from '@core-domain';
+
+import { type QueryHandler } from '../../common/query-handler';
 
 export interface SearchPagesQuery {
   manifest: Manifest;

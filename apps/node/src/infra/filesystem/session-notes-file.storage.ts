@@ -1,8 +1,8 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { LoggerPort, SessionNotesStoragePort } from '@core-application';
-import { PublishableNote } from '@core-domain';
+import { type LoggerPort, type SessionNotesStoragePort } from '@core-application';
+import { type PublishableNote } from '@core-domain';
 
 export class SessionNotesFileStorage implements SessionNotesStoragePort {
   constructor(
@@ -60,8 +60,9 @@ export class SessionNotesFileStorage implements SessionNotesStoragePort {
       });
 
       return notes;
-    } catch (err: any) {
-      if (err?.code === 'ENOENT') {
+    } catch (err: unknown) {
+      const code = (err as { code?: string } | undefined)?.code;
+      if (code === 'ENOENT') {
         this.logger?.warn('No raw notes found for session', { sessionId, dir });
         return [];
       }

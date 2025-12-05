@@ -1,4 +1,5 @@
 import { Setting } from 'obsidian';
+
 import { FolderSuggest } from '../../suggesters/folder-suggester';
 import type { SettingsViewContext } from '../context';
 

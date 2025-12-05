@@ -1,8 +1,8 @@
-import { Inject, Injectable, computed, signal } from '@angular/core';
-import { ContentSearchIndex, ContentSearchIndexEntry } from '@core-domain';
+import { computed, Inject, Injectable, signal } from '@angular/core';
+import type { ContentSearchIndex, ContentSearchIndexEntry } from '@core-domain';
 
+import type { SearchIndexRepository } from '../../domain/ports/search-index-repository.port';
 import { SEARCH_INDEX_REPOSITORY } from '../../domain/ports/tokens';
-import { SearchIndexRepository } from '../../domain/ports/search-index-repository.port';
 
 export interface SearchResult {
   route: string;

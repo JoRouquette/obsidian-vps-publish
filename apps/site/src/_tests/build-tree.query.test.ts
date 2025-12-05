@@ -1,5 +1,5 @@
 import { BuildTreeHandler } from '@core-application';
-import { Manifest, Slug } from '@core-domain';
+import { type Manifest, Slug } from '@core-domain';
 
 const manifest: Manifest = {
   sessionId: 's',

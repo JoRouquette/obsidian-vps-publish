@@ -1,4 +1,5 @@
 import path from 'node:path';
+
 import { EnvConfig } from '../infra/config/env-config';
 
 const ORIGINAL_ENV = { ...process.env };

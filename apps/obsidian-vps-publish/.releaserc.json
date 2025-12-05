@@ -6,7 +6,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "node apps/obsidian-vps-publish/scripts/update-obsidian-version.mjs ${nextRelease.version}"
+        "prepareCmd": "node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const manifestPath=path.join(root,'manifest.json');const versionsPath=path.join(root,'apps','obsidian-vps-publish','versions.json');const manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'));manifest.version='${nextRelease.version}';fs.writeFileSync(manifestPath,JSON.stringify(manifest,null,2)+'\\n');let versions={};if(fs.existsSync(versionsPath))versions=JSON.parse(fs.readFileSync(versionsPath,'utf8'));if(manifest.minAppVersion){versions[manifest.version]=manifest.minAppVersion;fs.writeFileSync(versionsPath,JSON.stringify(versions,null,2)+'\\n');}}\""
       }
     ],
     [
@@ -15,7 +15,7 @@
         "assets": [
           "CHANGELOG.md",
           "package.json",
-          "apps/obsidian-vps-publish/manifest.json",
+          "manifest.json",
           "apps/obsidian-vps-publish/versions.json",
           "dist/vps-publish/**"
         ],

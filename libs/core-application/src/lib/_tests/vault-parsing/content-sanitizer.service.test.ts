@@ -1,6 +1,7 @@
-import { ContentSanitizerService } from '../../vault-parsing/services/content-sanitizer.service';
-import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
+import type { LoggerPort } from '@core-domain/ports/logger-port';
+
+import { ContentSanitizerService } from '../../vault-parsing/services/content-sanitizer.service';
 
 class NoopLogger implements LoggerPort {
   private _level: any = 0;
@@ -41,7 +42,13 @@ Body with ![[img.png]]`,
       nested: { publish: true, secret: 'keep', tags: ['public', 'private'] },
       tags: ['public', 'private'],
     },
-    folderConfig: { id: 'f', vaultFolder: 'Vault', routeBase: '/blog', vpsId: 'vps' },
+    folderConfig: {
+      id: 'f',
+      vaultFolder: 'Vault',
+      routeBase: '/blog',
+      vpsId: 'vps',
+      ignoredCleanupRuleIds: [],
+    },
     routing: { slug: '', path: '', routeBase: '', fullPath: '' },
     publishedAt: new Date(),
     eligibility: { isPublishable: true },

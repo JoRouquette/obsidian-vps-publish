@@ -1,4 +1,4 @@
-import { CommandHandler } from '../../common/command-handler';
+import { type CommandHandler } from '../../common/command-handler';
 
 describe('CommandHandler interface', () => {
   interface TestCommand {
@@ -12,7 +12,7 @@ describe('CommandHandler interface', () => {
   }
 
   class VoidHandler implements CommandHandler<TestCommand> {
-    async handle(command: TestCommand): Promise<void> {
+    async handle(_command: TestCommand): Promise<void> {
       // no-op
     }
   }

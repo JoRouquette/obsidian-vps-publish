@@ -23,13 +23,37 @@ type VpsTranslations = {
   title: string;
   nameLabel: string;
   nameDescription: string;
+  nameRequired: string;
+  nameDuplicate: string;
   urlLabel: string;
   urlDescription: string;
+  urlRequired: string;
+  urlDuplicate: string;
   apiKeyLabel: string;
   apiKeyDescription: string;
   help: string;
   addButton: string;
   deleteButton: string;
+  deleteLastForbidden: string;
+  actionsTitle: string;
+  actionsDescription: string;
+  uploadButton: string;
+  cleanupRulesTitle: string;
+  cleanupRulesDescription: string;
+  addCleanupRule: string;
+  deleteCleanupRule: string;
+  ruleNameLabel: string;
+  rulePatternLabel: string;
+  ruleReplacementLabel: string;
+  ruleEnabledLabel: string;
+  defaultRuleIndicator: string;
+};
+
+type CleanupRulesTranslations = {
+  removeCodeBlocks: {
+    name: string;
+    description: string;
+  };
 };
 
 type FoldersTranslations = {
@@ -44,6 +68,7 @@ type FoldersTranslations = {
   rulesHelp: string;
   vpsLabel: string;
   vpsDescription: string;
+  foldersLabel: string;
   sanitizationTitle: string;
   sanitizationHelp?: string;
   defaultSanitizationRuleBanner: string;
@@ -53,6 +78,8 @@ type FoldersTranslations = {
   rulePatternLabel: string;
   ruleReplacementLabel: string;
   ruleEnabledLabel: string;
+  ignoredCleanupRulesTitle: string;
+  ignoredCleanupRulesDescription: string;
 };
 
 type IgnoreRulesTranslations = {
@@ -67,6 +94,7 @@ type IgnoreRulesTranslations = {
   valueDescription: string;
   modeValues: string;
   modeBoolean: string;
+  rulesLabel: string;
   frontmatterKeysLabel: string;
   frontmatterKeysDescription: string;
   frontmatterKeysPlaceholder: string;
@@ -151,6 +179,7 @@ export type SettingsTranslations = {
   language: LanguageTranslations;
   vps: VpsTranslations;
   folders: FoldersTranslations;
+  cleanupRules: CleanupRulesTranslations;
   ignoreRules: IgnoreRulesTranslations;
   testConnection: TestConnectionTranslations;
   vault: VaultTranslations;
@@ -199,19 +228,37 @@ export const en: Translations = {
       title: 'VPS configuration',
       addButton: 'Add VPS',
       deleteButton: 'Delete VPS',
+      deleteLastForbidden: 'At least one VPS is required',
       nameLabel: 'Name',
       nameDescription: 'Internal name for this VPS.',
+      nameRequired: 'VPS name is required',
+      nameDuplicate: 'VPS name already exists',
       urlLabel: 'URL',
       urlDescription: 'Example: https://notes.mydomain.com',
+      urlRequired: 'VPS URL is required',
+      urlDuplicate: 'VPS URL already exists',
       apiKeyLabel: 'API key',
       apiKeyDescription: 'Key used to authenticate uploads.',
       help: 'HTTP requests to /api/upload will use this URL and API key.',
+      actionsTitle: 'Actions',
+      actionsDescription: 'Test connection or upload to this VPS',
+      uploadButton: 'Upload to this VPS',
+      cleanupRulesTitle: 'Content Cleanup Rules',
+      cleanupRulesDescription:
+        'Rules applied to clean content before publishing. Folders can opt-out of specific rules.',
+      addCleanupRule: 'Add cleanup rule',
+      deleteCleanupRule: 'Delete rule',
+      ruleNameLabel: 'Rule name',
+      rulePatternLabel: 'Pattern (regex)',
+      ruleReplacementLabel: 'Replacement',
+      ruleEnabledLabel: 'Enabled',
+      defaultRuleIndicator: 'Default rule (read-only)',
     },
     folders: {
       title: 'Folders to publish',
       addButton: 'Add folder',
       deleteButton: 'Delete folder',
-      deleteLastForbidden: 'At least one folder is required.',
+      deleteLastForbidden: 'At least one folder is required per VPS.',
       vaultLabel: 'Vault folder',
       vaultDescription: 'Example: Blog, Notes/Docs, etc.',
       routeLabel: 'Site route',
@@ -219,6 +266,7 @@ export const en: Translations = {
       rulesHelp: 'Notes whose frontmatter matches the ignore rules below will not be published.',
       vpsLabel: 'Target VPS',
       vpsDescription: 'Select which VPS configuration this folder publishes to.',
+      foldersLabel: 'Folders',
       sanitizationTitle: 'Sanitization rules',
       sanitizationHelp: 'Define regex-based rules applied to note content before publishing.',
       defaultSanitizationRuleBanner: 'Default rule (uneditable)',
@@ -228,6 +276,15 @@ export const en: Translations = {
       rulePatternLabel: 'Pattern (regex)',
       ruleReplacementLabel: 'Replacement',
       ruleEnabledLabel: 'Enabled',
+      ignoredCleanupRulesTitle: 'Ignored Cleanup Rules',
+      ignoredCleanupRulesDescription:
+        'Select which VPS cleanup rules should NOT be applied to this folder',
+    },
+    cleanupRules: {
+      removeCodeBlocks: {
+        name: 'Remove fenced code blocks',
+        description: 'Removes all code blocks (``` or ~~~) from the content before publishing',
+      },
     },
     ignoreRules: {
       title: 'Ignore rules',
@@ -241,6 +298,7 @@ export const en: Translations = {
       valueDescription: 'Comma-separated list of values to ignore for this property.',
       modeValues: 'Ignore specific values',
       modeBoolean: 'Ignore if equal (true/false)',
+      rulesLabel: 'Ignore Rules',
       frontmatterKeysLabel: 'Frontmatter keys to strip',
       frontmatterKeysDescription:
         'These frontmatter properties will be removed from notes before publishing.',
@@ -346,19 +404,37 @@ export const fr: Translations = {
       title: 'Configuration du VPS',
       addButton: 'Ajouter un VPS',
       deleteButton: 'Supprimer le VPS',
+      deleteLastForbidden: 'Au moins un VPS est requis',
       nameLabel: 'Nom',
       nameDescription: 'Nom interne pour ce VPS.',
+      nameRequired: 'Le nom du VPS est requis',
+      nameDuplicate: 'Ce nom de VPS existe déjà',
       urlLabel: 'URL',
       urlDescription: 'Ex : https://notes.mondomaine.fr',
+      urlRequired: "L'URL du VPS est requise",
+      urlDuplicate: 'Cette URL de VPS existe déjà',
       apiKeyLabel: 'Cle API',
       apiKeyDescription: 'Cle utilisee pour authentifier les envois.',
       help: 'Les requetes HTTP vers /api/upload utiliseront cette URL et cette cle.',
+      actionsTitle: 'Actions',
+      actionsDescription: 'Tester la connexion ou uploader vers ce VPS',
+      uploadButton: 'Uploader vers ce VPS',
+      cleanupRulesTitle: 'Règles de Nettoyage de Contenu',
+      cleanupRulesDescription:
+        'Règles appliquées pour nettoyer le contenu avant publication. Les dossiers peuvent ignorer certaines règles.',
+      addCleanupRule: 'Ajouter une règle de nettoyage',
+      deleteCleanupRule: 'Supprimer la règle',
+      ruleNameLabel: 'Nom de la règle',
+      rulePatternLabel: 'Motif (regex)',
+      ruleReplacementLabel: 'Remplacement',
+      ruleEnabledLabel: 'Activé',
+      defaultRuleIndicator: 'Règle par défaut (lecture seule)',
     },
     folders: {
       title: 'Dossiers a publier',
       addButton: 'Ajouter un dossier',
       deleteButton: 'Supprimer le dossier',
-      deleteLastForbidden: 'Au moins un dossier est requis.',
+      deleteLastForbidden: 'Au moins un dossier est requis par VPS.',
       vaultLabel: 'Dossier du vault',
       vaultDescription: 'Ex : Blog, Notes/Docs, etc.',
       routeLabel: 'Route du site',
@@ -376,6 +452,16 @@ export const fr: Translations = {
         'Les notes dont le frontmatter correspond aux regles ci-dessous ne seront pas publiees.',
       vpsLabel: 'VPS cible',
       vpsDescription: 'Choisissez la configuration VPS a utiliser pour ce dossier.',
+      foldersLabel: 'Dossiers',
+      ignoredCleanupRulesTitle: 'Règles de Nettoyage Ignorées',
+      ignoredCleanupRulesDescription:
+        'Sélectionnez les règles de nettoyage du VPS qui ne doivent PAS être appliquées à ce dossier',
+    },
+    cleanupRules: {
+      removeCodeBlocks: {
+        name: 'Supprimer les blocs de code',
+        description: 'Supprime tous les blocs de code (``` ou ~~~) du contenu avant publication',
+      },
     },
     ignoreRules: {
       title: "Regles d'ignorance",
@@ -391,6 +477,7 @@ export const fr: Translations = {
         'Liste de valeurs a ignorer pour cette propriete (separees par des virgules).',
       modeValues: 'Ignorer des valeurs specifiques',
       modeBoolean: 'Ignorer si egal (true/false)',
+      rulesLabel: "Règles d'Ignorance",
       frontmatterKeysLabel: 'Cles de frontmatter a supprimer',
       frontmatterKeysDescription:
         'Ces proprietes de frontmatter seront retirees des notes avant publication.',

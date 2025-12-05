@@ -1,12 +1,13 @@
-import { BaseService } from '../../common/base-service';
-import { LoggerPort } from '@core-domain';
-import { PublishableNote } from '@core-domain/entities/publishable-note';
-import { SanitizationRules } from '@core-domain/entities/sanitization-rules';
+import { type LoggerPort } from '@core-domain';
+import { type PublishableNote } from '@core-domain/entities/publishable-note';
+import { type SanitizationRules } from '@core-domain/entities/sanitization-rules';
 import { normalizePropertyKey } from '@core-domain/utils/string.utils';
+
+import { type BaseService } from '../../common/base-service';
 
 export class ContentSanitizerService implements BaseService {
   constructor(
-    private readonly sanitizationRules: SanitizationRules[] = [],
+    private readonly vpsCleanupRules: SanitizationRules[] = [],
     private readonly frontmatterKeysToExclude?: string[],
     private readonly frontmatterTagsToExclude?: string[],
     private readonly logger?: LoggerPort
@@ -84,11 +85,11 @@ export class ContentSanitizerService implements BaseService {
 
   private sanitizeContent(notes: PublishableNote[]): PublishableNote[] {
     return notes.map((note) => {
-      const rulesSource = Array.isArray(note.folderConfig?.sanitization)
-        ? note.folderConfig.sanitization
-        : this.sanitizationRules;
+      // Filter VPS cleanup rules: exclude those in folder's ignoredCleanupRuleIds
+      const ignoredIds = note.folderConfig?.ignoredCleanupRuleIds || [];
+      const applicableRules = this.vpsCleanupRules.filter((rule) => !ignoredIds.includes(rule.id));
 
-      const compiled = this.compileRules(rulesSource);
+      const compiled = this.compileRules(applicableRules);
       if (compiled.length === 0) {
         return note;
       }
@@ -96,9 +97,10 @@ export class ContentSanitizerService implements BaseService {
       let content = note.content;
       for (const rule of compiled) {
         content = content.replace(rule.regex, rule.replacement ?? '');
-        this.logger?.debug('Applied sanitization rule', {
+        this.logger?.debug('Applied cleanup rule', {
           noteId: note.noteId,
-          rule: rule.name,
+          ruleId: rule.id,
+          ruleName: rule.name,
         });
       }
 
@@ -106,17 +108,21 @@ export class ContentSanitizerService implements BaseService {
     });
   }
 
-  private compileRules(rules: SanitizationRules[]): Array<SanitizationRules & { regex: RegExp }> {
-    const compiled: Array<SanitizationRules & { regex: RegExp }> = [];
+  private compileRules(
+    rules: SanitizationRules[]
+  ): Array<Omit<SanitizationRules, 'regex'> & { regex: RegExp }> {
+    const compiled: Array<Omit<SanitizationRules, 'regex'> & { regex: RegExp }> = [];
 
     for (const rule of rules || []) {
       if (rule.isEnabled === false) continue;
       try {
-        const regex = rule.regex instanceof RegExp ? rule.regex : new RegExp(rule.regex, 'g');
+        // Use 'gm' flags: global + multiline to support line-based patterns like ^...$
+        const regex = new RegExp(rule.regex, 'gm');
         compiled.push({ ...rule, regex });
       } catch (error) {
-        this.logger?.warn('Failed to compile sanitization rule', {
-          rule,
+        this.logger?.warn('Failed to compile cleanup rule', {
+          ruleId: rule.id,
+          ruleName: rule.name,
           error,
         });
       }

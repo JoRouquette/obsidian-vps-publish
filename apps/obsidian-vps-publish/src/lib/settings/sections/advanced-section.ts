@@ -1,5 +1,7 @@
-import { App, Modal, Notice, Setting } from 'obsidian';
+/* eslint-disable @typescript-eslint/no-misused-promises */
 import { LogLevel } from '@core-domain/ports/logger-port';
+import { type App, Modal, Notice, Setting } from 'obsidian';
+
 import type { SettingsViewContext } from '../context';
 
 function logLevelToString(level: LogLevel): string {
@@ -53,12 +55,12 @@ export function renderAdvancedSection(root: HTMLElement, ctx: SettingsViewContex
           error: t.settings.advanced.logLevelError,
         })
         .setValue(logLevelToString(settings.logLevel))
-        .onChange(async (value) => {
+        .onChange((value) => {
           const level = stringToLogLevel(value);
           logger.debug('Log level changed', { level });
           settings.logLevel = level;
           logger.level = level;
-          await ctx.save();
+          void ctx.save();
         });
     });
 
@@ -69,14 +71,14 @@ export function renderAdvancedSection(root: HTMLElement, ctx: SettingsViewContex
       text
         .setPlaceholder(t.settings.advanced.calloutStylesPlaceholder)
         .setValue(settings.calloutStylePaths.join('\n'))
-        .onChange(async (value) => {
+        .onChange((value) => {
           const paths = value
             .split(/[\n,]/)
             .map((p) => p.trim())
             .filter(Boolean);
           settings.calloutStylePaths = paths;
           logger.debug('Callout style paths updated', { paths });
-          await ctx.save();
+          void ctx.save();
         });
 
       text.inputEl.style.minHeight = '80px';
@@ -120,59 +122,61 @@ function renderCleanupSetting(inner: HTMLElement, ctx: SettingsViewContext): voi
       btn.setDisabled(true);
     }
 
-    btn.onClick(async () => {
-      if (cleanupInProgress) return;
-      cleanupInProgress = true;
-      btn.setDisabled(true);
+    btn.onClick(() => {
+      void (async () => {
+        if (cleanupInProgress) return;
+        cleanupInProgress = true;
+        btn.setDisabled(true);
 
-      try {
-        const vpsConfigs = settings.vpsConfigs ?? [];
-        const target = vpsConfigs.find((vps) => vps.id === selectedVpsId) ?? vpsConfigs[0];
+        try {
+          const vpsConfigs = settings.vpsConfigs ?? [];
+          const target = vpsConfigs.find((vps) => vps.id === selectedVpsId) ?? vpsConfigs[0];
 
-        if (!target) {
-          new Notice(t.settings.advanced.cleanup.missingVps);
-          return;
+          if (!target) {
+            new Notice(t.settings.advanced.cleanup.missingVps);
+            return;
+          }
+
+          const targetName = (target.name ?? '').trim();
+          if (!targetName) {
+            new Notice(t.settings.advanced.cleanup.missingName);
+            return;
+          }
+
+          const firstCheck = await confirmDangerousAction(app, {
+            title: t.settings.advanced.cleanup.confirmTitle,
+            message: t.settings.advanced.cleanup.confirmDescription,
+            confirmText: t.settings.advanced.cleanup.confirmCta,
+            cancelText: t.settings.advanced.cleanup.cancel,
+          });
+
+          if (!firstCheck) return;
+
+          const typedName = await promptVpsName(app, {
+            title: t.settings.advanced.cleanup.secondTitle,
+            message: t.settings.advanced.cleanup.secondDescription.replace('{name}', targetName),
+            placeholder: t.settings.advanced.cleanup.secondPlaceholder,
+            confirmText: t.settings.advanced.cleanup.secondCta,
+            cancelText: t.settings.advanced.cleanup.cancel,
+          });
+
+          if (!typedName) return;
+
+          if (typedName !== targetName) {
+            new Notice(t.settings.advanced.cleanup.nameMismatch);
+            return;
+          }
+
+          await plugin.cleanupVps(target, typedName);
+          new Notice(t.settings.advanced.cleanup.success);
+        } catch (err) {
+          logger.error('VPS cleanup failed', err);
+          new Notice(t.settings.advanced.cleanup.error);
+        } finally {
+          cleanupInProgress = false;
+          btn.setDisabled(false);
         }
-
-        const targetName = (target.name ?? '').trim();
-        if (!targetName) {
-          new Notice(t.settings.advanced.cleanup.missingName);
-          return;
-        }
-
-        const firstCheck = await confirmDangerousAction(app, {
-          title: t.settings.advanced.cleanup.confirmTitle,
-          message: t.settings.advanced.cleanup.confirmDescription,
-          confirmText: t.settings.advanced.cleanup.confirmCta,
-          cancelText: t.settings.advanced.cleanup.cancel,
-        });
-
-        if (!firstCheck) return;
-
-        const typedName = await promptVpsName(app, {
-          title: t.settings.advanced.cleanup.secondTitle,
-          message: t.settings.advanced.cleanup.secondDescription.replace('{name}', targetName),
-          placeholder: t.settings.advanced.cleanup.secondPlaceholder,
-          confirmText: t.settings.advanced.cleanup.secondCta,
-          cancelText: t.settings.advanced.cleanup.cancel,
-        });
-
-        if (!typedName) return;
-
-        if (typedName !== targetName) {
-          new Notice(t.settings.advanced.cleanup.nameMismatch);
-          return;
-        }
-
-        await plugin.cleanupVps(target, typedName);
-        new Notice(t.settings.advanced.cleanup.success);
-      } catch (err) {
-        logger.error('VPS cleanup failed', err);
-        new Notice(t.settings.advanced.cleanup.error);
-      } finally {
-        cleanupInProgress = false;
-        btn.setDisabled(false);
-      }
+      })();
     });
   });
 }

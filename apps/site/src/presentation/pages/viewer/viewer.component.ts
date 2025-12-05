@@ -1,22 +1,23 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  effect,
   ElementRef,
   Inject,
-  OnDestroy,
-  ViewChild,
+  type OnDestroy,
   signal,
-  effect,
+  ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltip, MatTooltipModule } from '@angular/material/tooltip';
+import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { distinctUntilChanged, map, Subscription, switchMap } from 'rxjs';
+
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
 import { HttpContentRepository } from '../../../infrastructure/http/http-content.repository';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltip, MatTooltipModule } from '@angular/material/tooltip';
 
 @Component({
   standalone: true,
@@ -33,7 +34,7 @@ export class ViewerComponent implements OnDestroy {
   @ViewChild('tooltipTarget', { read: ElementRef }) tooltipTarget?: ElementRef<HTMLElement>;
 
   title = signal<string>('');
-  html = signal<SafeHtml>('Chargement...' as any);
+  html = signal<SafeHtml | null>(null);
   readonly tooltipMessage = 'Cette page arrive prochainement';
 
   private readonly sub = new Subscription();
@@ -45,6 +46,7 @@ export class ViewerComponent implements OnDestroy {
     private readonly sanitizer: DomSanitizer,
     private readonly catalog: CatalogFacade
   ) {
+    this.html.set(this.sanitizer.bypassSecurityTrustHtml('Chargement...'));
     const s = this.router.events
       .pipe(
         map(() => this.router.url.split('?')[0].split('#')[0]),
@@ -140,7 +142,7 @@ export class ViewerComponent implements OnDestroy {
     if (isExternal) return;
 
     event.preventDefault();
-    this.router.navigateByUrl(href);
+    void this.router.navigateByUrl(href);
   }
 
   private showTooltip(event: Event) {

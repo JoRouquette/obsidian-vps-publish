@@ -1,6 +1,5 @@
 import type { DomainFrontmatter } from './domain-frontmatter';
 import type { FolderConfig } from './folder-config';
-import type { VpsConfig } from './vps-config';
 
 /**
  * Noyau d'une note, commun à tous les usecases.

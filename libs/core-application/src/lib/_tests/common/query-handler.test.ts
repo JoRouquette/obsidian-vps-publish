@@ -1,4 +1,4 @@
-import { QueryHandler } from '../../common/query-handler';
+import { type QueryHandler } from '../../common/query-handler';
 
 describe('QueryHandler interface', () => {
   interface TestQuery {

@@ -1,8 +1,9 @@
 import { InjectionToken } from '@angular/core';
-import { ConfigRepository } from './config-repository.port';
-import { ContentRepository } from './content-repository.port';
-import { SearchIndexRepository } from './search-index-repository.port';
-import { ManifestRepository } from '@core-domain';
+import type { ManifestRepository } from '@core-domain';
+
+import type { ConfigRepository } from './config-repository.port';
+import type { ContentRepository } from './content-repository.port';
+import type { SearchIndexRepository } from './search-index-repository.port';
 
 export const MANIFEST_REPOSITORY = new InjectionToken<ManifestRepository>('MANIFEST_REPOSITORY');
 export const CONFIG_REPOSITORY = new InjectionToken<ConfigRepository>('CONFIG_REPOSITORY');

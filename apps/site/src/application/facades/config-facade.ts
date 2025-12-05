@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
+
+import type { PublicConfig } from '../../domain/ports/config-repository.port';
 import { HttpConfigRepository } from '../../infrastructure/http/http-config.repository';
-import { PublicConfig } from '../../domain/ports/config-repository.port';
 
 @Injectable({ providedIn: 'root' })
 export class ConfigFacade {

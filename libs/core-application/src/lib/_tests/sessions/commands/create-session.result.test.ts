@@ -1,4 +1,4 @@
-import { CreateSessionResult } from '../../../sessions/commands/create-session.result';
+import { type CreateSessionResult } from '../../../sessions/commands/create-session.result';
 
 describe('CreateSessionResult', () => {
   it('should have a sessionId of type string and success of type boolean', () => {

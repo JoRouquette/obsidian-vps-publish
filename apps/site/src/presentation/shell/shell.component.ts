@@ -1,7 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, OnInit, Type } from '@angular/core';
+import { Component, DestroyRef, type OnInit, type Type } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatIconModule } from '@angular/material/icon';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import type { ManifestPage } from '@core-domain';
+import { humanizePropertyKey } from '@core-domain/utils/string.utils';
 import { filter } from 'rxjs/operators';
 
 import { CatalogFacade } from '../../application/facades/catalog-facade';
@@ -10,8 +13,6 @@ import { SearchFacade } from '../../application/facades/search-facade';
 import { LogoComponent } from '../pages/logo/logo.component';
 import { TopbarComponent } from '../pages/topbar/topbar.component';
 import { ThemeService } from '../services/theme.service';
-import type { ManifestPage } from '@core-domain';
-import { MatIconModule } from '@angular/material/icon';
 
 type Crumb = { label: string; url: string };
 
@@ -48,21 +49,20 @@ export class ShellComponent implements OnInit {
   private readonly pageByRoute = new Map<string, ManifestPage>();
   vaultExplorerComponent: Type<unknown> | null = null;
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.theme.init();
-    this.config.ensure().then(() => {
-      this.catalog.ensureManifest().then(() => {
-        this.loadVaultExplorer();
-        this.hydrateManifestCache();
-        this.router.events
-          .pipe(
-            filter((e) => e instanceof NavigationEnd),
-            takeUntilDestroyed(this.destroyRef)
-          )
-          .subscribe(() => this.updateFromUrl());
+    void this.config.ensure().then(async () => {
+      await this.catalog.ensureManifest();
+      await this.loadVaultExplorer();
+      this.hydrateManifestCache();
+      this.router.events
+        .pipe(
+          filter((e) => e instanceof NavigationEnd),
+          takeUntilDestroyed(this.destroyRef)
+        )
+        .subscribe(() => this.updateFromUrl());
 
-        this.updateFromUrl();
-      });
+      this.updateFromUrl();
     });
   }
 
@@ -101,9 +101,10 @@ export class ShellComponent implements OnInit {
     this._crumbs = parts.map((seg, i) => {
       const partial = this.normalizeRoute('/' + parts.slice(0, i + 1).join('/'));
       const page = this.findPageForRoute(partial);
+      const decodedSeg = decodeURIComponent(seg);
       return {
         url: page?.route ?? partial,
-        label: page?.title ?? decodeURIComponent(seg),
+        label: page?.title ?? humanizePropertyKey(decodedSeg),
       };
     });
 

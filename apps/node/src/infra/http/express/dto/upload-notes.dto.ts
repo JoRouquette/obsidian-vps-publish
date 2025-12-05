@@ -51,7 +51,7 @@ export const FolderConfigDto = z.object({
   vaultFolder: z.string(),
   routeBase: z.string(),
   vpsId: z.string(),
-  sanitization: z.array(SanitizationRulesDto).optional(),
+  ignoredCleanupRuleIds: z.array(z.string()).default([]),
 });
 
 // DomainFrontmatter

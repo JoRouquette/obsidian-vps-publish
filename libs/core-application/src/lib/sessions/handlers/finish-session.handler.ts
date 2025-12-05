@@ -1,9 +1,10 @@
-import { CommandHandler } from '../../common/command-handler';
-import { LoggerPort } from '../../ports/logger.port';
-import { FinishSessionCommand } from '../commands/finish-session.command';
-import { FinishSessionResult } from '../commands/finish-session.result';
-import { SessionRepository } from '../ports/session.repository';
 import { SessionInvalidError, SessionNotFoundError } from '@core-domain';
+
+import { type CommandHandler } from '../../common/command-handler';
+import { type LoggerPort } from '../../ports/logger.port';
+import { type FinishSessionCommand } from '../commands/finish-session.command';
+import { type FinishSessionResult } from '../commands/finish-session.result';
+import { type SessionRepository } from '../ports/session.repository';
 
 export class FinishSessionHandler
   implements CommandHandler<FinishSessionCommand, FinishSessionResult>

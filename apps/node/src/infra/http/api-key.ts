@@ -1,10 +1,8 @@
-import type { Request, Response, NextFunction } from 'express';
-
-const mask = (s: string) => (s.length <= 6 ? '***' : `${s.slice(0, 3)}…${s.slice(-2)}`);
+import type { NextFunction, Request, Response } from 'express';
 
 export function createApiKeyMiddleware(expectedKey: string) {
   if (!expectedKey) {
-    console.warn('[auth] API key is empty at startup — server misconfigured');
+    console.warn('[auth] API key is empty at startup – server misconfigured');
   }
 
   return function apiKey(req: Request, res: Response, next: NextFunction) {

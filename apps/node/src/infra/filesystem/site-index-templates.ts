@@ -1,4 +1,4 @@
-import { ManifestPage } from '@core-domain';
+import { type ManifestPage } from '@core-domain';
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);

@@ -1,17 +1,19 @@
 import { CdkTreeModule } from '@angular/cdk/tree';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, signal, ViewChild, ElementRef, effect } from '@angular/core';
+import type { ElementRef, OnInit } from '@angular/core';
+import { Component, computed, effect, signal, ViewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatTooltip } from '@angular/material/tooltip';
 import { MatTreeModule } from '@angular/material/tree';
 import { RouterLink } from '@angular/router';
+import type { TreeNode } from '@core-application';
+import { BuildTreeHandler, defaultTreeNode } from '@core-application';
 
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
-import { MatTooltip } from '@angular/material/tooltip';
-import { BuildTreeHandler, defaultTreeNode, TreeNode } from '@core-application';
 import { SearchBarComponent } from '../search-bar/search-bar.component';
 
 @Component({
@@ -91,7 +93,7 @@ export class VaultExplorerComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.facade.ensureManifest().then(async () => {
+    void this.facade.ensureManifest().then(async () => {
       const m = this.facade.manifest();
       this.tree.set(m ? await this.buildTree.handle(m) : defaultTreeNode);
     });
@@ -125,7 +127,7 @@ export class VaultExplorerComponent implements OnInit {
 
   private markVisible(node: TreeNode, q: string): boolean {
     const label = (node.label || node.name).toLowerCase();
-    const tags = (node as any).tags as string[] | undefined;
+    const tags = node.tags ?? [];
     const tagsMatch = tags?.some((t) => t.toLowerCase().includes(q)) ?? false;
     const selfMatch = label.includes(q) || tagsMatch;
     this.matches.set(node, selfMatch);

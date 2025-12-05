@@ -4,6 +4,5 @@
     "types": ["obsidian", "jest", "node"],
     "esModuleInterop": true
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["**/*.spec.ts", "**/*.test.ts"]
+  "include": ["src/**/*.ts", "src/_tests/**/*.ts"]
 }

@@ -1,8 +1,7 @@
+import { type LoggerPort, type ManifestPort } from '@core-application';
+import { type Manifest, type ManifestPage } from '@core-domain';
 import { promises as fs } from 'fs';
 import * as path from 'path';
-
-import { LoggerPort, ManifestPort } from '@core-application';
-import { Manifest, ManifestPage } from '@core-domain';
 
 import { renderFolderIndex, renderRootIndex } from './site-index-templates';
 
@@ -19,19 +18,27 @@ export class ManifestFileSystem implements ManifestPort {
   async load(): Promise<Manifest | null> {
     try {
       const raw = await fs.readFile(this.manifestPath(), 'utf8');
-      const parsed = JSON.parse(raw) as any;
+      const parsed = JSON.parse(raw) as {
+        pages?: unknown;
+        sessionId?: string;
+        createdAt?: string;
+        lastUpdatedAt?: string;
+      };
 
       const pages: ManifestPage[] = Array.isArray(parsed.pages)
-        ? parsed.pages.map((p: any) => ({
-            ...p,
-            publishedAt: new Date(p.publishedAt),
-          }))
+        ? parsed.pages.map((p) => {
+            const page = p as ManifestPage & { publishedAt?: string | Date };
+            return {
+              ...page,
+              publishedAt: new Date(page.publishedAt ?? 0),
+            };
+          })
         : [];
 
       const manifest: Manifest = {
-        sessionId: parsed.sessionId,
-        createdAt: new Date(parsed.createdAt),
-        lastUpdatedAt: new Date(parsed.lastUpdatedAt),
+        sessionId: parsed.sessionId ?? '',
+        createdAt: new Date(parsed.createdAt ?? 0),
+        lastUpdatedAt: new Date(parsed.lastUpdatedAt ?? 0),
         pages,
       };
 
@@ -41,8 +48,9 @@ export class ManifestFileSystem implements ManifestPort {
       });
 
       return manifest;
-    } catch (error: any) {
-      if (error && error.code === 'ENOENT') {
+    } catch (error: unknown) {
+      const code = (error as { code?: string } | undefined)?.code;
+      if (code === 'ENOENT') {
         this._logger?.debug('No existing manifest found', { path: this.manifestPath() });
         return null;
       }

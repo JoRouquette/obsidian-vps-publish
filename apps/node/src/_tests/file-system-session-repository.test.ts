@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { Session, SessionNotFoundError, SessionStatus } from '@core-domain';
+import { type Session, SessionNotFoundError, type SessionStatus } from '@core-domain';
 
 import { FileSystemSessionRepository } from '../infra/filesystem/file-system-session.repository';
 

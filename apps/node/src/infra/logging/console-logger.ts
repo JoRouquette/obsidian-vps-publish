@@ -1,4 +1,4 @@
-import { LoggerPort, LogLevel } from '@core-domain';
+import { type LoggerPort, LogLevel } from '@core-domain';
 
 type ConsoleLevel = 'debug' | 'info' | 'warn' | 'error';
 type LogMeta = Record<string, unknown>;

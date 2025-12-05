@@ -1,6 +1,6 @@
-import { ApiRequestMapper, MappingResult } from '@core-domain/utils/mapper.util';
-import { LoggerPort } from '@core-domain/ports/logger-port';
-import { RequestUrlResponse } from 'obsidian';
+import { type LoggerPort } from '@core-domain/ports/logger-port';
+import { type ApiRequestMapper, type MappingResult } from '@core-domain/utils/mapper.util';
+import { type RequestUrlResponse } from 'obsidian';
 
 export class RequestUrlResponseMapper implements ApiRequestMapper<RequestUrlResponse> {
   private readonly _logger: LoggerPort;

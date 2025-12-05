@@ -1,9 +1,10 @@
 import { SessionInvalidError, SessionNotFoundError } from '@core-domain';
-import { CommandHandler } from '../../common/command-handler';
-import { LoggerPort } from '../../ports/logger.port';
-import { AbortSessionCommand } from '../commands/abort-session.command';
-import { AbortSessionResult } from '../commands/abort-session.result';
-import { SessionRepository } from '../ports/session.repository';
+
+import { type CommandHandler } from '../../common/command-handler';
+import { type LoggerPort } from '../../ports/logger.port';
+import { type AbortSessionCommand } from '../commands/abort-session.command';
+import { type AbortSessionResult } from '../commands/abort-session.result';
+import { type SessionRepository } from '../ports/session.repository';
 
 export class AbortSessionHandler
   implements CommandHandler<AbortSessionCommand, AbortSessionResult>

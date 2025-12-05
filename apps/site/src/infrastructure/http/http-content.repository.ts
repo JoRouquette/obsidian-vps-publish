@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { StringUtils } from '../../application/utils/string.utils';
 import { CONTENT_ROOT } from '../../domain/constants/content-root.constant';
-import { ContentRepository } from '../../domain/ports/content-repository.port';
+import type { ContentRepository } from '../../domain/ports/content-repository.port';
 
 @Injectable({ providedIn: 'root' })
 export class HttpContentRepository implements ContentRepository {

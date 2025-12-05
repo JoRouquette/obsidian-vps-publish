@@ -1,6 +1,6 @@
-import { CollectedNote, NoteEligibility, NoteRoutingInfo } from '@core-domain';
-import { Mapper } from '@core-domain/entities/mapper';
-import { PublishableNote } from '@core-domain/entities/publishable-note';
+import { type CollectedNote, type NoteEligibility, type NoteRoutingInfo } from '@core-domain';
+import { type Mapper } from '@core-domain/entities/mapper';
+import { type PublishableNote } from '@core-domain/entities/publishable-note';
 
 export class NotesMapper implements Mapper<CollectedNote, PublishableNote> {
   map(note: CollectedNote): PublishableNote {

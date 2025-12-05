@@ -1,7 +1,7 @@
 import {
-  AssetsIndexPort,
-  AssetsIndex,
-  AssetIndexEntry,
+  type AssetIndexEntry,
+  type AssetsIndex,
+  type AssetsIndexPort,
 } from '../../../publishing/ports/assets-index.port';
 
 describe('AssetsIndexPort', () => {

@@ -1,8 +1,10 @@
 import { provideHttpClient, withFetch } from '@angular/common/http';
-import { ANIMATION_MODULE_TYPE, ApplicationConfig } from '@angular/core';
+import type { ApplicationConfig } from '@angular/core';
+import { ANIMATION_MODULE_TYPE } from '@angular/core';
+import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
 import { provideRouter, withInMemoryScrolling } from '@angular/router';
-import { MATERIAL_ANIMATIONS } from '@angular/material/core';
+
 import {
   CONFIG_REPOSITORY,
   CONTENT_REPOSITORY,

@@ -1,6 +1,7 @@
-import MarkdownIt from 'markdown-it';
 import type { LoggerPort, MarkdownRendererPort } from '@core-application';
-import { AssetRef, PublishableNote, ResolvedWikilink } from '@core-domain';
+import { type AssetRef, type PublishableNote, type ResolvedWikilink } from '@core-domain';
+import MarkdownIt from 'markdown-it';
+
 import { CalloutRendererService } from './callout-renderer.service';
 
 export class MarkdownItRenderer implements MarkdownRendererPort {

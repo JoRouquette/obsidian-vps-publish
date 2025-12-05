@@ -1,5 +1,6 @@
-import { ManifestPort } from '../../../publishing/ports/manifest-storage.port';
-import { Manifest, Slug } from '@core-domain';
+import { type Manifest, Slug } from '@core-domain';
+
+import { type ManifestPort } from '../../../publishing/ports/manifest-storage.port';
 
 describe('ManifestPort', () => {
   let manifestPort: ManifestPort;

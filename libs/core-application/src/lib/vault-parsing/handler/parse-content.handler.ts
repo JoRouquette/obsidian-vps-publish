@@ -1,12 +1,18 @@
-import { CollectedNote, LoggerPort, Mapper, PublishableNote } from '@core-domain';
-import { CommandHandler } from '../../common/command-handler';
-import { NormalizeFrontmatterService } from '../services/normalize-frontmatter.service';
-import { EvaluateIgnoreRulesHandler } from './evaluate-ignore-rules.handler';
-import { RenderInlineDataviewService } from '../services/render-inline-dataview.service';
-import { ContentSanitizerService } from '../services/content-sanitizer.service';
-import { DetectAssetsService } from '../services/detect-assets.service';
-import { ResolveWikilinksService } from '../services/resolve-wikilinks.service';
-import { ComputeRoutingService } from '../services/compute-routing.service';
+import {
+  type CollectedNote,
+  type LoggerPort,
+  type Mapper,
+  type PublishableNote,
+} from '@core-domain';
+
+import { type CommandHandler } from '../../common/command-handler';
+import { type ComputeRoutingService } from '../services/compute-routing.service';
+import { type ContentSanitizerService } from '../services/content-sanitizer.service';
+import { type DetectAssetsService } from '../services/detect-assets.service';
+import { type NormalizeFrontmatterService } from '../services/normalize-frontmatter.service';
+import { type RenderInlineDataviewService } from '../services/render-inline-dataview.service';
+import { type ResolveWikilinksService } from '../services/resolve-wikilinks.service';
+import { type EvaluateIgnoreRulesHandler } from './evaluate-ignore-rules.handler';
 
 export class ParseContentHandler implements CommandHandler<CollectedNote[], PublishableNote[]> {
   constructor(

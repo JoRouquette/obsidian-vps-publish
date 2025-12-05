@@ -1,10 +1,11 @@
-import { CommandHandler } from '../../common/command-handler';
-import { IdGeneratorPort } from '../../ports/id-generator.port';
-import { LoggerPort } from '../../ports/logger.port';
-import { CreateSessionCommand } from '../commands/create-session.command';
-import { CreateSessionResult } from '../commands/create-session.result';
-import { SessionRepository } from '../ports/session.repository';
-import { Session } from '@core-domain';
+import { type Session } from '@core-domain';
+
+import { type CommandHandler } from '../../common/command-handler';
+import { type IdGeneratorPort } from '../../ports/id-generator.port';
+import { type LoggerPort } from '../../ports/logger.port';
+import { type CreateSessionCommand } from '../commands/create-session.command';
+import { type CreateSessionResult } from '../commands/create-session.result';
+import { type SessionRepository } from '../ports/session.repository';
 
 export class CreateSessionHandler
   implements CommandHandler<CreateSessionCommand, CreateSessionResult>

@@ -1,3 +1,6 @@
+const pluginManifest = require('./manifest.json');
+const PLUGIN_ID = pluginManifest.id;
+
 module.exports = {
   branches: [{ name: 'main' }],
   plugins: [
@@ -25,8 +28,12 @@ module.exports = {
     [
       '@semantic-release/exec',
       {
-        prepareCmd:
-          'RELEASE_VERSION=${nextRelease.version} node scripts/sync-version.mjs && node apps/obsidian-vps-publish/scripts/update-obsidian-version.mjs ${nextRelease.version} && npx nx run obsidian-vps-publish:build --skip-nx-cache && node apps/obsidian-vps-publish/scripts/package-plugin.mjs && cd dist && zip -r vps-publish.zip vps-publish',
+        prepareCmd: [
+          'RELEASE_VERSION=${nextRelease.version} node scripts/sync-version.mjs',
+          'npx nx run obsidian-vps-publish:build --skip-nx-cache',
+          'npm run package:plugin',
+          `cd dist && zip -r ${PLUGIN_ID}.zip ${PLUGIN_ID}`,
+        ].join(' && '),
       },
     ],
     [
@@ -38,8 +45,11 @@ module.exports = {
           'package-lock.json',
           'apps/site/src/version.ts',
           'apps/node/src/version.ts',
-          'apps/obsidian-vps-publish/manifest.json',
+          'manifest.json',
           'apps/obsidian-vps-publish/versions.json',
+          'apps/obsidian-vps-publish/package.json',
+          'libs/core-application/package.json',
+          'libs/core-domain/package.json',
         ],
         message: 'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
       },
@@ -47,9 +57,8 @@ module.exports = {
     [
       '@semantic-release/github',
       {
-        assets: [{ path: 'dist/vps-publish.zip', label: 'Plugin bundle' }],
+        assets: [{ path: `dist/${PLUGIN_ID}.zip`, label: 'Plugin bundle' }],
       },
     ],
-    ['@semantic-release/npm', { npmPublish: false }],
   ],
 };

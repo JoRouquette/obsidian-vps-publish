@@ -1,8 +1,8 @@
-import { Request, Response, Router } from 'express';
+import { type LoggerPort } from '@core-domain';
+/* eslint-disable @typescript-eslint/no-misused-promises */
+import { type Request, type Response, Router } from 'express';
 
-import { LoggerPort } from '@core-domain';
-
-import { StagingManager } from '../../../filesystem/staging-manager';
+import { type StagingManager } from '../../../filesystem/staging-manager';
 import { VpsCleanupBodyDto } from '../dto/vps-cleanup-body.dto';
 
 export function createMaintenanceController(

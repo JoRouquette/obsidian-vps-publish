@@ -92,6 +92,13 @@
         }
       }
     },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{workspaceRoot}/coverage/apps/node"],
+      "options": {
+        "lintFilePatterns": ["apps/node/**/*.ts"]
+      }
+    },
     "format": {
       "executor": "nx:run-commands",
       "options": {

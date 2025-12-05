@@ -1,7 +1,8 @@
-import { ResolveWikilinksService } from '../../vault-parsing/services/resolve-wikilinks.service';
-import { DetectWikilinksService } from '../../vault-parsing/services/detect-wikilinks.service';
-import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
+import type { LoggerPort } from '@core-domain/ports/logger-port';
+
+import { DetectWikilinksService } from '../../vault-parsing/services/detect-wikilinks.service';
+import { ResolveWikilinksService } from '../../vault-parsing/services/resolve-wikilinks.service';
 
 class NoopLogger implements LoggerPort {
   private _level: any = 0;
@@ -32,7 +33,13 @@ describe('ResolveWikilinksService', () => {
     relativePath: 'A.md',
     content: 'Link to [[B.md]]',
     frontmatter: { flat: {}, nested: {}, tags: [] },
-    folderConfig: { id: 'f', vaultFolder: 'Vault', routeBase: '/blog', vpsId: 'vps' },
+    folderConfig: {
+      id: 'f',
+      vaultFolder: 'Vault',
+      routeBase: '/blog',
+      vpsId: 'vps',
+      ignoredCleanupRuleIds: [],
+    },
     publishedAt: new Date(),
     eligibility: { isPublishable: true },
     routing: { slug: '', path: '', routeBase: '', fullPath: '' },

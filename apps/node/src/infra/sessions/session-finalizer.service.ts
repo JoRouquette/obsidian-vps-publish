@@ -3,35 +3,40 @@ import path from 'node:path';
 
 import {
   ComputeRoutingService,
+  type ContentStoragePort,
   DetectWikilinksService,
-  MarkdownRendererPort,
+  type ManifestPort,
+  type MarkdownRendererPort,
   ResolveWikilinksService,
+  type SessionNotesStoragePort,
   UploadNotesHandler,
 } from '@core-application';
-import { ContentStoragePort, ManifestPort, SessionNotesStoragePort } from '@core-application';
-import { LoggerPort } from '@core-domain';
+import { type LoggerPort, LogLevel } from '@core-domain';
 
-import { StagingManager } from '../filesystem/staging-manager';
+import { type StagingManager } from '../filesystem/staging-manager';
 import { ContentSearchIndexer } from '../search/content-search-indexer';
 
 type ContentStorageFactory = (sessionId: string) => ContentStoragePort;
 type ManifestStorageFactory = (sessionId: string) => ManifestPort;
 
 class NullLogger implements LoggerPort {
-  private _level: any = 0;
-  set level(level: any) {
+  private _level: LogLevel = LogLevel.info;
+  set level(level: LogLevel) {
     this._level = level;
   }
-  get level() {
+  get level(): LogLevel {
     return this._level;
   }
-  child(): LoggerPort {
+  child(_context: Record<string, unknown> = {}, level?: LogLevel): LoggerPort {
+    if (level !== undefined) {
+      this._level = level;
+    }
     return this;
   }
-  debug(): void {}
-  info(): void {}
-  warn(): void {}
-  error(): void {}
+  debug(_message: string, ..._args: unknown[]): void {}
+  info(_message: string, ..._args: unknown[]): void {}
+  warn(_message: string, ..._args: unknown[]): void {}
+  error(_message: string, ..._args: unknown[]): void {}
 }
 
 /**

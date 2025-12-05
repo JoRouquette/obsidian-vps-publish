@@ -1,5 +1,6 @@
-import { MarkdownRendererPort } from '../../ports/markdown-renderer.port';
-import { PublishableNote } from '@core-domain';
+import { type PublishableNote } from '@core-domain';
+
+import { type MarkdownRendererPort } from '../../ports/markdown-renderer.port';
 
 describe('MarkdownRendererPort', () => {
   let renderer: MarkdownRendererPort;
@@ -11,7 +12,13 @@ describe('MarkdownRendererPort', () => {
       relativePath: 'Note.md',
       content,
       frontmatter: { flat: {}, nested: {}, tags: [] },
-      folderConfig: { id: 'f', vaultFolder: 'Vault', routeBase: '/blog', vpsId: 'vps' },
+      folderConfig: {
+        id: 'f',
+        vaultFolder: 'Vault',
+        routeBase: '/blog',
+        vpsId: 'vps',
+        ignoredCleanupRuleIds: [],
+      },
       routing: { slug: 'note', path: '', routeBase: '/blog', fullPath: '/blog/note' },
       publishedAt: new Date(),
       eligibility: { isPublishable: true },

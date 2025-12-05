@@ -1,12 +1,23 @@
 import { promises as fs } from 'node:fs';
 
-import { SessionRepository } from '@core-application';
-import { Session, SessionNotFoundError } from '@core-domain';
+import { type SessionRepository } from '@core-application';
+import { type Session, SessionNotFoundError } from '@core-domain';
 
 import { resolveWithinRoot } from '../utils/path-utils.util';
 
 export class FileSystemSessionRepository implements SessionRepository {
   constructor(private readonly sessionRoot: string) {}
+
+  private toPersist(session: Session): Omit<Session, 'createdAt' | 'updatedAt'> & {
+    createdAt: string;
+    updatedAt: string;
+  } {
+    return {
+      ...session,
+      createdAt: session.createdAt.toISOString(),
+      updatedAt: session.updatedAt.toISOString(),
+    };
+  }
 
   /**
    * Construit le chemin absolu du fichier de session, en restant confiné
@@ -19,19 +30,15 @@ export class FileSystemSessionRepository implements SessionRepository {
   /**
    * Sérialise une Session vers un objet JSON safe (dates → ISO string).
    */
-  private serialize(session: Session): any {
-    return {
-      ...session,
-      createdAt: session.createdAt.toISOString(),
-      updatedAt: session.updatedAt.toISOString(),
-    };
+  private serialize(session: Session) {
+    return this.toPersist(session);
   }
 
   /**
    * Désérialise le JSON brut en Session, en recréant les Date.
    * (Tu peux ajouter plus de validation si nécessaire.)
    */
-  private deserialize(raw: any): Session {
+  private deserialize(raw: Session & { createdAt: string; updatedAt: string }): Session {
     return {
       ...raw,
       createdAt: new Date(raw.createdAt),
@@ -53,8 +60,9 @@ export class FileSystemSessionRepository implements SessionRepository {
     try {
       // 'wx' => écriture exclusive, échoue si le fichier existe déjà
       await fs.writeFile(filePath, payload, { flag: 'wx' });
-    } catch (err: any) {
-      if (err && err.code === 'EEXIST') {
+    } catch (err: unknown) {
+      const code = (err as { code?: string } | undefined)?.code;
+      if (code === 'EEXIST') {
         // À toi de voir : soit tu laisses l'erreur brute,
         // soit tu jettes un SessionInvalidError.
         throw err;
@@ -73,10 +81,11 @@ export class FileSystemSessionRepository implements SessionRepository {
 
     try {
       const raw = await fs.readFile(filePath, 'utf-8');
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(raw) as Session & { createdAt: string; updatedAt: string };
       return this.deserialize(parsed);
-    } catch (err: any) {
-      if (err && err.code === 'ENOENT') {
+    } catch (err: unknown) {
+      const code = (err as { code?: string } | undefined)?.code;
+      if (code === 'ENOENT') {
         return null;
       }
       throw err;
@@ -94,8 +103,9 @@ export class FileSystemSessionRepository implements SessionRepository {
     // Optionnel : vérifier que la session existe déjà
     try {
       await fs.access(filePath);
-    } catch (err: any) {
-      if (err && err.code === 'ENOENT') {
+    } catch (err: unknown) {
+      const code = (err as { code?: string } | undefined)?.code;
+      if (code === 'ENOENT') {
         // session inexistante → tu peux soit créer, soit jeter une SessionNotFoundError
         throw new SessionNotFoundError(session.id);
       }

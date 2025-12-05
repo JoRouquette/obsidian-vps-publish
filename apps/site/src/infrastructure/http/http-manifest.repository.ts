@@ -1,10 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import type { Manifest, ManifestRepository } from '@core-domain';
+import { defaultManifest } from '@core-domain';
 import { firstValueFrom } from 'rxjs';
 
 import { StringUtils } from '../../application/utils/string.utils';
 import { CONTENT_ROOT } from '../../domain/constants/content-root.constant';
-import { Manifest, ManifestRepository, defaultManifest } from '@core-domain';
 
 @Injectable({ providedIn: 'root' })
 export class HttpManifestRepository implements ManifestRepository {
@@ -40,8 +41,8 @@ export class HttpManifestRepository implements ManifestRepository {
       const normalized = this.normalize(raw);
       this.persist(normalized);
       return normalized;
-    } catch (error: any) {
-      const status = error?.status;
+    } catch (error: unknown) {
+      const status = (error as { status?: number } | undefined)?.status;
 
       // Si le manifest a disparu (cleanup), on invalide le cache et on retourne un manifest vide.
       if (status === 404 || status === 410) {
@@ -59,12 +60,17 @@ export class HttpManifestRepository implements ManifestRepository {
   }
 
   private normalize(input: Manifest): Manifest {
-    const coerceDate = (d: any) => (d instanceof Date ? d : new Date(d ?? 0));
+    const coerceDate = (d: string | number | Date | undefined | null) =>
+      d instanceof Date ? d : new Date(d ?? 0);
     return {
       ...input,
-      createdAt: coerceDate((input as any).createdAt),
-      lastUpdatedAt: coerceDate((input as any).lastUpdatedAt),
-      pages: Array.isArray(input.pages) ? input.pages.slice() : [],
+      createdAt: coerceDate((input as { createdAt?: string | number | Date | null }).createdAt),
+      lastUpdatedAt: coerceDate(
+        (input as { lastUpdatedAt?: string | number | Date | null }).lastUpdatedAt
+      ),
+      pages: Array.isArray((input as { pages?: Manifest['pages'] }).pages)
+        ? (input as { pages: Manifest['pages'] }).pages.slice()
+        : [],
     };
   }
 

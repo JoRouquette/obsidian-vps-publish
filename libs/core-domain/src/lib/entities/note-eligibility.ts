@@ -1,4 +1,4 @@
-import { NoteIgnoredByRule } from './note-ignored-by-rule';
+import type { NoteIgnoredByRule } from './note-ignored-by-rule';
 
 export interface NoteEligibility {
   isPublishable: boolean;

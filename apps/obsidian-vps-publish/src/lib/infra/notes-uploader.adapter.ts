@@ -1,9 +1,10 @@
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
-import type { UploaderPort } from '@core-domain/ports/uploader-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { ProgressPort } from '@core-domain/ports/progress-port';
+import type { UploaderPort } from '@core-domain/ports/uploader-port';
+
+import { type SessionApiClient } from '../services/session-api.client';
 import { batchByBytes } from '../utils/batch-by-bytes.util';
-import { SessionApiClient } from '../services/session-api.client';
 
 export class NotesUploaderAdapter implements UploaderPort {
   private readonly _logger: LoggerPort;

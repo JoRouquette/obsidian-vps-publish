@@ -24,14 +24,7 @@ describe('Note Entities', () => {
     vaultFolder: 'notes',
     routeBase: '/notes',
     vpsId: 'vps1',
-    sanitization: [
-      {
-        name: 'Remove fenced code blocks',
-        regex: '```[\\s\\S]*?```',
-        replacement: '',
-        isEnabled: true,
-      },
-    ],
+    ignoredCleanupRuleIds: [],
   };
 
   const assetDisplay: AssetDisplayOptions = {
@@ -93,8 +86,8 @@ describe('Note Entities', () => {
   it('should create a valid NoteCore object', () => {
     expect(noteCore.noteId).toBe('note1');
     expect(noteCore.frontmatter.tags).toContain('test');
-    expect(noteCore.folderConfig.sanitization?.[0].isEnabled).toBe(true);
     expect(noteCore.folderConfig.vpsId).toBe('vps1');
+    expect(noteCore.folderConfig.ignoredCleanupRuleIds).toEqual([]);
   });
 
   it('should create a valid PublishableNote', () => {
@@ -151,14 +144,15 @@ describe('Note Entities', () => {
     expect(minimalResolved.href).toBeUndefined();
   });
 
-  it('should support optional sanitization in FolderConfig', () => {
+  it('should support optional fields in FolderConfig', () => {
     const folder: FolderConfig = {
       id: 'folder2',
       vaultFolder: 'archive',
       routeBase: '/archive',
       vpsId: 'vps2',
+      ignoredCleanupRuleIds: [],
     };
-    expect(folder.sanitization).toBeUndefined();
+    expect(folder.ignoredCleanupRuleIds).toEqual([]);
   });
 
   it('should support different AssetRef kinds', () => {

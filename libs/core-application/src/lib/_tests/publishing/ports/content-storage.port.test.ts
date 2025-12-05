@@ -1,4 +1,4 @@
-import { ContentStoragePort } from '../../../publishing/ports/content-storage.port';
+import { type ContentStoragePort } from '../../../publishing/ports/content-storage.port';
 
 describe('ContentStoragePort', () => {
   let contentStorage: ContentStoragePort;

@@ -1,5 +1,5 @@
-import type { Request, Response, NextFunction } from 'express';
-import { LoggerPort } from '@core-application';
+import { type LoggerPort } from '@core-application';
+import type { NextFunction, Request, Response } from 'express';
 
 const norm = (s: string | undefined) => (s ?? '').replace(/^\uFEFF/, '').trim();
 const mask = (s: string) => (!s ? '∅' : s.length <= 6 ? '***' : `${s.slice(0, 3)}…${s.slice(-2)}`);

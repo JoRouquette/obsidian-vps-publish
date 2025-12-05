@@ -1,7 +1,10 @@
-import { AssetStoragePort } from '../ports/assets-storage.port';
-import { LoggerPort } from '../../ports/logger.port';
-import { UploadAssetsCommand, UploadAssetsResult } from '../commands/upload-assets.command';
-import { CommandHandler } from '../../common/command-handler';
+import { type CommandHandler } from '../../common/command-handler';
+import { type LoggerPort } from '../../ports/logger.port';
+import {
+  type UploadAssetsCommand,
+  type UploadAssetsResult,
+} from '../commands/upload-assets.command';
+import { type AssetStoragePort } from '../ports/assets-storage.port';
 
 type AssetStorageFactory = (sessionId: string) => AssetStoragePort;
 

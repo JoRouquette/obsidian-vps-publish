@@ -1,12 +1,16 @@
 import type { App } from 'obsidian';
+
 import { en, fr, type Locale, type Translations } from './locales';
+
+export type { Translations } from './locales';
 
 export type I18nSettings = {
   locale?: Locale | 'system';
 };
 
-export function detectSystemLocale(app: App): Locale {
-  const lang = (navigator as any).language || (navigator as any).userLanguage || 'en';
+export function detectSystemLocale(_app: App): Locale {
+  const nav = navigator as Navigator & { userLanguage?: string };
+  const lang = nav.language || nav.userLanguage || 'en';
 
   const lower = String(lang).toLowerCase();
   if (lower.startsWith('fr')) return 'fr';

@@ -1,5 +1,5 @@
-import { Notice } from 'obsidian';
 import type { ProgressPort } from '@core-domain/ports/progress-port';
+import { Notice } from 'obsidian';
 
 export class NoticeProgressAdapter implements ProgressPort {
   constructor(private readonly label = 'Publishing') {}
@@ -24,9 +24,8 @@ export class NoticeProgressAdapter implements ProgressPort {
 
   finish(): void {
     // Ferme la notice persistante si possible
-    try {
-      (this.notice as any)?.hide?.();
-    } catch {}
+    const closableNotice = this.notice as (Notice & { hide?: () => void }) | null;
+    closableNotice?.hide?.();
     this.notice = null;
 
     const completed = this.total === 0 || this.current >= this.total;
@@ -46,9 +45,11 @@ export class NoticeProgressAdapter implements ProgressPort {
 
     // Obsidian <=1.4 a setMessage ; on garde un fallback si absent
     const msg = this.format();
-    const n: any = this.notice;
-    if (n && typeof n.setMessage === 'function') {
-      n.setMessage(msg);
+    const noticeWithSetter = this.notice as
+      | (Notice & { setMessage?: (message: string) => void })
+      | null;
+    if (noticeWithSetter && typeof noticeWithSetter.setMessage === 'function') {
+      noticeWithSetter.setMessage(msg);
     } else {
       new Notice(msg, 1500);
     }

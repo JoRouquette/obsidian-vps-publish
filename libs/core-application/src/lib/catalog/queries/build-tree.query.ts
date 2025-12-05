@@ -1,5 +1,6 @@
-import { QueryHandler } from '../../common/query-handler';
 import type { Manifest } from '@core-domain';
+
+import { type QueryHandler } from '../../common/query-handler';
 
 export type NodeKind = 'folder' | 'file';
 

@@ -1,9 +1,8 @@
-import { PublishPluginSettings } from '@core-domain/entities';
-import { defaultIgnoreRules } from './default-ignore-rules.constant';
+import { type PublishPluginSettings } from '@core-domain/entities';
 
-export const defaultSettings: PublishPluginSettings & { locale?: any } = {
+export const defaultSettings: PublishPluginSettings & {
+  locale?: 'en' | 'fr' | 'system';
+} = {
   vpsConfigs: [],
-  folders: [],
   locale: 'system',
-  ignoreRules: defaultIgnoreRules,
 };

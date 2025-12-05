@@ -8,8 +8,7 @@ describe('createDefaultFolderConfig', () => {
     const cfg = createDefaultFolderConfig('vps-123');
 
     expect(cfg.vpsId).toBe('vps-123');
-    expect(cfg.sanitization?.[0].isEnabled).toBe(true);
-    expect(cfg.sanitization?.[0].regex).toContain('```');
+    expect(cfg.ignoredCleanupRuleIds).toEqual([]);
   });
 
   it('permet de surcharger les valeurs par défaut', () => {

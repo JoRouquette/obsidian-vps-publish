@@ -1,8 +1,8 @@
-import { requestUrl, RequestUrlResponse } from 'obsidian';
-import { HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
-import { HttpResponse } from '@core-domain/entities/http-response';
-import { LoggerPort } from '@core-domain/ports/logger-port';
-import { PublishableNote, VpsConfig } from '@core-domain';
+import { type HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
+import { type PublishableNote, type VpsConfig } from '@core-domain';
+import { type HttpResponse } from '@core-domain/entities/http-response';
+import { type LoggerPort } from '@core-domain/ports/logger-port';
+import { requestUrl, type RequestUrlResponse } from 'obsidian';
 
 export interface StartSessionResponse {
   sessionId: string;
@@ -24,7 +24,7 @@ export class SessionApiClient {
     return `${this.baseUrl.replace(/\/$/, '')}${path}`;
   }
 
-  private async postJson<TBody, TResult>(path: string, body: TBody): Promise<HttpResponse> {
+  private async postJson<TBody>(path: string, body: TBody): Promise<HttpResponse> {
     const url = this.buildUrl(path);
     const res = await requestUrl({
       url,

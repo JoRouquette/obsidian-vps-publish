@@ -1,10 +1,10 @@
 import { ConfigFacade } from '../application/facades/config-facade';
-import { PublicConfig } from '../domain/ports/config-repository.port';
+import type { ConfigRepository, PublicConfig } from '../domain/ports/config-repository.port';
 
 describe('ConfigFacade', () => {
   it('loads config only once', async () => {
     const cfg: PublicConfig = { siteName: 'Site', author: 'Me', repoUrl: '', reportIssuesUrl: '' };
-    const repo = { load: jest.fn().mockResolvedValue(cfg) } as any;
+    const repo: jest.Mocked<ConfigRepository> = { load: jest.fn().mockResolvedValue(cfg) };
 
     const facade = new ConfigFacade(repo);
     await facade.ensure();

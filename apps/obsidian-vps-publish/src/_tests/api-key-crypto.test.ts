@@ -1,5 +1,6 @@
-import { decryptApiKey, encryptApiKey } from '../lib/api-key-crypto';
 import { Buffer } from 'buffer';
+
+import { decryptApiKey, encryptApiKey } from '../lib/api-key-crypto';
 
 const b64 = {
   encode: (s: string) => Buffer.from(s, 'utf8').toString('base64'),

@@ -1,8 +1,9 @@
+import { type Session } from '@core-domain';
+
+import { type LoggerPort } from '../../../ports/logger.port';
+import { type AbortSessionCommand } from '../../../sessions/commands/abort-session.command';
 import { AbortSessionHandler } from '../../../sessions/handlers/abort-session.handler';
-import { AbortSessionCommand } from '../../../sessions/commands/abort-session.command';
-import { SessionRepository } from '../../../sessions/ports/session.repository';
-import { LoggerPort } from '../../../ports/logger.port';
-import { Session } from '@core-domain';
+import { type SessionRepository } from '../../../sessions/ports/session.repository';
 
 describe('AbortSessionHandler', () => {
   let sessionRepository: jest.Mocked<SessionRepository>;

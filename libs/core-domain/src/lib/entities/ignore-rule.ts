@@ -1,4 +1,4 @@
-import { IgnorePrimitive } from './ignore-primitive';
+import type { IgnorePrimitive } from './ignore-primitive';
 
 export class IgnoreRule {
   property: string;
