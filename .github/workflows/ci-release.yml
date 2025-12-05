@@ -251,6 +251,10 @@ jobs:
           name: Publish to VPS v${{ steps.manifest.outputs.version }}
           files: |
             dist/${{ steps.manifest.outputs.plugin_id }}.zip
+            dist/${{ steps.manifest.outputs.plugin_id }}/main.js
+            dist/${{ steps.manifest.outputs.plugin_id }}/manifest.json
+            dist/${{ steps.manifest.outputs.plugin_id }}/styles.css
+            dist/${{ steps.manifest.outputs.plugin_id }}/versions.json
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
