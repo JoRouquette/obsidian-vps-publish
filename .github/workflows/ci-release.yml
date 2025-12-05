@@ -220,6 +220,11 @@ jobs:
           echo "plugin_id=$PLUGIN_ID" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Create plugin bundle ZIP
+        run: |
+          cd dist
+          zip -r ${{ steps.manifest.outputs.plugin_id }}.zip ${{ steps.manifest.outputs.plugin_id }}
+
       - name: Get latest tag
         id: latest_tag
         run: |
@@ -245,10 +250,7 @@ jobs:
           tag_name: ${{ steps.manifest.outputs.version }}
           name: Publish to VPS v${{ steps.manifest.outputs.version }}
           files: |
-            dist/${{ steps.manifest.outputs.plugin_id }}/manifest.json
-            dist/${{ steps.manifest.outputs.plugin_id }}/versions.json
-            dist/${{ steps.manifest.outputs.plugin_id }}/main.js
-            dist/${{ steps.manifest.outputs.plugin_id }}/styles.css
+            dist/${{ steps.manifest.outputs.plugin_id }}.zip
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
