@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, type OnInit, type Type } from '@angular/core';
+import { Component, DestroyRef, type OnInit, signal, type Type } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import type { ManifestPage } from '@core-domain';
@@ -19,7 +20,14 @@ type Crumb = { label: string; url: string };
 @Component({
   standalone: true,
   selector: 'app-shell',
-  imports: [CommonModule, RouterOutlet, TopbarComponent, LogoComponent, MatIconModule],
+  imports: [
+    CommonModule,
+    RouterOutlet,
+    TopbarComponent,
+    LogoComponent,
+    MatIconModule,
+    MatButtonModule,
+  ],
   templateUrl: './shell.component.html',
   styleUrls: ['./shell.component.scss'],
 })
@@ -35,6 +43,7 @@ export class ShellComponent implements OnInit {
 
   currentYear = new Date().getFullYear();
   lastNonSearchUrl = '/';
+  isMenuOpen = signal(false);
 
   author = () => this.config.cfg()?.author ?? '';
   siteName = () => this.config.cfg()?.siteName ?? '';
@@ -60,7 +69,11 @@ export class ShellComponent implements OnInit {
           filter((e) => e instanceof NavigationEnd),
           takeUntilDestroyed(this.destroyRef)
         )
-        .subscribe(() => this.updateFromUrl());
+        .subscribe(() => {
+          this.updateFromUrl();
+          // Close menu only when navigating to a file (not a folder/index)
+          this.closeMenuIfNavigatingToFile();
+        });
 
       this.updateFromUrl();
     });
@@ -163,5 +176,26 @@ export class ShellComponent implements OnInit {
     if (this.vaultExplorerComponent) return;
     const mod = await import('../components/vault-explorer/vault-explorer.component');
     this.vaultExplorerComponent = mod.VaultExplorerComponent;
+  }
+
+  toggleMenu(): void {
+    this.isMenuOpen.update((v) => !v);
+  }
+
+  closeMenu(): void {
+    this.isMenuOpen.set(false);
+  }
+
+  private closeMenuIfNavigatingToFile(): void {
+    const url = this.router.url;
+    const cleanUrl = url.split('?')[0].replace(/\/+$/, '') || '/';
+
+    // Don't close menu for home, search, or index pages (folders)
+    if (cleanUrl === '/' || cleanUrl.startsWith('/search') || cleanUrl.endsWith('/index')) {
+      return;
+    }
+
+    // Close menu for actual file pages
+    this.closeMenu();
   }
 }

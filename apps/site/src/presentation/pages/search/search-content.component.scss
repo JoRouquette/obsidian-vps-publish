@@ -136,3 +136,141 @@
     }
   }
 }
+
+// Mobile: Reduce padding, adjust font sizes, ensure full-width single column
+@media (max-width: 768px) {
+  :host {
+    padding: 8px;
+  }
+
+  .search-page {
+    max-width: 100%;
+    gap: 12px;
+  }
+
+  .page-header {
+    padding: 8px 6px;
+
+    .eyebrow {
+      font-size: 0.8rem;
+    }
+
+    h1 {
+      font-size: clamp(1.15rem, 2.5vw, 1.4rem);
+    }
+
+    .hint {
+      font-size: 0.9rem;
+    }
+  }
+
+  .state {
+    padding: 8px 10px;
+    font-size: 0.9rem;
+
+    .mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  .results {
+    gap: 10px;
+  }
+
+  .result-card {
+    padding: 10px 12px;
+    border-radius: 10px;
+
+    h2 {
+      font-size: 1rem;
+      margin: 0 0 6px;
+    }
+
+    .matches {
+      gap: 6px;
+      padding-inline-start: 1rem;
+
+      li {
+        line-height: 1.35;
+      }
+
+      .sentence {
+        font-size: 0.9rem;
+      }
+
+      mark {
+        padding: 0 1px;
+      }
+    }
+  }
+}
+
+@media (max-width: 520px) {
+  :host {
+    padding: 6px;
+  }
+
+  .page-header {
+    h1 {
+      font-size: clamp(1.1rem, 2.2vw, 1.3rem);
+    }
+
+    .hint {
+      font-size: 0.85rem;
+    }
+  }
+
+  .result-card {
+    padding: 8px 10px;
+
+    h2 {
+      font-size: 0.95rem;
+    }
+
+    .matches .sentence {
+      font-size: 0.85rem;
+    }
+  }
+}
+
+// Extra small screens: ultra compact
+@media (max-width: 480px) {
+  :host {
+    padding: 4px;
+  }
+
+  .page-header {
+    padding: 6px 4px;
+
+    .eyebrow {
+      font-size: 0.75rem;
+    }
+
+    h1 {
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+    }
+
+    .hint {
+      font-size: 0.8rem;
+    }
+  }
+
+  .result-card {
+    padding: 6px 8px;
+
+    h2 {
+      font-size: 0.9rem;
+      margin: 0 0 4px;
+    }
+
+    .matches {
+      gap: 4px;
+
+      .sentence {
+        font-size: 0.8rem;
+      }
+    }
+  }
+}

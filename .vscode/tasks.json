@@ -109,22 +109,12 @@
       "problemMatcher": []
     },
     {
-      "label": "Merge current branch to release",
+      "label": "Merge current branch to main",
       "type": "shell",
       "command": "bash",
       "args": [
         "-c",
-        "CURRENT_BRANCH=$(git branch --show-current) && git checkout release && git pull origin release && git merge --no-ff $CURRENT_BRANCH && git push origin release"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "Merge release on main",
-      "type": "shell",
-      "command": "bash",
-      "args": [
-        "-c",
-        "git checkout main && git pull origin main && git merge --no-ff release && git push origin main"
+        "CURRENT_BRANCH=$(git branch --show-current) && git checkout main && git pull origin main && git merge --no-ff $CURRENT_BRANCH && git push origin main"
       ],
       "problemMatcher": []
     },

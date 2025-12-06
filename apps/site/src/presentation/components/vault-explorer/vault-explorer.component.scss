@@ -9,7 +9,7 @@
   --indent: 0.5em;
   --label-gap: 0.8em;
 
-  --bg-surface: var(--its-surface, var(--mat-sys-surface));
+  --bg-surface: var(--its-background, var(--mat-sys-surface));
   --on-surface: var(--its-on-surface, var(--mat-sys-on-surface));
   --primary: var(--its-primary, var(--mat-sys-primary));
   --secondary: var(--its-secondary, var(--mat-sys-secondary));
@@ -23,6 +23,10 @@
   block-size: 100%;
   min-block-size: 0;
   color: var(--on-surface);
+  background: var(--bg-surface);
+
+  // Better scrolling performance
+  overflow: hidden;
 
   a,
   a:visited,
@@ -49,8 +53,13 @@
   .tree-wrap {
     position: relative;
     flex: 1 1 auto;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding-bottom: 4px;
+
+    // Smooth scrolling
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
   }
 
   .empty-state {
@@ -214,5 +223,84 @@
 
   .hscroll .phantom {
     height: 1px;
+  }
+}
+
+// Mobile: Reduce padding, adjust font sizes for better readability
+@media (max-width: 768px) {
+  :host {
+    --row-h: 36px; // Larger touch targets
+    --icon: 18px; // Slightly larger icons for better visibility
+    --pad-x: 0.75em;
+    --label-gap: 0.6em;
+  }
+
+  .explorer {
+    .search {
+      margin: 6px;
+
+      input {
+        font-size: 16px; // Prevent zoom on iOS
+        height: 40px;
+      }
+    }
+
+    .sep {
+      margin: 0 6px 6px;
+    }
+
+    .tree {
+      padding: 0 4px 8px;
+    }
+  }
+
+  .label {
+    font-size: 0.95rem;
+  }
+
+  .folder .node-header {
+    min-height: 36px; // Better touch target
+    padding: 4px var(--pad-x);
+  }
+
+  .file .file-link {
+    min-height: 36px; // Better touch target
+    padding: 4px var(--pad-x);
+  }
+}
+
+@media (max-width: 520px) {
+  :host {
+    --row-h: 40px; // Even larger touch targets on small screens
+    --pad-x: 0.5em; // Reduce padding to fit more content
+  }
+
+  .label {
+    font-size: 0.9rem;
+  }
+}
+
+// Extra small screens: minimal spacing
+@media (max-width: 480px) {
+  :host {
+    --row-h: 38px;
+    --icon: 16px;
+    --pad-x: 0.4em;
+    --label-gap: 0.5em;
+  }
+
+  .explorer {
+    .search {
+      margin: 4px;
+
+      input {
+        font-size: 15px;
+        height: 38px;
+      }
+    }
+  }
+
+  .label {
+    font-size: 0.85rem;
   }
 }

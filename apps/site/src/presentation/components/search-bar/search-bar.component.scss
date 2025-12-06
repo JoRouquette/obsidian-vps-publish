@@ -67,3 +67,49 @@
     line-height: 1;
   }
 }
+
+// Mobile: Ensure inputs and buttons scale properly for touch
+@media (max-width: 768px) {
+  .search-field {
+    input {
+      font-size: 16px; // Prevent zoom on iOS
+      height: 40px; // Larger touch target
+      padding-block: 0.3rem;
+    }
+
+    .mat-mdc-form-field-icon-suffix,
+    .mat-mdc-form-field-suffix {
+      inline-size: 40px;
+      block-size: 40px;
+    }
+
+    .clear-btn {
+      --mdc-icon-button-state-layer-size: 36px;
+      --mat-icon-button-state-layer-size: 36px;
+      --mdc-icon-button-icon-size: 22px;
+    }
+  }
+}
+
+// Extra small screens: slightly smaller for very compact displays
+@media (max-width: 480px) {
+  .search-field {
+    input {
+      font-size: 15px;
+      height: 38px;
+      padding-block: 0.25rem;
+    }
+
+    .mat-mdc-form-field-icon-suffix,
+    .mat-mdc-form-field-suffix {
+      inline-size: 38px;
+      block-size: 38px;
+    }
+
+    .clear-btn {
+      --mdc-icon-button-state-layer-size: 34px;
+      --mat-icon-button-state-layer-size: 34px;
+      --mdc-icon-button-icon-size: 20px;
+    }
+  }
+}

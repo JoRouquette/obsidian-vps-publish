@@ -1,4 +1,15 @@
 <div class="grid">
+  <!-- Hamburger menu button (mobile only) -->
+  <button
+    class="hamburger-menu mat-elevation-z2"
+    mat-icon-button
+    (click)="toggleMenu()"
+    [attr.aria-label]="isMenuOpen() ? 'Fermer le menu' : 'Ouvrir le menu'"
+    [attr.aria-expanded]="isMenuOpen()"
+  >
+    <mat-icon>{{ isMenuOpen() ? 'close' : 'menu' }}</mat-icon>
+  </button>
+
   <div class="Logo">
     <app-logo></app-logo>
   </div>
@@ -18,7 +29,13 @@
     }
   </div>
 
-  <div class="vault-explorer">
+  <!-- Backdrop overlay for mobile menu -->
+  @if (isMenuOpen()) {
+    <div class="menu-backdrop" (click)="closeMenu()"></div>
+  }
+
+  <!-- Vault explorer with mobile overlay -->
+  <div class="vault-explorer" [class.open]="isMenuOpen()">
     <ng-container
       *ngIf="vaultExplorerComponent as explorer"
       [ngComponentOutlet]="explorer"

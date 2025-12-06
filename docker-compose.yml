@@ -1,5 +1,6 @@
 services:
   obsidian-vps-publish:
+    user: '1000:1000'
     container_name: obsidian-vps-publish
     image: obsidian-vps-publish:local
 

@@ -21,6 +21,30 @@ body {
   margin: 0;
   background: var(--its-background);
   color: var(--its-on-surface);
+  // Mobile: Improve text readability on small screens
+  font-size: 16px; // Prevent mobile browsers from zooming on input focus
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// Mobile: Prevent horizontal overflow
+html {
+  overflow-x: hidden;
+}
+
+// Mobile: Ensure tap targets are at least 44x44px for accessibility
+@media (max-width: 768px) {
+  button:not(.mat-mdc-icon-button),
+  a:not(.mat-mdc-button-base) {
+    min-height: 44px;
+  }
+
+  // Ensure icon buttons remain accessible
+  .mat-mdc-icon-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 .material-symbols-rounded {
@@ -38,4 +62,22 @@ body {
     'wght' 400,
     'GRAD' 0,
     'opsz' 24;
+}
+
+/* Images: Contraste automatique global selon le thème */
+:root.theme-dark img {
+  /* Améliorer la visibilité des images sombres en thème dark */
+  filter: brightness(1.12) contrast(1.03);
+}
+
+:root.theme-light img {
+  /* Légère optimisation pour thème light */
+  filter: brightness(0.99) contrast(1.01);
+}
+
+/* Exceptions: logos, icônes, images avec classe spécifique */
+img[alt*='logo' i],
+img[alt*='icon' i],
+img.no-auto-contrast {
+  filter: none !important;
 }

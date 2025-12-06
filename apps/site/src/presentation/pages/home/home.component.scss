@@ -387,7 +387,8 @@
     text-underline-offset: 0.08em;
   }
 
-  @media (max-width: 720px) {
+  // Mobile: Stack floating assets below 768px
+  @media (max-width: 768px) {
     .md-asset.align-left,
     .md-asset.align-right {
       float: none;
@@ -501,7 +502,241 @@
 }
 
 /* ======= Responsive ======= */
-@media (max-width: 900px) {
+// Mobile: Reduce padding and margins for small screens
+@media (max-width: 768px) {
+  .home {
+    --container-pad-inline: 8px;
+    padding-inline: var(--container-pad-inline);
+  }
+
+  .head {
+    flex-direction: column;
+    align-items: stretch;
+    margin-block: 8px 8px;
+  }
+
+  .title {
+    font-size: clamp(1.15rem, 1rem + 1.2vw, 1.5rem);
+  }
+
+  .sep {
+    margin: 8px 0 10px;
+  }
+
+  .content .markdown-body {
+    padding-inline: clamp(0.5rem, 2vw, 1rem);
+
+    h1 {
+      font-size: clamp(1.25rem, 1.7vw, 1.45rem);
+    }
+
+    h2 {
+      font-size: clamp(1.1rem, 1.4vw, 1.25rem);
+    }
+
+    p,
+    ul,
+    ol,
+    dl,
+    blockquote {
+      text-align: left; // Better for mobile reading
+    }
+
+    ul,
+    ol {
+      padding-inline-start: 1rem;
+    }
+
+    // Callouts: adjust for mobile
+    .callout {
+      margin: 0.8rem auto;
+      box-shadow: 0 6px 18px color-mix(in oklab, #000 4%, transparent);
+    }
+
+    .callout-title {
+      padding: 0.6rem 0.8rem;
+      gap: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .callout-content {
+      padding: 0.5rem 0.8rem 0.7rem;
+    }
+
+    .callout-icon {
+      min-inline-size: 1.5rem;
+      min-block-size: 1.5rem;
+      font-size: 1rem;
+    }
+
+    // Asset download buttons
+    .md-asset-download-btn {
+      padding: 0.5rem 0.75rem;
+      gap: 0.45rem;
+      font-size: 0.9rem;
+    }
+  }
+
+  // Mobile: Stack floating assets
+  .content .md-asset.align-left,
+  .content .md-asset.align-right {
+    float: none;
+    margin: 0.65rem auto;
+    shape-outside: none;
+  }
+
+  .content .md-asset.is-inline {
+    max-inline-size: 100%;
+  }
+
+  // Mobile: Tables full-width with horizontal scroll
+  .content table {
+    font-size: 0.88rem;
+
+    th,
+    td {
+      padding: 0.5rem 0.6rem;
+      font-size: 0.88rem;
+    }
+  }
+}
+
+// Small mobile: Additional optimizations
+@media (max-width: 520px) {
+  .home {
+    --container-pad-inline: 6px;
+  }
+
+  .title {
+    font-size: clamp(1.1rem, 1rem + 1vw, 1.35rem);
+  }
+
+  .content .markdown-body {
+    padding-inline: clamp(0.4rem, 1.5vw, 0.75rem);
+
+    h1 {
+      font-size: clamp(1.2rem, 1.5vw, 1.35rem);
+    }
+
+    h2 {
+      font-size: clamp(1.05rem, 1.3vw, 1.2rem);
+    }
+
+    .callout-title {
+      font-size: 0.9rem;
+      padding: 0.5rem 0.7rem;
+    }
+
+    .callout-icon {
+      min-inline-size: 1.4rem;
+      min-block-size: 1.4rem;
+      font-size: 0.95rem;
+    }
+
+    table {
+      font-size: 0.85rem;
+
+      th,
+      td {
+        padding: 0.4rem 0.5rem;
+        font-size: 0.85rem;
+      }
+    }
+  }
+}
+
+// Extra small mobile: Ultra compact for 320-480px
+@media (max-width: 480px) {
+  .home {
+    --container-pad-inline: 4px;
+  }
+
+  .head {
+    margin-block: 6px 6px;
+  }
+
+  .title {
+    font-size: clamp(1.05rem, 0.95rem + 1vw, 1.3rem);
+  }
+
+  .sep {
+    margin: 6px 0 8px;
+  }
+
+  .content .markdown-body {
+    padding-inline: clamp(0.3rem, 1vw, 0.6rem);
+    line-height: 1.5;
+
+    h1 {
+      font-size: clamp(1.15rem, 1.4vw, 1.3rem);
+      margin: 0.9rem 0 0.4rem;
+    }
+
+    h2 {
+      font-size: clamp(1rem, 1.2vw, 1.15rem);
+      margin: 0.8rem 0 0.4rem;
+    }
+
+    h3,
+    h4,
+    h5,
+    h6 {
+      font-size: 0.95rem;
+      margin: 0.7rem 0 0.3rem;
+    }
+
+    p {
+      margin: 0.4rem 0 0.6rem;
+      font-size: 0.95rem;
+    }
+
+    ul,
+    ol {
+      padding-inline-start: 0.85rem;
+      font-size: 0.95rem;
+    }
+
+    .callout {
+      margin: 0.7rem auto;
+    }
+
+    .callout-title {
+      font-size: 0.85rem;
+      padding: 0.45rem 0.6rem;
+      gap: 0.4rem;
+    }
+
+    .callout-content {
+      padding: 0.45rem 0.6rem 0.6rem;
+      font-size: 0.9rem;
+    }
+
+    .callout-icon {
+      min-inline-size: 1.3rem;
+      min-block-size: 1.3rem;
+      font-size: 0.9rem;
+    }
+
+    .md-asset-download-btn {
+      padding: 0.45rem 0.65rem;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+    }
+
+    table {
+      font-size: 0.8rem;
+      margin: 0.8rem auto;
+
+      th,
+      td {
+        padding: 0.35rem 0.45rem;
+        font-size: 0.8rem;
+      }
+    }
+  }
+}
+
+@media (max-width: 900px) and (min-width: 769px) {
   .head {
     flex-direction: column;
     align-items: stretch;
