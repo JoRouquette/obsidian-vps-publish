@@ -1,9 +1,9 @@
 import { ChunkedUploadService } from '@core-application/publishing/services/chunked-upload.service';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
+import type { GuidGeneratorPort } from '@core-domain/ports/guid-generator-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { ProgressPort } from '@core-domain/ports/progress-port';
 import type { UploaderPort } from '@core-domain/ports/uploader-port';
-import { nanoid } from 'nanoid';
 
 import { type SessionApiClient } from '../services/session-api.client';
 import { batchByBytes } from '../utils/batch-by-bytes.util';
@@ -18,6 +18,7 @@ export class NotesUploaderAdapter implements UploaderPort {
   constructor(
     private readonly sessionClient: SessionApiClient,
     private readonly sessionId: string,
+    private readonly guidGenerator: GuidGeneratorPort,
     logger: LoggerPort,
     private readonly maxBytesPerRequest: number,
     private readonly progress?: ProgressPort
@@ -71,7 +72,7 @@ export class NotesUploaderAdapter implements UploaderPort {
 
     for (const batch of batches) {
       // Use chunked upload for each batch
-      const uploadId = `notes-${this.sessionId}-${nanoid(10)}`;
+      const uploadId = `notes-${this.sessionId}-${this.guidGenerator.generateGuid()}`;
 
       this._logger.debug('Preparing chunked upload for batch', {
         uploadId,

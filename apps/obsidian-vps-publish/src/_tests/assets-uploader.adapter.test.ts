@@ -9,6 +9,11 @@ const makeLogger = () =>
     error: jest.fn(),
   }) as any;
 
+const makeGuidGenerator = () =>
+  ({
+    generateGuid: jest.fn().mockReturnValue('test-guid-123'),
+  }) as any;
+
 describe('AssetsUploaderAdapter', () => {
   const sessionClient = {
     uploadAssets: jest.fn(),
@@ -20,13 +25,25 @@ describe('AssetsUploaderAdapter', () => {
   });
 
   it('retourne false si aucun asset', async () => {
-    const adapter = new AssetsUploaderAdapter(sessionClient, 's1', makeLogger(), 1024);
+    const adapter = new AssetsUploaderAdapter(
+      sessionClient,
+      's1',
+      makeGuidGenerator(),
+      makeLogger(),
+      1024
+    );
     await expect(adapter.upload([])).resolves.toBe(false);
     expect(sessionClient.uploadAssets).not.toHaveBeenCalled();
   });
 
   it('upload en lots et encode en base64', async () => {
-    const adapter = new AssetsUploaderAdapter(sessionClient, 's1', makeLogger(), 200);
+    const adapter = new AssetsUploaderAdapter(
+      sessionClient,
+      's1',
+      makeGuidGenerator(),
+      makeLogger(),
+      200
+    );
     const asset = {
       relativeAssetPath: 'img/a.png',
       vaultPath: '/vault/img/a.png',
@@ -44,8 +61,14 @@ describe('AssetsUploaderAdapter', () => {
     expect(firstCall[1]).toHaveProperty('data');
   });
 
-  it('lève si un asset n’a pas de contenu', async () => {
-    const adapter = new AssetsUploaderAdapter(sessionClient, 's1', makeLogger(), 200);
+  it("lève si un asset n'a pas de contenu", async () => {
+    const adapter = new AssetsUploaderAdapter(
+      sessionClient,
+      's1',
+      makeGuidGenerator(),
+      makeLogger(),
+      200
+    );
     const bad = {
       relativeAssetPath: 'img/a.png',
       vaultPath: '/vault/img/a.png',

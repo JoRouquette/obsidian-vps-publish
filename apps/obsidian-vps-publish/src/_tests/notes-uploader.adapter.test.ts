@@ -9,6 +9,11 @@ const makeLogger = () =>
     error: jest.fn(),
   }) as any;
 
+const makeGuidGenerator = () =>
+  ({
+    generateGuid: jest.fn().mockReturnValue('test-guid-123'),
+  }) as any;
+
 describe('NotesUploaderAdapter', () => {
   const sessionClient = {
     uploadNotes: jest.fn(),
@@ -38,13 +43,25 @@ describe('NotesUploaderAdapter', () => {
   });
 
   it('retourne false si aucune note', async () => {
-    const adapter = new NotesUploaderAdapter(sessionClient, 's1', makeLogger(), 1000);
+    const adapter = new NotesUploaderAdapter(
+      sessionClient,
+      's1',
+      makeGuidGenerator(),
+      makeLogger(),
+      1000
+    );
     await expect(adapter.upload([] as any)).resolves.toBe(false);
     expect(sessionClient.uploadNotes).not.toHaveBeenCalled();
   });
 
   it('uploade les notes en batch', async () => {
-    const adapter = new NotesUploaderAdapter(sessionClient, 's1', makeLogger(), 10_000);
+    const adapter = new NotesUploaderAdapter(
+      sessionClient,
+      's1',
+      makeGuidGenerator(),
+      makeLogger(),
+      10_000
+    );
     await adapter.upload([sampleNote, sampleNote]);
     // Should upload via chunks
     expect(sessionClient.uploadChunk).toHaveBeenCalled();

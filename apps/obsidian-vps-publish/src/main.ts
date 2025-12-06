@@ -307,6 +307,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const notesUploader = new NotesUploaderAdapter(
         sessionClient,
         sessionId,
+        new GuidGeneratorAdapter(),
         this.logger,
         serverRequestLimit,
         progress ?? undefined
@@ -318,6 +319,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         const assetsUploader = new AssetsUploaderAdapter(
           sessionClient,
           sessionId,
+          new GuidGeneratorAdapter(),
           this.logger,
           serverRequestLimit,
           progress ?? undefined
