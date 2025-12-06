@@ -28,7 +28,11 @@ export class NotesFileSystemStorage implements ContentStoragePort {
         await fs.mkdir(dir, { recursive: true });
       }
       await fs.writeFile(filePath, params.content, 'utf8');
-      this.logger?.info('Saved HTML to file', { filePath, route: params.route, slug: params.slug });
+      this.logger?.debug('Saved HTML to file', {
+        filePath,
+        route: params.route,
+        slug: params.slug,
+      });
     } catch (error) {
       this.logger?.error('Failed to save HTML file', {
         error,

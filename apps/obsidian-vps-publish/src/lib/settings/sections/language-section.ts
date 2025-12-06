@@ -20,7 +20,7 @@ export function renderLanguageSection(root: HTMLElement, ctx: SettingsViewContex
         .setValue(settings.locale ?? 'system')
         .onChange((value) => {
           const nextLocale = value as SettingsViewContext['settings']['locale'] | 'system';
-          logger.info('Language changed', { locale: nextLocale });
+          logger.debug('Language changed', { locale: nextLocale });
           settings.locale = nextLocale;
           void ctx.save().then(() => ctx.refresh()); // re-render pour appliquer les nouvelles traductions
         });

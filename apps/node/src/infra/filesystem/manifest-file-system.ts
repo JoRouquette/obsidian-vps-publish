@@ -75,7 +75,7 @@ export class ManifestFileSystem implements ManifestPort {
       };
 
       await fs.writeFile(this.manifestPath(), JSON.stringify(serializable, null, 2), 'utf8');
-      this._logger?.info('Manifest saved', { path: this.manifestPath() });
+      this._logger?.debug('Manifest saved', { path: this.manifestPath() });
     } catch (error) {
       this._logger?.error('Failed to save manifest', { error });
       throw error;
@@ -83,7 +83,7 @@ export class ManifestFileSystem implements ManifestPort {
   }
 
   async rebuildIndex(manifest: Manifest): Promise<void> {
-    this._logger?.info('Rebuilding all indexes', { contentRoot: this.contentRoot });
+    this._logger?.debug('Rebuilding all indexes', { contentRoot: this.contentRoot });
     const folders = this.buildFolderMap(manifest);
 
     const topDirs = [...folders.keys()]
@@ -122,7 +122,7 @@ export class ManifestFileSystem implements ManifestPort {
         path: path.join(folderDir, 'index.html'),
       });
     }
-    this._logger?.info('All indexes rebuilt');
+    this._logger?.debug('All indexes rebuilt');
   }
 
   private buildFolderMap(

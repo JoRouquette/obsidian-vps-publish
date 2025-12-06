@@ -43,9 +43,9 @@ RUN apk add --no-cache wget
 
 WORKDIR /app
 
-# User non-root
-RUN addgroup -S nodegrp \
-    && adduser -S -D -h /app -G nodegrp nodeusr
+# User non-root avec UID/GID fixes pour compatibilité avec les volumes montés
+RUN addgroup -g 1000 nodegrp \
+    && adduser -u 1000 -S -D -h /app -G nodegrp nodeusr
 
 ################################
 #   INSTALL DEPENDANCES RUNTIME

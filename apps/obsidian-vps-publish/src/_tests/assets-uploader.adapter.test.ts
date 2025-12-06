@@ -1,5 +1,3 @@
-import { Buffer } from 'buffer';
-
 import { AssetsUploaderAdapter } from '../lib/infra/assets-uploader.adapter';
 
 const makeLogger = () =>
@@ -12,7 +10,10 @@ const makeLogger = () =>
   }) as any;
 
 describe('AssetsUploaderAdapter', () => {
-  const sessionClient = { uploadAssets: jest.fn() } as any;
+  const sessionClient = {
+    uploadAssets: jest.fn(),
+    uploadAssetChunk: jest.fn().mockResolvedValue(undefined),
+  } as any;
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -35,9 +36,12 @@ describe('AssetsUploaderAdapter', () => {
 
     await adapter.upload([asset, asset]);
 
-    expect(sessionClient.uploadAssets).toHaveBeenCalledTimes(2);
-    const payload = sessionClient.uploadAssets.mock.calls[0][1] as any[];
-    expect(payload[0].contentBase64).toBe(Buffer.from('data').toString('base64'));
+    // Should upload via chunks
+    expect(sessionClient.uploadAssetChunk).toHaveBeenCalled();
+    const firstCall = sessionClient.uploadAssetChunk.mock.calls[0];
+    expect(firstCall[0]).toBe('s1'); // sessionId
+    expect(firstCall[1]).toHaveProperty('metadata');
+    expect(firstCall[1]).toHaveProperty('data');
   });
 
   it('lève si un asset n’a pas de contenu', async () => {

@@ -49,7 +49,7 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
       text: t.settings.ignoreRules.addButton ?? 'Add ignore rule',
     });
     btnAddIgnoreRule.onclick = () => {
-      logger.info('Adding new ignore rule to VPS', { vpsId: vps.id });
+      logger.debug('Adding new ignore rule to VPS', { vpsId: vps.id });
       vps.ignoreRules.push({
         property: 'publish',
         ignoreIf: false,
@@ -248,7 +248,7 @@ function renderIgnoreRule(
     cls: 'mod-warning',
   });
   deleteBtn.onclick = () => {
-    logger.info('Ignore rule deleted', { vpsId: vps.id, ruleIndex: index });
+    logger.debug('Ignore rule deleted', { vpsId: vps.id, ruleIndex: index });
     vps.ignoreRules.splice(index, 1);
     void ctx.save().then(() => ctx.refresh());
   };

@@ -15,7 +15,7 @@ describe('CreateSessionHandler', () => {
     sessionRepository = { create: jest.fn() } as any;
     logger = {
       child: jest.fn().mockReturnThis(),
-      info: jest.fn(),
+      debug: jest.fn(),
     } as any;
     handler = new CreateSessionHandler(idGenerator, sessionRepository, logger);
   });
@@ -47,7 +47,7 @@ describe('CreateSessionHandler', () => {
     expect(result).toEqual({ sessionId: 'session-123', success: true });
     expect(logger.child).toHaveBeenCalledWith({ handler: 'CreateSessionHandler' });
     expect(logger.child).toHaveBeenCalledWith({ method: 'handle' });
-    expect(logger.info).toHaveBeenCalledWith('Session created', { sessionId: 'session-123' });
+    expect(logger.debug).toHaveBeenCalledWith('Session created', { sessionId: 'session-123' });
   });
 
   it('should handle missing logger gracefully', async () => {

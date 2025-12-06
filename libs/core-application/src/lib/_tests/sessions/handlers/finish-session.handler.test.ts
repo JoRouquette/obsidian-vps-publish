@@ -29,7 +29,7 @@ describe('FinishSessionHandler', () => {
     logger = {
       child: jest.fn().mockReturnThis(),
       warn: jest.fn(),
-      info: jest.fn(),
+      debug: jest.fn(),
     };
 
     handler = new FinishSessionHandler(sessionRepository, logger);
@@ -57,7 +57,7 @@ describe('FinishSessionHandler', () => {
       })
     );
     expect(result).toEqual({ sessionId: 'session-1', success: true });
-    expect(logger.info).toHaveBeenCalledWith('Session finished');
+    expect(logger.debug).toHaveBeenCalledWith('Session finished');
   });
 
   it('should throw SessionNotFoundError if session does not exist', async () => {

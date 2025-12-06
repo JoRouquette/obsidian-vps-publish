@@ -29,11 +29,11 @@ export class DetectAssetsService implements BaseService {
       const assets = [...contentAssets, ...frontmatterAssets];
 
       if (assets.length === 0) {
-        this._logger.info(`No assets detected in note "${note.title}"`);
+        this._logger.debug(`No assets detected in note "${note.title}"`);
         return note;
       }
 
-      this._logger.info(`Detected ${assets.length} asset(s) in note "${note.title}"`);
+      this._logger.debug(`Detected ${assets.length} asset(s) in note "${note.title}"`);
 
       return {
         ...note,

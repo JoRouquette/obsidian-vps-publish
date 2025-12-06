@@ -1,5 +1,6 @@
 import { type HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
 import { type PublishableNote, type VpsConfig } from '@core-domain';
+import { type ChunkedData } from '@core-domain/entities/chunked-data';
 import { type HttpResponse } from '@core-domain/entities/http-response';
 import { type LoggerPort } from '@core-domain/ports/logger-port';
 import { requestUrl, type RequestUrlResponse } from 'obsidian';
@@ -80,6 +81,41 @@ export class SessionApiClient {
     if (result.isError) throw result.error ?? new Error('uploadAssets failed');
   }
 
+  /**
+   * Upload a single chunk (used by ChunkedUploadService)
+   */
+  async uploadChunk(sessionId: string, chunk: ChunkedData): Promise<void> {
+    const result = await this.postJson(`/api/session/${sessionId}/notes/upload`, chunk);
+    if (result.isError) {
+      // Check if it's a 202 (chunk received, waiting for more)
+      if (result.text && result.text.includes('"status":"chunk_received"')) {
+        this.logger.debug('Chunk acknowledged by server', {
+          sessionId,
+          chunkIndex: chunk.metadata.chunkIndex,
+        });
+        return;
+      }
+      throw result.error ?? new Error('uploadChunk failed');
+    }
+  }
+
+  /**
+   * Upload asset chunk (used by ChunkedUploadService)
+   */
+  async uploadAssetChunk(sessionId: string, chunk: ChunkedData): Promise<void> {
+    const result = await this.postJson(`/api/session/${sessionId}/assets/upload`, chunk);
+    if (result.isError) {
+      if (result.text && result.text.includes('"status":"chunk_received"')) {
+        this.logger.debug('Asset chunk acknowledged by server', {
+          sessionId,
+          chunkIndex: chunk.metadata.chunkIndex,
+        });
+        return;
+      }
+      throw result.error ?? new Error('uploadAssetChunk failed');
+    }
+  }
+
   async finishSession(
     sessionId: string,
     payload: { notesProcessed: number; assetsProcessed: number }
@@ -96,7 +132,7 @@ export class SessionApiClient {
   async cleanupVps(targetName: string): Promise<void> {
     const result = await this.postJson('/api/maintenance/cleanup', { targetName });
     if (result.isError) throw result.error ?? new Error('cleanupVps failed');
-    this.logger.info('VPS cleanup completed', { targetName });
+    this.logger.debug('VPS cleanup completed', { targetName });
   }
 }
 

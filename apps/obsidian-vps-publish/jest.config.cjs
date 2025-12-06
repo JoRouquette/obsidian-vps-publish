@@ -14,5 +14,7 @@ module.exports = {
 
   moduleFileExtensions: ['ts', 'js', 'html'],
 
+  transformIgnorePatterns: ['node_modules/(?!(nanoid)/)'],
+
   coverageDirectory: '../../coverage/apps/obsidian-vps-publish',
 };

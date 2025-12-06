@@ -10,7 +10,10 @@ const makeLogger = () =>
   }) as any;
 
 describe('NotesUploaderAdapter', () => {
-  const sessionClient = { uploadNotes: jest.fn() } as any;
+  const sessionClient = {
+    uploadNotes: jest.fn(),
+    uploadChunk: jest.fn().mockResolvedValue(undefined),
+  } as any;
   const sampleNote = {
     noteId: 'n1',
     title: 't',
@@ -43,7 +46,11 @@ describe('NotesUploaderAdapter', () => {
   it('uploade les notes en batch', async () => {
     const adapter = new NotesUploaderAdapter(sessionClient, 's1', makeLogger(), 10_000);
     await adapter.upload([sampleNote, sampleNote]);
-    expect(sessionClient.uploadNotes).toHaveBeenCalledTimes(1);
-    expect(sessionClient.uploadNotes).toHaveBeenCalledWith('s1', expect.any(Array));
+    // Should upload via chunks
+    expect(sessionClient.uploadChunk).toHaveBeenCalled();
+    const firstCall = sessionClient.uploadChunk.mock.calls[0];
+    expect(firstCall[0]).toBe('s1'); // sessionId
+    expect(firstCall[1]).toHaveProperty('metadata');
+    expect(firstCall[1]).toHaveProperty('data');
   });
 });

@@ -27,7 +27,7 @@ export class AssetsFileSystemStorage implements AssetStoragePort {
     try {
       await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(fullPath, content);
-      this.logger?.info('Asset saved to filesystem', {
+      this.logger?.debug('Asset saved to filesystem', {
         relativeAssetPath,
         fullPath,
         size: content.length,

@@ -9,8 +9,6 @@ describe('LoggerPort', () => {
     const buildLogger = (context: LogMeta = {}): LoggerPort => ({
       debug: (message: string, ...args: any[]) =>
         logs.push({ level: 'debug', message, args, context }),
-      info: (message: string, ...args: any[]) =>
-        logs.push({ level: 'info', message, args, context }),
       warn: (message: string, ...args: any[]) =>
         logs.push({ level: 'warn', message, args, context }),
       error: (message: string, ...args: any[]) =>
@@ -27,9 +25,9 @@ describe('LoggerPort', () => {
   });
 
   it('should log info messages', () => {
-    logger.info('info message', { foo: 'bar' });
+    logger.debug('info message', { foo: 'bar' });
     expect(logs[0]).toMatchObject({
-      level: 'info',
+      level: 'debug',
       message: 'info message',
       args: [{ foo: 'bar' }],
     });
@@ -52,9 +50,9 @@ describe('LoggerPort', () => {
 
   it('should create a child logger with context', () => {
     const child = logger.child({ requestId: 'abc123' });
-    child.info('child info');
+    child.debug('child info');
     expect(logs[0]).toMatchObject({
-      level: 'info',
+      level: 'debug',
       message: 'child info',
       context: { requestId: 'abc123' },
     });
@@ -70,7 +68,7 @@ describe('LoggerPort', () => {
   });
 
   it('should support logging with no args', () => {
-    logger.info('no args');
+    logger.debug('no args');
     expect(logs[0].args).toEqual([]);
   });
 });

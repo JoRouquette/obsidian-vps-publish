@@ -71,7 +71,7 @@ export class RenderInlineDataviewService implements BaseService {
         }
       );
 
-      this._logger.info(`Rendered ${expressions.length} inline dataview expressions in note.`);
+      this._logger.debug(`Rendered ${expressions.length} inline dataview expressions in note.`);
 
       return {
         ...note,

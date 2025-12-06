@@ -56,7 +56,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     const errors: { noteId: string; message: string }[] = [];
     const succeeded: PublishableNote[] = [];
 
-    logger?.info(`Starting publishing of ${notes.length} notes`);
+    logger?.debug(`Starting publishing of ${notes.length} notes`);
 
     for (const note of notes) {
       const noteLogger = logger?.child({ noteId: note.noteId, slug: note.routing?.slug });
@@ -75,7 +75,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
 
         published++;
         succeeded.push(note);
-        noteLogger?.info('Note published successfully', { route: note.routing?.routeBase });
+        noteLogger?.debug('Note published successfully', { route: note.routing?.routeBase });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         errors.push({ noteId: note.noteId, message });
@@ -104,7 +104,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       await this.updateManifestForSession(sessionId, pages, manifestStorage, logger);
     }
 
-    logger?.info(`Publishing complete: ${published} notes published, ${errors.length} errors`);
+    logger?.debug(`Publishing complete: ${published} notes published, ${errors.length} errors`);
     if (errors.length > 0) {
       logger?.warn('Some notes failed to publish', { errors });
     }
@@ -125,7 +125,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
 
     // If manifest is missing or belongs to another session, start fresh
     if (!existing || existing.sessionId !== sessionId) {
-      logger?.info('Starting new manifest for session', { sessionId });
+      logger?.debug('Starting new manifest for session', { sessionId });
       manifest = {
         sessionId,
         createdAt: now,
@@ -154,7 +154,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
 
     await manifestStorage.save(manifest);
     await manifestStorage.rebuildIndex(manifest);
-    logger?.info('Site manifest and indexes updated', {
+    logger?.debug('Site manifest and indexes updated', {
       sessionId,
       pageCount: manifest.pages.length,
     });

@@ -37,7 +37,7 @@ export class AbortSessionHandler
 
     await this.sessionRepository.save(session);
 
-    logger?.info('Session aborted');
+    logger?.debug('Session aborted');
 
     return {
       sessionId: session.id,

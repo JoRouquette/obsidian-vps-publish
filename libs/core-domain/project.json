@@ -32,6 +32,14 @@
         "lintFilePatterns": ["libs/core-domain/**/*.ts"]
       }
     },
+    "lint:fix": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{workspaceRoot}/coverage/libs/core-domain"],
+      "options": {
+        "lintFilePatterns": ["libs/core-domain/**/*.ts"],
+        "fix": true
+      }
+    },
     "format": {
       "executor": "nx:run-commands",
       "options": {

@@ -42,7 +42,7 @@ export class ContentSearchIndexer {
     const target = path.join(this.contentRoot, '_search-index.json');
     await fs.mkdir(path.dirname(target), { recursive: true });
     await fs.writeFile(target, JSON.stringify(index, null, 2), 'utf8');
-    this.logger?.info?.('Content search index built', {
+    this.logger?.debug?.('Content search index built', {
       target,
       entries: entries.length,
       sessionId: manifest.sessionId,

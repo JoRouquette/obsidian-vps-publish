@@ -66,7 +66,7 @@ export class SessionFinalizerService {
       return;
     }
 
-    log.info('Rebuilding session content from stored notes', { count: rawNotes.length });
+    log.debug('Rebuilding session content from stored notes', { count: rawNotes.length });
 
     const detect = new DetectWikilinksService(this.logger);
     const resolve = new ResolveWikilinksService(this.logger, detect);
@@ -90,7 +90,7 @@ export class SessionFinalizerService {
     await this.rebuildContentSearchIndex(sessionId);
 
     await this.notesStorage.clear(sessionId);
-    log.info('Session rebuild complete');
+    log.debug('Session rebuild complete');
   }
 
   private async resetContentStage(contentStage: string, log: LoggerPort) {
@@ -117,7 +117,7 @@ export class SessionFinalizerService {
         this.logger
       );
       await indexer.build(manifest);
-      this.logger.info('Content search index rebuilt', { sessionId });
+      this.logger.debug('Content search index rebuilt', { sessionId });
     } catch (error) {
       this.logger.warn('Failed to rebuild content search index', { sessionId, error });
     }

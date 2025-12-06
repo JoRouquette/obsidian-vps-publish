@@ -69,13 +69,13 @@ export function createSessionController(
     try {
       if (calloutStyles?.length) {
         calloutRenderer.extendFromStyles(calloutStyles);
-        routeLogger?.info('Custom callout styles registered', {
+        routeLogger?.debug('Custom callout styles registered', {
           count: calloutStyles.length,
         });
       }
 
       const result = await createSessionHandler.handle(command);
-      routeLogger?.info('Session created', { sessionId: result.sessionId });
+      routeLogger?.debug('Session created', { sessionId: result.sessionId });
 
       return res.status(201).json({
         sessionId: result.sessionId,
@@ -108,14 +108,14 @@ export function createSessionController(
     };
 
     try {
-      routeLogger?.info('Publishing notes batch', {
+      routeLogger?.debug('Publishing notes batch', {
         sessionId: command.sessionId,
         count: command.notes.length,
       });
 
       const result = await notePublicationHandler.handle(command);
 
-      routeLogger?.info('Notes published for session', {
+      routeLogger?.debug('Notes published for session', {
         sessionId: result.sessionId,
         published: result.published,
         errorsCount: result.errors?.length,
@@ -152,7 +152,7 @@ export function createSessionController(
     };
 
     try {
-      routeLogger?.info('Publishing assets batch', {
+      routeLogger?.debug('Publishing assets batch', {
         sessionId: req.params.sessionId,
         count: parsed.data.assets.length,
       });
@@ -191,15 +191,15 @@ export function createSessionController(
 
     try {
       const result = await finishSessionHandler.handle(command);
-      routeLogger?.info('Session finished', { sessionId: result.sessionId });
+      routeLogger?.debug('Session finished', { sessionId: result.sessionId });
 
       await sessionFinalizer.rebuildFromStored(req.params.sessionId);
-      routeLogger?.info('Session content rebuilt from full batch', {
+      routeLogger?.debug('Session content rebuilt from full batch', {
         sessionId: req.params.sessionId,
       });
 
       await stagingManager.promoteSession(req.params.sessionId);
-      routeLogger?.info('Staging promoted to production', { sessionId: req.params.sessionId });
+      routeLogger?.debug('Staging promoted to production', { sessionId: req.params.sessionId });
 
       return res.status(200).json(result);
     } catch (err) {
@@ -230,7 +230,7 @@ export function createSessionController(
 
     try {
       const result = await abortSessionHandler.handle(command);
-      routeLogger?.info('Session aborted', { sessionId: result.sessionId });
+      routeLogger?.debug('Session aborted', { sessionId: result.sessionId });
 
       await stagingManager.discardSession(req.params.sessionId);
 

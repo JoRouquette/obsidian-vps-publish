@@ -14,11 +14,11 @@ import type { SettingsViewContext } from '../context';
  */
 function getNestedTranslation(t: Translations, key: string): string | undefined {
   const parts = key.split('.');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let current: any = t;
+  // Type-safe traversal of translation object structure
+  let current: unknown = t;
   for (const part of parts) {
-    if (current && typeof current === 'object' && part in current) {
-      current = current[part];
+    if (current && typeof current === 'object' && current !== null && part in current) {
+      current = (current as Record<string, unknown>)[part];
     } else {
       return undefined;
     }
@@ -60,7 +60,7 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
             new Notice(t.settings.vps.deleteLastForbidden ?? 'At least one VPS is required');
             return;
           }
-          logger.info('VPS config deleted', { index, vpsId: vps.id });
+          logger.debug('VPS config deleted', { index, vpsId: vps.id });
           settings.vpsConfigs.splice(index, 1);
           await ctx.save();
           ctx.refresh();
@@ -206,7 +206,7 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
         },
       ],
     };
-    logger.info('Adding new VPS config', { id: newVps.id });
+    logger.debug('Adding new VPS config', { id: newVps.id });
     settings.vpsConfigs.push(newVps);
     await ctx.save();
     ctx.refresh();
@@ -233,9 +233,9 @@ function renderVpsActions(container: HTMLElement, vps: VpsConfig, ctx: SettingsV
   });
   testBtn.onclick = async () => {
     try {
-      logger.info('Testing VPS connection', { vpsId: vps.id, vpsName: vps.name });
+      logger.debug('Testing VPS connection', { vpsId: vps.id, vpsName: vps.name });
       await ctx.plugin.testConnectionForVps(vps);
-      logger.info('VPS connection test succeeded', { vpsId: vps.id });
+      logger.debug('VPS connection test succeeded', { vpsId: vps.id });
     } catch (e) {
       logger.error('VPS connection test failed', { vpsId: vps.id, error: e });
     }
@@ -248,9 +248,9 @@ function renderVpsActions(container: HTMLElement, vps: VpsConfig, ctx: SettingsV
   uploadBtn.addClass('mod-cta');
   uploadBtn.onclick = async () => {
     try {
-      logger.info('Starting upload to VPS', { vpsId: vps.id, vpsName: vps.name });
+      logger.debug('Starting upload to VPS', { vpsId: vps.id, vpsName: vps.name });
       await ctx.plugin.uploadToVps(vps);
-      logger.info('Upload to VPS succeeded', { vpsId: vps.id });
+      logger.debug('Upload to VPS succeeded', { vpsId: vps.id });
     } catch (e) {
       logger.error('Upload to VPS failed', { vpsId: vps.id, error: e });
     }

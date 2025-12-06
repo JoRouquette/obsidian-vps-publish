@@ -49,27 +49,27 @@ export function normalizeSettings(settings: PluginSettings, logger?: LoggerPort)
 
   // Normalize global settings
   if (!settings.assetsFolder) {
-    logger?.info('No assetsFolder found, setting default "assets".');
+    logger?.debug('No assetsFolder found, setting default "assets".');
     settings.assetsFolder = 'assets';
   }
 
   if (!Array.isArray(settings.frontmatterKeysToExclude)) {
-    logger?.info('frontmatterKeysToExclude not set, defaulting to empty array.');
+    logger?.debug('frontmatterKeysToExclude not set, defaulting to empty array.');
     settings.frontmatterKeysToExclude = [];
   }
 
   if (!Array.isArray(settings.frontmatterTagsToExclude)) {
-    logger?.info('frontmatterTagsToExclude not set, defaulting to empty array.');
+    logger?.debug('frontmatterTagsToExclude not set, defaulting to empty array.');
     settings.frontmatterTagsToExclude = [];
   }
 
   if (settings.enableAssetsVaultFallback == null) {
-    logger?.info('enableAssetsVaultFallback not set, defaulting to true.');
+    logger?.debug('enableAssetsVaultFallback not set, defaulting to true.');
     settings.enableAssetsVaultFallback = true;
   }
 
   if (!Array.isArray(settings.calloutStylePaths)) {
-    logger?.info('calloutStylePaths not set, defaulting to empty array.');
+    logger?.debug('calloutStylePaths not set, defaulting to empty array.');
     settings.calloutStylePaths = [];
   }
 

@@ -39,13 +39,13 @@ export class DetectWikilinksService implements BaseService {
     }
 
     if (wikilinks.length === 0) {
-      this._logger.info('No wikilinks detected in note', {
+      this._logger.debug('No wikilinks detected in note', {
         noteId: note.noteId,
       });
       return [];
     }
 
-    this._logger.info('Detected wikilinks in note', {
+    this._logger.debug('Detected wikilinks in note', {
       noteId: note.noteId,
       count: wikilinks.length,
     });
