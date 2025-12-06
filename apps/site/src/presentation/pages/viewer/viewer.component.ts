@@ -18,13 +18,14 @@ import { distinctUntilChanged, map, Subscription, switchMap } from 'rxjs';
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
 import { HttpContentRepository } from '../../../infrastructure/http/http-content.repository';
+import { ImageOverlayComponent } from '../../components/image-overlay/image-overlay.component';
 
 @Component({
   standalone: true,
   selector: 'app-viewer',
   templateUrl: './viewer.component.html',
   styleUrls: ['./viewer.component.scss'],
-  imports: [MatIconModule, MatTooltipModule],
+  imports: [MatIconModule, MatTooltipModule, ImageOverlayComponent],
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -32,6 +33,7 @@ export class ViewerComponent implements OnDestroy {
   @ViewChild('contentEl', { static: true }) contentEl?: ElementRef<HTMLElement>;
   @ViewChild('tooltipTarget', { read: MatTooltip }) tooltip?: MatTooltip;
   @ViewChild('tooltipTarget', { read: ElementRef }) tooltipTarget?: ElementRef<HTMLElement>;
+  @ViewChild(ImageOverlayComponent) imageOverlay?: ImageOverlayComponent;
 
   title = signal<string>('');
   html = signal<SafeHtml | null>(null);
@@ -76,12 +78,16 @@ export class ViewerComponent implements OnDestroy {
 
     effect(() => {
       this.html();
-      setTimeout(() => this.decorateWikilinks());
+      setTimeout(() => {
+        this.decorateWikilinks();
+        this.decorateImages();
+      });
     });
   }
 
   ngOnDestroy() {
     this.cleanupWikilinks();
+    this.cleanupImages();
     this.tooltip?.hide();
     this.sub.unsubscribe();
   }
@@ -175,5 +181,31 @@ export class ViewerComponent implements OnDestroy {
 
     this.tooltip.message = message || this.tooltipMessage;
     this.tooltip.show();
+  }
+
+  private decorateImages() {
+    this.cleanupImages();
+
+    const container = this.contentEl?.nativeElement;
+    if (!container) return;
+
+    const images = Array.from(container.querySelectorAll<HTMLImageElement>('img'));
+    for (const img of images) {
+      img.style.cursor = 'pointer';
+      const clickHandler = () => this.openImageOverlay(img);
+      img.addEventListener('click', clickHandler);
+      this.cleanupFns.push(() => img.removeEventListener('click', clickHandler));
+    }
+  }
+
+  private cleanupImages() {
+    // Cleanup is handled by cleanupWikilinks which clears the same cleanupFns array
+  }
+
+  private openImageOverlay(img: HTMLImageElement) {
+    if (!this.imageOverlay) return;
+    const src = img.src;
+    const alt = img.alt || '';
+    this.imageOverlay.open(src, alt);
   }
 }

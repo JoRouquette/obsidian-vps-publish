@@ -108,7 +108,7 @@ $row-top: 5em;
   grid-area: vault-explorer;
   display: flex;
   flex-direction: column;
-  background: var(--mat-sys-surface);
+  background: var(--its-surface);
   border-right: 1px solid var(--mat-sys-outline-variant);
 
   min-width: 0;
@@ -233,12 +233,13 @@ $row-top: 5em;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-    // Visible borders
-    border-right: 1px solid var(--mat-sys-outline-variant);
+    // Mobile overlay layout: use distinct overlay background (ITS theme)
+    background: var(--its-surface-variant);
+    border-right: 2px solid var(--its-outline);
     border-top: none;
 
     // Shadow for overlay effect
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.2);
 
     &.open {
       transform: translateX(0);

@@ -1,0 +1,99 @@
+.image-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.overlay-controls {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  z-index: 10000;
+
+  @media (max-width: 768px) {
+    top: 0.5rem;
+    right: 0.5rem;
+    gap: 0.25rem;
+  }
+}
+
+.control-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  mat-icon {
+    color: white;
+  }
+}
+
+.close-btn {
+  background: rgba(244, 67, 54, 0.8);
+
+  &:hover {
+    background: rgba(244, 67, 54, 1);
+  }
+}
+
+.image-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 1rem;
+
+  @media (max-width: 768px) {
+    padding: 0.5rem;
+  }
+}
+
+.overlay-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transition: transform 0.1s ease-out;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+
+  /* Fond gris léger pour améliorer la visibilité des images PNG transparentes */
+  background: color-mix(in oklab, #fff 10%, transparent);
+  padding: 1rem;
+  border-radius: 0.5rem;
+
+  &:active {
+    cursor: grabbing !important;
+  }
+}

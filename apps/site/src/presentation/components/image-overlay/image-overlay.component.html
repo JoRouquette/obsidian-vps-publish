@@ -1,0 +1,40 @@
+@if (isOpen()) {
+  <div class="image-overlay" (click)="onBackdropClick($event)">
+    <div class="overlay-controls">
+      <button mat-icon-button class="control-btn" (click)="zoomIn()" aria-label="Zoom avant">
+        <mat-icon>zoom_in</mat-icon>
+      </button>
+      <button mat-icon-button class="control-btn" (click)="zoomOut()" aria-label="Zoom arrière">
+        <mat-icon>zoom_out</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        class="control-btn"
+        (click)="resetZoom()"
+        aria-label="Réinitialiser le zoom"
+      >
+        <mat-icon>fit_screen</mat-icon>
+      </button>
+      <button mat-icon-button class="control-btn close-btn" (click)="close()" aria-label="Fermer">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="image-container">
+      <img
+        #imageEl
+        [src]="imageSrc()"
+        [alt]="imageAlt()"
+        [style.transform]="
+          'scale(' + scale() + ') translate(' + translateX() + 'px, ' + translateY() + 'px)'
+        "
+        [style.cursor]="scale() > 1 ? 'grab' : 'default'"
+        (mousedown)="onMouseDown($event)"
+        (wheel)="onWheel($event)"
+        (touchstart)="onTouchStart($event)"
+        (touchmove)="onTouchMove($event)"
+        class="overlay-image"
+      />
+    </div>
+  </div>
+}

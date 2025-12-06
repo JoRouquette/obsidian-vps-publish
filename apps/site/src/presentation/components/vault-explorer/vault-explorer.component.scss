@@ -9,7 +9,7 @@
   --indent: 0.5em;
   --label-gap: 0.8em;
 
-  --bg-surface: var(--its-surface, var(--mat-sys-surface));
+  --bg-surface: var(--its-background, var(--mat-sys-surface));
   --on-surface: var(--its-on-surface, var(--mat-sys-on-surface));
   --primary: var(--its-primary, var(--mat-sys-primary));
   --secondary: var(--its-secondary, var(--mat-sys-secondary));

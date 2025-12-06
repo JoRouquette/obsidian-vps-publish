@@ -429,6 +429,24 @@
       padding: 0.2rem;
     }
 
+    /* Images: Interactivité et amélioration du contraste dans viewer */
+    img {
+      cursor: pointer;
+      transition:
+        transform 0.15s ease,
+        box-shadow 0.2s ease;
+      border-radius: 0.5rem;
+
+      &:hover {
+        transform: scale(1.01);
+        box-shadow: 0 4px 12px color-mix(in oklab, #000 20%, transparent);
+      }
+
+      &:active {
+        transform: scale(0.99);
+      }
+    }
+
     iframe {
       display: block;
       width: 100%;

@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, type OnInit, type Type, signal } from '@angular/core';
+import { Component, DestroyRef, type OnInit, signal, type Type } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import type { ManifestPage } from '@core-domain';
 import { humanizePropertyKey } from '@core-domain/utils/string.utils';
