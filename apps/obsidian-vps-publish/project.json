@@ -98,6 +98,14 @@
         "lintFilePatterns": ["apps/obsidian-vps-publish/**/*.ts"]
       }
     },
+    "lint:fix": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{workspaceRoot}/coverage/apps/obsidian-vps-publish"],
+      "options": {
+        "lintFilePatterns": ["apps/obsidian-vps-publish/**/*.ts"],
+        "fix": true
+      }
+    },
     "test": {
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/apps/obsidian-vps-publish"],

@@ -99,6 +99,14 @@
         "lintFilePatterns": ["apps/node/**/*.ts"]
       }
     },
+    "lint:fix": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{workspaceRoot}/coverage/apps/node"],
+      "options": {
+        "lintFilePatterns": ["apps/node/**/*.ts"],
+        "fix": true
+      }
+    },
     "format": {
       "executor": "nx:run-commands",
       "options": {

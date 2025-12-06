@@ -406,3 +406,8 @@
 .obsidian-vps-publish-settings .ptpv-cleanup-rule + .ptpv-cleanup-rule {
   margin-top: 1.5rem;
 }
+
+/* Large text area for callout styles and other multi-line inputs */
+.obsidian-vps-publish-settings .ptpv-textarea-large {
+  min-height: 80px;
+}

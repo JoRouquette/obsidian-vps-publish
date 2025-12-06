@@ -21,7 +21,7 @@ describe('AbortSessionHandler', () => {
     logger = {
       child: jest.fn().mockReturnThis(),
       warn: jest.fn(),
-      info: jest.fn(),
+      debug: jest.fn(),
     } as any;
 
     handler = new AbortSessionHandler(sessionRepository, logger);
@@ -48,7 +48,7 @@ describe('AbortSessionHandler', () => {
     expect(session.status).toBe('aborted');
     expect(sessionRepository.save).toHaveBeenCalledWith(session);
     expect(result).toEqual({ sessionId, success: true });
-    expect(logger.info).toHaveBeenCalledWith('Session aborted');
+    expect(logger.debug).toHaveBeenCalledWith('Session aborted');
   });
 
   it('should throw SessionNotFoundError if session does not exist', async () => {

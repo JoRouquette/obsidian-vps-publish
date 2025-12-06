@@ -43,7 +43,7 @@ export class FinishSessionHandler
 
     await this.sessionRepository.save(session);
 
-    logger?.info('Session finished');
+    logger?.debug('Session finished');
 
     return {
       sessionId: session.id,

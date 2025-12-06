@@ -29,6 +29,8 @@ export * from './publishing/ports/assets-storage.port';
 export * from './publishing/ports/content-storage.port';
 export * from './publishing/ports/manifest-storage.port';
 export * from './publishing/ports/session-notes-storage.port';
+export * from './publishing/services/chunk-assembler.service';
+export * from './publishing/services/chunked-upload.service';
 
 // Vault parsing & HTTP helpers for Obsidian plugin
 export * from './vault-parsing';

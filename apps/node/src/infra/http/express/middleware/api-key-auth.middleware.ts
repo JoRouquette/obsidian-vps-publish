@@ -37,7 +37,7 @@ export function createApiKeyAuthMiddleware(expectedRaw: string, logger?: LoggerP
       return res.status(403).json({ ok: false, error: 'Invalid API key' });
     }
 
-    logger?.info('[auth] API key validated', logMeta);
+    logger?.debug('[auth] API key validated', logMeta);
     next();
   };
 }

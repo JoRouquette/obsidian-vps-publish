@@ -76,29 +76,36 @@
     {
       "label": "Build all",
       "type": "shell",
-      "command": "npx",
-      "args": ["nx", "run-many", "--target=build", "--all"],
+      "command": "npm",
+      "args": ["run build"],
       "problemMatcher": []
     },
     {
       "label": "Lint all",
       "type": "shell",
-      "command": "npx",
-      "args": ["nx", "run-many", "--target=lint", "--all"],
+      "command": "npm",
+      "args": ["run lint"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Lint all --fix",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run lint:fix"],
       "problemMatcher": []
     },
     {
       "label": "Test all",
       "type": "shell",
-      "command": "npx",
-      "args": ["nx", "run-many", "--target=test", "--all", "--code-coverage"],
+      "command": "npm",
+      "args": ["run test"],
       "problemMatcher": []
     },
     {
       "label": "Format all",
       "type": "shell",
-      "command": "npx",
-      "args": ["nx", "run-many", "--target=format", "--all", "--check"],
+      "command": "npm",
+      "args": ["run format:write"],
       "problemMatcher": []
     },
     {
@@ -119,6 +126,13 @@
         "-c",
         "git checkout main && git pull origin main && git merge --no-ff release && git push origin main"
       ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Complete workflow",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "npm run lint && npm run test && npm run build"],
       "problemMatcher": []
     }
   ]

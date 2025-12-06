@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { type LoggerPort, LogLevel } from '@core-domain/ports/logger-port';
 
 import { DEFAULT_LOGGER_LEVEL } from '../constants/default-logger-level.constant';
@@ -47,14 +46,6 @@ export class ConsoleLoggerAdapter implements LoggerPort {
     }
 
     console.debug(`[${this.getCurrentDatetime()}] [debug]`, message, ...args, this._context);
-  }
-
-  info(message: string, ...args: unknown[]): void {
-    if ((this._level & LogLevel.info) === 0) {
-      return;
-    }
-
-    console.info(`[${this.getCurrentDatetime()}] [info]`, message, ...args, this._context);
   }
 
   warn(message: string, ...args: unknown[]): void {

@@ -26,9 +26,10 @@ import { createMaintenanceController } from './controllers/maintenance-controlle
 import { createPingController } from './controllers/ping.controller';
 import { createSessionController } from './controllers/session-controller';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
+import { ChunkedUploadMiddleware } from './middleware/chunked-upload.middleware';
 import { createCorsMiddleware } from './middleware/cors.middleware';
 
-export const BYTES_LIMIT = '10mb';
+export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
 
 export function createApp(rootLogger?: LoggerPort) {
   const app = express();
@@ -63,7 +64,7 @@ export function createApp(rootLogger?: LoggerPort) {
   );
 
   // Log app startup and config
-  rootLogger?.info('Initializing Express app', {
+  rootLogger?.debug('Initializing Express app', {
     assetsRoot: EnvConfig.assetsRoot(),
     contentRoot: EnvConfig.contentRoot(),
     uiRoot: EnvConfig.uiRoot(),
@@ -111,6 +112,10 @@ export function createApp(rootLogger?: LoggerPort) {
   const apiRouter = express.Router();
   apiRouter.use(apiKeyMiddleware);
 
+  // Chunked upload middleware (must be before session controller)
+  const chunkedUploadMiddleware = new ChunkedUploadMiddleware(rootLogger);
+  apiRouter.use(chunkedUploadMiddleware.handle());
+
   apiRouter.use(createPingController(rootLogger));
 
   apiRouter.use(createMaintenanceController(stagingManager, rootLogger));
@@ -136,7 +141,7 @@ export function createApp(rootLogger?: LoggerPort) {
 
   // Log each incoming request
   app.use((req, res, next) => {
-    rootLogger?.info(
+    rootLogger?.debug(
       `Incoming request received method: ${req.method}, url: ${req.originalUrl}, ip: ${req.ip}`
     );
     next();
@@ -145,7 +150,7 @@ export function createApp(rootLogger?: LoggerPort) {
   app.use(createHealthCheckController());
 
   app.get('/public-config', (req, res) => {
-    rootLogger?.info('Serving public config');
+    rootLogger?.debug('Serving public config');
     res.json({
       siteName: EnvConfig.siteName(),
       author: EnvConfig.author(),
@@ -155,7 +160,7 @@ export function createApp(rootLogger?: LoggerPort) {
   });
 
   app.get('*', (req, res) => {
-    rootLogger?.info('Serving Angular index.html for unmatched route', {
+    rootLogger?.debug('Serving Angular index.html for unmatched route', {
       url: req.originalUrl,
     });
 
@@ -164,7 +169,7 @@ export function createApp(rootLogger?: LoggerPort) {
   });
 
   // Log app ready
-  rootLogger?.info('Express app initialized');
+  rootLogger?.debug('Express app initialized');
 
   return { app, logger: rootLogger };
 }

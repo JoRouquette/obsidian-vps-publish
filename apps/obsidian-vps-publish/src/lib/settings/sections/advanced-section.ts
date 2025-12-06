@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 import { LogLevel } from '@core-domain/ports/logger-port';
 import { type App, Modal, Notice, Setting } from 'obsidian';
 
@@ -81,7 +80,8 @@ export function renderAdvancedSection(root: HTMLElement, ctx: SettingsViewContex
           void ctx.save();
         });
 
-      text.inputEl.style.minHeight = '80px';
+      // Add CSS class for styling instead of direct style manipulation
+      text.inputEl.addClass('ptpv-textarea-large');
     });
 
   renderCleanupSetting(inner, ctx);
@@ -105,7 +105,9 @@ function renderCleanupSetting(inner: HTMLElement, ctx: SettingsViewContext): voi
       return;
     }
 
-    vpsConfigs.forEach((vps) => dropdown.addOption(vps.id, vps.name || vps.id));
+    for (const vps of vpsConfigs) {
+      dropdown.addOption(vps.id, vps.name || vps.id);
+    }
 
     const initial = selectedVpsId || vpsConfigs[0].id;
     dropdown.setValue(initial);

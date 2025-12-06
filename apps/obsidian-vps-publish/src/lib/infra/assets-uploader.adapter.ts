@@ -1,10 +1,15 @@
+import { ChunkedUploadService } from '@core-application/publishing/services/chunked-upload.service';
 import type { ResolvedAssetFile } from '@core-domain/entities/resolved-asset-file';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { ProgressPort } from '@core-domain/ports/progress-port';
 import { type UploaderPort } from '@core-domain/ports/uploader-port';
+import { nanoid } from 'nanoid';
 
 import { type SessionApiClient } from '../services/session-api.client';
 import { batchByBytes } from '../utils/batch-by-bytes.util';
+import { BrowserEncodingAdapter } from './browser-encoding.adapter';
+import { AssetChunkUploaderAdapter } from './chunk-uploader.adapter';
+import { ObsidianCompressionAdapter } from './obsidian-compression.adapter';
 
 type ApiAsset = {
   relativePath: string;
@@ -16,6 +21,7 @@ type ApiAsset = {
 
 export class AssetsUploaderAdapter implements UploaderPort {
   private readonly _logger: LoggerPort;
+  private readonly chunkedUploadService: ChunkedUploadService;
 
   constructor(
     private readonly sessionClient: SessionApiClient,
@@ -26,11 +32,22 @@ export class AssetsUploaderAdapter implements UploaderPort {
   ) {
     this._logger = logger.child({ adapter: 'AssetsUploaderAdapter' });
     this._logger.debug('AssetsUploaderAdapter initialized');
+
+    // Initialize dependencies (infrastructure adapters)
+    const compression = new ObsidianCompressionAdapter();
+    const encoding = new BrowserEncodingAdapter();
+
+    // Initialize chunked upload service from core-application
+    this.chunkedUploadService = new ChunkedUploadService(compression, encoding, this._logger, {
+      maxChunkSize: Math.min(maxBytesPerRequest / 2, 5 * 1024 * 1024), // Half of max or 5MB
+      compressionLevel: 6,
+      retryAttempts: 3,
+    });
   }
 
   async upload(assets: ResolvedAssetFile[]): Promise<boolean> {
     if (!Array.isArray(assets) || assets.length === 0) {
-      this._logger.info('No assets to upload.');
+      this._logger.debug('No assets to upload.');
       return false;
     }
 
@@ -46,22 +63,54 @@ export class AssetsUploaderAdapter implements UploaderPort {
       throw err;
     }
 
-    const batches = batchByBytes(apiAssets, this.maxBytesPerRequest, (batch) => ({
+    const { batches, oversized } = batchByBytes(apiAssets, this.maxBytesPerRequest, (batch) => ({
       assets: batch,
     }));
 
-    this._logger.info('Uploading assets to session', {
+    if (oversized.length > 0) {
+      this._logger.warn('Some assets exceed maxBytesPerRequest and will be skipped', {
+        oversizedCount: oversized.length,
+        maxBytesPerRequest: this.maxBytesPerRequest,
+        skippedAssets: oversized.map((a) => ({ fileName: a.fileName, vaultPath: a.vaultPath })),
+      });
+      // Advance progress for skipped assets
+      this.progress?.advance(oversized.length);
+    }
+
+    this._logger.debug('Uploading assets to session', {
       batchCount: batches.length,
       assetCount: apiAssets.length,
+      skippedCount: oversized.length,
     });
 
     for (const batch of batches) {
-      await this.sessionClient.uploadAssets(this.sessionId, batch);
+      // Use chunked upload for each batch
+      const uploadId = `assets-${this.sessionId}-${nanoid(10)}`;
+
+      this._logger.debug('Preparing chunked upload for batch', {
+        uploadId,
+        batchSize: batch.length,
+      });
+
+      const chunks = await this.chunkedUploadService.prepareUpload(uploadId, { assets: batch });
+
+      // Create uploader adapter for this session
+      const uploader = new AssetChunkUploaderAdapter(this.sessionClient, this.sessionId);
+
+      await this.chunkedUploadService.uploadAll(chunks, uploader, (current, total) => {
+        this._logger.debug('Chunk upload progress', {
+          uploadId,
+          current,
+          total,
+          percentComplete: ((current / total) * 100).toFixed(2),
+        });
+      });
+
       this._logger.debug('Assets batch uploaded', { batchSize: batch.length });
       this.progress?.advance(batch.length);
     }
 
-    this._logger.info('Assets upload completed');
+    this._logger.debug('Assets upload completed');
     return true;
   }
 

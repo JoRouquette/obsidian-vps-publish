@@ -8,7 +8,7 @@ async function bootstrap() {
   const { app, logger } = createApp(rootLogger);
 
   app.listen(EnvConfig.port(), () => {
-    logger?.info(`Server listening on port ${EnvConfig.port()}`);
+    logger?.debug(`Server listening on port ${EnvConfig.port()}`);
   });
 }
 

@@ -41,7 +41,7 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       userCss ? '\n' + userCss : ''
     }</style>\n${html}`;
 
-    this.logger?.info('Markdown rendered to HTML', {
+    this.logger?.debug('Markdown rendered to HTML', {
       noteId: note.noteId,
       slug: note.routing.slug,
     });

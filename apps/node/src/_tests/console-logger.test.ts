@@ -15,7 +15,7 @@ describe('ConsoleLogger', () => {
 
   it('filters logs below level', () => {
     const logger = new ConsoleLogger({ level: 'warn' });
-    logger.info('ignore');
+    logger.debug('ignore');
     logger.warn('show');
     expect(logs.some((l) => l.includes('ignore'))).toBe(false);
     expect(logs.some((l) => l.includes('show'))).toBe(true);

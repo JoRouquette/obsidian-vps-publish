@@ -69,7 +69,7 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
           });
 
           if (file) {
-            this._logger.info('Asset found in assets folder', {
+            this._logger.debug('Asset found in assets folder', {
               filePath: file.path,
               assetsFolder: normalizedAssetsFolder,
             });
@@ -89,7 +89,7 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
           });
 
           if (file) {
-            this._logger.info('Asset found in vault (fallback)', {
+            this._logger.debug('Asset found in vault (fallback)', {
               filePath: file.path,
             });
           } else {

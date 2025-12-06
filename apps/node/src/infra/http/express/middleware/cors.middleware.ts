@@ -19,7 +19,7 @@ export function createCorsMiddleware(allowedOrigins: string[], logger?: LoggerPo
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
 
     if (req.method === 'OPTIONS') {
-      logger?.info('CORS preflight request handled', { origin, method: req.method });
+      logger?.debug('CORS preflight request handled', { origin, method: req.method });
       return res.sendStatus(200);
     }
 

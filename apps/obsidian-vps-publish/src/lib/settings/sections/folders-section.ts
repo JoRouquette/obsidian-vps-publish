@@ -12,11 +12,11 @@ import type { SettingsViewContext } from '../context';
  */
 function getNestedTranslation(t: Translations, key: string): string | undefined {
   const parts = key.split('.');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let current: any = t;
+  // Type-safe traversal of translation object structure
+  let current: unknown = t;
   for (const part of parts) {
-    if (current && typeof current === 'object' && part in current) {
-      current = current[part];
+    if (current && typeof current === 'object' && current !== null && part in current) {
+      current = (current as Record<string, unknown>)[part];
     } else {
       return undefined;
     }
@@ -49,7 +49,7 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
 
     // Ensure at least one folder per VPS
     if (vpsFolders.length === 0) {
-      logger.info('No folder found for VPS, creating default', { vpsId: vps.id });
+      logger.debug('No folder found for VPS, creating default', { vpsId: vps.id });
       const defaultFolder: FolderConfig = {
         id: `folder-${Date.now()}`,
         vpsId: vps.id,
@@ -72,7 +72,7 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
       text: t.settings.folders.addButton ?? 'Add folder',
     });
     btnAddFolder.onclick = () => {
-      logger.info('Adding new folder to VPS', { vpsId: vps.id });
+      logger.debug('Adding new folder to VPS', { vpsId: vps.id });
       const newFolder: FolderConfig = {
         id: `folder-${Date.now()}`,
         vpsId: vps.id,
@@ -123,7 +123,7 @@ function renderFolderConfig(
         );
         return;
       }
-      logger.info('Folder deleted', { vpsId: vps.id, folderId: folderCfg.id });
+      logger.debug('Folder deleted', { vpsId: vps.id, folderId: folderCfg.id });
       const folderIdx = vps.folders.findIndex((f) => f.id === folderCfg.id);
       if (folderIdx !== -1) {
         vps.folders.splice(folderIdx, 1);

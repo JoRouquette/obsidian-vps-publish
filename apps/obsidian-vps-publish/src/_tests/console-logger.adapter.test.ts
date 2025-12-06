@@ -15,18 +15,18 @@ describe('ConsoleLoggerAdapter', () => {
   });
 
   it('garde le contexte et le niveau sur un child', () => {
-    const root = new ConsoleLoggerAdapter({ root: true }, LogLevel.info);
+    const root = new ConsoleLoggerAdapter({ root: true }, LogLevel.debug | LogLevel.info);
     const child = root.child({ feature: 'x' });
 
     expect(child.level & LogLevel.info).toBe(LogLevel.info);
-    child.info('hello');
-    const lastArg = (console.info as jest.Mock).mock.calls[0].slice(-1)[0];
+    child.debug('hello');
+    const lastArg = (console.debug as jest.Mock).mock.calls[0].slice(-1)[0];
     expect(lastArg).toMatchObject({ root: true, feature: 'x' });
   });
 
   it('filtre les logs selon le niveau', () => {
     const logger = new ConsoleLoggerAdapter({}, LogLevel.error);
-    logger.info('info');
+    logger.debug('info');
     logger.warn('warn');
     expect(console.info).not.toHaveBeenCalled();
     expect(console.warn).not.toHaveBeenCalled();

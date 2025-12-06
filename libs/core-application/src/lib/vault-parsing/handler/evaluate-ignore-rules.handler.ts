@@ -22,7 +22,7 @@ export class EvaluateIgnoreRulesHandler
     const evaluatedNotes: PublishableNote[] = [];
 
     if (!this.rules || this.rules.length === 0) {
-      this._logger.info('No ignore rules provided, note is publishable');
+      this._logger.debug('No ignore rules provided, note is publishable');
       return notes.map((note) => ({ ...note, eligibility: { isPublishable: true } }));
     }
 
@@ -47,7 +47,7 @@ export class EvaluateIgnoreRulesHandler
         }
 
         if (rule.ignoreIf !== undefined && typeof value === 'boolean' && value === rule.ignoreIf) {
-          this._logger.info(
+          this._logger.debug(
             `Note ignored by ignoreIf rule property: ${rule.property}, value: ${value}, ruleIndex: ${index}`
           );
           evaluatedNotes.push({
@@ -69,7 +69,7 @@ export class EvaluateIgnoreRulesHandler
         if (rule.ignoreValues && rule.ignoreValues.length > 0) {
           const matched = matchesAnyPrimitive(value, rule.ignoreValues);
           if (matched !== undefined) {
-            this._logger.info(
+            this._logger.debug(
               `Note ignored by ignoreValues rule property: ${rule.property}, matchedValue: ${matched}, ruleIndex: ${index}`
             );
             evaluatedNotes.push({
@@ -91,7 +91,7 @@ export class EvaluateIgnoreRulesHandler
       }
 
       if (!ignored) {
-        this._logger.info('No ignore rule matched, note is publishable');
+        this._logger.debug('No ignore rule matched, note is publishable');
         evaluatedNotes.push({
           ...note,
           eligibility: {

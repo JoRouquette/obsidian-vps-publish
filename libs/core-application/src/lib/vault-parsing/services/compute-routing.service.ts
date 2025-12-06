@@ -43,7 +43,7 @@ export class ComputeRoutingService implements BaseService {
           routeBase,
           fullPath: routeBase ? `${routeBase}/${slug}` : `/${slug}`,
         };
-        this._logger.info('Computed routing for root note', { routing });
+        this._logger.debug('Computed routing for root note', { routing });
       } else {
         const fileSegment = segments[segments.length - 1];
         const dirSegments = segments.slice(0, -1);
@@ -72,7 +72,7 @@ export class ComputeRoutingService implements BaseService {
           routeBase,
           fullPath,
         };
-        this._logger.info('Computed routing for note', { routing });
+        this._logger.debug('Computed routing for note', { routing });
       }
 
       return {

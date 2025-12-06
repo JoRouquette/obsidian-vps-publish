@@ -39,7 +39,7 @@ export class CreateSessionHandler
 
     await this.sessionRepository.create(session);
 
-    logger?.info('Session created', { sessionId });
+    logger?.debug('Session created', { sessionId });
 
     return {
       sessionId,

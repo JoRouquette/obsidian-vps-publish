@@ -61,18 +61,18 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
             frontmatter: { flat: frontmatter, nested: {}, tags: [] },
             folderConfig: cfg,
           });
-          this.logger.info('Collected note', { path: node.path });
+          this.logger.debug('Collected note', { path: node.path });
         }
       };
 
-      this.logger.info('Starting note collection', { rootPath });
+      this.logger.debug('Starting note collection', { rootPath });
       await walk(root);
-      this.logger.info('Finished note collection for folder', {
+      this.logger.debug('Finished note collection for folder', {
         rootPath,
       });
     }
 
-    this.logger.info('Total notes collected', { count: result.length });
+    this.logger.debug('Total notes collected', { count: result.length });
     return result;
   }
 

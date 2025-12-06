@@ -33,7 +33,7 @@ export class StagingManager {
     await fs.mkdir(stagingContent, { recursive: true });
     await fs.mkdir(stagingAssets, { recursive: true });
 
-    this.logger?.info('Promoting staged content', {
+    this.logger?.debug('Promoting staged content', {
       sessionId,
       stagingContent,
       stagingAssets,
@@ -47,7 +47,7 @@ export class StagingManager {
 
     await this.cleanupStaging(sessionId);
 
-    this.logger?.info('Staging promoted to production roots', { sessionId });
+    this.logger?.debug('Staging promoted to production roots', { sessionId });
   }
 
   async discardSession(sessionId: string): Promise<void> {
@@ -55,7 +55,7 @@ export class StagingManager {
     const assetsStage = this.assetsStagingPath(sessionId);
     await fs.rm(contentStage, { recursive: true, force: true });
     await fs.rm(assetsStage, { recursive: true, force: true });
-    this.logger?.info('Discarded staging session', { sessionId });
+    this.logger?.debug('Discarded staging session', { sessionId });
   }
 
   /**
@@ -66,7 +66,7 @@ export class StagingManager {
     this.logger?.warn('Purging all content and assets from VPS');
     await this.clearRootExcept(this.contentRoot, []);
     await this.clearRootExcept(this.assetsRoot, []);
-    this.logger?.info('Content and assets purged');
+    this.logger?.debug('Content and assets purged');
   }
 
   private async cleanupStaging(sessionId: string) {
