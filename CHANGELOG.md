@@ -1,3 +1,10 @@
+## 4.2.0 (2025-12-06)
+
+* Merge branch 'feature/mobile-display' ([04f589f](https://github.com/JoRouquette/obsidian-vps-publish/commit/04f589f))
+* feat(mobile): add responsive design with overlay menu for mobile devices ([83d8d61](https://github.com/JoRouquette/obsidian-vps-publish/commit/83d8d61))
+* feat(viewer): add interactive image overlay with zoom and contrast adjustment ([aa64e47](https://github.com/JoRouquette/obsidian-vps-publish/commit/aa64e47))
+* chore: simplify git workflow and fix docker permissions ([cc16b10](https://github.com/JoRouquette/obsidian-vps-publish/commit/cc16b10))
+
 ## <small>4.1.2 (2025-12-06)</small>
 
 * Merge branch 'fix/nanoid-issues' into release ([64e8303](https://github.com/JoRouquette/obsidian-vps-publish/commit/64e8303))
