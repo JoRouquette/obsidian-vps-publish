@@ -1,3 +1,7 @@
+## <small>4.1.1 (2025-12-06)</small>
+
+* refactor(docker): use existing node group instead of creating nodegrp ([7c63517](https://github.com/JoRouquette/obsidian-vps-publish/commit/7c63517))
+
 ## 4.1.0 (2025-12-06)
 
 * Merge branch 'fix/overhall-upload' into release ([63fc892](https://github.com/JoRouquette/obsidian-vps-publish/commit/63fc892))
