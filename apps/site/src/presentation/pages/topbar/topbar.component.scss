@@ -50,9 +50,12 @@
     }
   }
   .sep {
+    display: inline-flex;
+    align-items: center;
     font-size: 18px;
     opacity: 0.75;
     flex: 0 0 auto;
+    line-height: 1;
   }
 }
 

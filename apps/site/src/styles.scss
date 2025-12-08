@@ -15,10 +15,9 @@
 
 html,
 body {
-  height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden; // Désactive tout scroll sur html/body
+  /* Permet le scroll naturel sur body - le conteneur principal (shell) gère sa hauteur avec min-height: 100vh */
 }
 
 body {

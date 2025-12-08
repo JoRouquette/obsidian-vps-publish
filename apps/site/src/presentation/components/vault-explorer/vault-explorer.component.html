@@ -1,13 +1,24 @@
 <nav class="explorer">
-  <div class="search">
-    <app-search-bar
-      placeholder="Rechercher dossiers/fichiers/tags"
-      [value]="q()"
-      (queryChange)="onInputQuery($event)"
-    ></app-search-bar>
-  </div>
+  <div class="search-header">
+    <div class="search">
+      <app-search-bar
+        placeholder="Rechercher..."
+        [value]="q()"
+        (queryChange)="onInputQuery($event)"
+      ></app-search-bar>
+    </div>
 
-  <mat-divider class="sep"></mat-divider>
+    <button
+      class="toggle-all-btn"
+      mat-icon-button
+      (click)="toggleAllFolders()"
+      [matTooltip]="hasExpandedFolders() ? 'Tout replier' : 'Tout déplier'"
+      matTooltipPosition="left"
+      aria-label="Toggle all folders"
+    >
+      <mat-icon>{{ hasExpandedFolders() ? 'unfold_less' : 'unfold_more' }}</mat-icon>
+    </button>
+  </div>
 
   <div class="tree-wrap" #treeScroller (scroll)="syncX('tree')">
     @if (noData()) {
@@ -45,6 +56,7 @@
           class="node-header"
           type="button"
           matTreeNodeToggle
+          (click)="onNodeExpanded()"
           aria-label="Ouvrir/fermer le dossier"
           [routerLink]="['/' + n.path + '/index']"
         >

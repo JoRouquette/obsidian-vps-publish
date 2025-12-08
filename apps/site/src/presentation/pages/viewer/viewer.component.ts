@@ -105,13 +105,23 @@ export class ViewerComponent {
     const container = this.contentEl?.nativeElement;
     if (!container) return;
 
-    const resolvedLinks = Array.from(container.querySelectorAll<HTMLAnchorElement>('a.wikilink'));
-    for (const link of resolvedLinks) {
-      const clickHandler = (event: Event) => this.handleResolvedClick(event, link);
+    // Intercepter TOUS les liens internes (y compris ceux des index générés par l'API)
+    const allLinks = Array.from(container.querySelectorAll<HTMLAnchorElement>('a'));
+    for (const link of allLinks) {
+      const href = link.getAttribute('href');
+      if (!href) continue;
+
+      // Détecter les liens externes
+      const isExternal = /^[a-z]+:\/\//i.test(href) || href.startsWith('mailto:');
+      if (isExternal) continue;
+
+      // Intercepter tous les liens internes pour utiliser le router
+      const clickHandler = (event: Event) => this.handleInternalLinkClick(event, link);
       link.addEventListener('click', clickHandler);
       this.cleanupFns.push(() => link.removeEventListener('click', clickHandler));
     }
 
+    // Gestion spécifique des wikilinks non résolus
     const unresolvedLinks = Array.from(
       container.querySelectorAll<HTMLElement>('.wikilink-unresolved')
     );
@@ -143,7 +153,7 @@ export class ViewerComponent {
     }
   }
 
-  private handleResolvedClick(event: Event, link: HTMLAnchorElement): void {
+  private handleInternalLinkClick(event: Event, link: HTMLAnchorElement): void {
     const href = link.getAttribute('href');
     if (!href) return;
 

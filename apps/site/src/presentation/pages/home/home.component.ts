@@ -2,7 +2,10 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
+  ElementRef,
   Inject,
+  ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -12,11 +15,13 @@ import { MatCardModule } from '@angular/material/card';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
 import { DomSanitizer } from '@angular/platform-browser';
+import { Router } from '@angular/router';
 import type { ManifestPage } from '@core-domain/entities/manifest-page';
 import { from } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
+import { ConfigFacade } from '../../../application/facades/config-facade';
 import type { ContentRepository } from '../../../domain/ports/content-repository.port';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
 
@@ -37,6 +42,15 @@ type Section = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HomeComponent {
+  @ViewChild('contentEl', { static: false }) contentEl?: ElementRef<HTMLElement>;
+
+  private readonly cleanupFns: Array<() => void> = [];
+
+  welcomeTitle = computed(() => {
+    const cfg = this.config.cfg();
+    return cfg?.homeWelcomeTitle;
+  });
+
   // Chargement réactif de l'index HTML avec toSignal
   rootIndexHtml = toSignal(
     from(this.contentRepo.fetch('/index.html')).pipe(
@@ -48,10 +62,64 @@ export class HomeComponent {
 
   constructor(
     public catalog: CatalogFacade,
+    private readonly config: ConfigFacade,
     @Inject(CONTENT_REPOSITORY) private readonly contentRepo: ContentRepository,
-    private readonly sanitizer: DomSanitizer
+    private readonly sanitizer: DomSanitizer,
+    private readonly router: Router
   ) {
     void this.catalog.ensureManifest();
+    void this.config.ensure();
+
+    // Effect pour décorer les liens après chargement du HTML
+    effect(() => {
+      this.rootIndexHtml();
+      setTimeout(() => this.decorateLinks());
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.cleanupLinks();
+  }
+
+  private decorateLinks(): void {
+    this.cleanupLinks();
+
+    const container = this.contentEl?.nativeElement;
+    if (!container) return;
+
+    // Intercepter tous les liens internes
+    const links = Array.from(container.querySelectorAll<HTMLAnchorElement>('a'));
+    for (const link of links) {
+      const href = link.getAttribute('href');
+      if (!href) continue;
+
+      // Détecter les liens externes
+      const isExternal = /^[a-z]+:\/\//i.test(href) || href.startsWith('mailto:');
+      if (isExternal) continue;
+
+      // Intercepter les liens internes pour utiliser le router
+      const clickHandler = (event: Event) => this.handleInternalLinkClick(event, link);
+      link.addEventListener('click', clickHandler);
+      this.cleanupFns.push(() => link.removeEventListener('click', clickHandler));
+    }
+  }
+
+  private cleanupLinks(): void {
+    while (this.cleanupFns.length > 0) {
+      const fn = this.cleanupFns.pop();
+      fn?.();
+    }
+  }
+
+  private handleInternalLinkClick(event: Event, link: HTMLAnchorElement): void {
+    const href = link.getAttribute('href');
+    if (!href) return;
+
+    const isExternal = /^[a-z]+:\/\//i.test(href) || href.startsWith('mailto:');
+    if (isExternal) return;
+
+    event.preventDefault();
+    void this.router.navigateByUrl(href);
   }
 
   sections = computed<Section[]>(() => {

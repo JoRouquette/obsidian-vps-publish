@@ -81,7 +81,9 @@
   </div>
 
   <div class="main">
-    <router-outlet></router-outlet>
+    <div class="content-wrapper">
+      <router-outlet></router-outlet>
+    </div>
 
     <footer class="footer">
       <span class="icon">©</span> {{ currentYear }} {{ author() }}

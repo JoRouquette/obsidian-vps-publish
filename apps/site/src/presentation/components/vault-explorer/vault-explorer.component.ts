@@ -7,7 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltip } from '@angular/material/tooltip';
-import { MatTreeModule } from '@angular/material/tree';
+import { MatTree, MatTreeModule } from '@angular/material/tree';
 import { RouterLink } from '@angular/router';
 import type { TreeNode } from '@core-application';
 import { BuildTreeHandler, defaultTreeNode } from '@core-application';
@@ -65,7 +65,12 @@ export class VaultExplorerComponent implements OnInit {
   private readonly treeScroller?: ElementRef<HTMLDivElement>;
   @ViewChild('hScroller', { static: false })
   private readonly hScroller?: ElementRef<HTMLDivElement>;
+  @ViewChild(MatTree, { static: false })
+  private readonly matTree?: MatTree<TreeNode>;
   treeScrollWidth = 0;
+
+  // Track if any folder is expanded
+  hasExpandedFolders = signal<boolean>(false);
 
   childrenOf = (n: TreeNode) => (this.q() ? (this.visible.get(n) ?? []) : (n.children ?? []));
   isFolder = (_: number, n: TreeNode) => n.kind === 'folder';
@@ -138,5 +143,35 @@ export class VaultExplorerComponent implements OnInit {
       return true;
     }
     return false;
+  }
+
+  toggleAllFolders(): void {
+    if (!this.matTree) return;
+
+    const shouldCollapse = this.hasExpandedFolders();
+
+    if (shouldCollapse) {
+      // Collapse all
+      this.matTree.collapseAll();
+      this.hasExpandedFolders.set(false);
+    } else {
+      // Expand all
+      this.matTree.expandAll();
+      this.hasExpandedFolders.set(true);
+    }
+  }
+
+  onNodeExpanded(): void {
+    // Update the signal when a folder is expanded
+    this.hasExpandedFolders.set(true);
+  }
+
+  checkExpandedState(): void {
+    // Check if any folder is still expanded after collapse
+    if (!this.matTree?.treeControl) return;
+    const hasExpanded = this.rootChildren().some(
+      (node) => node.kind === 'folder' && this.matTree?.treeControl?.isExpanded(node)
+    );
+    this.hasExpandedFolders.set(hasExpanded);
   }
 }
