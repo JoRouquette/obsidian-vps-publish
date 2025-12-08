@@ -3,7 +3,7 @@ import type { ApplicationConfig } from '@angular/core';
 import { ANIMATION_MODULE_TYPE } from '@angular/core';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
-import { provideRouter, withInMemoryScrolling } from '@angular/router';
+import { provideRouter, withInMemoryScrolling, withViewTransitions } from '@angular/router';
 
 import {
   CONFIG_REPOSITORY,
@@ -19,7 +19,14 @@ import { APP_ROUTES } from './routes/app.routes';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideRouter(APP_ROUTES, withInMemoryScrolling({ anchorScrolling: 'enabled' })),
+    provideRouter(
+      APP_ROUTES,
+      withInMemoryScrolling({
+        anchorScrolling: 'enabled',
+        scrollPositionRestoration: 'enabled',
+      }),
+      withViewTransitions({ skipInitialTransition: true })
+    ),
     provideHttpClient(withFetch()),
     { provide: MAT_ICON_DEFAULT_OPTIONS, useValue: { fontSet: 'material-symbols-rounded' } },
     { provide: MANIFEST_REPOSITORY, useClass: HttpManifestRepository },

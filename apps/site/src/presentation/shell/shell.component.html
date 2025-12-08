@@ -1,4 +1,4 @@
-<div class="grid">
+<div class="grid" [class.sidebar-collapsed]="isSidebarCollapsed()">
   <!-- Hamburger menu button (mobile only) -->
   <button
     class="hamburger-menu mat-elevation-z2"
@@ -8,6 +8,19 @@
     [attr.aria-expanded]="isMenuOpen()"
   >
     <mat-icon>{{ isMenuOpen() ? 'close' : 'menu' }}</mat-icon>
+  </button>
+
+  <!-- Desktop sidebar collapse toggle (left of logo) -->
+  <button
+    class="sidebar-toggle-desktop"
+    mat-icon-button
+    (click)="toggleSidebarCollapse()"
+    [attr.aria-label]="isSidebarCollapsed() ? 'Ouvrir la sidebar' : 'Fermer la sidebar'"
+    [attr.aria-expanded]="!isSidebarCollapsed()"
+    matTooltip="{{ isSidebarCollapsed() ? 'Ouvrir la sidebar' : 'Fermer la sidebar' }}"
+    matTooltipPosition="right"
+  >
+    <mat-icon>{{ isSidebarCollapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
   </button>
 
   <div class="Logo">
@@ -34,8 +47,20 @@
     <div class="menu-backdrop" (click)="closeMenu()"></div>
   }
 
-  <!-- Vault explorer with mobile overlay -->
-  <div class="vault-explorer" [class.open]="isMenuOpen()">
+  <!-- Vault explorer with desktop resize handle -->
+  <div class="vault-explorer" [class.open]="isMenuOpen()" [style.width.px]="sidebarWidth()">
+    <!-- Resize handle (desktop only) -->
+    <div
+      class="resize-handle"
+      (mousedown)="startResize($event)"
+      (touchstart)="startResize($event)"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Redimensionner la sidebar"
+      tabindex="0"
+      (keydown)="handleResizeKeyboard($event)"
+    ></div>
+
     <!-- Mobile overlay header with theme toggle -->
     <div class="mobile-overlay-header">
       <h2 class="overlay-title">Navigation</h2>

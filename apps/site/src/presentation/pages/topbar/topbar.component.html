@@ -1,18 +1,7 @@
 <mat-toolbar class="topbar mat-elevation-z2" role="banner">
-  <!-- Colonne gauche : Breadcrumbs -->
-  <nav class="breadcrumbs" aria-label="Fil d’Ariane">
-    @for (c of crumbs; track c.url; let last = $last) {
-      <span class="crumb" aria-current="{{ last ? 'page' : undefined }}">
-        <span [class.last]="last">{{ c.label }}</span>
-      </span>
-      @if (!last) {
-        <mat-icon class="sep" aria-hidden="true">chevron_right</mat-icon>
-      }
-    }
-  </nav>
-
+  <!-- Ligne 1 : Contrôles principaux -->
   <a class="site-name" [routerLink]="'/'" aria-label="Accueil">
-    {{ siteName || 'Scribe d’Ektaron' }}
+    {{ siteName || "Scribe d'Ektaron" }}
   </a>
 
   <app-search-bar
@@ -40,4 +29,16 @@
       }
     </button>
   </div>
+
+  <!-- Ligne 2 : Breadcrumbs (fil d Ariane) -->
+  <nav class="breadcrumbs" aria-label="Fil d Ariane">
+    @for (c of crumbs; track c.url; let last = $last) {
+      <span class="crumb" aria-current="{{ last ? 'page' : undefined }}">
+        <span [class.last]="last">{{ c.label }}</span>
+      </span>
+      @if (!last) {
+        <mat-icon class="sep" aria-hidden="true">chevron_right</mat-icon>
+      }
+    }
+  </nav>
 </mat-toolbar>

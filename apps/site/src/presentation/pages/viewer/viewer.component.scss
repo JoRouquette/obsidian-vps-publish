@@ -40,9 +40,9 @@
   --c-headers: var(--its-headers, var(--its-primary, var(--mat-sys-primary)));
 
   /* Mise en page RELATIVE */
-  --page-max: clamp(72ch, 92vw, 96ch); /* largeur “page” */
-  --page-pad: clamp(0.75rem, 3vw, 1.5rem); /* gouttières fluides */
+  --page-max: clamp(72ch, 92vw, 96ch); /* largeur "page" */
   --measure: 68ch; /* longueur de ligne lisible */
+  // --page-pad supprimé - géré par shell .main
 
   color: var(--c-on-surface);
   background: transparent;

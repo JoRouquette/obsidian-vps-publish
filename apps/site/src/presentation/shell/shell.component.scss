@@ -1,10 +1,68 @@
-$row-top: 5em;
+$row-top: clamp(6rem, 12vh, 8rem); // Responsive header height (2 lines: controls + breadcrumbs)
 
 :host {
+  /* ITS theme aliases (fallback Material) */
+  --c-surface: var(--its-surface, var(--mat-sys-surface));
+  --c-on-surface: var(--its-on-surface, var(--mat-sys-on-surface));
+  --c-surface-variant: var(--its-surface-variant, var(--mat-sys-surface-variant));
+  --c-on-surface-variant: var(--its-on-surface-variant, var(--mat-sys-on-surface-variant));
+  --c-outline: var(--its-outline, var(--mat-sys-outline-variant));
+  --c-outline-strong: var(--its-outline, var(--mat-sys-outline));
+  --c-primary: var(--its-primary, var(--mat-sys-primary));
+  --c-tertiary: var(--its-tertiary, var(--mat-sys-tertiary));
+  --c-background: var(--its-background, var(--mat-sys-background));
+
   display: block;
-  min-height: 100dvh;
-  color: var(--mat-sys-on-surface);
-  background: var(--mat-sys-background);
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  color: var(--c-on-surface);
+  background: var(--c-background);
+}
+
+// === Desktop sidebar toggle button (left edge of screen) ===
+.sidebar-toggle-desktop {
+  display: none; // Hidden on mobile
+  position: fixed;
+  top: 50%;
+  left: 0; // Au bord gauche
+  z-index: 1000;
+  background: color-mix(in srgb, var(--c-surface) 98%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--c-primary);
+  border: 1px solid var(--c-outline);
+  border-left: none;
+  border-radius: 0 0.5rem 0.5rem 0;
+  box-shadow: 0.125rem 0.25rem 0.75rem rgba(0, 0, 0, 0.12);
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+  padding: 0.5rem 0.25rem;
+  width: 2rem;
+  height: 3rem;
+  pointer-events: auto;
+
+  // Par défaut : translation vers la gauche (partiellement caché)
+  transform: translateY(-50%) translateX(-1.5rem);
+
+  // Au hover : glisse complètement à droite (visible)
+  &:hover {
+    transform: translateY(-50%) translateX(0);
+    background: color-mix(in srgb, var(--c-surface-variant) 98%, transparent);
+    box-shadow: 0.25rem 0.375rem 1rem rgba(0, 0, 0, 0.18);
+    color: var(--c-primary);
+  }
+
+  &:active {
+    transform: translateY(-50%) translateX(0) scale(0.98);
+    box-shadow: 0.125rem 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
+  }
+
+  mat-icon {
+    transition: transform 0.2s ease;
+  }
 }
 
 // Hamburger menu button (mobile only)
@@ -14,17 +72,17 @@ $row-top: 5em;
   top: 12px;
   left: 12px;
   z-index: 1100;
-  background: rgba(var(--mat-sys-surface-rgb, 255, 255, 255), 0.95);
+  background: color-mix(in srgb, var(--c-surface) 95%, transparent);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  color: var(--mat-sys-on-surface);
-  border: 1px solid var(--mat-sys-outline-variant);
+  color: var(--c-on-surface);
+  border: 1px solid var(--c-outline);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   transition: all 0.2s ease;
 
   &:hover {
-    background: var(--mat-sys-surface-variant);
+    background: var(--c-surface-variant);
     transform: scale(1.05);
   }
 
@@ -63,16 +121,28 @@ $row-top: 5em;
 
 .grid {
   display: grid;
-  grid-template-columns: minmax(240px, 0.95fr) minmax(0, 3.05fr);
+  grid-template-columns: min-content 1fr;
   grid-template-rows: $row-top 1fr;
   grid-template-areas:
     'Logo TopBar'
     'vault-explorer main';
   gap: 0;
 
-  min-height: calc(100dvh);
-  background: var(--mat-sys-surface);
-  border-top: 1px solid var(--mat-sys-outline-variant);
+  height: 100%;
+  width: 100%;
+  background: var(--c-background);
+  transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  // When sidebar is collapsed
+  &.sidebar-collapsed {
+    grid-template-columns: 0 1fr;
+
+    .Logo,
+    .vault-explorer {
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
 }
 
 .Logo {
@@ -80,9 +150,7 @@ $row-top: 5em;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--mat-sys-surface);
-  border-right: 1px solid var(--mat-sys-outline-variant);
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  background: var(--c-surface);
 
   min-width: 0;
   min-height: 0;
@@ -93,8 +161,7 @@ $row-top: 5em;
   grid-area: TopBar;
   display: flex;
   align-items: stretch;
-  background: var(--mat-sys-surface);
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  background: var(--c-surface);
 
   min-width: 0;
   min-height: 0;
@@ -109,14 +176,16 @@ $row-top: 5em;
 
 .vault-explorer {
   grid-area: vault-explorer;
+  position: relative;
   display: flex;
   flex-direction: column;
-  background: var(--its-surface);
-  border-right: 1px solid var(--mat-sys-outline-variant);
+  background: var(--c-surface);
+  border-right: 2px solid var(--c-outline-strong);
 
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  transition: opacity 0.3s ease;
 
   app-vault-explorer {
     flex: 1 1 auto;
@@ -125,39 +194,85 @@ $row-top: 5em;
     block-size: 100%;
     display: block;
   }
+
+  // === Resize handle (desktop only) ===
+  .resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 0.375rem; // 6px
+    cursor: col-resize;
+    background: transparent;
+    z-index: 50;
+    transition: background-color 0.2s ease;
+
+    &:hover,
+    &:focus-visible {
+      background-color: var(--c-primary);
+      outline: none;
+    }
+
+    &:active {
+      background-color: var(--c-tertiary);
+    }
+
+    // Touch-friendly on tablets
+    @media (hover: none) and (pointer: coarse) {
+      width: 0.75rem; // 12px
+    }
+  }
 }
 
 .main {
   grid-area: main;
   display: flex;
   flex-direction: column;
-  background: var(--mat-sys-surface);
-  padding: 16px clamp(12px, 3vw, 24px);
+  background: var(--c-background);
 
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+
+  // Padding uniforme pour tout .main (top, left, right)
+  padding-top: clamp(0.75rem, 2vw, 1.5rem);
+  padding-inline: clamp(0.75rem, 3vw, 2rem);
 
   // Smooth scrolling
   scroll-behavior: smooth;
 
   // Better scroll performance
   -webkit-overflow-scrolling: touch;
+
+  // Content area sans padding supplémentaire (padding géré par .main)
+  router-outlet {
+    display: contents;
+  }
+
+  > :not(.footer) {
+    flex: 1 1 auto; // Occupe l'espace disponible sans forcer
+    min-height: 0; // Permet au contenu de se rétracter
+    // Padding supprimé ici, géré par .main
+  }
 }
 
 .footer {
-  margin-top: auto;
-  height: 44px;
+  flex: 0 0 auto; // Ne grandit ni ne rétrécit
+  margin-top: auto; // Pousse au bas
+  height: clamp(2.5rem, 5vh, 3rem);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
+  gap: clamp(0.4rem, 1vw, 0.75rem);
+  font-size: clamp(0.8rem, 1.5vw, 0.95rem);
+  width: 100%;
+  padding: 0;
 
-  background: var(--mat-sys-surface-variant);
-  color: var(--mat-sys-on-surface-variant);
-  border-top: 1px solid var(--mat-sys-outline-variant);
+  color: var(--c-on-surface-variant);
+  border-top: 1px solid var(--c-outline);
 
   .repo-link {
     display: inline-flex;
@@ -166,18 +281,18 @@ $row-top: 5em;
     color: inherit;
     text-decoration: none;
     // Mobile: Ensure minimum touch target
-    min-height: 44px;
-    padding: 0 0.25rem;
+    min-height: 2.75rem; // 44px
+    padding: 0 0.375rem;
 
     &:hover {
       text-decoration: underline;
     }
 
     mat-icon {
-      font-size: 18px;
-      width: 18px;
-      height: 18px;
-      line-height: 18px;
+      font-size: clamp(1rem, 2vw, 1.125rem);
+      width: 1.125rem;
+      height: 1.125rem;
+      line-height: 1.125rem;
     }
   }
 
@@ -186,10 +301,19 @@ $row-top: 5em;
   }
 }
 
-@media (max-width: 1100px) {
-  .grid {
-    grid-template-columns: 10.5em 1fr;
+// === Desktop layout (show sidebar toggle, hide resize handle on narrow screens) ===
+@media (min-width: 901px) {
+  .sidebar-toggle-desktop {
+    display: flex;
   }
+
+  .vault-explorer .mobile-overlay-header {
+    display: none; // Hide mobile header on desktop
+  }
+}
+
+@media (max-width: 1100px) {
+  // Grid adapts automatically via dynamic sidebar width
 }
 
 // Tablet: Stack layout vertically
@@ -205,13 +329,16 @@ $row-top: 5em;
 
   .Logo {
     border-right: none;
-    border-bottom: 1px solid var(--mat-sys-outline-variant);
     // Tablet: Reduce logo height
-    min-height: 60px;
-    max-height: 80px;
+    min-height: clamp(3.5rem, 8vh, 5rem);
+    max-height: clamp(4.5rem, 10vh, 6rem);
   }
 
-  // Mobile: Show hamburger menu and hide vault-explorer from grid
+  // Mobile: Hide desktop toggle, show hamburger menu
+  .sidebar-toggle-desktop {
+    display: none;
+  }
+
   .hamburger-menu {
     display: flex;
   }
@@ -229,20 +356,20 @@ $row-top: 5em;
     top: 0;
     left: 0;
     bottom: 0;
-    width: min(320px, 85vw);
+    width: min(20rem, 85vw); // 320px ~20rem
     z-index: 1050;
 
     // Hidden by default
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-    // Mobile overlay layout: use distinct overlay background (ITS theme)
-    background: var(--its-surface-variant);
-    border-right: 2px solid var(--its-outline);
+    // Mobile overlay layout
+    background: var(--c-surface-variant);
+    border-right: 2px solid var(--c-outline-strong);
     border-top: none;
 
     // Shadow for overlay effect
-    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.2);
+    box-shadow: 0.25rem 0 1rem rgba(0, 0, 0, 0.2);
 
     // Enable scrolling on the entire overlay
     overflow-y: auto;
@@ -253,14 +380,19 @@ $row-top: 5em;
       transform: translateX(0);
     }
 
+    // Hide resize handle on mobile
+    .resize-handle {
+      display: none;
+    }
+
     // Mobile overlay header
     .mobile-overlay-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px;
-      background: var(--its-surface);
-      border-bottom: 1px solid var(--its-outline);
+      padding: clamp(0.75rem, 2vw, 1.25rem);
+      background: var(--c-surface);
+      border-bottom: 1px solid var(--c-outline-strong);
       position: sticky;
       top: 0;
       z-index: 10;
@@ -269,79 +401,80 @@ $row-top: 5em;
 
       .overlay-title {
         margin: 0;
-        font-size: 1.25rem;
+        font-size: clamp(1.1rem, 2.5vw, 1.35rem);
         font-weight: 500;
-        color: var(--mat-sys-on-surface);
+        color: var(--c-on-surface);
       }
 
       .theme-toggle-mobile {
-        color: var(--mat-sys-on-surface);
+        color: var(--c-on-surface);
 
         mat-icon {
-          font-size: 24px;
-          width: 24px;
-          height: 24px;
+          font-size: clamp(1.35rem, 3vw, 1.65rem);
+          width: 1.5rem;
+          height: 1.5rem;
         }
       }
     }
   }
 
   .main {
-    padding: 12px;
-    // Ensure main content is scrollable
+    > :not(.footer) {
+      padding: clamp(0.5rem, 2vw, 1rem);
+    }
+
     overflow-y: auto;
     overflow-x: hidden;
   }
 
   .footer {
-    font-size: 0.85rem;
-    gap: 0.4rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.9rem);
+    gap: clamp(0.3rem, 1vw, 0.5rem);
     flex-wrap: wrap;
-    padding: 0.25rem 0.5rem;
-    min-height: 44px;
+    padding: 0.375rem 0.625rem;
+    min-height: 2.75rem;
     height: auto;
   }
 }
 
 // Mobile: Further optimize spacing and layout
 @media (max-width: 768px) {
-  $row-top-mobile: 4em;
+  $row-top-mobile: clamp(3.5rem, 7vh, 4.5rem);
 
   .hamburger-menu {
-    top: 10px;
-    left: 10px;
+    top: clamp(0.5rem, 1.5vw, 0.75rem);
+    left: clamp(0.5rem, 1.5vw, 0.75rem);
   }
 
   .Logo {
-    min-height: 50px;
-    max-height: 70px;
+    min-height: clamp(3rem, 6vh, 4.5rem);
+    max-height: clamp(4rem, 8vh, 5.5rem);
   }
 
   .TopBar {
-    // Mobile: Accommodate 2-row topbar layout
     min-height: $row-top-mobile;
   }
 
   .vault-explorer {
-    width: min(300px, 80vw);
+    width: min(18.75rem, 80vw); // 300px ~18.75rem
   }
 
   .main {
-    padding: 8px;
+    padding: clamp(0.375rem, 1.5vw, 0.75rem);
   }
 
   .footer {
-    font-size: 0.8rem;
-    gap: 0.35rem;
+    font-size: clamp(0.7rem, 1.6vw, 0.85rem);
+    gap: clamp(0.25rem, 0.8vw, 0.4rem);
 
     .repo-link {
-      font-size: 0.85rem;
+      font-size: clamp(0.75rem, 1.7vw, 0.9rem);
 
       mat-icon {
-        font-size: 16px;
-        width: 16px;
-        height: 16px;
-        line-height: 16px;
+        font-size: clamp(0.9rem, 2vw, 1.1rem);
+        width: 1rem;
+        height: 1rem;
+        line-height: 1rem;
       }
     }
   }
@@ -350,30 +483,30 @@ $row-top: 5em;
 // Small mobile: Minimal spacing
 @media (max-width: 520px) {
   .hamburger-menu {
-    top: 8px;
-    left: 8px;
+    top: 0.5rem;
+    left: 0.5rem;
   }
 
   .Logo {
-    min-height: 45px;
-    max-height: 60px;
+    min-height: 2.75rem;
+    max-height: 3.75rem;
   }
 
   .vault-explorer {
-    width: min(280px, 85vw);
+    width: min(17.5rem, 85vw); // 280px ~17.5rem
   }
 
   .main {
-    padding: 6px;
+    padding: 0.375rem;
   }
 
   .footer {
-    font-size: 0.75rem;
-    gap: 0.3rem;
-    padding: 0.2rem 0.4rem;
+    font-size: clamp(0.65rem, 1.5vw, 0.8rem);
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
 
     .repo-link {
-      font-size: 0.8rem;
+      font-size: clamp(0.7rem, 1.6vw, 0.85rem);
       gap: 0.2rem;
     }
   }
@@ -382,38 +515,38 @@ $row-top: 5em;
 // Extra small mobile: Ultra compact for 320-480px screens
 @media (max-width: 480px) {
   .hamburger-menu {
-    top: 6px;
-    left: 6px;
+    top: 0.375rem;
+    left: 0.375rem;
   }
 
   .Logo {
-    min-height: 40px;
-    max-height: 55px;
+    min-height: 2.5rem;
+    max-height: 3.5rem;
   }
 
   .vault-explorer {
-    width: min(260px, 90vw);
+    width: min(16.25rem, 90vw); // 260px ~16.25rem
   }
 
   .main {
-    padding: 4px;
+    padding: 0.25rem;
   }
 
   .footer {
-    font-size: 0.7rem;
-    gap: 0.25rem;
-    padding: 0.15rem 0.3rem;
+    font-size: clamp(0.6rem, 1.4vw, 0.75rem);
+    gap: 0.2rem;
+    padding: 0.2rem 0.375rem;
 
     .repo-link {
-      font-size: 0.75rem;
+      font-size: clamp(0.65rem, 1.5vw, 0.8rem);
       gap: 0.15rem;
-      padding: 0 0.2rem;
+      padding: 0 0.25rem;
 
       mat-icon {
-        font-size: 14px;
-        width: 14px;
-        height: 14px;
-        line-height: 14px;
+        font-size: 0.875rem;
+        width: 0.875rem;
+        height: 0.875rem;
+        line-height: 0.875rem;
       }
     }
 
