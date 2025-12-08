@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import type { OnInit } from '@angular/core';
 import { ChangeDetectionStrategy, Component, computed, ViewEncapsulation } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -10,7 +9,7 @@ import { SearchFacade } from '../../../application/facades/search-facade';
 @Component({
   standalone: true,
   selector: 'app-search-content',
-  imports: [CommonModule, RouterLink, MatIconModule],
+  imports: [RouterLink, MatIconModule],
   templateUrl: './search-content.component.html',
   styleUrls: ['./search-content.component.scss'],
   encapsulation: ViewEncapsulation.None,
@@ -36,7 +35,7 @@ export class SearchContentComponent implements OnInit {
     });
   }
 
-  trackMatch(_: number, item: { sentence: string }) {
+  trackMatch(_: number, item: { sentence: string }): string {
     return item.sentence;
   }
 

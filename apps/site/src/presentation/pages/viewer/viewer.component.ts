@@ -1,19 +1,20 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   ElementRef,
   Inject,
-  type OnDestroy,
   signal,
   ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltip, MatTooltipModule } from '@angular/material/tooltip';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
-import { distinctUntilChanged, map, Subscription, switchMap } from 'rxjs';
+import { distinctUntilChanged, map, switchMap } from 'rxjs';
 
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
@@ -29,18 +30,48 @@ import { ImageOverlayComponent } from '../../components/image-overlay/image-over
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ViewerComponent implements OnDestroy {
+export class ViewerComponent {
   @ViewChild('contentEl', { static: true }) contentEl?: ElementRef<HTMLElement>;
   @ViewChild('tooltipTarget', { read: MatTooltip }) tooltip?: MatTooltip;
   @ViewChild('tooltipTarget', { read: ElementRef }) tooltipTarget?: ElementRef<HTMLElement>;
   @ViewChild(ImageOverlayComponent) imageOverlay?: ImageOverlayComponent;
 
   title = signal<string>('');
-  html = signal<SafeHtml | null>(null);
   readonly tooltipMessage = 'Cette page arrive prochainement';
 
-  private readonly sub = new Subscription();
   private readonly cleanupFns: Array<() => void> = [];
+
+  // Flux réactif moderne avec toSignal (Angular 20 pattern)
+  private readonly rawHtml = toSignal(
+    this.router.events.pipe(
+      map(() => this.router.url.split('?')[0].split('#')[0]),
+      distinctUntilChanged(),
+      switchMap((routePath) => {
+        const normalized = routePath.replace(/\/+$/, '') || '/';
+        const htmlUrl = normalized === '/' ? '/index.html' : `${normalized}.html`;
+        const manifest = this.catalog.manifest();
+
+        if (manifest.pages.length > 0) {
+          const p = manifest.pages.find((x) => x.route === normalized);
+          if (p) {
+            this.title.set(this.capitalize(p.title) ?? '');
+          }
+        }
+
+        return this.contentRepository.fetch(htmlUrl);
+      })
+    ),
+    { initialValue: 'Chargement...' }
+  );
+
+  // HTML sanitizé calculable
+  html = computed<SafeHtml>(() => {
+    const raw = this.rawHtml();
+    if (!raw || raw === 'Chargement...') {
+      return this.sanitizer.bypassSecurityTrustHtml('Chargement...');
+    }
+    return this.sanitizer.bypassSecurityTrustHtml(raw);
+  });
 
   constructor(
     @Inject(CONTENT_REPOSITORY) private readonly contentRepository: HttpContentRepository,
@@ -48,34 +79,7 @@ export class ViewerComponent implements OnDestroy {
     private readonly sanitizer: DomSanitizer,
     private readonly catalog: CatalogFacade
   ) {
-    this.html.set(this.sanitizer.bypassSecurityTrustHtml('Chargement...'));
-    const s = this.router.events
-      .pipe(
-        map(() => this.router.url.split('?')[0].split('#')[0]),
-        distinctUntilChanged(),
-        switchMap((routePath) => {
-          const normalized = routePath.replace(/\/+$/, '') || '/';
-          const htmlUrl = normalized === '/' ? '/index.html' : `${normalized}.html`;
-          const manifest = this.catalog.manifest();
-
-          if (manifest.pages.length > 0) {
-            const p = manifest.pages.find((x) => x.route === normalized);
-
-            if (p) {
-              this.title.set(this.capitalize(p.title) ?? '');
-            }
-          }
-
-          return this.contentRepository.fetch(htmlUrl);
-        })
-      )
-      .subscribe({
-        next: (raw) => this.html.set(this.sanitizer.bypassSecurityTrustHtml(raw)),
-        error: () => this.html.set(this.sanitizer.bypassSecurityTrustHtml('<p>Introuvable.</p>')),
-      });
-
-    this.sub.add(s);
-
+    // Effect pour décorer le DOM après chargement
     effect(() => {
       this.html();
       setTimeout(() => {
@@ -85,18 +89,17 @@ export class ViewerComponent implements OnDestroy {
     });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.cleanupWikilinks();
     this.cleanupImages();
     this.tooltip?.hide();
-    this.sub.unsubscribe();
   }
 
-  private capitalize(s: string) {
+  private capitalize(s: string): string {
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
-  private decorateWikilinks() {
+  private decorateWikilinks(): void {
     this.cleanupWikilinks();
 
     const container = this.contentEl?.nativeElement;
@@ -133,14 +136,14 @@ export class ViewerComponent implements OnDestroy {
     }
   }
 
-  private cleanupWikilinks() {
+  private cleanupWikilinks(): void {
     while (this.cleanupFns.length > 0) {
       const fn = this.cleanupFns.pop();
       fn?.();
     }
   }
 
-  private handleResolvedClick(event: Event, link: HTMLAnchorElement) {
+  private handleResolvedClick(event: Event, link: HTMLAnchorElement): void {
     const href = link.getAttribute('href');
     if (!href) return;
 
@@ -151,7 +154,7 @@ export class ViewerComponent implements OnDestroy {
     void this.router.navigateByUrl(href);
   }
 
-  private showTooltip(event: Event) {
+  private showTooltip(event: Event): void {
     const target = event.currentTarget as HTMLElement | null;
     if (!target) return;
 
@@ -161,11 +164,11 @@ export class ViewerComponent implements OnDestroy {
     target.removeAttribute('title');
   }
 
-  private hideTooltip() {
+  private hideTooltip(): void {
     this.tooltip?.hide();
   }
 
-  private updateTooltipAnchor(target: HTMLElement, message: string) {
+  private updateTooltipAnchor(target: HTMLElement, message: string): void {
     if (!this.tooltip || !this.tooltipTarget) return;
 
     const proxy = this.tooltipTarget.nativeElement;
@@ -183,7 +186,7 @@ export class ViewerComponent implements OnDestroy {
     this.tooltip.show();
   }
 
-  private decorateImages() {
+  private decorateImages(): void {
     this.cleanupImages();
 
     const container = this.contentEl?.nativeElement;
@@ -198,11 +201,11 @@ export class ViewerComponent implements OnDestroy {
     }
   }
 
-  private cleanupImages() {
+  private cleanupImages(): void {
     // Cleanup is handled by cleanupWikilinks which clears the same cleanupFns array
   }
 
-  private openImageOverlay(img: HTMLImageElement) {
+  private openImageOverlay(img: HTMLImageElement): void {
     if (!this.imageOverlay) return;
     const src = img.src;
     const alt = img.alt || '';

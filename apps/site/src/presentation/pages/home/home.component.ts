@@ -1,20 +1,20 @@
-import type { OnInit } from '@angular/core';
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
   Inject,
-  signal,
   ViewEncapsulation,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 // Angular Material
 import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
-import type { SafeHtml } from '@angular/platform-browser';
 import { DomSanitizer } from '@angular/platform-browser';
 import type { ManifestPage } from '@core-domain/entities/manifest-page';
+import { from } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import type { ContentRepository } from '../../../domain/ports/content-repository.port';
@@ -36,8 +36,15 @@ type Section = {
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class HomeComponent implements OnInit {
-  rootIndexHtml = signal<SafeHtml | null>(null);
+export class HomeComponent {
+  // Chargement réactif de l'index HTML avec toSignal
+  rootIndexHtml = toSignal(
+    from(this.contentRepo.fetch('/index.html')).pipe(
+      map((html) => this.sanitizer.bypassSecurityTrustHtml(html)),
+      catchError(() => [this.sanitizer.bypassSecurityTrustHtml('<p>Index introuvable.</p>')])
+    ),
+    { initialValue: this.sanitizer.bypassSecurityTrustHtml('') }
+  );
 
   constructor(
     public catalog: CatalogFacade,
@@ -45,15 +52,6 @@ export class HomeComponent implements OnInit {
     private readonly sanitizer: DomSanitizer
   ) {
     void this.catalog.ensureManifest();
-  }
-
-  ngOnInit(): void {
-    void this.contentRepo
-      .fetch('/index.html')
-      .then((html) => this.rootIndexHtml.set(this.sanitizer.bypassSecurityTrustHtml(html)))
-      .catch(() =>
-        this.rootIndexHtml.set(this.sanitizer.bypassSecurityTrustHtml('<p>Index introuvable.</p>'))
-      );
   }
 
   sections = computed<Section[]>(() => {

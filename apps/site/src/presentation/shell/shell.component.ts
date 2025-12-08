@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { NgComponentOutlet } from '@angular/common';
 import { Component, DestroyRef, type OnInit, signal, type Type } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -22,7 +22,7 @@ type Crumb = { label: string; url: string };
   standalone: true,
   selector: 'app-shell',
   imports: [
-    CommonModule,
+    NgComponentOutlet,
     RouterOutlet,
     TopbarComponent,
     LogoComponent,
@@ -58,7 +58,7 @@ export class ShellComponent implements OnInit {
   crumbs = () => this._crumbs;
   private readonly pageTitleCache = new Map<string, string>();
   private readonly pageByRoute = new Map<string, ManifestPage>();
-  vaultExplorerComponent: Type<unknown> | null = null;
+  vaultExplorerComponent = signal<Type<unknown> | null>(null);
 
   ngOnInit(): void {
     this.theme.init();
@@ -175,9 +175,9 @@ export class ShellComponent implements OnInit {
   }
 
   private async loadVaultExplorer(): Promise<void> {
-    if (this.vaultExplorerComponent) return;
+    if (this.vaultExplorerComponent()) return;
     const mod = await import('../components/vault-explorer/vault-explorer.component');
-    this.vaultExplorerComponent = mod.VaultExplorerComponent;
+    this.vaultExplorerComponent.set(mod.VaultExplorerComponent);
   }
 
   toggleMenu(): void {

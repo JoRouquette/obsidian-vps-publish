@@ -50,10 +50,9 @@
       </button>
     </div>
 
-    <ng-container
-      *ngIf="vaultExplorerComponent as explorer"
-      [ngComponentOutlet]="explorer"
-    ></ng-container>
+    @if (vaultExplorerComponent(); as explorer) {
+      <ng-container [ngComponentOutlet]="explorer"></ng-container>
+    }
   </div>
 
   <div class="main">

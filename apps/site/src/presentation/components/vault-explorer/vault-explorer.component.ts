@@ -1,5 +1,4 @@
 import { CdkTreeModule } from '@angular/cdk/tree';
-import { CommonModule } from '@angular/common';
 import type { ElementRef, OnInit } from '@angular/core';
 import { Component, computed, effect, signal, ViewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
@@ -21,7 +20,6 @@ import { SearchBarComponent } from '../search-bar/search-bar.component';
   selector: 'app-vault-explorer',
   imports: [
     CdkTreeModule,
-    CommonModule,
     MatButtonModule,
     MatDividerModule,
     MatFormFieldModule,
@@ -40,14 +38,14 @@ export class VaultExplorerComponent implements OnInit {
   private matches = new WeakMap<TreeNode, boolean>();
   tree = signal<TreeNode>(defaultTreeNode);
   q = signal<string>('');
-  readonly EMPTY: ReadonlyArray<TreeNode> = [];
+  private readonly EMPTY: TreeNode[] = [];
   private readonly buildTree = new BuildTreeHandler();
   hasQuery = computed(() => this.q().trim().length > 0);
   rootChildren = computed(() => {
     const root = this.filteredRoot();
-    if (!root) return this.EMPTY as TreeNode[];
+    if (!root) return this.EMPTY;
     if (!this.q().trim()) return (root.children ?? []) as TreeNode[];
-    return this.visible.get(root) ?? (this.EMPTY as TreeNode[]);
+    return this.visible.get(root) ?? this.EMPTY;
   });
   noResult = computed(() => {
     if (!this.hasQuery()) return false;
@@ -99,11 +97,11 @@ export class VaultExplorerComponent implements OnInit {
     });
   }
 
-  onInputQuery(value: string) {
+  onInputQuery(value: string): void {
     this.q.set(value ?? '');
   }
 
-  syncX(source: 'tree' | 'h') {
+  syncX(source: 'tree' | 'h'): void {
     const t = this.treeScroller?.nativeElement,
       h = this.hScroller?.nativeElement;
     if (!t || !h) return;
@@ -111,7 +109,7 @@ export class VaultExplorerComponent implements OnInit {
     else h.scrollLeft = t.scrollLeft;
   }
 
-  measureScrollWidth() {
+  measureScrollWidth(): void {
     const t = this.treeScroller?.nativeElement;
     if (!t) return;
     const w = t.scrollWidth;
