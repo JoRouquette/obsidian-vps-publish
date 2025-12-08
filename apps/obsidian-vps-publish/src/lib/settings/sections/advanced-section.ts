@@ -225,7 +225,7 @@ class ConfirmCleanupModal extends Modal {
 
   onOpen(): void {
     const { contentEl } = this;
-    contentEl.createEl('h3', { text: this.options.title });
+    this.titleEl.setText(this.options.title);
     contentEl.createEl('p', { text: this.options.message });
 
     const buttons = contentEl.createDiv({ cls: 'modal-button-container' });
@@ -269,7 +269,7 @@ class NameConfirmationModal extends Modal {
 
   onOpen(): void {
     const { contentEl } = this;
-    contentEl.createEl('h3', { text: this.options.title });
+    this.titleEl.setText(this.options.title);
     contentEl.createEl('p', { text: this.options.message });
 
     const input = contentEl.createEl('input', {

@@ -36,6 +36,20 @@
 
   <!-- Vault explorer with mobile overlay -->
   <div class="vault-explorer" [class.open]="isMenuOpen()">
+    <!-- Mobile overlay header with theme toggle -->
+    <div class="mobile-overlay-header">
+      <h2 class="overlay-title">Navigation</h2>
+      <button
+        class="theme-toggle-mobile"
+        mat-icon-button
+        (click)="theme.toggle()"
+        [attr.aria-label]="theme.isDark() ? 'Activer le thème clair' : 'Activer le thème sombre'"
+        matTooltip="{{ theme.isDark() ? 'Thème clair' : 'Thème sombre' }}"
+      >
+        <mat-icon>{{ theme.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+      </button>
+    </div>
+
     <ng-container
       *ngIf="vaultExplorerComponent as explorer"
       [ngComponentOutlet]="explorer"

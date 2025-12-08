@@ -11,6 +11,7 @@ import { RenderInlineDataviewService } from '@core-application/vault-parsing/ser
 import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
 import { type CollectedNote, type VpsConfig } from '@core-domain';
 import { type HttpResponse } from '@core-domain/entities/http-response';
+import { ProgressStepId, ProgressStepStatus } from '@core-domain/entities/progress-step';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import { type DataAdapter, Notice, Plugin, type RequestUrlResponse } from 'obsidian';
 
@@ -21,9 +22,12 @@ import { AssetsUploaderAdapter } from './lib/infra/assets-uploader.adapter';
 import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
 import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
 import { NotesUploaderAdapter } from './lib/infra/notes-uploader.adapter';
+import { NoticeNotificationAdapter } from './lib/infra/notice-notification.adapter';
 import { NoticeProgressAdapter } from './lib/infra/notice-progress.adapter';
 import { ObsidianAssetsVaultAdapter } from './lib/infra/obsidian-assets-vault.adapter';
 import { ObsidianVaultAdapter } from './lib/infra/obsidian-vault.adapter';
+import { createStepMessages } from './lib/infra/step-messages.factory';
+import { StepProgressManagerAdapter } from './lib/infra/step-progress-manager.adapter';
 import { testVpsConnection } from './lib/services/http-connection.service';
 import { SessionApiClient } from './lib/services/session-api.client';
 import { ObsidianVpsPublishSettingTab } from './lib/setting-tab.view';
@@ -245,49 +249,66 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     const scopedLogger = this.logger.child({ vps: vps.id ?? 'default' });
     const guidGenerator = new GuidGeneratorAdapter();
-    const vault = new ObsidianVaultAdapter(this.app, guidGenerator, scopedLogger);
 
-    let notes: CollectedNote[] = await vault.collectFromFolder({
-      folderConfig: vps.folders,
-    });
-
-    const parseContentHandler = this.buildParseContentHandler(vps, settings, scopedLogger);
-    let publishables = await parseContentHandler.handle(notes);
-
-    const publishableCount = publishables.length;
-    const notesWithAssets = publishables.filter((n) => n.assets && n.assets.length > 0);
-    const assetsPlanned = notesWithAssets.reduce(
-      (sum, n) => sum + (Array.isArray(n.assets) ? n.assets.length : 0),
-      0
+    // Initialiser le système de progress et notifications
+    const totalProgressAdapter = new NoticeProgressAdapter('Publishing to VPS');
+    const notificationAdapter = new NoticeNotificationAdapter();
+    const stepMessages = createStepMessages(t.plugin);
+    const stepProgressManager = new StepProgressManagerAdapter(
+      totalProgressAdapter,
+      notificationAdapter,
+      stepMessages
     );
 
-    scopedLogger.debug('Total notes collected and parsed', {
-      collected: notes.length,
-      publishable: publishableCount,
-    });
-
-    if (publishableCount === 0) {
-      this.logger.warn('No publishable notes after filtering; aborting upload.');
-      new Notice('No publishable notes to upload.');
-      return;
-    }
-
-    const sessionClient = new SessionApiClient(
-      vps.baseUrl,
-      vps.apiKey,
-      this.responseHandler,
-      this.logger
-    );
-    const calloutStyles = await this.loadCalloutStyles(settings.calloutStylePaths ?? []);
-
-    let sessionId = null;
-    const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
-    let assetsUploaded = 0;
-    const totalPlanned = publishableCount + assetsPlanned;
-    const progress = totalPlanned > 0 ? new NoticeProgressAdapter('Publishing to VPS') : null;
-    let progressStarted = false;
+    let sessionId: string | null = null;
+    let sessionClient: SessionApiClient | null = null;
 
     try {
+      // ====================================================================
+      // ÉTAPE 1: PARSE_VAULT - Parsing du vault
+      // ====================================================================
+      const vault = new ObsidianVaultAdapter(this.app, guidGenerator, scopedLogger);
+      const notes: CollectedNote[] = await vault.collectFromFolder({
+        folderConfig: vps.folders,
+      });
+
+      const parseContentHandler = this.buildParseContentHandler(vps, settings, scopedLogger);
+      const publishables = await parseContentHandler.handle(notes);
+
+      const publishableCount = publishables.length;
+      const notesWithAssets = publishables.filter((n) => n.assets && n.assets.length > 0);
+      const assetsPlanned = notesWithAssets.reduce(
+        (sum, n) => sum + (Array.isArray(n.assets) ? n.assets.length : 0),
+        0
+      );
+
+      scopedLogger.debug('Total notes collected and parsed', {
+        collected: notes.length,
+        publishable: publishableCount,
+      });
+
+      if (publishableCount === 0) {
+        this.logger.warn('No publishable notes after filtering; aborting upload.');
+        new Notice('No publishable notes to upload.');
+        return;
+      }
+
+      // Initialiser le progress global AVANT le début des opérations réseau
+      const totalPlanned = publishableCount + assetsPlanned;
+      totalProgressAdapter.start(totalPlanned);
+
+      // ====================================================================
+      // SESSION START - Démarrage de la session
+      // ====================================================================
+      sessionClient = new SessionApiClient(
+        vps.baseUrl,
+        vps.apiKey,
+        this.responseHandler,
+        this.logger
+      );
+      const calloutStyles = await this.loadCalloutStyles(settings.calloutStylePaths ?? []);
+
+      const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
       const started = await sessionClient.startSession({
         notesPlanned: publishableCount,
         assetsPlanned: assetsPlanned,
@@ -299,10 +320,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const serverRequestLimit = started.maxBytesPerRequest;
       this.logger.debug('Session started', { sessionId, maxBytesPerRequest: serverRequestLimit });
 
-      if (progress && !progressStarted) {
-        progress.start(totalPlanned);
-        progressStarted = true;
-      }
+      // ====================================================================
+      // ÉTAPE 2: UPLOAD_NOTES - Upload des notes
+      // ====================================================================
+      stepProgressManager.startStep(
+        ProgressStepId.UPLOAD_NOTES,
+        'Uploading notes',
+        publishableCount
+      );
 
       const notesUploader = new NotesUploaderAdapter(
         sessionClient,
@@ -310,11 +335,24 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         new GuidGeneratorAdapter(),
         this.logger,
         serverRequestLimit,
-        progress ?? undefined
+        stepProgressManager
       );
       await notesUploader.upload(publishables);
 
-      if (notesWithAssets.length > 0) {
+      stepProgressManager.completeStep(ProgressStepId.UPLOAD_NOTES);
+
+      // ====================================================================
+      // ÉTAPE 3: UPLOAD_ASSETS - Upload des assets
+      // ====================================================================
+      let assetsUploaded = 0;
+
+      if (notesWithAssets.length > 0 && assetsPlanned > 0) {
+        stepProgressManager.startStep(
+          ProgressStepId.UPLOAD_ASSETS,
+          'Uploading assets',
+          assetsPlanned
+        );
+
         const assetsVault = new ObsidianAssetsVaultAdapter(this.app, this.logger);
         const assetsUploader = new AssetsUploaderAdapter(
           sessionClient,
@@ -322,7 +360,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           new GuidGeneratorAdapter(),
           this.logger,
           serverRequestLimit,
-          progress ?? undefined
+          stepProgressManager
         );
 
         const resolvedAssets = await assetsVault.resolveAssetsFromNotes(
@@ -334,17 +372,28 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
         await assetsUploader.upload(resolvedAssets);
 
+        stepProgressManager.completeStep(ProgressStepId.UPLOAD_ASSETS);
         this.logger.debug('Assets uploaded', { assetsUploaded });
+      } else {
+        // Pas d'assets à uploader, on skip l'étape
+        stepProgressManager.skipStep(ProgressStepId.UPLOAD_ASSETS, 'No assets to upload');
       }
+
+      // ====================================================================
+      // ÉTAPE 4: FINALIZE_SESSION - Finalisation
+      // ====================================================================
+      stepProgressManager.startStep(ProgressStepId.FINALIZE_SESSION, 'Finalizing', 1);
 
       await sessionClient.finishSession(sessionId, {
         notesProcessed: publishableCount,
         assetsProcessed: assetsUploaded,
       });
 
-      if (progressStarted) {
-        progress?.finish();
-      }
+      stepProgressManager.advanceStep(ProgressStepId.FINALIZE_SESSION, 1);
+      stepProgressManager.completeStep(ProgressStepId.FINALIZE_SESSION);
+
+      // Terminer le progress global
+      totalProgressAdapter.finish();
 
       const successMsg = `Published ${publishableCount} note(s)${
         assetsPlanned ? ` and ${assetsUploaded} asset(s)` : ''
@@ -352,16 +401,28 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       new Notice(successMsg);
     } catch (err) {
       this.logger.error('Publishing failed, aborting session if created', err);
-      if (sessionId) {
+
+      // Marquer l'étape en cours comme échouée
+      const currentStep = stepProgressManager
+        .getAllSteps()
+        .find((step) => step.status === ProgressStepStatus.IN_PROGRESS);
+      if (currentStep) {
+        stepProgressManager.failStep(
+          currentStep.id,
+          err instanceof Error ? err.message : 'Unknown error'
+        );
+      }
+
+      // Abort session si elle a été créée
+      if (sessionId && sessionClient) {
         try {
           await sessionClient.abortSession(sessionId);
         } catch (abortErr) {
           this.logger.error('Failed to abort session', abortErr);
         }
       }
-      if (progressStarted) {
-        progress?.finish();
-      }
+
+      totalProgressAdapter.finish();
       new Notice('Publishing failed (see console).');
     }
   }

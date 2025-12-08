@@ -14,10 +14,13 @@ $row-top: 5em;
   top: 12px;
   left: 12px;
   z-index: 1100;
-  background: var(--mat-sys-surface);
+  background: rgba(var(--mat-sys-surface-rgb, 255, 255, 255), 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: var(--mat-sys-on-surface);
   border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   transition: all 0.2s ease;
 
   &:hover {
@@ -241,8 +244,45 @@ $row-top: 5em;
     // Shadow for overlay effect
     box-shadow: 4px 0 16px rgba(0, 0, 0, 0.2);
 
+    // Enable scrolling on the entire overlay
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+
     &.open {
       transform: translateX(0);
+    }
+
+    // Mobile overlay header
+    .mobile-overlay-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      background: var(--its-surface);
+      border-bottom: 1px solid var(--its-outline);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+
+      .overlay-title {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 500;
+        color: var(--mat-sys-on-surface);
+      }
+
+      .theme-toggle-mobile {
+        color: var(--mat-sys-on-surface);
+
+        mat-icon {
+          font-size: 24px;
+          width: 24px;
+          height: 24px;
+        }
+      }
     }
   }
 

@@ -1,8 +1,10 @@
 import { ChunkedUploadService } from '@core-application/publishing/services/chunked-upload.service';
+import { ProgressStepId } from '@core-domain/entities/progress-step';
 import type { ResolvedAssetFile } from '@core-domain/entities/resolved-asset-file';
 import type { GuidGeneratorPort } from '@core-domain/ports/guid-generator-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { ProgressPort } from '@core-domain/ports/progress-port';
+import type { StepProgressManagerPort } from '@core-domain/ports/step-progress-manager-port';
 import { type UploaderPort } from '@core-domain/ports/uploader-port';
 
 import { type SessionApiClient } from '../services/session-api.client';
@@ -29,7 +31,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
     private readonly guidGenerator: GuidGeneratorPort,
     logger: LoggerPort,
     private readonly maxBytesPerRequest: number,
-    private readonly progress?: ProgressPort
+    private readonly progress?: ProgressPort | StepProgressManagerPort
   ) {
     this._logger = logger.child({ adapter: 'AssetsUploaderAdapter' });
     this._logger.debug('AssetsUploaderAdapter initialized');
@@ -75,7 +77,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
         skippedAssets: oversized.map((a) => ({ fileName: a.fileName, vaultPath: a.vaultPath })),
       });
       // Advance progress for skipped assets
-      this.progress?.advance(oversized.length);
+      this.advanceProgress(oversized.length);
     }
 
     this._logger.debug('Uploading assets to session', {
@@ -108,11 +110,23 @@ export class AssetsUploaderAdapter implements UploaderPort {
       });
 
       this._logger.debug('Assets batch uploaded', { batchSize: batch.length });
-      this.progress?.advance(batch.length);
+      this.advanceProgress(batch.length);
     }
 
     this._logger.debug('Assets upload completed');
     return true;
+  }
+
+  private advanceProgress(step: number): void {
+    if (!this.progress) return;
+
+    if ('advanceStep' in this.progress) {
+      // C'est un StepProgressManagerPort
+      this.progress.advanceStep(ProgressStepId.UPLOAD_ASSETS, step);
+    } else {
+      // C'est un ProgressPort
+      this.progress.advance(step);
+    }
   }
 
   private async buildApiAsset(asset: ResolvedAssetFile): Promise<ApiAsset> {

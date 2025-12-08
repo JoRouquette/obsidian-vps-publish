@@ -14,10 +14,8 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
   const { t, settings, logger } = ctx;
 
   const ignoreBlock = root.createDiv({ cls: 'ptpv-block' });
-  const ignoreBlockTitle = ignoreBlock.createDiv({
-    cls: 'ptpv-block-title',
-  });
-  ignoreBlockTitle.createEl('h6', { text: t.settings.ignoreRules.title });
+
+  new Setting(ignoreBlock).setName(t.settings.ignoreRules.title).setHeading();
 
   // Global ignore settings (frontmatter keys/tags)
   renderFrontmatterKeysExclude(ignoreBlock, ctx);
@@ -27,10 +25,11 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
   settings.vpsConfigs.forEach((vps, vpsIndex) => {
     const vpsSection = ignoreBlock.createDiv({ cls: 'ptpv-ignore-vps-section' });
 
-    vpsSection.createEl('h6', {
-      text: `${vps.name || `VPS #${vpsIndex + 1}`} - ${t.settings.ignoreRules.rulesLabel ?? 'Ignore Rules'}`,
-      cls: 'ptpv-ignore-vps-title',
-    });
+    new Setting(vpsSection)
+      .setName(
+        `${vps.name || `VPS #${vpsIndex + 1}`} - ${t.settings.ignoreRules.rulesLabel ?? 'Ignore Rules'}`
+      )
+      .setHeading();
 
     // Ensure ignoreRules array exists
     if (!Array.isArray(vps.ignoreRules)) {

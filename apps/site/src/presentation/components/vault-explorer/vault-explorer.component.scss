@@ -249,8 +249,15 @@
       margin: 0 6px 6px;
     }
 
-    .tree {
+    .tree-wrap {
+      // Remove internal scroll in mobile overlay - parent handles it
+      overflow-y: visible;
+      overflow-x: hidden;
       padding: 0 4px 8px;
+    }
+
+    .tree {
+      padding: 0 4px 4px;
     }
   }
 

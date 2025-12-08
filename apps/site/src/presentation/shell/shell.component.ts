@@ -3,6 +3,7 @@ import { Component, DestroyRef, type OnInit, signal, type Type } from '@angular/
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import type { ManifestPage } from '@core-domain';
 import { humanizePropertyKey } from '@core-domain/utils/string.utils';
@@ -27,6 +28,7 @@ type Crumb = { label: string; url: string };
     LogoComponent,
     MatIconModule,
     MatButtonModule,
+    MatTooltipModule,
   ],
   templateUrl: './shell.component.html',
   styleUrls: ['./shell.component.scss'],
