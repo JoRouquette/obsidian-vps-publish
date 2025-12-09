@@ -6,6 +6,7 @@ import { ComputeRoutingService } from '@core-application/vault-parsing/services/
 import { ContentSanitizerService } from '@core-application/vault-parsing/services/content-sanitizer.service';
 import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
 import { DetectWikilinksService } from '@core-application/vault-parsing/services/detect-wikilinks.service';
+import { EnsureTitleHeaderService } from '@core-application/vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
@@ -540,6 +541,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     const detectWikilinks = new DetectWikilinksService(logger);
     const resolveWikilinks = new ResolveWikilinksService(logger, detectWikilinks);
     const computeRoutingService = new ComputeRoutingService(logger);
+    const ensureTitleHeaderService = new EnsureTitleHeaderService(logger);
 
     return new ParseContentHandler(
       normalizeFrontmatterService,
@@ -547,6 +549,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       noteMapper,
       inlineDataviewRenderer,
       contentSanitizer,
+      ensureTitleHeaderService,
       assetsDetector,
       resolveWikilinks,
       computeRoutingService,
