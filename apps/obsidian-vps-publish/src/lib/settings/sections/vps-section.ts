@@ -30,10 +30,8 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
   const { t, settings, logger, vpsHelpers } = ctx;
 
   const vpsBlock = root.createDiv({ cls: 'ptpv-block' });
-  const vpsBlockTitle = vpsBlock.createDiv({
-    cls: 'ptpv-block-title',
-  });
-  vpsBlockTitle.createEl('h6', { text: t.settings.vps.title });
+
+  new Setting(vpsBlock).setName(t.settings.vps.title).setHeading();
 
   settings.vpsConfigs.forEach((vps, index) => {
     const vpsFieldset = vpsBlock.createEl('fieldset', { cls: 'ptpv-vps' });
@@ -265,7 +263,7 @@ function renderCleanupRulesSection(
   vps: VpsConfig,
   ctx: SettingsViewContext
 ): void {
-  const { t, logger: _logger } = ctx;
+  const { t } = ctx;
 
   const cleanupContainer = container.createDiv({ cls: 'ptpv-cleanup-rules' });
 
@@ -326,7 +324,7 @@ function renderCleanupRuleItem(
   onSave: () => Promise<void>,
   ctx: SettingsViewContext
 ): void {
-  const { t, logger: _logger } = ctx;
+  const { t } = ctx;
   const isDefault = (rule as SanitizationRulesDefaults).isDefault === true;
 
   const wrapper = container.createDiv({ cls: 'ptpv-cleanup-rule' });

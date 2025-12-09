@@ -9,6 +9,7 @@ import { ComputeRoutingService } from '../../vault-parsing/services/compute-rout
 import { ContentSanitizerService } from '../../vault-parsing/services/content-sanitizer.service';
 import { DetectAssetsService } from '../../vault-parsing/services/detect-assets.service';
 import { DetectWikilinksService } from '../../vault-parsing/services/detect-wikilinks.service';
+import { EnsureTitleHeaderService } from '../../vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '../../vault-parsing/services/normalize-frontmatter.service';
 import { RenderInlineDataviewService } from '../../vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '../../vault-parsing/services/resolve-wikilinks.service';
@@ -43,6 +44,7 @@ describe('ParseContentHandler', () => {
     const noteMapper = new NotesMapper();
     const inlineDataviewRenderer = new RenderInlineDataviewService(logger);
     const contentSanitizer = new ContentSanitizerService([], keysToExclude, tagsToExclude, logger);
+    const ensureTitleHeaderService = new EnsureTitleHeaderService(logger);
     const assetsDetector = new DetectAssetsService(logger);
     const detectWikilinks = new DetectWikilinksService(logger);
     const resolveWikilinks = new ResolveWikilinksService(logger, detectWikilinks);
@@ -54,6 +56,7 @@ describe('ParseContentHandler', () => {
       noteMapper,
       inlineDataviewRenderer,
       contentSanitizer,
+      ensureTitleHeaderService,
       assetsDetector,
       resolveWikilinks,
       computeRoutingService,

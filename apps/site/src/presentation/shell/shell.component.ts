@@ -1,8 +1,9 @@
-import { CommonModule } from '@angular/common';
+import { NgComponentOutlet } from '@angular/common';
 import { Component, DestroyRef, type OnInit, signal, type Type } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import type { ManifestPage } from '@core-domain';
 import { humanizePropertyKey } from '@core-domain/utils/string.utils';
@@ -21,12 +22,13 @@ type Crumb = { label: string; url: string };
   standalone: true,
   selector: 'app-shell',
   imports: [
-    CommonModule,
+    NgComponentOutlet,
     RouterOutlet,
     TopbarComponent,
     LogoComponent,
     MatIconModule,
     MatButtonModule,
+    MatTooltipModule,
   ],
   templateUrl: './shell.component.html',
   styleUrls: ['./shell.component.scss'],
@@ -45,6 +47,19 @@ export class ShellComponent implements OnInit {
   lastNonSearchUrl = '/';
   isMenuOpen = signal(false);
 
+  // Sidebar collapse & resize state
+  isSidebarCollapsed = signal(false);
+  sidebarWidth = signal(280); // default width in px
+  private isResizing = false;
+  private startX = 0;
+  private startWidth = 0;
+
+  // Sidebar width constraints (in px)
+  private readonly MIN_SIDEBAR_WIDTH = 200;
+  private readonly MAX_SIDEBAR_WIDTH = 600;
+  private readonly DEFAULT_SIDEBAR_WIDTH = 280;
+  private readonly COLLAPSED_SIDEBAR_WIDTH = 0;
+
   author = () => this.config.cfg()?.author ?? '';
   siteName = () => this.config.cfg()?.siteName ?? '';
   repo = () => this.config.cfg()?.repoUrl ?? '';
@@ -56,10 +71,11 @@ export class ShellComponent implements OnInit {
   crumbs = () => this._crumbs;
   private readonly pageTitleCache = new Map<string, string>();
   private readonly pageByRoute = new Map<string, ManifestPage>();
-  vaultExplorerComponent: Type<unknown> | null = null;
+  vaultExplorerComponent = signal<Type<unknown> | null>(null);
 
   ngOnInit(): void {
     this.theme.init();
+    this.loadSidebarState();
     void this.config.ensure().then(async () => {
       await this.catalog.ensureManifest();
       await this.loadVaultExplorer();
@@ -173,9 +189,9 @@ export class ShellComponent implements OnInit {
   }
 
   private async loadVaultExplorer(): Promise<void> {
-    if (this.vaultExplorerComponent) return;
+    if (this.vaultExplorerComponent()) return;
     const mod = await import('../components/vault-explorer/vault-explorer.component');
-    this.vaultExplorerComponent = mod.VaultExplorerComponent;
+    this.vaultExplorerComponent.set(mod.VaultExplorerComponent);
   }
 
   toggleMenu(): void {
@@ -184,6 +200,117 @@ export class ShellComponent implements OnInit {
 
   closeMenu(): void {
     this.isMenuOpen.set(false);
+  }
+
+  // === Sidebar collapse/expand ===
+  toggleSidebarCollapse(): void {
+    this.isSidebarCollapsed.update((v) => !v);
+    this.saveSidebarState();
+  }
+
+  // === Sidebar resize ===
+  startResize(event: MouseEvent | TouchEvent): void {
+    event.preventDefault();
+    this.isResizing = true;
+
+    const clientX = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
+    this.startX = clientX;
+    this.startWidth = this.sidebarWidth();
+
+    // Add global listeners
+    document.addEventListener('mousemove', this.handleResize);
+    document.addEventListener('mouseup', this.stopResize);
+    document.addEventListener('touchmove', this.handleResize);
+    document.addEventListener('touchend', this.stopResize);
+
+    // Add cursor style
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
+
+  private handleResize = (event: MouseEvent | TouchEvent): void => {
+    if (!this.isResizing) return;
+
+    const clientX = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
+    const delta = clientX - this.startX;
+    const newWidth = this.startWidth + delta;
+
+    // Clamp width between min and max
+    const clampedWidth = Math.max(
+      this.MIN_SIDEBAR_WIDTH,
+      Math.min(this.MAX_SIDEBAR_WIDTH, newWidth)
+    );
+
+    this.sidebarWidth.set(clampedWidth);
+  };
+
+  private stopResize = (): void => {
+    if (!this.isResizing) return;
+
+    this.isResizing = false;
+
+    // Remove global listeners
+    document.removeEventListener('mousemove', this.handleResize);
+    document.removeEventListener('mouseup', this.stopResize);
+    document.removeEventListener('touchmove', this.handleResize);
+    document.removeEventListener('touchend', this.stopResize);
+
+    // Reset cursor
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+
+    // Save new width
+    this.saveSidebarState();
+  };
+
+  handleResizeKeyboard(event: KeyboardEvent): void {
+    const step = 20; // px per keypress
+    let newWidth = this.sidebarWidth();
+
+    if (event.key === 'ArrowLeft') {
+      newWidth -= step;
+    } else if (event.key === 'ArrowRight') {
+      newWidth += step;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    newWidth = Math.max(this.MIN_SIDEBAR_WIDTH, Math.min(this.MAX_SIDEBAR_WIDTH, newWidth));
+    this.sidebarWidth.set(newWidth);
+    this.saveSidebarState();
+  }
+
+  // === LocalStorage persistence ===
+  private loadSidebarState(): void {
+    try {
+      const collapsed = localStorage.getItem('sidebar-collapsed');
+      const width = localStorage.getItem('sidebar-width');
+
+      if (collapsed !== null) {
+        this.isSidebarCollapsed.set(collapsed === 'true');
+      }
+
+      if (width !== null) {
+        const parsedWidth = parseInt(width, 10);
+        if (!isNaN(parsedWidth)) {
+          this.sidebarWidth.set(
+            Math.max(this.MIN_SIDEBAR_WIDTH, Math.min(this.MAX_SIDEBAR_WIDTH, parsedWidth))
+          );
+        }
+      }
+    } catch {
+      // localStorage not available or error - use defaults (silent fallback)
+    }
+  }
+
+  private saveSidebarState(): void {
+    try {
+      localStorage.setItem('sidebar-collapsed', this.isSidebarCollapsed().toString());
+      localStorage.setItem('sidebar-width', this.sidebarWidth().toString());
+    } catch {
+      // localStorage not available - silent fallback
+    }
   }
 
   private closeMenuIfNavigatingToFile(): void {

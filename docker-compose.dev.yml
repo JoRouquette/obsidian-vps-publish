@@ -6,12 +6,25 @@ services:
 
     image: obsidian-vps-publish:dev
 
+    user: '0:0'
+
     env_file:
       - .env.dev
 
-    # environment:
-    #   NODE_ENV: 'development'
-    #   LOGGER_LEVEL: 'debug'
-    #   ALLOWED_ORIGINS: '*,app://obsidian'
-    #   AUTHOR: 'Jonathan Rouquette'
-    #   REPO_URL: 'https://github.com/JoRouquette/obsidian-vps-publish'
+    volumes:
+      - type: volume
+        source: content
+        target: /content
+        volume:
+          nocopy: false
+      - type: volume
+        source: assets
+        target: /assets
+        volume:
+          nocopy: false
+
+volumes:
+  content:
+    driver: local
+  assets:
+    driver: local

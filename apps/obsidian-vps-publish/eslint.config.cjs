@@ -20,7 +20,7 @@ module.exports = [
     },
     rules: {
       ...tsBaseConfig.rules,
-      'no-console': 'warn',
+      'no-console': ['warn', { allow: ['warn', 'error', 'debug'] }],
     },
   },
   {

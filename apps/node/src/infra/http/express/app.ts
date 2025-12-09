@@ -156,6 +156,7 @@ export function createApp(rootLogger?: LoggerPort) {
       author: EnvConfig.author(),
       repoUrl: EnvConfig.repoUrl(),
       reportIssuesUrl: EnvConfig.reportIssuesUrl(),
+      homeWelcomeTitle: EnvConfig.homeWelcomeTitle(),
     });
   });
 

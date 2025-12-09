@@ -1,11 +1,13 @@
 <section class="home" aria-live="polite">
-  <header class="head">
-    <div class="title-block">
-      <h2 class="title">Bienvenue sur votre site de lore.</h2>
-    </div>
-  </header>
+  @if (welcomeTitle()) {
+    <header class="head">
+      <div class="title-block">
+        <h2 class="title">{{ welcomeTitle() }}</h2>
+      </div>
+    </header>
+  }
 
   <mat-divider class="sep"></mat-divider>
 
-  <div class="content" [innerHTML]="rootIndexHtml()"></div>
+  <div class="content" #contentEl [innerHTML]="rootIndexHtml()"></div>
 </section>

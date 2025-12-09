@@ -1,5 +1,5 @@
 import { type LoggerPort } from '@core-domain/ports/logger-port';
-import { type App, PluginSettingTab } from 'obsidian';
+import { type App, PluginSettingTab, Setting } from 'obsidian';
 
 import type ObsidianVpsPublishPlugin from '../main';
 import { buildSettingsContext } from './settings/context';
@@ -34,7 +34,7 @@ export class ObsidianVpsPublishSettingTab extends PluginSettingTab {
       cls: 'obsidian-vps-publish-settings',
     });
 
-    root.createEl('h1', { text: ctx.t.settings.tabTitle });
+    new Setting(root).setName(ctx.t.settings.tabTitle).setHeading();
 
     renderLanguageSection(root, ctx);
     renderVaultSection(root, ctx);

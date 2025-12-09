@@ -37,7 +37,7 @@ export class TopbarComponent {
     public search: SearchFacade
   ) {}
 
-  async onQueryInput(value: string) {
+  async onQueryInput(value: string): Promise<void> {
     const query = (value ?? '').trim();
     this.search.setQuery(query);
     if (query.length === 0) {

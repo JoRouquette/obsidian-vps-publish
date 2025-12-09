@@ -3,6 +3,7 @@ export interface PublicConfig {
   author: string;
   repoUrl: string;
   reportIssuesUrl: string;
+  homeWelcomeTitle: string;
 }
 
 export interface ConfigRepository {

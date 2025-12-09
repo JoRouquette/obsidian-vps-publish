@@ -9,22 +9,28 @@
 
 .topbar {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    'site-name search actions'
+    'breadcrumbs breadcrumbs breadcrumbs';
   align-items: center;
+  row-gap: 0.5rem;
 
   inline-size: 100%;
   block-size: 100%;
-  min-block-size: 0; /* empêche la hauteur minimale par défaut de “tirer” */
+  min-block-size: 0;
   padding-inline: clamp(8px, 2vw, 16px);
+  padding-block: 0.5rem;
 
   background: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
   border-bottom: 1px solid var(--mat-sys-outline-variant);
 }
 
-/* Colonne gauche : breadcrumbs */
+/* Ligne 2 : breadcrumbs (pleine largeur) */
 .breadcrumbs {
-  grid-column: 1;
+  grid-area: breadcrumbs;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -44,17 +50,20 @@
     }
   }
   .sep {
+    display: inline-flex;
+    align-items: center;
     font-size: 18px;
     opacity: 0.75;
     flex: 0 0 auto;
+    line-height: 1;
   }
 }
 
-/* Colonne centre : titre parfaitement centré */
+/* Ligne 1 colonne 1 : titre du site */
 .site-name {
-  grid-column: 2;
-  justify-self: center;
-  text-align: center;
+  grid-area: site-name;
+  justify-self: start;
+  text-align: left;
   text-decoration: none;
   color: inherit;
   font-weight: 800;
@@ -62,14 +71,27 @@
   font-size: clamp(1rem, 2.2vw, 1.25rem);
   line-height: 1.2;
   white-space: nowrap;
-  max-width: 50vw;
+  max-width: clamp(150px, 25vw, 300px);
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Colonne droite : actions (toggle) */
+/* Ligne 1 colonne 2 : search bar */
+app-search-bar {
+  grid-area: search;
+  justify-self: end;
+  max-width: clamp(200px, 25vw, 320px);
+  align-self: center;
+
+  // Masquer le subscript wrapper de Material qui décentre la search-bar
+  ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+    display: none;
+  }
+}
+
+/* Ligne 1 colonne 3 : actions (toggle thème) */
 .toolbar-actions {
-  grid-column: 4;
+  grid-area: actions;
   justify-self: end;
   display: inline-flex;
   align-items: center;

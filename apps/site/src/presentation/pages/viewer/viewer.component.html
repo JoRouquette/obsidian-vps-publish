@@ -1,7 +1,4 @@
 <article class="viewer">
-  @if (title()) {
-    <h1 class="title">{{ title() }}</h1>
-  }
   <div class="content" #contentEl [innerHTML]="html()"></div>
   <span
     #tooltipTarget

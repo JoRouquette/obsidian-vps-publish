@@ -24,7 +24,7 @@
 
   --container-pad-inline: clamp(12px, 3vw, 24px);
 
-  padding-inline: var(--container-pad-inline);
+  // Padding supprimé - géré par shell .main
   color: var(--c-on-surface);
 }
 

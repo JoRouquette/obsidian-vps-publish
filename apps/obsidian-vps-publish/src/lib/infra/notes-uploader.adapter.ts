@@ -1,8 +1,10 @@
 import { ChunkedUploadService } from '@core-application/publishing/services/chunked-upload.service';
+import { ProgressStepId } from '@core-domain/entities/progress-step';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import type { GuidGeneratorPort } from '@core-domain/ports/guid-generator-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { ProgressPort } from '@core-domain/ports/progress-port';
+import type { StepProgressManagerPort } from '@core-domain/ports/step-progress-manager-port';
 import type { UploaderPort } from '@core-domain/ports/uploader-port';
 
 import { type SessionApiClient } from '../services/session-api.client';
@@ -21,7 +23,7 @@ export class NotesUploaderAdapter implements UploaderPort {
     private readonly guidGenerator: GuidGeneratorPort,
     logger: LoggerPort,
     private readonly maxBytesPerRequest: number,
-    private readonly progress?: ProgressPort
+    private readonly progress?: ProgressPort | StepProgressManagerPort
   ) {
     this._logger = logger.child({ component: 'NotesUploaderAdapter' });
 
@@ -57,7 +59,7 @@ export class NotesUploaderAdapter implements UploaderPort {
         })),
       });
       // Advance progress for skipped notes
-      this.progress?.advance(oversized.length);
+      this.advanceProgress(oversized.length);
     }
 
     this._logger.debug(
@@ -94,10 +96,22 @@ export class NotesUploaderAdapter implements UploaderPort {
       });
 
       this._logger.debug('Notes batch uploaded', { batchSize: batch.length });
-      this.progress?.advance(batch.length);
+      this.advanceProgress(batch.length);
     }
 
     this._logger.debug('Successfully uploaded notes to session');
     return true;
+  }
+
+  private advanceProgress(step: number): void {
+    if (!this.progress) return;
+
+    if ('advanceStep' in this.progress) {
+      // C'est un StepProgressManagerPort
+      this.progress.advanceStep(ProgressStepId.UPLOAD_NOTES, step);
+    } else {
+      // C'est un ProgressPort
+      this.progress.advance(step);
+    }
   }
 }

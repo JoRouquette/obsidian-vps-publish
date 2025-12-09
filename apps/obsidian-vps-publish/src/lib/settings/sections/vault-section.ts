@@ -7,10 +7,8 @@ export function renderVaultSection(root: HTMLElement, ctx: SettingsViewContext):
   const { t, settings, logger } = ctx;
 
   const vaultBlock = root.createDiv({ cls: 'ptpv-block' });
-  const vaultBlockTitle = vaultBlock.createDiv({ cls: 'ptpv-block-title' });
-  vaultBlockTitle.createEl('h6', {
-    text: t.settings.vault.title,
-  });
+
+  new Setting(vaultBlock).setName(t.settings.vault.title).setHeading();
 
   vaultBlock.createDiv({
     cls: 'ptpv-help',

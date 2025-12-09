@@ -9,6 +9,7 @@ import { type CommandHandler } from '../../common/command-handler';
 import { type ComputeRoutingService } from '../services/compute-routing.service';
 import { type ContentSanitizerService } from '../services/content-sanitizer.service';
 import { type DetectAssetsService } from '../services/detect-assets.service';
+import { type EnsureTitleHeaderService } from '../services/ensure-title-header.service';
 import { type NormalizeFrontmatterService } from '../services/normalize-frontmatter.service';
 import { type RenderInlineDataviewService } from '../services/render-inline-dataview.service';
 import { type ResolveWikilinksService } from '../services/resolve-wikilinks.service';
@@ -21,6 +22,7 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
     private readonly noteMapper: Mapper<CollectedNote, PublishableNote>,
     private readonly inlineDataviewRenderer: RenderInlineDataviewService,
     private readonly contentSanitizer: ContentSanitizerService,
+    private readonly ensureTitleHeaderService: EnsureTitleHeaderService,
     private readonly assetsDetector: DetectAssetsService,
     private readonly wikilinkResolver: ResolveWikilinksService,
     private readonly computeRoutingService: ComputeRoutingService,
@@ -44,6 +46,8 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
     publishableNotes = this.inlineDataviewRenderer.process(publishableNotes);
 
     publishableNotes = this.contentSanitizer.process(publishableNotes);
+
+    publishableNotes = this.ensureTitleHeaderService.process(publishableNotes);
 
     publishableNotes = this.assetsDetector.process(publishableNotes);
 

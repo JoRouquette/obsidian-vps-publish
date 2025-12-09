@@ -31,19 +31,18 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
   const { t, settings, logger } = ctx;
 
   const folderBlock = root.createDiv({ cls: 'ptpv-block' });
-  const folderBlockTitle = folderBlock.createDiv({
-    cls: 'ptpv-block-title',
-  });
-  folderBlockTitle.createEl('h6', { text: t.settings.folders.title });
+
+  new Setting(folderBlock).setName(t.settings.folders.title).setHeading();
 
   // Render folders organized by VPS
   settings.vpsConfigs.forEach((vps, vpsIndex) => {
     const vpsSection = folderBlock.createDiv({ cls: 'ptpv-folders-vps-section' });
 
-    vpsSection.createEl('h6', {
-      text: `${vps.name || `VPS #${vpsIndex + 1}`} - ${t.settings.folders.foldersLabel ?? 'Folders'}`,
-      cls: 'ptpv-folders-vps-title',
-    });
+    new Setting(vpsSection)
+      .setName(
+        `${vps.name || `VPS #${vpsIndex + 1}`} - ${t.settings.folders.foldersLabel ?? 'Folders'}`
+      )
+      .setHeading();
 
     const vpsFolders = vps.folders || [];
 

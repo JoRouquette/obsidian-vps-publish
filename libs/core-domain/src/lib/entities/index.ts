@@ -20,6 +20,7 @@ export * from './note-routing-info';
 export * from './note-with-assets';
 export * from './note-with-wikilinks';
 export * from './plugin-locale';
+export * from './progress-step';
 export * from './publish-plugin-settings';
 export * from './publishable-note';
 export * from './resolved-asset-file';

@@ -62,4 +62,8 @@ export class EnvConfig {
   static reportIssuesUrl(): string {
     return this.norm(process.env.REPORT_ISSUES_URL) || '';
   }
+
+  static homeWelcomeTitle(): string {
+    return this.norm(process.env.HOME_WELCOME_TITLE) || 'Bienvenue sur votre site de lore.';
+  }
 }

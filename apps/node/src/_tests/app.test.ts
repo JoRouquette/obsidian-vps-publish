@@ -25,6 +25,7 @@ jest.mock('../infra/config/env-config', () => ({
     author: jest.fn(() => 'Author'),
     repoUrl: jest.fn(() => 'http://repo'),
     reportIssuesUrl: jest.fn(() => 'http://issues'),
+    homeWelcomeTitle: jest.fn(() => 'Welcome'),
     port: jest.fn(() => 3000),
   },
 }));

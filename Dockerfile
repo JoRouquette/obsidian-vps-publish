@@ -7,21 +7,14 @@ FROM node:20-alpine AS builder
 
 WORKDIR /workspace
 
-# Fichiers de base du monorepo Nx
 COPY package.json package-lock.json nx.json tsconfig.base.json ./
 
-# Sources des apps et libs Nx
 COPY apps ./apps
 COPY libs ./libs
-# (si tu as besoin d'autres fichiers globaux pour le build, tu peux les ajouter ici)
 
-# Install des dépendances (avec devDependencies pour builder Angular/Node)
-# Ici on laisse les scripts s'exécuter (prepare, postinstall...) pour un environnement de build complet.
 RUN --mount=type=cache,target=/root/.npm \
     npm install --no-audit --no-fund
 
-# Build global via ton script Nx déjà configuré
-# => construit core-domain, core-application, node, site
 RUN npm run build
 
 
@@ -43,8 +36,6 @@ RUN apk add --no-cache wget
 
 WORKDIR /app
 
-# User non-root - on utilise l'utilisateur 'node' qui existe déjà dans l'image node:alpine (UID/GID 1000)
-# Plus simple et évite les conflits de création d'utilisateur
 
 ################################
 #   INSTALL DEPENDANCES RUNTIME
@@ -52,19 +43,17 @@ WORKDIR /app
 # On repart du package.json racine du monorepo
 COPY package.json package-lock.json ./
 
-# Ici on NE VEUT PAS :
-# - les devDependencies
-# - les optionalDependencies
-# - NI les scripts npm (prepare, postinstall, etc. → husky, etc.)
 RUN --mount=type=cache,target=/root/.npm \
     npm install --omit=dev --omit=optional --no-audit --no-fund --ignore-scripts \
     && npm cache clean --force
+
 
 ################################
 #   COPIE DES BUILDS NX        #
 ################################
 # On copie tout le dossier dist généré par Nx (apps + libs)
 COPY --from=builder /workspace/dist ./dist
+
 
 ################################
 #   FRONTEND STATIC (Angular)  #
@@ -86,18 +75,40 @@ RUN set -eux; \
     [ -f "${UI_ROOT}/index.html" ] || (echo "ERROR: index.html not found in ${UI_ROOT}" && exit 1); \
     ls -l "${UI_ROOT}" || true
 
+
 ################################
 #   CONTENT / ASSETS           #
 ################################
-RUN mkdir -p "${CONTENT_ROOT}" "${ASSETS_ROOT}" \
-    && chown -R node:node "${CONTENT_ROOT}" "${ASSETS_ROOT}" "${UI_ROOT}"
+RUN mkdir -p "${CONTENT_ROOT}" "${ASSETS_ROOT}"
 
-# Optionnel : on vire les sourcemaps Angular en prod
 RUN find "${UI_ROOT}" -type f -name "*.map" -delete || true
-
-USER node
 
 EXPOSE 3000
 
-# Point d'entrée : build Nx de l'app Node
+RUN apk add --no-cache gosu
+
+RUN printf '#!/bin/sh\n\
+    set -e\n\
+    \n\
+    # Si on est déjà node, on lance directement (production avec user: node dans docker-compose)\n\
+    if [ "$(id -u)" != "0" ]; then\n\
+    echo "Running as non-root user $(id -u):$(id -g)"\n\
+    exec "$@"\n\
+    fi\n\
+    \n\
+    # Sinon, on est root (dev local) : fixer les permissions puis basculer sur node\n\
+    echo "Running as root - fixing permissions for mounted volumes..."\n\
+    for dir in "${CONTENT_ROOT}" "${ASSETS_ROOT}" "${UI_ROOT}"; do\n\
+    if [ -d "$dir" ]; then\n\
+    chown -R node:node "$dir" 2>/dev/null || {\n\
+    echo "Warning: Could not change ownership of $dir (may be expected on some systems)"\n\
+    }\n\
+    fi\n\
+    done\n\
+    \n\
+    echo "Starting application as user node ($(id -u node):$(id -g node))..."\n\
+    exec gosu node "$@"\n' > /app/docker-entrypoint.sh \
+    && chmod +x /app/docker-entrypoint.sh
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "dist/apps/node/main.js"]

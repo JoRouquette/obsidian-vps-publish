@@ -125,6 +125,29 @@ export type PluginTranslations = {
   publishError: string;
   noConfig: string;
   error: ErrorTranslations;
+  progress: {
+    parseVault: {
+      start: string;
+      success: string;
+      error: string;
+    };
+    uploadNotes: {
+      start: string;
+      success: string;
+      error: string;
+    };
+    uploadAssets: {
+      start: string;
+      success: string;
+      error: string;
+      skip: string;
+    };
+    finalizeSession: {
+      start: string;
+      success: string;
+      error: string;
+    };
+  };
 };
 
 export type VaultTranslations = {
@@ -202,6 +225,29 @@ export const en: Translations = {
     noConfig: 'No VPS or folder configuration defined.',
     error: {
       failureToExportSettings: 'Failed to export settings.',
+    },
+    progress: {
+      parseVault: {
+        start: 'Parsing vault content...',
+        success: 'Vault parsed successfully',
+        error: 'Failed to parse vault',
+      },
+      uploadNotes: {
+        start: 'Uploading notes...',
+        success: 'Notes uploaded successfully',
+        error: 'Failed to upload notes',
+      },
+      uploadAssets: {
+        start: 'Uploading assets...',
+        success: 'Assets uploaded successfully',
+        error: 'Failed to upload assets',
+        skip: 'No assets to upload',
+      },
+      finalizeSession: {
+        start: 'Finalizing publication...',
+        success: 'Publication finalized',
+        error: 'Failed to finalize publication',
+      },
     },
   },
   settings: {
@@ -378,6 +424,29 @@ export const fr: Translations = {
     noConfig: 'Aucune configuration VPS ou dossier definie.',
     error: {
       failureToExportSettings: "Echec de l'exportation des parametres.",
+    },
+    progress: {
+      parseVault: {
+        start: 'Analyse du vault en cours...',
+        success: 'Vault analyse avec succes',
+        error: "Echec de l'analyse du vault",
+      },
+      uploadNotes: {
+        start: 'Envoi des notes...',
+        success: 'Notes envoyees avec succes',
+        error: "Echec de l'envoi des notes",
+      },
+      uploadAssets: {
+        start: 'Envoi des ressources...',
+        success: 'Ressources envoyees avec succes',
+        error: "Echec de l'envoi des ressources",
+        skip: 'Aucune ressource a envoyer',
+      },
+      finalizeSession: {
+        start: 'Finalisation de la publication...',
+        success: 'Publication finalisee',
+        error: 'Echec de la finalisation',
+      },
     },
   },
   settings: {
