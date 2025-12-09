@@ -1,3 +1,8 @@
+## <small>4.4.1 (2025-12-09)</small>
+
+* Merge branch 'fix/mobile-side-effect-on-desktop' ([eff25eb](https://github.com/JoRouquette/obsidian-vps-publish/commit/eff25eb))
+* fix(site): prevent navigation to search page with query < 3 chars ([08892af](https://github.com/JoRouquette/obsidian-vps-publish/commit/08892af))
+
 ## 4.4.0 (2025-12-09)
 
 * ci: fix playwright e2e tests in CI pipeline ([9ab7e74](https://github.com/JoRouquette/obsidian-vps-publish/commit/9ab7e74))
