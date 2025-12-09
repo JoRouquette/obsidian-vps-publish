@@ -10,7 +10,9 @@
 .topbar {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  grid-template-rows: auto auto;
+  /* Première ligne : hauteur fixe pour éviter les sauts */
+  /* Deuxième ligne : auto pour les breadcrumbs */
+  grid-template-rows: minmax(2.5rem, auto) auto;
   grid-template-areas:
     'site-name search actions'
     'breadcrumbs breadcrumbs breadcrumbs';
@@ -18,8 +20,6 @@
   row-gap: 0.5rem;
 
   inline-size: 100%;
-  block-size: 100%;
-  min-block-size: 0;
   padding-inline: clamp(8px, 2vw, 16px);
   padding-block: 0.5rem;
 
@@ -98,11 +98,14 @@ app-search-bar {
 }
 
 /* Responsive */
-// Mobile: Stack search bar below other elements and hide breadcrumbs
+// Mobile: Keep logo, site name, and search bar visible
 @media (max-width: 768px) {
   .topbar {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
     grid-template-rows: auto auto;
+    grid-template-areas:
+      'site-name'
+      'search';
     gap: 8px;
     padding-block: 8px;
   }
@@ -113,23 +116,25 @@ app-search-bar {
   }
 
   .site-name {
-    grid-column: 1 / -1;
-    grid-row: 1;
+    grid-area: site-name;
+    grid-column: unset;
+    grid-row: unset;
     justify-self: start;
     max-width: 100%;
-    width: 100%;
     font-size: clamp(0.9rem, 2vw, 1rem);
   }
 
   app-search-bar {
-    grid-column: 1 / -1;
-    grid-row: 2;
+    grid-area: search;
+    grid-column: unset;
+    grid-row: unset;
+    justify-self: stretch; /* Prend toute la largeur */
+    max-width: 100%; /* Override du max-width desktop */
     width: 100%;
-    max-width: 100%;
   }
 
   .toolbar-actions {
-    display: none;
+    display: none; // Masquer les actions sur mobile
   }
 }
 

@@ -1,4 +1,4 @@
-$row-top: clamp(6rem, 12vh, 8rem); // Responsive header height (2 lines: controls + breadcrumbs)
+$row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: controls + breadcrumbs)
 
 :host {
   /* ITS theme aliases (fallback Material) */
