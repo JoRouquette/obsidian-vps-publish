@@ -18,7 +18,9 @@
     class="desktop-search"
     placeholder="Rechercher titre, tag..."
     [value]="search.query()"
+    [showSubmitButton]="true"
     (queryChange)="onQueryInput($event)"
+    (searchSubmit)="onQueryInput($event)"
   ></app-search-bar>
 
   <!-- Mobile: search icon button (right) -->
