@@ -42,6 +42,8 @@ export class TopbarComponent {
   async onQueryInput(value: string): Promise<void> {
     const query = (value ?? '').trim();
     this.search.setQuery(query);
+
+    // Si vide, retour à la page précédente
     if (query.length === 0) {
       const target = this.router.url.startsWith('/search')
         ? this.lastVisited || '/'
@@ -50,10 +52,10 @@ export class TopbarComponent {
       return;
     }
 
+    // Recherche automatique uniquement à partir de 3 caractères
     if (query.length >= 3) {
       await this.search.ensureIndex();
+      await this.router.navigate(['/search'], { queryParams: { q: query } });
     }
-
-    await this.router.navigate(['/search'], { queryParams: { q: query } });
   }
 }

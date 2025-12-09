@@ -21,6 +21,7 @@ module.exports = [
       'test-setup.ts',
       'e2e/**', // Ignore e2e files from main config
       'playwright.config.ts', // Ignore playwright config
+      '**/.angular/**', // Ignore Angular cache and generated files
     ],
     languageOptions: {
       ...tsBaseConfig.languageOptions,

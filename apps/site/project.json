@@ -71,7 +71,8 @@
         "lintFilePatterns": [
           "apps/site/**/*.ts",
           "!apps/site/e2e/**",
-          "!apps/site/playwright.config.ts"
+          "!apps/site/playwright.config.ts",
+          "!apps/site/.angular/**"
         ]
       }
     },
@@ -82,7 +83,8 @@
         "lintFilePatterns": [
           "apps/site/**/*.ts",
           "!apps/site/e2e/**",
-          "!apps/site/playwright.config.ts"
+          "!apps/site/playwright.config.ts",
+          "!apps/site/.angular/**"
         ],
         "fix": true
       }

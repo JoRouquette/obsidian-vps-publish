@@ -11,6 +11,7 @@ const ignoreConfig = {
     'coverage/**',
     'node_modules/**',
     '.nx/**',
+    '.angular/**',
     'tmp/**',
     '**/*.d.ts',
     '**/e2e/**',
