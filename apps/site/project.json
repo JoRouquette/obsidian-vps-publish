@@ -14,9 +14,7 @@
         "browser": "apps/site/src/main.ts",
         "server": "apps/site/src/main.server.ts",
         "prerender": false,
-        "ssr": {
-          "entry": "apps/site/src/server.ts"
-        },
+        "ssr": true,
         "polyfills": ["zone.js"],
         "tsConfig": "apps/site/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
@@ -112,7 +110,7 @@
       }
     },
     "serve-ssr": {
-      "executor": "@angular/build:ssr-dev-server",
+      "executor": "@angular/build:dev-server",
       "configurations": {
         "development": {
           "buildTarget": "site:build:development"
@@ -121,7 +119,10 @@
           "buildTarget": "site:build:production"
         }
       },
-      "defaultConfiguration": "development"
+      "defaultConfiguration": "development",
+      "options": {
+        "port": 4200
+      }
     },
     "format": {
       "executor": "nx:run-commands",
@@ -133,6 +134,18 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "npx prettier --write \"apps/site/**/*.{ts,scss,html,json,md}\""
+      }
+    },
+    "e2e": {
+      "executor": "@nx/playwright:playwright",
+      "outputs": ["{projectRoot}/playwright-report", "{projectRoot}/test-results"],
+      "options": {
+        "config": "apps/site/playwright.config.ts"
+      },
+      "configurations": {
+        "ci": {
+          "config": "apps/site/playwright.config.ts"
+        }
       }
     }
   }
