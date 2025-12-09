@@ -70,14 +70,22 @@
       "executor": "@nx/eslint:lint",
       "outputs": ["{workspaceRoot}/coverage/apps/site"],
       "options": {
-        "lintFilePatterns": ["apps/site/**/*.ts"]
+        "lintFilePatterns": [
+          "apps/site/**/*.ts",
+          "!apps/site/e2e/**",
+          "!apps/site/playwright.config.ts"
+        ]
       }
     },
     "lint:fix": {
       "executor": "@nx/eslint:lint",
       "outputs": ["{workspaceRoot}/coverage/apps/site"],
       "options": {
-        "lintFilePatterns": ["apps/site/**/*.ts"],
+        "lintFilePatterns": [
+          "apps/site/**/*.ts",
+          "!apps/site/e2e/**",
+          "!apps/site/playwright.config.ts"
+        ],
         "fix": true
       }
     },

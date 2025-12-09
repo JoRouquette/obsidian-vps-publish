@@ -97,44 +97,48 @@ app-search-bar {
   align-items: center;
 }
 
+/* Mobile burger and search buttons - hidden on desktop */
+.mobile-burger-btn,
+.mobile-search-btn {
+  display: none;
+}
+
 /* Responsive */
-// Mobile: Keep logo, site name, and search bar visible
+// Mobile: burger (left), centered title, search icon (right)
 @media (max-width: 768px) {
   .topbar {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
-    grid-template-areas:
-      'site-name'
-      'search';
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto;
+    grid-template-areas: 'burger-btn site-name search-btn';
     gap: 8px;
     padding-block: 8px;
   }
 
-  // Hide breadcrumbs on mobile
-  .breadcrumbs {
+  .mobile-burger-btn {
+    display: inline-flex;
+    grid-area: burger-btn;
+    margin-inline-end: 8px;
+  }
+
+  .mobile-search-btn {
+    display: inline-flex;
+    grid-area: search-btn;
+    margin-inline-start: 8px;
+  }
+
+  // Hide desktop elements on mobile
+  .breadcrumbs,
+  .toolbar-actions,
+  .desktop-search {
     display: none;
   }
 
   .site-name {
     grid-area: site-name;
-    grid-column: unset;
-    grid-row: unset;
-    justify-self: start;
+    justify-self: center;
+    text-align: center;
     max-width: 100%;
-    font-size: clamp(0.9rem, 2vw, 1rem);
-  }
-
-  app-search-bar {
-    grid-area: search;
-    grid-column: unset;
-    grid-row: unset;
-    justify-self: stretch; /* Prend toute la largeur */
-    max-width: 100%; /* Override du max-width desktop */
-    width: 100%;
-  }
-
-  .toolbar-actions {
-    display: none; // Masquer les actions sur mobile
+    font-size: clamp(0.9rem, 2vw, 1.1rem);
   }
 }
 

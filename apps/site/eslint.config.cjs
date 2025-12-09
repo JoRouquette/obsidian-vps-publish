@@ -9,10 +9,19 @@ module.exports = [
   },
 
   ...baseConfigs,
+
+  // Main app TypeScript config (with type checking)
   {
     ...tsBaseConfig,
-    files: ['**/*.ts'],
-    ignores: ['dist/**', 'jest.config.*', '**/*.html', 'test-setup.ts'],
+    files: ['src/**/*.ts'], // Only src folder within site
+    ignores: [
+      'dist/**',
+      'jest.config.*',
+      '**/*.html',
+      'test-setup.ts',
+      'e2e/**', // Ignore e2e files from main config
+      'playwright.config.ts', // Ignore playwright config
+    ],
     languageOptions: {
       ...tsBaseConfig.languageOptions,
       parserOptions: {
@@ -72,7 +81,7 @@ module.exports = [
   },
   {
     ...tsTestConfig,
-    files: ['**/*.spec.ts', '**/*.test.ts'],
+    files: ['src/**/*.spec.ts', 'src/**/*.test.ts'], // More specific path
     languageOptions: {
       ...tsTestConfig.languageOptions,
       parserOptions: {
@@ -83,15 +92,19 @@ module.exports = [
       },
     },
   },
-  // Server-side files (SSR) and E2E config - disable frontend restrictions
+  // Server-side files (SSR) - disable frontend restrictions
   // MUST BE LAST to override previous rules
   {
-    files: [
-      '**/server.ts',
-      '**/app.config.server.ts',
-      '**/main.server.ts',
-      '**/playwright.config.ts',
-    ],
+    files: ['src/server.ts', 'src/app.config.server.ts', 'src/main.server.ts'],
+    languageOptions: {
+      ...tsBaseConfig.languageOptions,
+      parserOptions: {
+        ...tsBaseConfig.languageOptions.parserOptions,
+        tsconfigRootDir: __dirname,
+        project: ['./tsconfig.server.json'],
+        sourceType: 'module',
+      },
+    },
     rules: {
       'no-restricted-imports': 'off',
       'no-restricted-properties': 'off',

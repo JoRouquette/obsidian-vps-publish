@@ -1,4 +1,4 @@
-import { Component, computed } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { ThemeService } from '../../services/theme.service';
@@ -12,6 +12,8 @@ import { ThemeService } from '../../services/theme.service';
 })
 export class LogoComponent {
   constructor(private readonly theme: ThemeService) {}
+
+  readonly clickable = input(true);
 
   readonly src = computed(() =>
     this.theme.isDark()

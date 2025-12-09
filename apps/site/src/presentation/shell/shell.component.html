@@ -1,14 +1,25 @@
 <div class="grid" [class.sidebar-collapsed]="isSidebarCollapsed()">
-  <!-- Hamburger menu button (mobile only) -->
-  <button
-    class="hamburger-menu mat-elevation-z2"
-    mat-icon-button
-    (click)="toggleMenu()"
-    [attr.aria-label]="isMenuOpen() ? 'Fermer le menu' : 'Ouvrir le menu'"
-    [attr.aria-expanded]="isMenuOpen()"
-  >
-    <mat-icon>{{ isMenuOpen() ? 'close' : 'menu' }}</mat-icon>
-  </button>
+  <!-- Search overlay (mobile) -->
+  @if (isSearchOverlayOpen()) {
+    <div class="search-overlay">
+      <div class="search-overlay-backdrop" (click)="closeSearchOverlay()"></div>
+      <div class="search-overlay-content">
+        <div class="search-overlay-header">
+          <h2>Rechercher</h2>
+          <button mat-icon-button (click)="closeSearchOverlay()" aria-label="Fermer la recherche">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+        <app-search-bar
+          placeholder="Rechercher titre, tag..."
+          [value]="searchFacade.query()"
+          [showSubmitButton]="true"
+          (queryChange)="searchFacade.setQuery($event)"
+          (searchSubmit)="onSearchSubmit($event)"
+        ></app-search-bar>
+      </div>
+    </div>
+  }
 
   <!-- Desktop sidebar collapse toggle (left of logo) -->
   <button
@@ -35,6 +46,8 @@
         [lastVisited]="lastNonSearchUrl"
         [isDark]="theme.isDark()"
         (toggleTheme)="theme.toggle()"
+        (searchIconClick)="toggleSearchOverlay()"
+        (burgerMenuClick)="toggleMenu()"
       >
       </app-topbar>
     } @placeholder {
@@ -67,8 +80,16 @@
       data-testid="resize-handle"
     ></div>
 
-    <!-- Mobile overlay header with theme toggle -->
+    <!-- Mobile overlay header with close button and theme toggle -->
     <div class="mobile-overlay-header">
+      <button
+        mat-icon-button
+        (click)="closeMenu()"
+        aria-label="Fermer le menu"
+        class="close-menu-btn"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
       <button
         class="theme-toggle-mobile"
         mat-icon-button
@@ -80,9 +101,12 @@
       </button>
     </div>
 
-    @if (vaultExplorerComponent(); as explorer) {
-      <ng-container [ngComponentOutlet]="explorer"></ng-container>
-    }
+    <!-- Scrollable vault explorer content -->
+    <div class="vault-explorer-content">
+      @if (vaultExplorerComponent(); as explorer) {
+        <ng-container [ngComponentOutlet]="explorer"></ng-container>
+      }
+    </div>
   </div>
 
   <div class="main">

@@ -1,3 +1,9 @@
-<a class="logo-wrap" routerLink="/" aria-label="Aller à l’accueil">
-  <img class="logo-img" [src]="src()" alt="Scribe d’Ektaron – Accueil" />
-</a>
+@if (clickable()) {
+  <a class="logo-wrap" routerLink="/" aria-label="Aller à l'accueil">
+    <img class="logo-img" [src]="src()" alt="Scribe d'Ektaron – Accueil" />
+  </a>
+} @else {
+  <div class="logo-wrap">
+    <img class="logo-img" [src]="src()" alt="Scribe d'Ektaron" />
+  </div>
+}

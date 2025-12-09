@@ -64,27 +64,49 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   }
 }
 
-// Hamburger menu button (mobile only)
-.hamburger-menu {
-  display: none;
+// === Search overlay (mobile) ===
+.search-overlay {
   position: fixed;
-  top: 12px;
-  left: 12px;
-  z-index: 1100;
-  color: var(--c-on-surface);
-  transition: all 0.2s ease;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: fadeIn 0.2s ease-in-out;
+}
 
-  &:hover {
-    transform: scale(1.05);
-  }
+.search-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
 
-  &:active {
-    transform: scale(0.95);
-  }
+.search-overlay-content {
+  position: relative;
+  z-index: 2001;
+  background: var(--c-surface);
+  width: min(90vw, 600px);
+  max-height: min(25rem, 60vh);
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: slideDown 0.3s ease-out;
+}
 
-  // Smooth icon rotation
-  mat-icon {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.search-overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--c-on-surface);
   }
 }
 
@@ -300,6 +322,19 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   .vault-explorer .mobile-overlay-header {
     display: none; // Hide mobile header on desktop
   }
+
+  .vault-explorer .mobile-overlay-logo {
+    display: none; // Hide mobile logo on desktop
+  }
+
+  .vault-explorer .mobile-overlay-search {
+    display: none; // Hide mobile search on desktop
+  }
+
+  .vault-explorer .vault-explorer-content {
+    // On desktop, no wrapper needed
+    display: contents;
+  }
 }
 
 @media (max-width: 1100px) {
@@ -378,16 +413,16 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
     // Mobile overlay header
     .mobile-overlay-header {
       display: flex;
-      flex-direction: row-reverse;
       justify-content: space-between;
+      align-items: center;
       padding: clamp(0.75rem, 2vw, 1.25rem);
       background: var(--c-surface);
       border-bottom: 1px solid var(--c-outline-strong);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      min-height: 2.75rem;
+
+      .close-menu-btn {
+        color: var(--c-on-surface);
+      }
 
       .theme-toggle-mobile {
         color: var(--c-on-surface);
@@ -397,6 +432,19 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
           width: 1.5rem;
           height: 1.5rem;
         }
+      }
+    }
+
+    // Scrollable vault explorer content
+    .vault-explorer-content {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+
+      app-vault-explorer {
+        display: block;
+        width: 100%;
       }
     }
   }
@@ -540,5 +588,26 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
     .icon {
       font-size: 0.85em;
     }
+  }
+}
+
+// === Animations ===
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-2rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }

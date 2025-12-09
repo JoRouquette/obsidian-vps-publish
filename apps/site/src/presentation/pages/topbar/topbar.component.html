@@ -1,14 +1,35 @@
 <mat-toolbar class="topbar mat-elevation-z2" role="banner">
+  <!-- Mobile: burger menu button (left) -->
+  <button
+    mat-icon-button
+    class="mobile-burger-btn"
+    (click)="burgerMenuClick.emit()"
+    aria-label="Ouvrir le menu"
+  >
+    <mat-icon>menu</mat-icon>
+  </button>
+
   <!-- Ligne 1 : Contrôles principaux -->
   <a class="site-name" [routerLink]="'/'" aria-label="Accueil">
     {{ siteName || "Scribe d'Ektaron" }}
   </a>
 
   <app-search-bar
+    class="desktop-search"
     placeholder="Rechercher titre, tag..."
     [value]="search.query()"
     (queryChange)="onQueryInput($event)"
   ></app-search-bar>
+
+  <!-- Mobile: search icon button (right) -->
+  <button
+    mat-icon-button
+    class="mobile-search-btn"
+    (click)="searchIconClick.emit()"
+    aria-label="Rechercher"
+  >
+    <mat-icon>search</mat-icon>
+  </button>
 
   <div
     class="toolbar-actions"

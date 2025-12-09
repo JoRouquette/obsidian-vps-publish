@@ -6,7 +6,16 @@ const unusedImportsPlugin = require('eslint-plugin-unused-imports');
 const simpleImportSortPlugin = require('eslint-plugin-simple-import-sort');
 
 const ignoreConfig = {
-  ignores: ['dist/**', 'coverage/**', 'node_modules/**'],
+  ignores: [
+    'dist/**',
+    'coverage/**',
+    'node_modules/**',
+    '.nx/**',
+    'tmp/**',
+    '**/*.d.ts',
+    '**/e2e/**',
+    '**/playwright.config.ts',
+  ],
 };
 
 const moduleBoundariesConfig = {

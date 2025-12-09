@@ -20,6 +20,7 @@ import { filter } from 'rxjs/operators';
 import { CatalogFacade } from '../../application/facades/catalog-facade';
 import { ConfigFacade } from '../../application/facades/config-facade';
 import { SearchFacade } from '../../application/facades/search-facade';
+import { SearchBarComponent } from '../components/search-bar/search-bar.component';
 import { LogoComponent } from '../pages/logo/logo.component';
 import { TopbarComponent } from '../pages/topbar/topbar.component';
 import { ThemeService } from '../services/theme.service';
@@ -37,6 +38,7 @@ type Crumb = { label: string; url: string };
     MatIconModule,
     MatButtonModule,
     MatTooltipModule,
+    SearchBarComponent,
   ],
   templateUrl: './shell.component.html',
   styleUrls: ['./shell.component.scss'],
@@ -47,7 +49,7 @@ export class ShellComponent implements OnInit {
     private readonly config: ConfigFacade,
     private readonly catalog: CatalogFacade,
     private readonly router: Router,
-    private readonly searchFacade: SearchFacade,
+    public searchFacade: SearchFacade,
     private readonly destroyRef: DestroyRef,
     @Inject(PLATFORM_ID) private platformId: object
   ) {}
@@ -55,6 +57,7 @@ export class ShellComponent implements OnInit {
   currentYear = new Date().getFullYear();
   lastNonSearchUrl = '/';
   isMenuOpen = signal(false);
+  isSearchOverlayOpen = signal(false);
 
   // Sidebar collapse & resize state
   isSidebarCollapsed = signal(false);
@@ -209,6 +212,19 @@ export class ShellComponent implements OnInit {
 
   closeMenu(): void {
     this.isMenuOpen.set(false);
+  }
+
+  toggleSearchOverlay(): void {
+    this.isSearchOverlayOpen.update((v) => !v);
+  }
+
+  closeSearchOverlay(): void {
+    this.isSearchOverlayOpen.set(false);
+  }
+
+  async onSearchSubmit(value: string): Promise<void> {
+    await this.router.navigate(['/search'], { queryParams: { q: value } });
+    this.closeSearchOverlay();
   }
 
   // === Sidebar collapse/expand ===
