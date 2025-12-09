@@ -113,10 +113,11 @@ app-search-bar {
   }
 
   .site-name {
-    grid-column: 1;
+    grid-column: 1 / -1;
     grid-row: 1;
     justify-self: start;
-    max-width: 60vw;
+    max-width: 100%;
+    width: 100%;
     font-size: clamp(0.9rem, 2vw, 1rem);
   }
 
@@ -124,6 +125,7 @@ app-search-bar {
     grid-column: 1 / -1;
     grid-row: 2;
     width: 100%;
+    max-width: 100%;
   }
 
   .toolbar-actions {
@@ -133,7 +135,7 @@ app-search-bar {
 
 @media (max-width: 520px) {
   .site-name {
-    max-width: 65vw;
+    max-width: 100%;
     font-size: 0.85rem;
   }
 }
@@ -146,12 +148,14 @@ app-search-bar {
   }
 
   .site-name {
-    max-width: 70vw;
+    max-width: 100%;
     font-size: 0.8rem;
   }
 
   app-search-bar {
-    .search-field input {
+    max-width: 100%;
+
+    ::ng-deep .search-field input {
       font-size: 15px;
       height: 38px;
     }
