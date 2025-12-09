@@ -31,6 +31,8 @@ export class TopbarComponent {
   @Input() lastVisited = '/';
 
   @Output() toggleTheme = new EventEmitter<void>();
+  @Output() searchIconClick = new EventEmitter<void>();
+  @Output() burgerMenuClick = new EventEmitter<void>();
 
   constructor(
     private readonly router: Router,

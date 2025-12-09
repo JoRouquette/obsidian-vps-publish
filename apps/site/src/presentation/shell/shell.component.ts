@@ -1,5 +1,13 @@
-import { NgComponentOutlet } from '@angular/common';
-import { Component, DestroyRef, type OnInit, signal, type Type } from '@angular/core';
+import { isPlatformBrowser, NgComponentOutlet } from '@angular/common';
+import {
+  Component,
+  DestroyRef,
+  Inject,
+  type OnInit,
+  PLATFORM_ID,
+  signal,
+  type Type,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -12,6 +20,7 @@ import { filter } from 'rxjs/operators';
 import { CatalogFacade } from '../../application/facades/catalog-facade';
 import { ConfigFacade } from '../../application/facades/config-facade';
 import { SearchFacade } from '../../application/facades/search-facade';
+import { SearchBarComponent } from '../components/search-bar/search-bar.component';
 import { LogoComponent } from '../pages/logo/logo.component';
 import { TopbarComponent } from '../pages/topbar/topbar.component';
 import { ThemeService } from '../services/theme.service';
@@ -29,6 +38,7 @@ type Crumb = { label: string; url: string };
     MatIconModule,
     MatButtonModule,
     MatTooltipModule,
+    SearchBarComponent,
   ],
   templateUrl: './shell.component.html',
   styleUrls: ['./shell.component.scss'],
@@ -39,13 +49,15 @@ export class ShellComponent implements OnInit {
     private readonly config: ConfigFacade,
     private readonly catalog: CatalogFacade,
     private readonly router: Router,
-    private readonly searchFacade: SearchFacade,
-    private readonly destroyRef: DestroyRef
+    public searchFacade: SearchFacade,
+    private readonly destroyRef: DestroyRef,
+    @Inject(PLATFORM_ID) private platformId: object
   ) {}
 
   currentYear = new Date().getFullYear();
   lastNonSearchUrl = '/';
   isMenuOpen = signal(false);
+  isSearchOverlayOpen = signal(false);
 
   // Sidebar collapse & resize state
   isSidebarCollapsed = signal(false);
@@ -202,6 +214,19 @@ export class ShellComponent implements OnInit {
     this.isMenuOpen.set(false);
   }
 
+  toggleSearchOverlay(): void {
+    this.isSearchOverlayOpen.update((v) => !v);
+  }
+
+  closeSearchOverlay(): void {
+    this.isSearchOverlayOpen.set(false);
+  }
+
+  async onSearchSubmit(value: string): Promise<void> {
+    await this.router.navigate(['/search'], { queryParams: { q: value } });
+    this.closeSearchOverlay();
+  }
+
   // === Sidebar collapse/expand ===
   toggleSidebarCollapse(): void {
     this.isSidebarCollapsed.update((v) => !v);
@@ -210,6 +235,8 @@ export class ShellComponent implements OnInit {
 
   // === Sidebar resize ===
   startResize(event: MouseEvent | TouchEvent): void {
+    if (!isPlatformBrowser(this.platformId)) return; // SSR protection
+
     event.preventDefault();
     this.isResizing = true;
 
@@ -246,6 +273,7 @@ export class ShellComponent implements OnInit {
 
   private stopResize = (): void => {
     if (!this.isResizing) return;
+    if (!isPlatformBrowser(this.platformId)) return; // SSR protection
 
     this.isResizing = false;
 
@@ -283,6 +311,8 @@ export class ShellComponent implements OnInit {
 
   // === LocalStorage persistence ===
   private loadSidebarState(): void {
+    if (!isPlatformBrowser(this.platformId)) return; // SSR protection
+
     try {
       const collapsed = localStorage.getItem('sidebar-collapsed');
       const width = localStorage.getItem('sidebar-width');
@@ -305,6 +335,8 @@ export class ShellComponent implements OnInit {
   }
 
   private saveSidebarState(): void {
+    if (!isPlatformBrowser(this.platformId)) return; // SSR protection
+
     try {
       localStorage.setItem('sidebar-collapsed', this.isSidebarCollapsed().toString());
       localStorage.setItem('sidebar-width', this.sidebarWidth().toString());

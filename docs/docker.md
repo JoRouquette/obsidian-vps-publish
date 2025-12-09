@@ -34,3 +34,20 @@ docker run -d --name obsidian-vps-publish \
 - Common: `PORT`, `NODE_ENV`, `ALLOWED_ORIGINS`, `LOGGER_LEVEL`.
 - Roots: `CONTENT_ROOT` (default `/content`), `ASSETS_ROOT` (default `/assets`), `UI_ROOT` (default `/ui`).
 - Metadata shown in the SPA and `/public-config`: `SITE_NAME`, `AUTHOR`, `REPO_URL`, `REPORT_ISSUES_URL`.
+
+## SSR Build Structure
+
+Since Angular SSR is enabled, the build now produces:
+
+- `dist/apps/site/browser/` - Client-side files (static assets)
+  - `index.csr.html` - Client-side rendering fallback (renamed to `index.html` by Dockerfile)
+  - JavaScript chunks, CSS, and assets
+- `dist/apps/site/server/` - Server-side rendering bundles (not used in current deployment)
+
+The Dockerfile automatically handles the SSR build structure:
+
+1. Copies `browser/` folder contents to `UI_ROOT` (`/ui`)
+2. Renames `index.csr.html` to `index.html` if present
+3. Validates that `index.html` exists in the final location
+
+This ensures backward compatibility while supporting future SSR server deployment if needed.

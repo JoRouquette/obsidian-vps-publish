@@ -96,6 +96,9 @@
     // Smooth scrolling
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
+
+    // Amélioration tactile mobile : autoriser scroll vertical mais bloquer horizontal
+    touch-action: pan-y;
   }
 
   .empty-state {
@@ -162,20 +165,29 @@
       align-items: center;
       min-height: var(--row-h);
       padding: 0 var(--pad-x);
-      width: fit-content;
+      width: 100%; /* Toute la largeur pour faciliter le clic */
       cursor: pointer;
       background: transparent;
       border: 0;
+
+      // Amélioration tactile mobile
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
 
       &:focus-visible {
         outline: 1px solid color-mix(in oklab, var(--primary) 45%, transparent);
         outline-offset: 2px;
         border-radius: 3px;
       }
+
+      &:active {
+        background: color-mix(in oklab, var(--primary) 15%, transparent);
+      }
     }
 
     .folder-ico {
       color: var(--primary);
+      flex-shrink: 0; /* Évite que l'icône rétrécisse */
     }
 
     &[aria-expanded='true'] .folder-ico {
@@ -207,17 +219,27 @@
       align-items: center;
       min-height: var(--row-h);
       padding: 2px var(--pad-x);
-      width: fit-content;
+      width: 100%; /* Toute la largeur pour faciliter le clic */
       border-radius: 3px;
+      cursor: pointer; /* Cursor pointer sur toute la zone */
+
+      // Amélioration tactile mobile
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
 
       &:focus-visible {
         outline: 1px solid color-mix(in oklab, var(--primary) 45%, transparent);
         outline-offset: 2px;
       }
+
+      &:active {
+        background: color-mix(in oklab, var(--secondary) 15%, transparent);
+      }
     }
 
     .file-ico {
       color: var(--secondary);
+      flex-shrink: 0; /* Évite que l'icône rétrécisse */
     }
   }
 

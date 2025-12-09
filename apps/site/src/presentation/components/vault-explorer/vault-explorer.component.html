@@ -51,6 +51,7 @@
         [attr.aria-expanded]="node.isExpanded || shouldAutoExpand(n)"
         matTreeNodePadding
         [matTreeNodePaddingIndent]="'0.4em'"
+        [attr.data-testid]="'folder-' + n.path"
       >
         <button
           class="node-header"
@@ -63,7 +64,7 @@
           <mat-icon class="ico folder-ico" aria-hidden="true">
             {{ node.isExpanded || shouldAutoExpand(n) ? 'folder_open' : 'folder' }}
           </mat-icon>
-          <span class="label" [title]="n.label || n.name || 'root'">
+          <span class="label">
             {{ n.label || n.name || 'root' }}
           </span>
         </button>
@@ -85,14 +86,9 @@
         class="node file"
         matTreeNodePadding
         [matTreeNodePaddingIndent]="'0.4em'"
-        matTooltip="Ouvrir le fichier"
+        [attr.data-testid]="'page-' + n.path"
       >
-        <a
-          class="file-link"
-          [routerLink]="['/' + n.path]"
-          [title]="n.label"
-          aria-label="Ouvrir le fichier"
-        >
+        <a class="file-link" [routerLink]="['/' + n.path]" aria-label="Ouvrir le fichier">
           <mat-icon class="ico file-ico" aria-hidden="true">description</mat-icon>
           <span class="label">{{ n.label }}</span>
         </a>

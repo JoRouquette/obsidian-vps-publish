@@ -350,28 +350,41 @@
     }
 
     /* Tables : centrées, scroll horizontal, lisibles */
+    /* Wrapper pour table avec overflow pour limiter le sticky header */
+    .table-wrapper {
+      position: relative;
+      overflow: auto;
+      max-height: 80vh; /* Limite la zone de sticky */
+      margin: 1rem auto;
+      border: 1px solid color-mix(in oklab, var(--c-outline) 40%, transparent);
+      border-radius: 0.75rem;
+      background: color-mix(in oklab, var(--c-surface-variant) 8%, transparent);
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in oklab, var(--c-outline) 40%, transparent) transparent;
+    }
+
     table {
-      display: contents;
+      display: table; /* Revenir au display standard pour tables */
       border-collapse: collapse;
       border-spacing: 0;
       width: 100%;
       min-width: 100%;
       max-width: min(140vw, 1200px);
       table-layout: auto;
-      overflow-x: unset;
-      border: 1px solid color-mix(in oklab, var(--c-outline) 40%, transparent);
-      border-radius: 0.75rem;
-      margin: 1rem auto;
-      padding: 0.1rem;
-      background: color-mix(in oklab, var(--c-surface-variant) 8%, transparent);
-      scrollbar-width: thin;
-      scrollbar-color: color-mix(in oklab, var(--c-outline) 40%, transparent) transparent;
+      margin: 0; /* Le wrapper gère les marges */
+      background: inherit; /* Hérite du wrapper */
     }
 
     thead {
-      background: color-mix(in oklab, var(--c-surface-variant) 14%, transparent);
+      background: inherit; /* Hérite du background parent (table/wrapper) */
       position: sticky;
       top: 0;
+      z-index: 10; /* Pour rester au-dessus du tbody lors du scroll */
+    }
+
+    /* Assurer que les th ont un fond solide pour masquer le contenu défilant */
+    th {
+      background: color-mix(in oklab, var(--c-surface-variant) 14%, transparent);
     }
 
     th,

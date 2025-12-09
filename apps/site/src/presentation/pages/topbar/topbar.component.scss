@@ -10,7 +10,9 @@
 .topbar {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  grid-template-rows: auto auto;
+  /* Première ligne : hauteur fixe pour éviter les sauts */
+  /* Deuxième ligne : auto pour les breadcrumbs */
+  grid-template-rows: minmax(2.5rem, auto) auto;
   grid-template-areas:
     'site-name search actions'
     'breadcrumbs breadcrumbs breadcrumbs';
@@ -18,8 +20,6 @@
   row-gap: 0.5rem;
 
   inline-size: 100%;
-  block-size: 100%;
-  min-block-size: 0;
   padding-inline: clamp(8px, 2vw, 16px);
   padding-block: 0.5rem;
 
@@ -97,43 +97,54 @@ app-search-bar {
   align-items: center;
 }
 
+/* Mobile burger and search buttons - hidden on desktop */
+.mobile-burger-btn,
+.mobile-search-btn {
+  display: none;
+}
+
 /* Responsive */
-// Mobile: Stack search bar below other elements and hide breadcrumbs
+// Mobile: burger (left), centered title, search icon (right)
 @media (max-width: 768px) {
   .topbar {
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto;
+    grid-template-areas: 'burger-btn site-name search-btn';
     gap: 8px;
     padding-block: 8px;
   }
 
-  // Hide breadcrumbs on mobile
-  .breadcrumbs {
+  .mobile-burger-btn {
+    display: inline-flex;
+    grid-area: burger-btn;
+    margin-inline-end: 8px;
+  }
+
+  .mobile-search-btn {
+    display: inline-flex;
+    grid-area: search-btn;
+    margin-inline-start: 8px;
+  }
+
+  // Hide desktop elements on mobile
+  .breadcrumbs,
+  .toolbar-actions,
+  .desktop-search {
     display: none;
   }
 
   .site-name {
-    grid-column: 1;
-    grid-row: 1;
-    justify-self: start;
-    max-width: 60vw;
-    font-size: clamp(0.9rem, 2vw, 1rem);
-  }
-
-  app-search-bar {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    width: 100%;
-  }
-
-  .toolbar-actions {
-    display: none;
+    grid-area: site-name;
+    justify-self: center;
+    text-align: center;
+    max-width: 100%;
+    font-size: clamp(0.9rem, 2vw, 1.1rem);
   }
 }
 
 @media (max-width: 520px) {
   .site-name {
-    max-width: 65vw;
+    max-width: 100%;
     font-size: 0.85rem;
   }
 }
@@ -146,12 +157,14 @@ app-search-bar {
   }
 
   .site-name {
-    max-width: 70vw;
+    max-width: 100%;
     font-size: 0.8rem;
   }
 
   app-search-bar {
-    .search-field input {
+    max-width: 100%;
+
+    ::ng-deep .search-field input {
       font-size: 15px;
       height: 38px;
     }

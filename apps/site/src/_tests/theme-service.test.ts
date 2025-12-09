@@ -1,5 +1,8 @@
 import { ThemeService } from '../presentation/services/theme.service';
 
+// Mock PLATFORM_ID to simulate browser platform
+const BROWSER_PLATFORM_ID = 'browser';
+
 describe('ThemeService', () => {
   const originalMatch = window.matchMedia;
   const originalSetItem = localStorage.setItem;
@@ -32,7 +35,7 @@ describe('ThemeService', () => {
 
   it('initializes theme using saved value', () => {
     localStorage.setItem('theme', 'dark');
-    const svc = new ThemeService();
+    const svc = new ThemeService(BROWSER_PLATFORM_ID);
     svc.init();
     expect(document.documentElement.classList.contains('theme-dark')).toBe(true);
     expect(svc.isDark()).toBe(true);
@@ -43,13 +46,13 @@ describe('ThemeService', () => {
       .fn<(query: string) => MediaQueryList>()
       .mockReturnValue(createMatchMedia(true));
     window.matchMedia = mockMatch;
-    const svc = new ThemeService();
+    const svc = new ThemeService(BROWSER_PLATFORM_ID);
     svc.init();
     expect(svc.isDark()).toBe(true);
   });
 
   it('toggles theme', () => {
-    const svc = new ThemeService();
+    const svc = new ThemeService(BROWSER_PLATFORM_ID);
     svc.init();
     svc.toggle();
     expect(document.documentElement.classList.contains('theme-dark')).toBe(true);

@@ -60,7 +60,39 @@ Obsidian plugin that publishes selected vault folders to your own server, plus a
 - Property-based filtering and folder routing for published notes.
 - Bundles assets alongside Markdown uploads.
 - Generates and serves `_manifest.json` so the SPA can render and search your content.
+- **Server-Side Rendering (SSR)** for improved SEO and faster first paint.
+- **End-to-end testing** with Playwright for reliable UI validation.
 - Release artifacts include a ready-to-drop `vps-publish.zip` for manual installs.
+
+## Testing
+
+### Unit Tests
+
+```bash
+npm run test
+```
+
+### E2E Tests
+
+```bash
+npm run test:e2e
+```
+
+See `docs/e2e-testing.md` for detailed E2E testing guide.
+
+## Server-Side Rendering
+
+The Angular frontend supports SSR for better SEO and performance:
+
+```bash
+# Development with SSR
+npm run start site:ssr
+
+# Production build (includes SSR)
+npx nx build site --configuration=production
+```
+
+See `docs/ssr-guide.md` for complete SSR documentation.
 
 ## Contributors / deeper docs
 

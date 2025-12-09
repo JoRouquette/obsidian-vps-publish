@@ -7,6 +7,8 @@ export default {
 
   coverageDirectory: '../../coverage/apps/site',
 
+  testPathIgnorePatterns: ['/node_modules/', '/e2e/'],
+
   transform: {
     '^.+\\.(ts|mjs|js|html)$': [
       'jest-preset-angular',

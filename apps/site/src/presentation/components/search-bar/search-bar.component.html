@@ -6,8 +6,20 @@
     [placeholder]="placeholder"
     [value]="value"
     (input)="onInput($event)"
+    (keydown)="onKeydown($event)"
     autocomplete="off"
     spellcheck="false"
     aria-label="Rechercher"
   />
+  @if (showSubmitButton) {
+    <button
+      matSuffix
+      mat-icon-button
+      (click)="searchSubmit.emit(value)"
+      aria-label="Valider la recherche"
+      type="button"
+    >
+      <mat-icon>arrow_forward</mat-icon>
+    </button>
+  }
 </mat-form-field>

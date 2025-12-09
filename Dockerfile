@@ -72,6 +72,10 @@ RUN set -eux; \
     ls -R /app/dist/apps/site || true; \
     exit 1; \
     fi; \
+    if [ -f "${UI_ROOT}/index.csr.html" ] && [ ! -f "${UI_ROOT}/index.html" ]; then \
+    echo "SSR build detected: renaming index.csr.html to index.html"; \
+    mv "${UI_ROOT}/index.csr.html" "${UI_ROOT}/index.html"; \
+    fi; \
     [ -f "${UI_ROOT}/index.html" ] || (echo "ERROR: index.html not found in ${UI_ROOT}" && exit 1); \
     ls -l "${UI_ROOT}" || true
 
