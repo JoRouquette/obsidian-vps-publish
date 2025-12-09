@@ -1,3 +1,12 @@
+## 4.4.0 (2025-12-09)
+
+* ci: fix playwright e2e tests in CI pipeline ([9ab7e74](https://github.com/JoRouquette/obsidian-vps-publish/commit/9ab7e74))
+* Merge branch 'feature/end-to-end-testing' ([a8b4d76](https://github.com/JoRouquette/obsidian-vps-publish/commit/a8b4d76))
+* feat(site): add E2E testing with Playwright and Server-Side Rendering support ([5a9b506](https://github.com/JoRouquette/obsidian-vps-publish/commit/5a9b506))
+* feat(site): add mobile-optimized UI with search overlay and responsive navigation ([fd6720d](https://github.com/JoRouquette/obsidian-vps-publish/commit/fd6720d))
+* feat(site): improve mobile UX and dataview inline rendering ([1f421ef](https://github.com/JoRouquette/obsidian-vps-publish/commit/1f421ef))
+* fix(site): improve mobile topbar layout and remove overlay title ([c02f2ad](https://github.com/JoRouquette/obsidian-vps-publish/commit/c02f2ad))
+
 ## 4.3.0 (2025-12-09)
 
 * Merge branch 'fix/style-mobile' ([400d0d0](https://github.com/JoRouquette/obsidian-vps-publish/commit/400d0d0))
