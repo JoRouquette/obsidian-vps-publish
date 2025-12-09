@@ -1,3 +1,18 @@
+## 4.3.0 (2025-12-09)
+
+* Merge branch 'fix/style-mobile' ([400d0d0](https://github.com/JoRouquette/obsidian-vps-publish/commit/400d0d0))
+* fix(site): remove duplicate title header in viewer component ([dc32327](https://github.com/JoRouquette/obsidian-vps-publish/commit/dc32327))
+* fix(site): resolve double-scroll and improve layout responsiveness ([c962324](https://github.com/JoRouquette/obsidian-vps-publish/commit/c962324))
+* feat(plugin): add step-based progress tracking with notifications ([2f25c0e](https://github.com/JoRouquette/obsidian-vps-publish/commit/2f25c0e))
+* feat(site): add collapsible and resizable sidebar with responsive improvements ([abe99c9](https://github.com/JoRouquette/obsidian-vps-publish/commit/abe99c9))
+* refactor(site): migrate to Angular 20 modern patterns ([34af979](https://github.com/JoRouquette/obsidian-vps-publish/commit/34af979))
+
+
+### BREAKING CHANGE
+
+* NotesUploaderAdapter and AssetsUploaderAdapter constructors now accept
+ProgressPort or StepProgressManagerPort
+
 ## 4.2.0 (2025-12-06)
 
 * Merge branch 'feature/mobile-display' ([04f589f](https://github.com/JoRouquette/obsidian-vps-publish/commit/04f589f))
