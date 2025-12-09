@@ -12,6 +12,11 @@
       "options": {
         "outputPath": "dist/apps/site",
         "browser": "apps/site/src/main.ts",
+        "server": "apps/site/src/main.server.ts",
+        "prerender": false,
+        "ssr": {
+          "entry": "apps/site/src/server.ts"
+        },
         "polyfills": ["zone.js"],
         "tsConfig": "apps/site/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
@@ -97,6 +102,18 @@
         "staticFilePath": "dist/apps/site/browser",
         "spa": true
       }
+    },
+    "serve-ssr": {
+      "executor": "@angular/build:ssr-dev-server",
+      "configurations": {
+        "development": {
+          "buildTarget": "site:build:development"
+        },
+        "production": {
+          "buildTarget": "site:build:production"
+        }
+      },
+      "defaultConfiguration": "development"
     },
     "format": {
       "executor": "nx:run-commands",

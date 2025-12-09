@@ -42,7 +42,7 @@
   }
 
   @if (hasResults()) {
-    <div class="results">
+    <div class="results" data-testid="search-results">
       @for (res of search.results(); track res.route) {
         <article class="result-card">
           <h2>

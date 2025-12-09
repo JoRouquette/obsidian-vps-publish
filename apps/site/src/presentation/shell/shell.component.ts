@@ -1,5 +1,13 @@
-import { NgComponentOutlet } from '@angular/common';
-import { Component, DestroyRef, type OnInit, signal, type Type } from '@angular/core';
+import { isPlatformBrowser, NgComponentOutlet } from '@angular/common';
+import {
+  Component,
+  DestroyRef,
+  Inject,
+  type OnInit,
+  PLATFORM_ID,
+  signal,
+  type Type,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -40,7 +48,8 @@ export class ShellComponent implements OnInit {
     private readonly catalog: CatalogFacade,
     private readonly router: Router,
     private readonly searchFacade: SearchFacade,
-    private readonly destroyRef: DestroyRef
+    private readonly destroyRef: DestroyRef,
+    @Inject(PLATFORM_ID) private platformId: object
   ) {}
 
   currentYear = new Date().getFullYear();
@@ -210,6 +219,8 @@ export class ShellComponent implements OnInit {
 
   // === Sidebar resize ===
   startResize(event: MouseEvent | TouchEvent): void {
+    if (!isPlatformBrowser(this.platformId)) return; // SSR protection
+
     event.preventDefault();
     this.isResizing = true;
 
@@ -246,6 +257,7 @@ export class ShellComponent implements OnInit {
 
   private stopResize = (): void => {
     if (!this.isResizing) return;
+    if (!isPlatformBrowser(this.platformId)) return; // SSR protection
 
     this.isResizing = false;
 
@@ -283,6 +295,8 @@ export class ShellComponent implements OnInit {
 
   // === LocalStorage persistence ===
   private loadSidebarState(): void {
+    if (!isPlatformBrowser(this.platformId)) return; // SSR protection
+
     try {
       const collapsed = localStorage.getItem('sidebar-collapsed');
       const width = localStorage.getItem('sidebar-width');
@@ -305,6 +319,8 @@ export class ShellComponent implements OnInit {
   }
 
   private saveSidebarState(): void {
+    if (!isPlatformBrowser(this.platformId)) return; // SSR protection
+
     try {
       localStorage.setItem('sidebar-collapsed', this.isSidebarCollapsed().toString());
       localStorage.setItem('sidebar-width', this.sidebarWidth().toString());

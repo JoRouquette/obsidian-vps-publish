@@ -1,5 +1,5 @@
 @if (isOpen()) {
-  <div class="image-overlay" (click)="onBackdropClick($event)">
+  <div class="image-overlay" (click)="onBackdropClick($event)" data-testid="image-viewer">
     <div class="overlay-controls">
       <button mat-icon-button class="control-btn" (click)="zoomIn()" aria-label="Zoom avant">
         <mat-icon>zoom_in</mat-icon>

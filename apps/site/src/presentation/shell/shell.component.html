@@ -48,7 +48,12 @@
   }
 
   <!-- Vault explorer with desktop resize handle -->
-  <div class="vault-explorer" [class.open]="isMenuOpen()" [style.width.px]="sidebarWidth()">
+  <div
+    class="vault-explorer"
+    [class.open]="isMenuOpen()"
+    [style.width.px]="sidebarWidth()"
+    data-testid="vault-explorer"
+  >
     <!-- Resize handle (desktop only) -->
     <div
       class="resize-handle"
@@ -59,6 +64,7 @@
       aria-label="Redimensionner la sidebar"
       tabindex="0"
       (keydown)="handleResizeKeyboard($event)"
+      data-testid="resize-handle"
     ></div>
 
     <!-- Mobile overlay header with theme toggle -->

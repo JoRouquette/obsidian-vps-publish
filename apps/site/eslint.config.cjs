@@ -1,6 +1,13 @@
+const playwright = require('eslint-plugin-playwright');
 const { baseConfigs, tsBaseConfig, tsTestConfig } = require('../../eslint.config.cjs');
 
 module.exports = [
+  // Playwright config only for e2e tests
+  {
+    ...playwright.configs['flat/recommended'],
+    files: ['e2e/**/*.spec.ts'],
+  },
+
   ...baseConfigs,
   {
     ...tsBaseConfig,
@@ -74,6 +81,21 @@ module.exports = [
         project: ['./tsconfig.spec.json'],
         sourceType: 'module',
       },
+    },
+  },
+  // Server-side files (SSR) and E2E config - disable frontend restrictions
+  // MUST BE LAST to override previous rules
+  {
+    files: [
+      '**/server.ts',
+      '**/app.config.server.ts',
+      '**/main.server.ts',
+      '**/playwright.config.ts',
+    ],
+    rules: {
+      'no-restricted-imports': 'off',
+      'no-restricted-properties': 'off',
+      'no-console': 'off',
     },
   },
 ];

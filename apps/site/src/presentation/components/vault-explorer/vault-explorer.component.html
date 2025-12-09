@@ -51,6 +51,7 @@
         [attr.aria-expanded]="node.isExpanded || shouldAutoExpand(n)"
         matTreeNodePadding
         [matTreeNodePaddingIndent]="'0.4em'"
+        [attr.data-testid]="'folder-' + n.path"
       >
         <button
           class="node-header"
@@ -86,6 +87,7 @@
         matTreeNodePadding
         [matTreeNodePaddingIndent]="'0.4em'"
         matTooltip="Ouvrir le fichier"
+        [attr.data-testid]="'page-' + n.path"
       >
         <a
           class="file-link"

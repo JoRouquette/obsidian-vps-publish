@@ -31,7 +31,7 @@
   </div>
 
   <!-- Ligne 2 : Breadcrumbs (fil d Ariane) -->
-  <nav class="breadcrumbs" aria-label="Fil d Ariane">
+  <nav class="breadcrumbs" aria-label="Fil d Ariane" data-testid="breadcrumbs">
     @for (c of crumbs; track c.url; let last = $last) {
       <span class="crumb" aria-current="{{ last ? 'page' : undefined }}">
         <span [class.last]="last">{{ c.label }}</span>
