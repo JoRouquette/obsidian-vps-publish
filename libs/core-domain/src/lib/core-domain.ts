@@ -1,5 +1,6 @@
 export * from './entities';
 export * from './entities/chunked-data';
+export * from './entities/publishing-stats';
 export * from './errors/session-error';
 export * from './ports';
 export * from './ports/compression-port';

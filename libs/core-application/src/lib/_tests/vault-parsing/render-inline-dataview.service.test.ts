@@ -287,5 +287,67 @@ describe('RenderInlineDataviewService', () => {
 
       expect(result.content).toBe('Active: true, Disabled: false');
     });
+
+    it('should handle null values gracefully', () => {
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { nullValue: null },
+      };
+
+      const note = baseNote('Null: `= this.nullValue`', frontmatter);
+      const [result] = service.process([note]);
+
+      expect(result.content).toBe('Null: ');
+    });
+
+    it('should handle null values in join gracefully', () => {
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { nullValue: null },
+      };
+
+      const note = baseNote('Null join: `= join(this.nullValue, ", ")`', frontmatter);
+      const [result] = service.process([note]);
+
+      expect(result.content).toBe('Null join: ');
+    });
+
+    it('should handle numeric single value in join', () => {
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { count: 42 },
+      };
+
+      const note = baseNote('Count: `= join(this.count, ", ")`', frontmatter);
+      const [result] = service.process([note]);
+
+      // La normalisation devrait wrapper 42 dans un array, puis join
+      expect(result.content).toBe('Count: 42');
+    });
+
+    it('should handle mixed types in arrays', () => {
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { mixed: ['text', 123, true, null] },
+      };
+
+      const note = baseNote('Mixed: `= join(this.mixed, " | ")`', frontmatter);
+      const [result] = service.process([note]);
+
+      expect(result.content).toBe('Mixed: text | 123 | true | null');
+    });
+
+    it('should handle object values gracefully (stringify)', () => {
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { obj: { key: 'value' } },
+      };
+
+      const note = baseNote('Object: `= this.obj`', frontmatter);
+      const [result] = service.process([note]);
+
+      // String(object) produit "[object Object]", ce qui est acceptable comme fallback
+      expect(result.content).toContain('Object: [object Object]');
+    });
   });
 });

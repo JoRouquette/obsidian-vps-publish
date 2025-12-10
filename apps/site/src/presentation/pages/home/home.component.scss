@@ -408,61 +408,85 @@
     margin: 0.5rem 0 0;
   }
 
-  /* Tables : centrées, max 2.5x viewport, scroll horizontal si besoin */
-  /* Wrapper pour table avec overflow pour limiter le sticky header */
+  /* Tables : wrapper avec scroll horizontal isolé et sticky header optimisé */
   .table-wrapper {
     position: relative;
-    overflow: auto;
-    max-height: 80vh; /* Limite la zone de sticky */
-    margin: 1rem auto;
-    border: 1px solid color-mix(in oklab, var(--c-outline) 40%, transparent);
+    overflow-x: auto; /* Scroll horizontal uniquement dans le conteneur */
+    overflow-y: auto; /* Scroll vertical si la table est haute */
+    max-height: 75vh; /* Limite pour le sticky header */
+    margin: 1.2rem auto;
+    border: 1px solid color-mix(in oklab, var(--c-outline) 35%, transparent);
     border-radius: 0.75rem;
-    background: color-mix(in oklab, var(--c-surface-variant) 8%, transparent);
+    background: color-mix(in oklab, var(--c-surface-variant) 6%, transparent);
     scrollbar-width: thin;
     scrollbar-color: color-mix(in oklab, var(--c-outline) 40%, transparent) transparent;
+    /* Empêcher le sticky header de dépasser les limites du wrapper */
+    contain: layout style paint;
   }
 
   table {
-    display: table; /* Revenir au display standard pour tables */
+    display: table;
     border-collapse: collapse;
     border-spacing: 0;
     width: 100%;
-    min-width: 100%;
-    max-width: min(140vw, 1200px);
+    min-width: max-content; /* Permettre à la table de s'étendre selon son contenu */
     table-layout: auto;
-    margin: 0; /* Le wrapper gère les marges */
-    background: inherit; /* Hérite du wrapper */
+    margin: 0;
+    background: transparent;
     font-size: 0.96rem;
-    line-height: 1.55;
+    line-height: 1.6;
   }
 
   thead {
-    background: inherit; /* Hérite du background parent (table/wrapper) */
     position: sticky;
     top: 0;
-    z-index: 10; /* Pour rester au-dessus du tbody lors du scroll */
+    z-index: 5; /* Au-dessus du tbody mais dans le contexte du wrapper */
+    /* Fond opaque hérité du thème pour masquer le contenu défilant */
+    background: color-mix(in oklab, var(--c-surface) 95%, var(--c-surface-variant) 5%);
+    /* Ombre subtile pour délimiter visuellement le header */
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--c-outline) 15%, transparent);
   }
 
-  /* Assurer que les th ont un fond solide pour masquer le contenu défilant */
+  /* Header cells avec fond cohérent selon le thème */
   th {
-    background: color-mix(in oklab, var(--c-surface-variant) 14%, transparent);
+    background: inherit; /* Hérite du thead */
+    color: var(--c-on-surface);
+    font-weight: 600;
+    text-align: left;
+    /* Bordure droite subtile pour séparer les colonnes */
+    border-right: 1px solid color-mix(in oklab, var(--c-outline) 20%, transparent);
+  }
+
+  th:last-child {
+    border-right: none; /* Pas de bordure à droite pour la dernière colonne */
   }
 
   th,
   td {
-    padding: 0.6rem 0.85rem;
-    border-bottom: 1px solid color-mix(in oklab, var(--c-outline) 32%, transparent);
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid color-mix(in oklab, var(--c-outline) 25%, transparent);
     vertical-align: top;
     white-space: normal;
     word-break: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
     font-size: 0.96rem;
-    line-height: 1.55;
+    line-height: 1.6;
+    min-width: 8ch; /* Largeur minimale pour éviter des colonnes trop étroites */
+  }
+
+  /* Alternance de couleurs pour les lignes du tbody */
+  tbody tr:nth-child(even) {
+    background: color-mix(in oklab, var(--c-surface-variant) 4%, transparent);
+  }
+
+  tbody tr:hover {
+    background: color-mix(in oklab, var(--c-primary) 8%, var(--c-surface) 92%);
+    transition: background 0.15s ease;
   }
 
   tr:last-child td {
-    border-bottom: 0;
+    border-bottom: none;
   }
 
   th:first-child,
