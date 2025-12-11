@@ -1,3 +1,9 @@
+## 4.5.0 (2025-12-11)
+
+* Merge branch 'feat/implementation-leaflet' ([403b23f](https://github.com/JoRouquette/obsidian-vps-publish/commit/403b23f))
+* feat: add support for Leaflet map blocks in published notes ([20d71c9](https://github.com/JoRouquette/obsidian-vps-publish/commit/20d71c9))
+* feat(publish): add detailed publishing stats and improved table rendering ([27794ca](https://github.com/JoRouquette/obsidian-vps-publish/commit/27794ca))
+
 ## <small>4.4.1 (2025-12-09)</small>
 
 * Merge branch 'fix/mobile-side-effect-on-desktop' ([eff25eb](https://github.com/JoRouquette/obsidian-vps-publish/commit/eff25eb))
