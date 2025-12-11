@@ -5,6 +5,7 @@ import { NotesMapper } from '@core-application/vault-parsing/mappers/notes.mappe
 import { ComputeRoutingService } from '@core-application/vault-parsing/services/compute-routing.service';
 import { ContentSanitizerService } from '@core-application/vault-parsing/services/content-sanitizer.service';
 import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
+import { DetectLeafletBlocksService } from '@core-application/vault-parsing/services/detect-leaflet-blocks.service';
 import { DetectWikilinksService } from '@core-application/vault-parsing/services/detect-wikilinks.service';
 import { EnsureTitleHeaderService } from '@core-application/vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';
@@ -591,6 +592,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     );
     const noteMapper = new NotesMapper();
     const inlineDataviewRenderer = new RenderInlineDataviewService(logger);
+    const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
     const contentSanitizer = new ContentSanitizerService(
       vps.cleanupRules ?? [],
       settings.frontmatterKeysToExclude ?? [],
@@ -608,6 +610,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       evaluateIgnoreRulesHandler,
       noteMapper,
       inlineDataviewRenderer,
+      leafletBlocksDetector,
       contentSanitizer,
       ensureTitleHeaderService,
       assetsDetector,

@@ -1008,4 +1008,19 @@
       shape-outside: none;
     }
   }
+
+  // Leaflet maps section styling
+  .leaflet-maps-section {
+    margin-block-start: 2rem;
+    padding-block-start: 2rem;
+    border-block-start: 1px solid var(--c-outline);
+
+    .leaflet-map-wrapper {
+      margin-block-end: 2rem;
+
+      &:last-child {
+        margin-block-end: 0;
+      }
+    }
+  }
 }

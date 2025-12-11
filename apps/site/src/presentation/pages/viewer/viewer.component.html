@@ -1,5 +1,17 @@
 <article class="viewer">
   <div class="content" #contentEl [innerHTML]="html()" data-testid="viewer-content"></div>
+
+  <!-- Affichage des blocs Leaflet en dehors du contenu HTML statique -->
+  @if (leafletBlocks().length > 0) {
+    <section class="leaflet-maps-section">
+      @for (block of leafletBlocks(); track block.id) {
+        <div class="leaflet-map-wrapper">
+          <app-leaflet-map [block]="block" />
+        </div>
+      }
+    </section>
+  }
+
   <span
     #tooltipTarget
     class="wikilink-tooltip-proxy"

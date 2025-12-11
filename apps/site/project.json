@@ -19,14 +19,15 @@
         "tsConfig": "apps/site/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "assets": ["apps/site/src/favicon.ico", "apps/site/src/assets"],
-        "styles": ["apps/site/src/styles.scss"]
+        "styles": ["apps/site/src/styles.scss"],
+        "allowedCommonJsDependencies": ["leaflet"]
       },
       "configurations": {
         "production": {
           "budgets": [
             {
               "type": "initial",
-              "maximumWarning": "500kb",
+              "maximumWarning": "700kb",
               "maximumError": "1mb"
             },
             {

@@ -16,17 +16,20 @@ import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { distinctUntilChanged, map, switchMap } from 'rxjs';
 
+import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
+
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
 import { HttpContentRepository } from '../../../infrastructure/http/http-content.repository';
 import { ImageOverlayComponent } from '../../components/image-overlay/image-overlay.component';
+import { LeafletMapComponent } from '../../components/leaflet-map/leaflet-map.component';
 
 @Component({
   standalone: true,
   selector: 'app-viewer',
   templateUrl: './viewer.component.html',
   styleUrls: ['./viewer.component.scss'],
-  imports: [MatIconModule, MatTooltipModule, ImageOverlayComponent],
+  imports: [MatIconModule, MatTooltipModule, ImageOverlayComponent, LeafletMapComponent],
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -38,6 +41,9 @@ export class ViewerComponent {
 
   title = signal<string>('');
   readonly tooltipMessage = 'Cette page arrive prochainement';
+
+  // Signal pour les blocs Leaflet de la page actuelle
+  leafletBlocks = signal<LeafletBlock[]>([]);
 
   private readonly cleanupFns: Array<() => void> = [];
 
@@ -55,6 +61,10 @@ export class ViewerComponent {
           const p = manifest.pages.find((x) => x.route === normalized);
           if (p) {
             this.title.set(this.capitalize(p.title) ?? '');
+            // Mettre à jour les blocs Leaflet si présents
+            this.leafletBlocks.set(p.leafletBlocks ?? []);
+          } else {
+            this.leafletBlocks.set([]);
           }
         }
 

@@ -1,6 +1,9 @@
 @use '@angular/material' as mat;
 @use './presentation/theme/its.theme' as *;
 
+// Import Leaflet CSS for map rendering
+@import 'leaflet/dist/leaflet.css';
+
 @include mat.core();
 
 :root.theme-light {
