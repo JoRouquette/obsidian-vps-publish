@@ -86,12 +86,17 @@ export class AssetsUploaderAdapter implements UploaderPort {
       skippedCount: oversized.length,
     });
 
+    let batchIndex = 0;
     for (const batch of batches) {
+      batchIndex++;
+
       // Use chunked upload for each batch
       const uploadId = `assets-${this.sessionId}-${this.guidGenerator.generateGuid()}`;
 
       this._logger.debug('Preparing chunked upload for batch', {
         uploadId,
+        batchIndex,
+        totalBatches: batches.length,
         batchSize: batch.length,
       });
 
@@ -103,18 +108,47 @@ export class AssetsUploaderAdapter implements UploaderPort {
       await this.chunkedUploadService.uploadAll(chunks, uploader, (current, total) => {
         this._logger.debug('Chunk upload progress', {
           uploadId,
+          batchIndex,
           current,
           total,
           percentComplete: ((current / total) * 100).toFixed(2),
         });
       });
 
-      this._logger.debug('Assets batch uploaded', { batchSize: batch.length });
+      this._logger.debug('Assets batch uploaded', {
+        batchIndex,
+        totalBatches: batches.length,
+        batchSize: batch.length,
+      });
       this.advanceProgress(batch.length);
     }
 
     this._logger.debug('Assets upload completed');
     return true;
+  }
+
+  /**
+   * Retourne le nombre de batchs et d'items oversized
+   */
+  async getBatchInfo(
+    assets: ResolvedAssetFile[]
+  ): Promise<{ batchCount: number; oversizedCount: number }> {
+    if (!Array.isArray(assets) || assets.length === 0) {
+      return { batchCount: 0, oversizedCount: 0 };
+    }
+
+    const apiAssets = await Promise.all(
+      assets.map(async (asset) => await this.buildApiAsset(asset))
+    );
+
+    const { batches, oversized } = batchByBytes(apiAssets, this.maxBytesPerRequest, (batch) => ({
+      assets: batch,
+    }));
+
+    return {
+      batchCount: batches.length,
+      oversizedCount: oversized.length,
+    };
   }
 
   private advanceProgress(step: number): void {

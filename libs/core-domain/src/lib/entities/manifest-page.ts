@@ -1,4 +1,5 @@
 import type { Slug } from '../value-objects/slug.value-object';
+import type { LeafletBlock } from './leaflet-block';
 
 export interface ManifestPage {
   id: string;
@@ -11,4 +12,5 @@ export interface ManifestPage {
   vaultPath?: string;
   relativePath?: string;
   tags?: string[];
+  leafletBlocks?: LeafletBlock[];
 }

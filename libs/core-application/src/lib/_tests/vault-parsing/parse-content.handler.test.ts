@@ -8,6 +8,7 @@ import { NotesMapper } from '../../vault-parsing/mappers/notes.mapper';
 import { ComputeRoutingService } from '../../vault-parsing/services/compute-routing.service';
 import { ContentSanitizerService } from '../../vault-parsing/services/content-sanitizer.service';
 import { DetectAssetsService } from '../../vault-parsing/services/detect-assets.service';
+import { DetectLeafletBlocksService } from '../../vault-parsing/services/detect-leaflet-blocks.service';
 import { DetectWikilinksService } from '../../vault-parsing/services/detect-wikilinks.service';
 import { EnsureTitleHeaderService } from '../../vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '../../vault-parsing/services/normalize-frontmatter.service';
@@ -43,6 +44,7 @@ describe('ParseContentHandler', () => {
     const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(ignoreRules, logger);
     const noteMapper = new NotesMapper();
     const inlineDataviewRenderer = new RenderInlineDataviewService(logger);
+    const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
     const contentSanitizer = new ContentSanitizerService([], keysToExclude, tagsToExclude, logger);
     const ensureTitleHeaderService = new EnsureTitleHeaderService(logger);
     const assetsDetector = new DetectAssetsService(logger);
@@ -55,6 +57,7 @@ describe('ParseContentHandler', () => {
       evaluateIgnoreRulesHandler,
       noteMapper,
       inlineDataviewRenderer,
+      leafletBlocksDetector,
       contentSanitizer,
       ensureTitleHeaderService,
       assetsDetector,

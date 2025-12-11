@@ -20,6 +20,37 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     });
 
     this.calloutRenderer.register(this.md);
+    this.customizeTableRenderer();
+  }
+
+  /**
+   * Customise le rendu des tables pour ajouter un wrapper .table-wrapper
+   * permettant le scroll horizontal et le sticky header
+   */
+  private customizeTableRenderer(): void {
+    // Sauvegarder les renderers par défaut
+    const defaultTableOpen =
+      this.md.renderer.rules.table_open ||
+      function (tokens, idx, options, env, self) {
+        return self.renderToken(tokens, idx, options);
+      };
+    const defaultTableClose =
+      this.md.renderer.rules.table_close ||
+      function (tokens, idx, options, env, self) {
+        return self.renderToken(tokens, idx, options);
+      };
+
+    // Override table_open pour ajouter le wrapper
+    this.md.renderer.rules.table_open = (tokens, idx, options, env, self) => {
+      const tableTag = defaultTableOpen(tokens, idx, options, env, self);
+      return '<div class="table-wrapper">\n' + tableTag;
+    };
+
+    // Override table_close pour fermer le wrapper
+    this.md.renderer.rules.table_close = (tokens, idx, options, env, self) => {
+      const tableTag = defaultTableClose(tokens, idx, options, env, self);
+      return tableTag + '\n</div>\n';
+    };
   }
 
   async render(note: PublishableNote): Promise<string> {

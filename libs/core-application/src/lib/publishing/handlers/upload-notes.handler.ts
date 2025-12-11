@@ -93,6 +93,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
         vaultPath: n.vaultPath,
         relativePath: n.relativePath,
         tags: n.frontmatter.tags ?? [],
+        leafletBlocks: n.leafletBlocks,
       }));
 
       pages.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());

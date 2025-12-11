@@ -65,19 +65,18 @@ export class NotesUploaderAdapter implements UploaderPort {
     this._logger.debug(
       `Uploading ${notes.length} notes in ${batches.length} batch(es) (maxBytes=${this.maxBytesPerRequest}, skipped=${oversized.length})`
     );
-    this._logger.debug('Notes upload batches details', {
-      batches: batches.map((batch) => ({
-        noteCount: batch.length,
-      })),
-    });
-    this._logger.debug('Notes upload batches details', { batches });
 
+    let batchIndex = 0;
     for (const batch of batches) {
+      batchIndex++;
+
       // Use chunked upload for each batch
       const uploadId = `notes-${this.sessionId}-${this.guidGenerator.generateGuid()}`;
 
       this._logger.debug('Preparing chunked upload for batch', {
         uploadId,
+        batchIndex,
+        totalBatches: batches.length,
         batchSize: batch.length,
       });
 
@@ -89,18 +88,41 @@ export class NotesUploaderAdapter implements UploaderPort {
       await this.chunkedUploadService.uploadAll(chunks, uploader, (current, total) => {
         this._logger.debug('Chunk upload progress', {
           uploadId,
+          batchIndex,
           current,
           total,
           percentComplete: ((current / total) * 100).toFixed(2),
         });
       });
 
-      this._logger.debug('Notes batch uploaded', { batchSize: batch.length });
+      this._logger.debug('Notes batch uploaded', {
+        batchIndex,
+        totalBatches: batches.length,
+        batchSize: batch.length,
+      });
       this.advanceProgress(batch.length);
     }
 
     this._logger.debug('Successfully uploaded notes to session');
     return true;
+  }
+
+  /**
+   * Retourne le nombre de batchs et d'items oversized
+   */
+  getBatchInfo(notes: PublishableNote[]): { batchCount: number; oversizedCount: number } {
+    if (!Array.isArray(notes) || notes.length === 0) {
+      return { batchCount: 0, oversizedCount: 0 };
+    }
+
+    const { batches, oversized } = batchByBytes(notes, this.maxBytesPerRequest, (batch) => ({
+      notes: batch,
+    }));
+
+    return {
+      batchCount: batches.length,
+      oversizedCount: oversized.length,
+    };
   }
 
   private advanceProgress(step: number): void {

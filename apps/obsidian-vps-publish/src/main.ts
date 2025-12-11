@@ -5,6 +5,7 @@ import { NotesMapper } from '@core-application/vault-parsing/mappers/notes.mappe
 import { ComputeRoutingService } from '@core-application/vault-parsing/services/compute-routing.service';
 import { ContentSanitizerService } from '@core-application/vault-parsing/services/content-sanitizer.service';
 import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
+import { DetectLeafletBlocksService } from '@core-application/vault-parsing/services/detect-leaflet-blocks.service';
 import { DetectWikilinksService } from '@core-application/vault-parsing/services/detect-wikilinks.service';
 import { EnsureTitleHeaderService } from '@core-application/vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';
@@ -13,6 +14,11 @@ import { ResolveWikilinksService } from '@core-application/vault-parsing/service
 import { type CollectedNote, type VpsConfig } from '@core-domain';
 import { type HttpResponse } from '@core-domain/entities/http-response';
 import { ProgressStepId, ProgressStepStatus } from '@core-domain/entities/progress-step';
+import {
+  createPublishingStats,
+  formatPublishingStats,
+  type PublishingStats,
+} from '@core-domain/entities/publishing-stats';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import { type DataAdapter, Notice, Plugin, type RequestUrlResponse } from 'obsidian';
 
@@ -251,6 +257,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     const scopedLogger = this.logger.child({ vps: vps.id ?? 'default' });
     const guidGenerator = new GuidGeneratorAdapter();
 
+    // Initialiser les statistiques de publication
+    const stats: PublishingStats = createPublishingStats();
+    stats.startedAt = new Date();
+
     // Initialiser le système de progress et notifications
     const totalProgressAdapter = new NoticeProgressAdapter('Publishing to VPS');
     const notificationAdapter = new NoticeNotificationAdapter();
@@ -268,24 +278,34 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ====================================================================
       // ÉTAPE 1: PARSE_VAULT - Parsing du vault
       // ====================================================================
+      notificationAdapter.info('🔍 Analyzing vault notes...');
+
       const vault = new ObsidianVaultAdapter(this.app, guidGenerator, scopedLogger);
       const notes: CollectedNote[] = await vault.collectFromFolder({
         folderConfig: vps.folders,
       });
 
+      stats.totalNotesAnalyzed = notes.length;
+
       const parseContentHandler = this.buildParseContentHandler(vps, settings, scopedLogger);
       const publishables = await parseContentHandler.handle(notes);
 
       const publishableCount = publishables.length;
+      stats.notesEligible = publishableCount;
+      stats.notesIgnored = notes.length - publishableCount;
+
       const notesWithAssets = publishables.filter((n) => n.assets && n.assets.length > 0);
       const assetsPlanned = notesWithAssets.reduce(
         (sum, n) => sum + (Array.isArray(n.assets) ? n.assets.length : 0),
         0
       );
+      stats.assetsPlanned = assetsPlanned;
 
       scopedLogger.debug('Total notes collected and parsed', {
         collected: notes.length,
         publishable: publishableCount,
+        ignored: stats.notesIgnored,
+        assetsPlanned,
       });
 
       if (publishableCount === 0) {
@@ -293,6 +313,13 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         new Notice('No publishable notes to upload.');
         return;
       }
+
+      // Afficher les stats d'analyse
+      notificationAdapter.info(
+        `✅ Analysis complete\n📝 ${stats.notesEligible} eligible notes${
+          stats.notesIgnored > 0 ? ` (${stats.notesIgnored} ignored)` : ''
+        }${stats.assetsPlanned > 0 ? `\n🖼️ ${stats.assetsPlanned} assets detected` : ''}`
+      );
 
       // Initialiser le progress global AVANT le début des opérations réseau
       const totalPlanned = publishableCount + assetsPlanned;
@@ -324,12 +351,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ====================================================================
       // ÉTAPE 2: UPLOAD_NOTES - Upload des notes
       // ====================================================================
-      stepProgressManager.startStep(
-        ProgressStepId.UPLOAD_NOTES,
-        'Uploading notes',
-        publishableCount
-      );
-
       const notesUploader = new NotesUploaderAdapter(
         sessionClient,
         sessionId,
@@ -338,22 +359,34 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         serverRequestLimit,
         stepProgressManager
       );
+
+      // Calculer le nombre de batchs
+      const notesBatchInfo = notesUploader.getBatchInfo(publishables);
+      stats.notesBatchCount = notesBatchInfo.batchCount;
+      stats.notesOversized = notesBatchInfo.oversizedCount;
+
+      stepProgressManager.startStep(
+        ProgressStepId.UPLOAD_NOTES,
+        'Uploading notes',
+        publishableCount
+      );
+
+      notificationAdapter.info(
+        `📤 Uploading notes in ${stats.notesBatchCount} batch${
+          stats.notesBatchCount > 1 ? 'es' : ''
+        }...`
+      );
+
       await notesUploader.upload(publishables);
+
+      stats.notesUploaded = publishableCount - stats.notesOversized;
 
       stepProgressManager.completeStep(ProgressStepId.UPLOAD_NOTES);
 
       // ====================================================================
       // ÉTAPE 3: UPLOAD_ASSETS - Upload des assets
       // ====================================================================
-      let assetsUploaded = 0;
-
       if (notesWithAssets.length > 0 && assetsPlanned > 0) {
-        stepProgressManager.startStep(
-          ProgressStepId.UPLOAD_ASSETS,
-          'Uploading assets',
-          assetsPlanned
-        );
-
         const assetsVault = new ObsidianAssetsVaultAdapter(this.app, this.logger);
         const assetsUploader = new AssetsUploaderAdapter(
           sessionClient,
@@ -369,12 +402,30 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           settings.assetsFolder,
           settings.enableAssetsVaultFallback
         );
-        assetsUploaded = resolvedAssets.length;
+
+        // Calculer le nombre de batchs
+        const assetsBatchInfo = await assetsUploader.getBatchInfo(resolvedAssets);
+        stats.assetsBatchCount = assetsBatchInfo.batchCount;
+        stats.assetsOversized = assetsBatchInfo.oversizedCount;
+
+        stepProgressManager.startStep(
+          ProgressStepId.UPLOAD_ASSETS,
+          'Uploading assets',
+          assetsPlanned
+        );
+
+        notificationAdapter.info(
+          `📤 Uploading assets in ${stats.assetsBatchCount} batch${
+            stats.assetsBatchCount > 1 ? 'es' : ''
+          }...`
+        );
 
         await assetsUploader.upload(resolvedAssets);
 
+        stats.assetsUploaded = resolvedAssets.length - stats.assetsOversized;
+
         stepProgressManager.completeStep(ProgressStepId.UPLOAD_ASSETS);
-        this.logger.debug('Assets uploaded', { assetsUploaded });
+        this.logger.debug('Assets uploaded', { assetsUploaded: stats.assetsUploaded });
       } else {
         // Pas d'assets à uploader, on skip l'étape
         stepProgressManager.skipStep(ProgressStepId.UPLOAD_ASSETS, 'No assets to upload');
@@ -386,8 +437,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       stepProgressManager.startStep(ProgressStepId.FINALIZE_SESSION, 'Finalizing', 1);
 
       await sessionClient.finishSession(sessionId, {
-        notesProcessed: publishableCount,
-        assetsProcessed: assetsUploaded,
+        notesProcessed: stats.notesUploaded,
+        assetsProcessed: stats.assetsUploaded,
       });
 
       stepProgressManager.advanceStep(ProgressStepId.FINALIZE_SESSION, 1);
@@ -396,12 +447,20 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // Terminer le progress global
       totalProgressAdapter.finish();
 
-      const successMsg = `Published ${publishableCount} note(s)${
-        assetsPlanned ? ` and ${assetsUploaded} asset(s)` : ''
-      }.`;
-      new Notice(successMsg);
+      // Finaliser les stats
+      stats.completedAt = new Date();
+
+      // Afficher les stats finales
+      const summary = formatPublishingStats(stats);
+      new Notice(summary, 10000); // Afficher pendant 10 secondes
+
+      this.logger.debug('Publishing completed successfully', stats);
     } catch (err) {
       this.logger.error('Publishing failed, aborting session if created', err);
+
+      stats.completedAt = new Date();
+      stats.notesFailed = stats.notesEligible - stats.notesUploaded;
+      stats.assetsFailed = stats.assetsPlanned - stats.assetsUploaded;
 
       // Marquer l'étape en cours comme échouée
       const currentStep = stepProgressManager
@@ -424,7 +483,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       }
 
       totalProgressAdapter.finish();
-      new Notice('Publishing failed (see console).');
+
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      new Notice(`❌ Publishing failed: ${errorMsg}\n\nCheck console for details.`, 0);
     }
   }
 
@@ -531,6 +592,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     );
     const noteMapper = new NotesMapper();
     const inlineDataviewRenderer = new RenderInlineDataviewService(logger);
+    const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
     const contentSanitizer = new ContentSanitizerService(
       vps.cleanupRules ?? [],
       settings.frontmatterKeysToExclude ?? [],
@@ -548,6 +610,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       evaluateIgnoreRulesHandler,
       noteMapper,
       inlineDataviewRenderer,
+      leafletBlocksDetector,
       contentSanitizer,
       ensureTitleHeaderService,
       assetsDetector,

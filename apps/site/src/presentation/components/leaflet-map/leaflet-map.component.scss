@@ -1,0 +1,9 @@
+:host {
+  display: block;
+}
+
+.leaflet-map-container {
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 4px;
+  overflow: hidden;
+}

@@ -1,4 +1,5 @@
 import type { AssetRef } from './asset-ref';
+import type { LeafletBlock } from './leaflet-block';
 import type { NoteCore } from './note-core';
 import type { NoteEligibility } from './note-eligibility';
 import type { NoteRoutingInfo } from './note-routing-info';
@@ -16,4 +17,5 @@ export interface PublishableNote extends NoteCore {
   eligibility: NoteEligibility;
   assets?: AssetRef[];
   resolvedWikilinks?: ResolvedWikilink[];
+  leafletBlocks?: LeafletBlock[];
 }

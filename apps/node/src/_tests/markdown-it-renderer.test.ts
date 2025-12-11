@@ -149,4 +149,40 @@ describe('MarkdownItRenderer', () => {
     expect(html).toContain('class="callout-icon material-symbols-outlined"');
     expect(html).not.toContain('[!note]-');
   });
+
+  it('wraps tables in .table-wrapper for horizontal scroll and sticky header', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = [
+      '| Header 1 | Header 2 | Header 3 |',
+      '| -------- | -------- | -------- |',
+      '| Cell 1   | Cell 2   | Cell 3   |',
+      '| Cell 4   | Cell 5   | Cell 6   |',
+    ].join('\n');
+
+    const html = await renderer.render(note);
+
+    // Vérifier que la table est wrappée
+    expect(html).toContain('<div class="table-wrapper">');
+    expect(html).toContain('<table>');
+    expect(html).toContain('</table>');
+    expect(html).toContain('</div>');
+
+    // Vérifier que le wrapper entoure bien la table
+    const wrapperStart = html.indexOf('<div class="table-wrapper">');
+    const tableStart = html.indexOf('<table>');
+    const tableEnd = html.indexOf('</table>');
+    const wrapperEnd = html.indexOf('</div>', tableEnd);
+
+    expect(wrapperStart).toBeGreaterThan(-1);
+    expect(tableStart).toBeGreaterThan(wrapperStart);
+    expect(tableEnd).toBeGreaterThan(tableStart);
+    expect(wrapperEnd).toBeGreaterThan(tableEnd);
+
+    // Vérifier le contenu de la table
+    expect(html).toContain('<thead>');
+    expect(html).toContain('<th>Header 1</th>');
+    expect(html).toContain('<tbody>');
+    expect(html).toContain('<td>Cell 1</td>');
+  });
 });
