@@ -26,14 +26,19 @@ export class DetectAssetsService implements BaseService {
     return notes.map((note) => {
       const contentAssets = this.detectInText(note.content, 'content');
       const frontmatterAssets = this.detectInFrontmatter(note);
-      const assets = [...contentAssets, ...frontmatterAssets];
+      const leafletAssets = this.detectInLeafletBlocks(note);
+      const assets = [...contentAssets, ...frontmatterAssets, ...leafletAssets];
 
       if (assets.length === 0) {
         this._logger.debug(`No assets detected in note "${note.title}"`);
         return note;
       }
 
-      this._logger.debug(`Detected ${assets.length} asset(s) in note "${note.title}"`);
+      this._logger.debug(`Detected ${assets.length} asset(s) in note "${note.title}"`, {
+        content: contentAssets.length,
+        frontmatter: frontmatterAssets.length,
+        leaflet: leafletAssets.length,
+      });
 
       return {
         ...note,
@@ -182,5 +187,57 @@ export class DetectAssetsService implements BaseService {
     t = t.replace(/^\.\/+/, '');
     t = t.replace(/^\/+/, '');
     return t;
+  }
+
+  /**
+   * Détecte les assets dans les blocs Leaflet (imageOverlays)
+   */
+  private detectInLeafletBlocks(note: PublishableNote): AssetRef[] {
+    if (!note.leafletBlocks || note.leafletBlocks.length === 0) {
+      return [];
+    }
+
+    const assets: AssetRef[] = [];
+
+    for (const block of note.leafletBlocks) {
+      if (!block.imageOverlays || block.imageOverlays.length === 0) {
+        continue;
+      }
+
+      for (const overlay of block.imageOverlays) {
+        const target = this.normalizeTarget(overlay.path);
+
+        if (!target) {
+          this._logger.debug(`Skipped empty image overlay path in Leaflet block "${block.id}"`);
+          continue;
+        }
+
+        const kind = this.classifyAssetKind(target);
+
+        const asset: AssetRef = {
+          raw: `[[${overlay.path}]]`,
+          target,
+          kind,
+          origin: 'content', // Considéré comme venant du contenu
+          display: {
+            alignment: undefined,
+            width: undefined,
+            classes: [],
+            rawModifiers: [],
+          },
+        };
+
+        assets.push(asset);
+
+        this._logger.debug(`Detected Leaflet image overlay asset`, {
+          blockId: block.id,
+          path: overlay.path,
+          target,
+          kind,
+        });
+      }
+    }
+
+    return assets;
   }
 }

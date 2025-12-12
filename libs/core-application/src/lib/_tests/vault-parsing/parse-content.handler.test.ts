@@ -6,7 +6,6 @@ import { EvaluateIgnoreRulesHandler } from '../../vault-parsing/handler/evaluate
 import { ParseContentHandler } from '../../vault-parsing/handler/parse-content.handler';
 import { NotesMapper } from '../../vault-parsing/mappers/notes.mapper';
 import { ComputeRoutingService } from '../../vault-parsing/services/compute-routing.service';
-import { ContentSanitizerService } from '../../vault-parsing/services/content-sanitizer.service';
 import { DetectAssetsService } from '../../vault-parsing/services/detect-assets.service';
 import { DetectLeafletBlocksService } from '../../vault-parsing/services/detect-leaflet-blocks.service';
 import { DetectWikilinksService } from '../../vault-parsing/services/detect-wikilinks.service';
@@ -37,15 +36,15 @@ describe('ParseContentHandler', () => {
 
   function buildHandler(
     ignoreRules: IgnoreRule[] = [],
-    keysToExclude: string[] = [],
-    tagsToExclude: string[] = []
+    _keysToExclude: string[] = [],
+    _tagsToExclude: string[] = []
   ) {
     const normalizeFrontmatterService = new NormalizeFrontmatterService(logger);
     const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(ignoreRules, logger);
     const noteMapper = new NotesMapper();
     const inlineDataviewRenderer = new RenderInlineDataviewService(logger);
     const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
-    const contentSanitizer = new ContentSanitizerService([], keysToExclude, tagsToExclude, logger);
+    // Note: ContentSanitizerService est maintenant appliqué côté backend
     const ensureTitleHeaderService = new EnsureTitleHeaderService(logger);
     const assetsDetector = new DetectAssetsService(logger);
     const detectWikilinks = new DetectWikilinksService(logger);
@@ -58,7 +57,6 @@ describe('ParseContentHandler', () => {
       noteMapper,
       inlineDataviewRenderer,
       leafletBlocksDetector,
-      contentSanitizer,
       ensureTitleHeaderService,
       assetsDetector,
       resolveWikilinks,
@@ -120,8 +118,10 @@ describe('ParseContentHandler', () => {
     ).toBe(true);
     expect(parsedA.content).toContain('Hello');
     expect(parsedA.content).toContain('Note A'); // inline dataview replaced
-    expect(parsedA.frontmatter.flat.secret).toBeUndefined();
-    expect(parsedA.frontmatter.tags).toEqual(['public']); // private removed
+    // Note: ContentSanitizerService (exclusion de frontmatter) est maintenant appliqué côté backend
+    // donc les clés 'secret' et tags 'private' ne sont plus supprimés ici
+    expect(parsedA.frontmatter.flat.secret).toBe('hide'); // non supprimé côté plugin
+    expect(parsedA.frontmatter.tags).toEqual(['public', 'private']); // non filtré côté plugin
     expect(parsedA.resolvedWikilinks?.some((l) => l.isResolved)).toBe(true);
     const fmLink = parsedA.resolvedWikilinks?.find((l) => l.origin === 'frontmatter');
     expect(fmLink?.isResolved).toBe(true);

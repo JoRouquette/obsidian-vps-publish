@@ -1,9 +1,12 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ComponentRef,
   computed,
+  createComponent,
   effect,
   ElementRef,
+  EnvironmentInjector,
   Inject,
   signal,
   ViewChild,
@@ -29,7 +32,7 @@ import { LeafletMapComponent } from '../../components/leaflet-map/leaflet-map.co
   selector: 'app-viewer',
   templateUrl: './viewer.component.html',
   styleUrls: ['./viewer.component.scss'],
-  imports: [MatIconModule, MatTooltipModule, ImageOverlayComponent, LeafletMapComponent],
+  imports: [MatIconModule, MatTooltipModule, ImageOverlayComponent],
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -46,6 +49,7 @@ export class ViewerComponent {
   leafletBlocks = signal<LeafletBlock[]>([]);
 
   private readonly cleanupFns: Array<() => void> = [];
+  private readonly leafletComponentRefs: ComponentRef<LeafletMapComponent>[] = [];
 
   // Flux réactif moderne avec toSignal (Angular 20 pattern)
   private readonly rawHtml = toSignal(
@@ -62,10 +66,19 @@ export class ViewerComponent {
           if (p) {
             this.title.set(this.capitalize(p.title) ?? '');
             // Mettre à jour les blocs Leaflet si présents
-            this.leafletBlocks.set(p.leafletBlocks ?? []);
+            const blocks = p.leafletBlocks ?? [];
+            console.log('[ViewerComponent] Found page:', {
+              route: normalized,
+              leafletBlocks: blocks,
+            });
+            this.leafletBlocks.set(blocks);
           } else {
+            console.log('[ViewerComponent] Page not found in manifest:', normalized);
             this.leafletBlocks.set([]);
           }
+        } else {
+          console.log('[ViewerComponent] Manifest is empty');
+          this.leafletBlocks.set([]);
         }
 
         return this.contentRepository.fetch(htmlUrl);
@@ -87,7 +100,8 @@ export class ViewerComponent {
     @Inject(CONTENT_REPOSITORY) private readonly contentRepository: HttpContentRepository,
     private readonly router: Router,
     private readonly sanitizer: DomSanitizer,
-    private readonly catalog: CatalogFacade
+    private readonly catalog: CatalogFacade,
+    private readonly environmentInjector: EnvironmentInjector
   ) {
     // Effect pour décorer le DOM après chargement
     effect(() => {
@@ -95,6 +109,7 @@ export class ViewerComponent {
       setTimeout(() => {
         this.decorateWikilinks();
         this.decorateImages();
+        this.injectLeafletComponents();
       });
     });
   }
@@ -102,6 +117,7 @@ export class ViewerComponent {
   ngOnDestroy(): void {
     this.cleanupWikilinks();
     this.cleanupImages();
+    this.cleanupLeafletComponents();
     this.tooltip?.hide();
   }
 
@@ -224,11 +240,72 @@ export class ViewerComponent {
   private cleanupImages(): void {
     // Cleanup is handled by cleanupWikilinks which clears the same cleanupFns array
   }
-
   private openImageOverlay(img: HTMLImageElement): void {
     if (!this.imageOverlay) return;
     const src = img.src;
     const alt = img.alt || '';
     this.imageOverlay.open(src, alt);
+  }
+
+  /**
+   * Injecte dynamiquement les composants Leaflet dans les placeholders HTML
+   */
+  private injectLeafletComponents(): void {
+    // Nettoyer les composants précédents
+    this.cleanupLeafletComponents();
+
+    const container = this.contentEl?.nativeElement;
+    if (!container) return;
+
+    const blocks = this.leafletBlocks();
+    if (blocks.length === 0) return;
+
+    // Créer un Map pour accès rapide par ID
+    const blocksById = new Map(blocks.map((block) => [block.id, block]));
+
+    // Trouver tous les placeholders dans le HTML
+    const placeholders = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-leaflet-map-id]')
+    );
+
+    console.log('[ViewerComponent] Found placeholders:', placeholders.length);
+
+    for (const placeholder of placeholders) {
+      const mapId = placeholder.dataset['leafletMapId'];
+      if (!mapId) continue;
+
+      const block = blocksById.get(mapId);
+      if (!block) {
+        console.warn('[ViewerComponent] Block not found for placeholder:', mapId);
+        continue;
+      }
+
+      // Créer le composant dynamiquement
+      const componentRef = createComponent(LeafletMapComponent, {
+        environmentInjector: this.environmentInjector,
+        hostElement: placeholder,
+      });
+
+      // Passer les données au composant
+      componentRef.setInput('block', block);
+
+      // Déclencher la détection de changement
+      componentRef.changeDetectorRef.detectChanges();
+
+      // Stocker la référence pour nettoyage ultérieur
+      this.leafletComponentRefs.push(componentRef);
+
+      console.log('[ViewerComponent] Injected Leaflet component:', mapId);
+    }
+  }
+
+  /**
+   * Nettoie les composants Leaflet injectés dynamiquement
+   */
+  private cleanupLeafletComponents(): void {
+    for (const componentRef of this.leafletComponentRefs) {
+      componentRef.destroy();
+    }
+    this.leafletComponentRefs.length = 0;
   }
 }

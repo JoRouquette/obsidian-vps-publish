@@ -3,7 +3,9 @@ import path from 'node:path';
 
 import {
   ComputeRoutingService,
+  ContentSanitizerService,
   type ContentStoragePort,
+  DetectLeafletBlocksService,
   DetectWikilinksService,
   type ManifestPort,
   type MarkdownRendererPort,
@@ -68,11 +70,38 @@ export class SessionFinalizerService {
 
     log.debug('Rebuilding session content from stored notes', { count: rawNotes.length });
 
+    // Étape 1: Charger les règles de nettoyage envoyées par le plugin
+    const cleanupRules = await this.notesStorage.loadCleanupRules(sessionId);
+    log.debug('Loaded cleanup rules for session', {
+      count: cleanupRules.length,
+      rules: cleanupRules.map((r) => ({
+        id: r.id,
+        name: r.name,
+        enabled: r.isEnabled,
+        hasRegex: !!r.regex,
+        regexLength: r.regex?.length,
+      })),
+    });
+
+    // Étape 2: Détecter les blocks de plugins (Leaflet, etc.) AVANT la sanitization
+    const leafletDetector = new DetectLeafletBlocksService(this.logger);
+    const withLeaflet = leafletDetector.process(rawNotes);
+
+    // Étape 3: Sanitization du contenu (supprime les blocks de code restants)
+    const contentSanitizer = new ContentSanitizerService(
+      cleanupRules,
+      undefined,
+      undefined,
+      this.logger
+    );
+    const sanitized = contentSanitizer.process(withLeaflet);
+
+    // Étape 4: Résolution des wikilinks et routing
     const detect = new DetectWikilinksService(this.logger);
     const resolve = new ResolveWikilinksService(this.logger, detect);
     const computeRouting = new ComputeRoutingService(this.logger);
 
-    const withLinks = resolve.process(rawNotes);
+    const withLinks = resolve.process(sanitized);
     const routed = computeRouting.process(withLinks);
 
     const contentStage = this.stagingManager.contentStagingPath(sessionId);

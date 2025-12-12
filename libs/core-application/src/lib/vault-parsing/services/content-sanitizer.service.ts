@@ -115,6 +115,16 @@ export class ContentSanitizerService implements BaseService {
 
     for (const rule of rules || []) {
       if (rule.isEnabled === false) continue;
+
+      // Skip rules with empty regex
+      if (!rule.regex || rule.regex.trim().length === 0) {
+        this.logger?.debug('Skipping cleanup rule with empty regex', {
+          ruleId: rule.id,
+          ruleName: rule.name,
+        });
+        continue;
+      }
+
       try {
         // Use 'gm' flags: global + multiline to support line-based patterns like ^...$
         const regex = new RegExp(rule.regex, 'gm');
@@ -187,10 +197,21 @@ export class ContentSanitizerService implements BaseService {
   }
 
   private stripFrontmatter(content: string): string {
-    const fmRegex = /^---\s*\r?\n[\s\S]*?\r?\n---\s*\r?\n?/;
+    // Regex robuste : matche le frontmatter YAML où qu'il soit dans le contenu
+    // Utilise le flag 'm' pour que ^ matche le début de chaque ligne
+    const fmRegex = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/m;
     if (fmRegex.test(content)) {
-      return content.replace(fmRegex, '');
+      const stripped = content.replace(fmRegex, '');
+      this.logger?.debug('Stripped YAML frontmatter from content', {
+        originalLength: content.length,
+        strippedLength: stripped.length,
+        removed: content.match(fmRegex)?.[0].substring(0, 100) + '...',
+      });
+      return stripped;
     }
+    this.logger?.debug('No YAML frontmatter found in content', {
+      contentStart: content.substring(0, 150),
+    });
     return content;
   }
 }

@@ -46,8 +46,31 @@ export class DetectLeafletBlocksService implements BaseService {
         blocksCount: blocks.length,
       });
 
+      // Remplacer les blocs Leaflet par des placeholders HTML
+      // Cela permet au frontend Angular d'injecter dynamiquement le composant
+      let processedContent = note.content;
+      let blockIndex = 0;
+
+      // Réinitialiser la regex pour relire depuis le début
+      LEAFLET_BLOCK_REGEX.lastIndex = 0;
+
+      processedContent = processedContent.replace(LEAFLET_BLOCK_REGEX, () => {
+        const block = blocks[blockIndex];
+        blockIndex++;
+        // Générer un placeholder HTML avec l'ID du bloc
+        return `<div class="leaflet-map-placeholder" data-leaflet-map-id="${block.id}"></div>`;
+      });
+
+      this._logger.debug('Replaced Leaflet blocks with HTML placeholders', {
+        noteId: note.noteId,
+        originalLength: note.content.length,
+        processedLength: processedContent.length,
+        blocksCount: blocks.length,
+      });
+
       return {
         ...note,
+        content: processedContent,
         leafletBlocks: blocks,
       };
     });
@@ -115,12 +138,21 @@ export class DetectLeafletBlocksService implements BaseService {
     }
 
     if (imageOverlays.length > 0) {
+      // Calculer les bounds des images si scale est défini
+      this.calculateImageOverlayBounds(imageOverlays, block);
       block.imageOverlays = imageOverlays;
     }
 
     // Validation : l'id est obligatoire
     if (!block.id) {
       throw new Error('Leaflet block must have an "id" property');
+    }
+
+    // Si pas de lat/long mais image avec scale, centrer sur l'image
+    if (!block.lat && !block.long && imageOverlays.length > 0 && block.scale) {
+      const firstOverlay = imageOverlays[0];
+      block.lat = (firstOverlay.topLeft[0] + firstOverlay.bottomRight[0]) / 2;
+      block.long = (firstOverlay.topLeft[1] + firstOverlay.bottomRight[1]) / 2;
     }
 
     return block as LeafletBlock;
@@ -172,6 +204,10 @@ export class DetectLeafletBlocksService implements BaseService {
 
       case 'unit':
         block.unit = value;
+        break;
+
+      case 'scale':
+        block.scale = this.parseNumber(value);
         break;
 
       case 'darkmode':
@@ -293,5 +329,44 @@ export class DetectLeafletBlocksService implements BaseService {
     return {
       url: value.trim(),
     };
+  }
+
+  /**
+   * Calcule les bounds des images overlays à partir de la propriété scale.
+   * Le scale représente la largeur de l'image en pixels.
+   * On crée un ratio 16:9 par défaut pour la hauteur.
+   */
+  private calculateImageOverlayBounds(
+    overlays: LeafletImageOverlay[],
+    block: Partial<LeafletBlock>
+  ): void {
+    if (!block.scale || overlays.length === 0) {
+      return;
+    }
+
+    // Avec scale, on définit une carte centrée à [0, 0] avec l'image en overlay
+    // Le scale représente la largeur en pixels, on convertit en coordonnées Leaflet
+    // Leaflet utilise des coordonnées géographiques, donc on crée un système arbitraire
+    const scaleWidth = block.scale;
+    const scaleHeight = scaleWidth * 0.75; // Ratio 4:3 par défaut
+
+    // Centrer l'image à [0, 0]
+    const halfWidth = scaleWidth / 2;
+    const halfHeight = scaleHeight / 2;
+
+    overlays.forEach((overlay) => {
+      // Les coordonnées Leaflet pour une image overlay : [lat, lng]
+      // On utilise un système de coordonnées "pixel" centré sur [0, 0]
+      overlay.topLeft = [halfHeight, -halfWidth];
+      overlay.bottomRight = [-halfHeight, halfWidth];
+    });
+
+    this._logger.debug('Calculated image overlay bounds from scale', {
+      scale: block.scale,
+      bounds: {
+        topLeft: overlays[0].topLeft,
+        bottomRight: overlays[0].bottomRight,
+      },
+    });
   }
 }

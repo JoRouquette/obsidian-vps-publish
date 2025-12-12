@@ -47,10 +47,14 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
           }
 
           this.logger.debug('Reading file', { path: node.path });
-          const content = await this.app.vault.read(node);
+          const rawContent = await this.app.vault.read(node);
           const cache = this.app.metadataCache.getFileCache(node);
           const frontmatter: Record<string, unknown> =
             (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+
+          // Strip YAML frontmatter from content before sending to backend
+          // Frontmatter is already parsed into the 'frontmatter' field
+          const content = this.stripFrontmatter(rawContent);
 
           result.push({
             noteId: this.guidGenerator.generateGuid(),
@@ -61,7 +65,11 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
             frontmatter: { flat: frontmatter, nested: {}, tags: [] },
             folderConfig: cfg,
           });
-          this.logger.debug('Collected note', { path: node.path });
+          this.logger.debug('Collected note', {
+            path: node.path,
+            originalLength: rawContent.length,
+            strippedLength: content.length,
+          });
         }
       };
 
@@ -84,5 +92,25 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
       return rel.length > 0 ? rel : '';
     }
     return filePath;
+  }
+
+  /**
+   * Strips YAML frontmatter from markdown content.
+   * Matches frontmatter anywhere in the content (not just at the start),
+   * since Obsidian may place it after headers.
+   */
+  private stripFrontmatter(content: string): string {
+    // Use multiline flag to match ^--- at any line start
+    const fmRegex = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/m;
+    if (fmRegex.test(content)) {
+      const stripped = content.replace(fmRegex, '');
+      this.logger.debug('Stripped YAML frontmatter from content (plugin-side)', {
+        originalLength: content.length,
+        strippedLength: stripped.length,
+      });
+      return stripped;
+    }
+    this.logger.debug('No YAML frontmatter found in content to strip (plugin-side)');
+    return content;
   }
 }

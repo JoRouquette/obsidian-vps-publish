@@ -1,9 +1,324 @@
 :host {
   display: block;
+  width: 100%;
+  container-type: inline-size;
 }
 
 .leaflet-map-container {
-  border: 1px solid var(--border-color, #ddd);
-  border-radius: 4px;
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 56.25%; // Ratio 16:9 par défaut
+  border: 1px solid var(--c-outline, var(--its-outline, #ddd));
+  border-radius: 8px;
   overflow: hidden;
+  background: var(--c-surface, var(--its-surface, #fff));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  // La carte prend tout l'espace du conteneur
+  ::ng-deep .leaflet-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+
+    // Désactiver TOUTES les animations et transitions Leaflet
+    .leaflet-tile,
+    .leaflet-image-layer,
+    .leaflet-overlay-pane,
+    .leaflet-image-overlay-no-animation {
+      transition: none !important;
+      animation: none !important;
+      transform-origin: 0 0;
+    }
+
+    // Forcer le GPU rendering pour des performances optimales
+    .leaflet-image-layer {
+      will-change: transform;
+      transform: translateZ(0);
+      backface-visibility: hidden;
+    }
+
+    // En mode plein écran, la carte prend tout l'écran
+    &.leaflet-fullscreen-on {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 9999 !important;
+    }
+  }
+
+  // Responsive breakpoints via container queries
+  @container (min-width: 768px) {
+    padding-bottom: 50%; // Ratio plus large sur tablette
+    border-radius: 12px;
+  }
+
+  @container (min-width: 1024px) {
+    padding-bottom: 45%; // Ratio encore plus large sur desktop
+    border-radius: 16px;
+  }
+}
+
+// Styles pour thème clair
+:root.theme-light .leaflet-map-container {
+  // Contrôles Leaflet (zoom, fullscreen, etc.)
+  ::ng-deep .leaflet-control-zoom,
+  ::ng-deep .leaflet-control-fullscreen {
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+
+    a {
+      background-color: #fff;
+      color: #333;
+      border: none;
+      width: 36px;
+      height: 36px;
+      line-height: 36px;
+      font-size: 20px;
+      transition: background-color 0.2s ease;
+
+      &:hover {
+        background-color: #f4f4f4;
+      }
+
+      @media (min-width: 768px) {
+        width: 40px;
+        height: 40px;
+        line-height: 40px;
+        font-size: 22px;
+      }
+    }
+  }
+
+  // Icône fullscreen personnalisée pour cohérence visuelle
+  ::ng-deep .leaflet-control-fullscreen a {
+    background-image: none;
+
+    &::before {
+      content: '⛶';
+      font-size: 18px;
+      display: block;
+
+      @media (min-width: 768px) {
+        font-size: 20px;
+      }
+    }
+
+    &.fullscreen-icon-active::before {
+      content: '⛶';
+      transform: rotate(45deg);
+    }
+  }
+
+  // Popup
+  ::ng-deep .leaflet-popup-content-wrapper {
+    background: #fff;
+    color: #333;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 14px;
+    line-height: 1.5;
+
+    @media (min-width: 768px) {
+      padding: 16px 20px;
+      font-size: 15px;
+    }
+  }
+
+  ::ng-deep .leaflet-popup-tip {
+    background: #fff;
+  }
+
+  // Attribution (plus compact sur mobile)
+  ::ng-deep .leaflet-control-attribution {
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    font-size: 10px;
+    padding: 2px 6px;
+
+    @media (min-width: 768px) {
+      font-size: 11px;
+      padding: 3px 8px;
+    }
+  }
+}
+
+// Styles pour thème sombre
+:root.theme-dark .leaflet-map-container,
+.leaflet-dark-mode {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+  // Contrôles Leaflet (zoom, fullscreen, etc.)
+  ::ng-deep .leaflet-control-zoom,
+  ::ng-deep .leaflet-control-fullscreen {
+    border: 2px solid var(--its-outline, #283846);
+    border-radius: 8px;
+    overflow: hidden;
+
+    a {
+      background-color: var(--its-surface-variant, #2f3b4d);
+      color: var(--its-on-surface, #bccad8);
+      border: none;
+      width: 36px;
+      height: 36px;
+      line-height: 36px;
+      font-size: 20px;
+      transition: background-color 0.2s ease;
+
+      &:hover {
+        background-color: var(--its-surface, #1a1e24);
+      }
+
+      @media (min-width: 768px) {
+        width: 40px;
+        height: 40px;
+        line-height: 40px;
+        font-size: 22px;
+      }
+    }
+  }
+
+  // Icône fullscreen en mode sombre
+  ::ng-deep .leaflet-control-fullscreen a {
+    background-image: none;
+
+    &::before {
+      content: '⛶';
+      font-size: 18px;
+      display: block;
+      color: var(--its-on-surface, #bccad8);
+
+      @media (min-width: 768px) {
+        font-size: 20px;
+      }
+    }
+
+    &.fullscreen-icon-active::before {
+      content: '⛶';
+      transform: rotate(45deg);
+    }
+  }
+
+  // Fond de la carte (visible si pas de tuiles)
+  ::ng-deep .leaflet-container {
+    background: var(--its-background, #0b0f13);
+  }
+
+  // Popup
+  ::ng-deep .leaflet-popup-content-wrapper {
+    background: var(--its-surface, #1a1e24);
+    color: var(--its-on-surface, #bccad8);
+    border: 1px solid var(--its-outline, #283846);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 14px;
+    line-height: 1.5;
+
+    @media (min-width: 768px) {
+      padding: 16px 20px;
+      font-size: 15px;
+    }
+
+    a {
+      color: var(--its-secondary, #61afef);
+      text-decoration: underline;
+
+      &:hover {
+        color: var(--its-primary, #c14343);
+      }
+    }
+  }
+
+  ::ng-deep .leaflet-popup-tip {
+    background: var(--its-surface, #1a1e24);
+  }
+
+  // Fermeture popup
+  ::ng-deep .leaflet-popup-close-button {
+    color: var(--its-on-surface, #bccad8) !important;
+    font-size: 20px;
+    padding: 4px 8px;
+
+    &:hover {
+      color: var(--its-primary, #c14343) !important;
+    }
+  }
+
+  // Attribution (plus compact sur mobile)
+  ::ng-deep .leaflet-control-attribution {
+    background: rgba(26, 30, 36, 0.9);
+    color: var(--its-on-surface, #bccad8);
+    font-size: 10px;
+    padding: 2px 6px;
+
+    @media (min-width: 768px) {
+      font-size: 11px;
+      padding: 3px 8px;
+    }
+
+    a {
+      color: var(--its-secondary, #61afef);
+    }
+  }
+
+  // Inverser les couleurs des tuiles OSM pour le mode sombre
+  // (uniquement si on utilise OSM, pas pour les images custom)
+  &:not(.has-image-overlay) ::ng-deep .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+  }
+}
+
+// Optimisations tactiles pour mobile/tablette
+@media (hover: none) and (pointer: coarse) {
+  .leaflet-map-container {
+    // Augmenter la taille des boutons pour les doigts
+    ::ng-deep .leaflet-control-zoom a,
+    ::ng-deep .leaflet-control-fullscreen a {
+      width: 44px !important;
+      height: 44px !important;
+      line-height: 44px !important;
+      font-size: 24px !important;
+    }
+
+    // Popup plus accessible au toucher
+    ::ng-deep .leaflet-popup-close-button {
+      font-size: 24px !important;
+      padding: 8px 12px !important;
+    }
+
+    // Désactiver les animations coûteuses sur mobile
+    ::ng-deep .leaflet-zoom-anim .leaflet-zoom-animated {
+      transition-duration: 0.2s;
+    }
+  }
+}
+
+// Mode paysage sur mobile
+@media (max-width: 767px) and (orientation: landscape) {
+  .leaflet-map-container {
+    padding-bottom: 75%; // Ratio plus vertical en paysage
+    min-height: 250px;
+  }
+}
+
+// Améliorer la lisibilité des marqueurs sur tous les appareils
+.leaflet-map-container {
+  ::ng-deep .leaflet-marker-icon {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  }
+
+  // Optimiser les performances des tuiles sur mobile
+  ::ng-deep .leaflet-tile {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+
+    @media (min-width: 1024px) {
+      image-rendering: auto;
+    }
+  }
 }

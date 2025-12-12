@@ -28,7 +28,7 @@ const moduleBoundariesConfig = {
       'error',
       {
         enforceBuildableLibDependency: true,
-        allow: [],
+        allow: ['^leaflet\\.fullscreen'],
         depConstraints: [
           {
             sourceTag: 'layer:domain',

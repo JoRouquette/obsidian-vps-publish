@@ -66,24 +66,13 @@ export class AssetsUploaderAdapter implements UploaderPort {
       throw err;
     }
 
-    const { batches, oversized } = batchByBytes(apiAssets, this.maxBytesPerRequest, (batch) => ({
+    const batches = batchByBytes(apiAssets, this.maxBytesPerRequest, (batch) => ({
       assets: batch,
     }));
-
-    if (oversized.length > 0) {
-      this._logger.warn('Some assets exceed maxBytesPerRequest and will be skipped', {
-        oversizedCount: oversized.length,
-        maxBytesPerRequest: this.maxBytesPerRequest,
-        skippedAssets: oversized.map((a) => ({ fileName: a.fileName, vaultPath: a.vaultPath })),
-      });
-      // Advance progress for skipped assets
-      this.advanceProgress(oversized.length);
-    }
 
     this._logger.debug('Uploading assets to session', {
       batchCount: batches.length,
       assetCount: apiAssets.length,
-      skippedCount: oversized.length,
     });
 
     let batchIndex = 0;
@@ -128,26 +117,23 @@ export class AssetsUploaderAdapter implements UploaderPort {
   }
 
   /**
-   * Retourne le nombre de batchs et d'items oversized
+   * Retourne le nombre de batchs
    */
-  async getBatchInfo(
-    assets: ResolvedAssetFile[]
-  ): Promise<{ batchCount: number; oversizedCount: number }> {
+  async getBatchInfo(assets: ResolvedAssetFile[]): Promise<{ batchCount: number }> {
     if (!Array.isArray(assets) || assets.length === 0) {
-      return { batchCount: 0, oversizedCount: 0 };
+      return { batchCount: 0 };
     }
 
     const apiAssets = await Promise.all(
       assets.map(async (asset) => await this.buildApiAsset(asset))
     );
 
-    const { batches, oversized } = batchByBytes(apiAssets, this.maxBytesPerRequest, (batch) => ({
+    const batches = batchByBytes(apiAssets, this.maxBytesPerRequest, (batch) => ({
       assets: batch,
     }));
 
     return {
       batchCount: batches.length,
-      oversizedCount: oversized.length,
     };
   }
 

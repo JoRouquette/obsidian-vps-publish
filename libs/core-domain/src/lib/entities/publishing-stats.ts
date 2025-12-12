@@ -18,9 +18,6 @@ export interface PublishingStats {
   /** Nombre de notes qui ont échoué l'upload */
   notesFailed: number;
 
-  /** Nombre de notes trop volumineuses (skipped) */
-  notesOversized: number;
-
   /** Nombre total d'assets planifiés */
   assetsPlanned: number;
 
@@ -29,9 +26,6 @@ export interface PublishingStats {
 
   /** Nombre d'assets qui ont échoué l'upload */
   assetsFailed: number;
-
-  /** Nombre d'assets trop volumineux (skipped) */
-  assetsOversized: number;
 
   /** Nombre de batchs de notes */
   notesBatchCount: number;
@@ -62,11 +56,9 @@ export function createPublishingStats(): PublishingStats {
     notesIgnored: 0,
     notesUploaded: 0,
     notesFailed: 0,
-    notesOversized: 0,
     assetsPlanned: 0,
     assetsUploaded: 0,
     assetsFailed: 0,
-    assetsOversized: 0,
     notesBatchCount: 0,
     assetsBatchCount: 0,
     currentNotesBatch: 0,
@@ -91,9 +83,6 @@ export function formatPublishingStats(stats: PublishingStats): string {
     lines.push(`  • Ignored: ${stats.notesIgnored}`);
   }
   lines.push(`  • Uploaded: ${stats.notesUploaded}`);
-  if (stats.notesOversized > 0) {
-    lines.push(`  • Oversized (skipped): ${stats.notesOversized}`);
-  }
   if (stats.notesFailed > 0) {
     lines.push(`  • Failed: ${stats.notesFailed}`);
   }
@@ -104,9 +93,6 @@ export function formatPublishingStats(stats: PublishingStats): string {
     lines.push(`🖼️ Assets:`);
     lines.push(`  • Planned: ${stats.assetsPlanned}`);
     lines.push(`  • Uploaded: ${stats.assetsUploaded}`);
-    if (stats.assetsOversized > 0) {
-      lines.push(`  • Oversized (skipped): ${stats.assetsOversized}`);
-    }
     if (stats.assetsFailed > 0) {
       lines.push(`  • Failed: ${stats.assetsFailed}`);
     }

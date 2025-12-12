@@ -44,15 +44,17 @@ describe('LeafletMapComponent', () => {
     expect(container.getAttribute('data-testid')).toBe('leaflet-map-test-map');
   });
 
-  it('should apply correct height and width styles', () => {
+  it('should apply correct CSS classes and attributes', () => {
     fixture.detectChanges();
 
     const container = fixture.nativeElement.querySelector('.leaflet-map-container');
-    expect(container.style.height).toBe('400px');
-    expect(container.style.width).toBe('100%');
+    expect(container).toBeTruthy();
+    expect(container.classList.contains('leaflet-map-container')).toBe(true);
+    // La hauteur est maintenant gérée par CSS, pas par des styles inline
+    expect(container.style.height).toBe('');
   });
 
-  it('should use default dimensions when not specified', () => {
+  it('should use CSS for dimensions (no inline styles)', () => {
     const blockWithoutDimensions: LeafletBlock = {
       id: 'test-map-2',
       lat: 0,
@@ -63,8 +65,9 @@ describe('LeafletMapComponent', () => {
     fixture.detectChanges();
 
     const container = fixture.nativeElement.querySelector('.leaflet-map-container');
-    expect(container.style.height).toBe('500px');
-    expect(container.style.width).toBe('100%');
+    // Les dimensions sont gérées par CSS (max-height: 33vh, responsive breakpoints)
+    expect(container.style.height).toBe('');
+    expect(container.style.width).toBe('');
   });
 
   it('should cleanup map on destroy', () => {

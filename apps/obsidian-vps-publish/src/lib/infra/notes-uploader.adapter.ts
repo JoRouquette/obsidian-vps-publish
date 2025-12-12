@@ -1,6 +1,7 @@
 import { ChunkedUploadService } from '@core-application/publishing/services/chunked-upload.service';
 import { ProgressStepId } from '@core-domain/entities/progress-step';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
+import type { SanitizationRules } from '@core-domain/entities/sanitization-rules';
 import type { GuidGeneratorPort } from '@core-domain/ports/guid-generator-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { ProgressPort } from '@core-domain/ports/progress-port';
@@ -23,7 +24,8 @@ export class NotesUploaderAdapter implements UploaderPort {
     private readonly guidGenerator: GuidGeneratorPort,
     logger: LoggerPort,
     private readonly maxBytesPerRequest: number,
-    private readonly progress?: ProgressPort | StepProgressManagerPort
+    private readonly progress?: ProgressPort | StepProgressManagerPort,
+    private readonly cleanupRules?: SanitizationRules[]
   ) {
     this._logger = logger.child({ component: 'NotesUploaderAdapter' });
 
@@ -45,30 +47,29 @@ export class NotesUploaderAdapter implements UploaderPort {
       return false;
     }
 
-    const { batches, oversized } = batchByBytes(notes, this.maxBytesPerRequest, (batch) => ({
+    const batches = batchByBytes(notes, this.maxBytesPerRequest, (batch) => ({
       notes: batch,
     }));
 
-    if (oversized.length > 0) {
-      this._logger.warn('Some notes exceed maxBytesPerRequest and will be skipped', {
-        oversizedCount: oversized.length,
-        maxBytesPerRequest: this.maxBytesPerRequest,
-        skippedNotes: oversized.map((n) => ({
-          slug: n.routing.slug,
-          fullPath: n.routing.fullPath,
-        })),
-      });
-      // Advance progress for skipped notes
-      this.advanceProgress(oversized.length);
-    }
-
     this._logger.debug(
-      `Uploading ${notes.length} notes in ${batches.length} batch(es) (maxBytes=${this.maxBytesPerRequest}, skipped=${oversized.length})`
+      `Uploading ${notes.length} notes in ${batches.length} batch(es) (maxBytes=${this.maxBytesPerRequest})`
     );
 
     let batchIndex = 0;
     for (const batch of batches) {
       batchIndex++;
+
+      // Ajouter les cleanupRules uniquement au premier batch
+      const payload: { notes: PublishableNote[]; cleanupRules?: SanitizationRules[] } = {
+        notes: batch,
+      };
+
+      if (batchIndex === 1 && this.cleanupRules && this.cleanupRules.length > 0) {
+        payload.cleanupRules = this.cleanupRules;
+        this._logger.debug('Including cleanup rules in first batch', {
+          rulesCount: this.cleanupRules.length,
+        });
+      }
 
       // Use chunked upload for each batch
       const uploadId = `notes-${this.sessionId}-${this.guidGenerator.generateGuid()}`;
@@ -80,7 +81,7 @@ export class NotesUploaderAdapter implements UploaderPort {
         batchSize: batch.length,
       });
 
-      const chunks = await this.chunkedUploadService.prepareUpload(uploadId, { notes: batch });
+      const chunks = await this.chunkedUploadService.prepareUpload(uploadId, payload);
 
       // Create uploader adapter for this session
       const uploader = new NoteChunkUploaderAdapter(this.sessionClient, this.sessionId);
@@ -108,20 +109,19 @@ export class NotesUploaderAdapter implements UploaderPort {
   }
 
   /**
-   * Retourne le nombre de batchs et d'items oversized
+   * Retourne le nombre de batchs
    */
-  getBatchInfo(notes: PublishableNote[]): { batchCount: number; oversizedCount: number } {
+  getBatchInfo(notes: PublishableNote[]): { batchCount: number } {
     if (!Array.isArray(notes) || notes.length === 0) {
-      return { batchCount: 0, oversizedCount: 0 };
+      return { batchCount: 0 };
     }
 
-    const { batches, oversized } = batchByBytes(notes, this.maxBytesPerRequest, (batch) => ({
+    const batches = batchByBytes(notes, this.maxBytesPerRequest, (batch) => ({
       notes: batch,
     }));
 
     return {
       batchCount: batches.length,
-      oversizedCount: oversized.length,
     };
   }
 
