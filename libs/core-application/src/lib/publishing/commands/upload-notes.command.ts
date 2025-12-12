@@ -1,8 +1,9 @@
-import { type PublishableNote } from '@core-domain/entities/publishable-note';
+import { type PublishableNote, type SanitizationRules } from '@core-domain';
 
 export interface UploadNotesCommand {
   sessionId: string;
   notes: PublishableNote[];
+  cleanupRules?: SanitizationRules[];
 }
 
 export interface UploadNotesResult {

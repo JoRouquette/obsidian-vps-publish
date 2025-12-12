@@ -1,5 +1,52 @@
 import { z } from 'zod';
 
+// LeafletMarker
+export const LeafletMarkerDto = z.object({
+  type: z.string().optional(),
+  lat: z.number(),
+  long: z.number(),
+  link: z.string().optional(),
+  description: z.string().optional(),
+  minZoom: z.number().optional(),
+  maxZoom: z.number().optional(),
+});
+
+// LeafletImageOverlay
+export const LeafletImageOverlayDto = z.object({
+  path: z.string(),
+  topLeft: z.tuple([z.number(), z.number()]),
+  bottomRight: z.tuple([z.number(), z.number()]),
+  alias: z.string().optional(),
+});
+
+// LeafletTileServer
+export const LeafletTileServerDto = z.object({
+  url: z.string(),
+  subdomains: z.array(z.string()).optional(),
+  attribution: z.string().optional(),
+  minZoom: z.number().optional(),
+  maxZoom: z.number().optional(),
+});
+
+// LeafletBlock
+export const LeafletBlockDto = z.object({
+  id: z.string(),
+  height: z.string().optional(),
+  width: z.string().optional(),
+  lat: z.number().optional(),
+  long: z.number().optional(),
+  minZoom: z.number().optional(),
+  maxZoom: z.number().optional(),
+  defaultZoom: z.number().optional(),
+  unit: z.string().optional(),
+  scale: z.number().optional(),
+  darkMode: z.boolean().optional(),
+  imageOverlays: z.array(LeafletImageOverlayDto).optional(),
+  tileServer: LeafletTileServerDto.optional(),
+  markers: z.array(LeafletMarkerDto).optional(),
+  rawContent: z.string().optional(),
+});
+
 // AssetDisplayOptions
 export const AssetDisplayOptionsDto = z.object({
   alignment: z.enum(['left', 'right', 'center']).optional(),
@@ -39,8 +86,9 @@ export const ResolvedWikilinkDto = WikilinkRefDto.extend({
 
 // SanitizationRules
 export const SanitizationRulesDto = z.object({
+  id: z.string(),
   name: z.string(),
-  regex: z.string().min(1),
+  regex: z.string(), // Accepter les regex vides (règles en cours de configuration)
   replacement: z.string().default(''),
   isEnabled: z.boolean().default(true),
 });
@@ -101,6 +149,7 @@ export const PublishableNoteDto = NoteCoreDto.extend({
   assets: z.array(AssetRefDto).optional(),
   wikilinks: z.array(WikilinkRefDto).optional(),
   resolvedWikilinks: z.array(ResolvedWikilinkDto).optional(),
+  leafletBlocks: z.array(LeafletBlockDto).optional(),
 });
 
 // NoteWithAssets

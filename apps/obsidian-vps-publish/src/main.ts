@@ -3,7 +3,6 @@ import { HttpResponseHandler } from '@core-application/vault-parsing/handler/htt
 import { ParseContentHandler } from '@core-application/vault-parsing/handler/parse-content.handler';
 import { NotesMapper } from '@core-application/vault-parsing/mappers/notes.mapper';
 import { ComputeRoutingService } from '@core-application/vault-parsing/services/compute-routing.service';
-import { ContentSanitizerService } from '@core-application/vault-parsing/services/content-sanitizer.service';
 import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
 import { DetectLeafletBlocksService } from '@core-application/vault-parsing/services/detect-leaflet-blocks.service';
 import { DetectWikilinksService } from '@core-application/vault-parsing/services/detect-wikilinks.service';
@@ -351,13 +350,30 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ====================================================================
       // ÉTAPE 2: UPLOAD_NOTES - Upload des notes
       // ====================================================================
+      // Filtrer les règles de nettoyage : ne garder que celles activées avec regex valide
+      const validCleanupRules = (vps.cleanupRules ?? []).filter(
+        (rule) => rule.isEnabled && rule.regex && rule.regex.trim().length > 0
+      );
+
+      this.logger.debug('Cleanup rules filtering', {
+        total: vps.cleanupRules?.length ?? 0,
+        valid: validCleanupRules.length,
+        rules: validCleanupRules.map((r) => ({
+          id: r.id,
+          name: r.name,
+          enabled: r.isEnabled,
+          hasRegex: !!r.regex,
+        })),
+      });
+
       const notesUploader = new NotesUploaderAdapter(
         sessionClient,
         sessionId,
         new GuidGeneratorAdapter(),
         this.logger,
         serverRequestLimit,
-        stepProgressManager
+        stepProgressManager,
+        validCleanupRules
       );
 
       // Calculer le nombre de batchs
@@ -593,12 +609,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     const noteMapper = new NotesMapper();
     const inlineDataviewRenderer = new RenderInlineDataviewService(logger);
     const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
-    const contentSanitizer = new ContentSanitizerService(
-      vps.cleanupRules ?? [],
-      settings.frontmatterKeysToExclude ?? [],
-      settings.frontmatterTagsToExclude ?? [],
-      logger
-    );
+    // Note: ContentSanitizerService est maintenant appliqué côté backend après la finalisation
     const assetsDetector = new DetectAssetsService(logger);
     const detectWikilinks = new DetectWikilinksService(logger);
     const resolveWikilinks = new ResolveWikilinksService(logger, detectWikilinks);
@@ -611,7 +622,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       noteMapper,
       inlineDataviewRenderer,
       leafletBlocksDetector,
-      contentSanitizer,
       ensureTitleHeaderService,
       assetsDetector,
       resolveWikilinks,

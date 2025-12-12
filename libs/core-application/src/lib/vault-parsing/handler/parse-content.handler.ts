@@ -7,7 +7,6 @@ import {
 
 import { type CommandHandler } from '../../common/command-handler';
 import { type ComputeRoutingService } from '../services/compute-routing.service';
-import { type ContentSanitizerService } from '../services/content-sanitizer.service';
 import { type DetectAssetsService } from '../services/detect-assets.service';
 import { type DetectLeafletBlocksService } from '../services/detect-leaflet-blocks.service';
 import { type EnsureTitleHeaderService } from '../services/ensure-title-header.service';
@@ -23,7 +22,6 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
     private readonly noteMapper: Mapper<CollectedNote, PublishableNote>,
     private readonly inlineDataviewRenderer: RenderInlineDataviewService,
     private readonly leafletBlocksDetector: DetectLeafletBlocksService,
-    private readonly contentSanitizer: ContentSanitizerService,
     private readonly ensureTitleHeaderService: EnsureTitleHeaderService,
     private readonly assetsDetector: DetectAssetsService,
     private readonly wikilinkResolver: ResolveWikilinksService,
@@ -45,13 +43,9 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
       })
       .filter((n): n is PublishableNote => n !== undefined);
 
-    // IMPORTANT: Traiter les plugins/add-ons AVANT la sanitization
     publishableNotes = this.inlineDataviewRenderer.process(publishableNotes);
 
     publishableNotes = this.leafletBlocksDetector.process(publishableNotes);
-
-    // Sanitization après tous les plugins
-    publishableNotes = this.contentSanitizer.process(publishableNotes);
 
     publishableNotes = this.ensureTitleHeaderService.process(publishableNotes);
 

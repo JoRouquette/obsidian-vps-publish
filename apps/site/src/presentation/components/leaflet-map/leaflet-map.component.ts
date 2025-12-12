@@ -46,6 +46,12 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.isBrowser = isPlatformBrowser(this.platformId);
 
+    console.log('[LeafletMapComponent] ngAfterViewInit', {
+      blockId: this.block.id,
+      isBrowser: this.isBrowser,
+      hasContainer: !!this.mapContainer,
+    });
+
     if (!this.isBrowser) {
       // En mode SSR, on ne fait rien
       return;
@@ -64,8 +70,11 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
 
   private async loadLeafletAndInitializeMap(): Promise<void> {
     try {
+      console.log('[LeafletMapComponent] Loading Leaflet...');
       // Import dynamique pour éviter les erreurs SSR
       const L = await import('leaflet');
+
+      console.log('[LeafletMapComponent] Leaflet loaded successfully');
 
       // Fix du problème d'icônes par défaut de Leaflet avec Webpack/Angular
       // Les icônes ne s'affichent pas correctement sans cette configuration
@@ -87,8 +96,16 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private initializeMap(L: any): void {
     if (!this.mapContainer?.nativeElement) {
+      console.error('[LeafletMapComponent] No map container element found');
       return;
     }
+
+    console.log('[LeafletMapComponent] Initializing map', {
+      blockId: this.block.id,
+      lat: this.block.lat,
+      long: this.block.long,
+      zoom: this.block.defaultZoom,
+    });
 
     // Configuration de base
     const lat = this.block.lat ?? 0;
@@ -150,16 +167,38 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private addImageOverlays(L: any): void {
-    // Pour l'instant, on ne gère que les overlays basiques
-    // Les images devront être résolues côté serveur via l'API
-    // TODO: Intégrer avec le système d'assets existant
     this.block.imageOverlays?.forEach((overlay) => {
       if (overlay.topLeft && overlay.bottomRight) {
         // Construire l'URL de l'image via l'API d'assets
         const imageUrl = `/assets/${overlay.path}`;
 
+        console.log('[LeafletMapComponent] Adding image overlay', {
+          path: overlay.path,
+          url: imageUrl,
+          topLeft: overlay.topLeft,
+          bottomRight: overlay.bottomRight,
+        });
+
         try {
-          L.imageOverlay(imageUrl, [overlay.topLeft, overlay.bottomRight]).addTo(this.map);
+          const imageOverlay = L.imageOverlay(imageUrl, [
+            overlay.topLeft,
+            overlay.bottomRight,
+          ]).addTo(this.map);
+
+          // Si scale est défini, on ajuste la vue pour montrer toute l'image
+          if (this.block.scale) {
+            const bounds = L.latLngBounds(overlay.topLeft, overlay.bottomRight);
+            this.map.fitBounds(bounds);
+          }
+
+          // Gestion des erreurs de chargement d'image
+          imageOverlay.on('error', () => {
+            console.error('[LeafletMapComponent] Failed to load image overlay:', imageUrl);
+          });
+
+          imageOverlay.on('load', () => {
+            console.log('[LeafletMapComponent] Image overlay loaded successfully:', imageUrl);
+          });
         } catch (error) {
           // eslint-disable-next-line no-console
           console.warn('Failed to add image overlay:', overlay.path, error);

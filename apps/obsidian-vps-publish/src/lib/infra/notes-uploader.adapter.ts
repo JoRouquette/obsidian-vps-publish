@@ -1,6 +1,7 @@
 import { ChunkedUploadService } from '@core-application/publishing/services/chunked-upload.service';
 import { ProgressStepId } from '@core-domain/entities/progress-step';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
+import type { SanitizationRules } from '@core-domain/entities/sanitization-rules';
 import type { GuidGeneratorPort } from '@core-domain/ports/guid-generator-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { ProgressPort } from '@core-domain/ports/progress-port';
@@ -23,7 +24,8 @@ export class NotesUploaderAdapter implements UploaderPort {
     private readonly guidGenerator: GuidGeneratorPort,
     logger: LoggerPort,
     private readonly maxBytesPerRequest: number,
-    private readonly progress?: ProgressPort | StepProgressManagerPort
+    private readonly progress?: ProgressPort | StepProgressManagerPort,
+    private readonly cleanupRules?: SanitizationRules[]
   ) {
     this._logger = logger.child({ component: 'NotesUploaderAdapter' });
 
@@ -70,6 +72,18 @@ export class NotesUploaderAdapter implements UploaderPort {
     for (const batch of batches) {
       batchIndex++;
 
+      // Ajouter les cleanupRules uniquement au premier batch
+      const payload: { notes: PublishableNote[]; cleanupRules?: SanitizationRules[] } = {
+        notes: batch,
+      };
+
+      if (batchIndex === 1 && this.cleanupRules && this.cleanupRules.length > 0) {
+        payload.cleanupRules = this.cleanupRules;
+        this._logger.debug('Including cleanup rules in first batch', {
+          rulesCount: this.cleanupRules.length,
+        });
+      }
+
       // Use chunked upload for each batch
       const uploadId = `notes-${this.sessionId}-${this.guidGenerator.generateGuid()}`;
 
@@ -80,7 +94,7 @@ export class NotesUploaderAdapter implements UploaderPort {
         batchSize: batch.length,
       });
 
-      const chunks = await this.chunkedUploadService.prepareUpload(uploadId, { notes: batch });
+      const chunks = await this.chunkedUploadService.prepareUpload(uploadId, payload);
 
       // Create uploader adapter for this session
       const uploader = new NoteChunkUploaderAdapter(this.sessionClient, this.sessionId);

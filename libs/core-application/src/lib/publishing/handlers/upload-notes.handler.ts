@@ -38,7 +38,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
   }
 
   async handle(command: UploadNotesCommand): Promise<UploadNotesResult> {
-    const { sessionId, notes } = command;
+    const { sessionId, notes, cleanupRules } = command;
     const contentStorage = this.resolveContentStorage(sessionId);
     const manifestStorage = this.resolveManifestStorage(sessionId);
     const logger = this.logger?.child({ method: 'handle', sessionId });
@@ -47,6 +47,12 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       try {
         await this.notesStorage.append(sessionId, notes);
         logger?.debug('Session notes persisted for rebuild', { count: notes.length });
+
+        // Save cleanup rules if provided (first upload batch only)
+        if (cleanupRules && cleanupRules.length > 0) {
+          await this.notesStorage.saveCleanupRules(sessionId, cleanupRules);
+          logger?.debug('Session cleanup rules persisted', { count: cleanupRules.length });
+        }
       } catch (err) {
         logger?.warn('Failed to persist raw notes for session', { error: err });
       }
@@ -97,6 +103,21 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       }));
 
       pages.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+
+      // Log détaillé des leafletBlocks pour debug
+      const pagesWithLeaflet = pages.filter((p) => (p.leafletBlocks?.length ?? 0) > 0);
+      if (pagesWithLeaflet.length > 0) {
+        logger?.debug('Pages with Leaflet blocks in manifest', {
+          count: pagesWithLeaflet.length,
+          pages: pagesWithLeaflet.map((p) => ({
+            title: p.title,
+            route: p.route,
+            blocksCount: p.leafletBlocks?.length,
+            blocks: p.leafletBlocks,
+          })),
+        });
+      }
+
       logger?.debug('Session manifest pages for batch', {
         sessionId,
         manifestPages: pages.map((p) => ({ id: p.id, route: p.route })),

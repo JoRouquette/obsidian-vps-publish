@@ -402,6 +402,16 @@
   opacity: 0.7;
 }
 
+/* Input error indicator for empty regex fields */
+.obsidian-vps-publish-settings .ptpv-input-error {
+  border: 2px solid var(--text-error) !important;
+  background-color: var(--background-modifier-error) !important;
+}
+
+.obsidian-vps-publish-settings .ptpv-input-error:focus {
+  box-shadow: 0 0 0 2px var(--text-error) !important;
+}
+
 /* Séparateur visuel entre les règles */
 .obsidian-vps-publish-settings .ptpv-cleanup-rule + .ptpv-cleanup-rule {
   margin-top: 1.5rem;

@@ -3,9 +3,9 @@
 
   <!-- Affichage des blocs Leaflet en dehors du contenu HTML statique -->
   @if (leafletBlocks().length > 0) {
-    <section class="leaflet-maps-section">
+    <section class="leaflet-maps-section" data-testid="leaflet-maps-section">
       @for (block of leafletBlocks(); track block.id) {
-        <div class="leaflet-map-wrapper">
+        <div class="leaflet-map-wrapper" [attr.data-map-id]="block.id">
           <app-leaflet-map [block]="block" />
         </div>
       }

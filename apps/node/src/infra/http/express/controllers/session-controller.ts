@@ -105,6 +105,7 @@ export function createSessionController(
     const command: UploadNotesCommand = {
       sessionId: req.params.sessionId,
       notes: parsed.data.notes,
+      cleanupRules: parsed.data.cleanupRules,
     };
 
     try {

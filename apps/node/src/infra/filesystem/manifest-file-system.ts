@@ -68,10 +68,26 @@ export class ManifestFileSystem implements ManifestPort {
         ...manifest,
         createdAt: manifest.createdAt.toISOString(),
         lastUpdatedAt: manifest.lastUpdatedAt.toISOString(),
-        pages: manifest.pages.map((p) => ({
-          ...p,
-          publishedAt: p.publishedAt.toISOString(),
-        })),
+        pages: manifest.pages.map((p) => {
+          const serializedPage = {
+            ...p,
+            publishedAt: p.publishedAt.toISOString(),
+            // Explicitly include leafletBlocks to ensure they're serialized
+            leafletBlocks: p.leafletBlocks ?? undefined,
+          };
+
+          // Debug log for pages with Leaflet blocks
+          if (p.leafletBlocks && p.leafletBlocks.length > 0) {
+            this._logger?.debug('Serializing page with Leaflet blocks', {
+              title: p.title,
+              route: p.route,
+              blocksCount: p.leafletBlocks.length,
+              blocks: p.leafletBlocks,
+            });
+          }
+
+          return serializedPage;
+        }),
       };
 
       await fs.writeFile(this.manifestPath(), JSON.stringify(serializable, null, 2), 'utf8');

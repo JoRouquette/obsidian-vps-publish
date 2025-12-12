@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
 import { type LoggerPort, type SessionNotesStoragePort } from '@core-application';
-import { type PublishableNote } from '@core-domain';
+import { type PublishableNote, type SanitizationRules } from '@core-domain';
 
 export class SessionNotesFileStorage implements SessionNotesStoragePort {
   constructor(
@@ -12,6 +12,10 @@ export class SessionNotesFileStorage implements SessionNotesStoragePort {
 
   private notesDir(sessionId: string): string {
     return path.join(this.contentRoot, '.staging', sessionId, '_raw-notes');
+  }
+
+  private cleanupRulesPath(sessionId: string): string {
+    return path.join(this.contentRoot, '.staging', sessionId, '_cleanup-rules.json');
   }
 
   async append(sessionId: string, notes: PublishableNote[]): Promise<void> {
@@ -76,5 +80,39 @@ export class SessionNotesFileStorage implements SessionNotesStoragePort {
     const dir = this.notesDir(sessionId);
     await fs.rm(dir, { recursive: true, force: true });
     this.logger?.debug('Cleared raw notes storage', { sessionId, dir });
+  }
+
+  async saveCleanupRules(sessionId: string, rules: SanitizationRules[]): Promise<void> {
+    const filePath = this.cleanupRulesPath(sessionId);
+    const dir = path.dirname(filePath);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(filePath, JSON.stringify(rules, null, 2), 'utf8');
+    this.logger?.debug('Saved cleanup rules for session', {
+      sessionId,
+      count: rules.length,
+      filePath,
+    });
+  }
+
+  async loadCleanupRules(sessionId: string): Promise<SanitizationRules[]> {
+    const filePath = this.cleanupRulesPath(sessionId);
+    try {
+      const raw = await fs.readFile(filePath, 'utf8');
+      const rules = JSON.parse(raw) as SanitizationRules[];
+      this.logger?.debug('Loaded cleanup rules for session', {
+        sessionId,
+        count: rules.length,
+        filePath,
+      });
+      return rules;
+    } catch (err: unknown) {
+      const code = (err as { code?: string } | undefined)?.code;
+      if (code === 'ENOENT') {
+        this.logger?.warn('No cleanup rules found for session', { sessionId, filePath });
+        return [];
+      }
+      this.logger?.error('Failed to load cleanup rules', { sessionId, filePath, error: err });
+      throw err;
+    }
   }
 }
