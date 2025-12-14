@@ -1009,7 +1009,24 @@
     }
   }
 
-  // Leaflet maps section styling
+  // Leaflet map placeholders (injectés dynamiquement dans le contenu)
+  .leaflet-map-placeholder {
+    display: block;
+    margin-block: 1.5rem;
+    inline-size: 100%;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background-color: var(--c-surface-variant);
+
+    // Le composant Leaflet prendra toute la place du placeholder
+    app-leaflet-map {
+      display: block;
+      inline-size: 100%;
+      block-size: 100%;
+    }
+  }
+
+  // Ancienne section leaflet-maps (maintenant obsolète, mais gardée pour compatibilité)
   .leaflet-maps-section {
     margin-block-start: 2rem;
     padding-block-start: 2rem;

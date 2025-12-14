@@ -64,9 +64,15 @@ export interface LeafletBlock {
   defaultZoom?: number;
 
   /**
-   * Unité de mesure (ex: "meters", "feet", "miles")
+   * Unité de mesure (ex: "meters", "feet", "miles", "km")
    */
   unit?: string;
+
+  /**
+   * Échelle de la carte en pixels (pour les overlays d'images)
+   * Définit la largeur en pixels de l'image pour calculer les distances
+   */
+  scale?: number;
 
   /**
    * Mode sombre activé

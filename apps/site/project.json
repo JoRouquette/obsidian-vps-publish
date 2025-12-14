@@ -19,8 +19,11 @@
         "tsConfig": "apps/site/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "assets": ["apps/site/src/favicon.ico", "apps/site/src/assets"],
-        "styles": ["apps/site/src/styles.scss"],
-        "allowedCommonJsDependencies": ["leaflet"]
+        "styles": [
+          "apps/site/src/styles.scss",
+          "node_modules/leaflet.fullscreen/dist/Control.FullScreen.css"
+        ],
+        "allowedCommonJsDependencies": ["leaflet", "leaflet.fullscreen"]
       },
       "configurations": {
         "production": {

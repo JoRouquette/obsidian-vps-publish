@@ -394,6 +394,19 @@ function renderCleanupRuleItem(
       } else {
         text.onChange((value) => {
           rule.regex = value;
+
+          // Visual feedback: warn if regex is empty
+          if (!value || value.trim().length === 0) {
+            text.inputEl.addClass('ptpv-input-error');
+            text.inputEl.setAttribute(
+              'title',
+              'Regex cannot be empty - this rule will be ignored during upload'
+            );
+          } else {
+            text.inputEl.removeClass('ptpv-input-error');
+            text.inputEl.removeAttribute('title');
+          }
+
           void onSave();
         });
       }

@@ -1,3 +1,5 @@
+import type { SanitizationRules } from './sanitization-rules';
+
 export type SessionStatus = 'pending' | 'active' | 'finished' | 'aborted';
 
 export interface Session {
@@ -9,4 +11,5 @@ export interface Session {
   status: SessionStatus;
   createdAt: Date;
   updatedAt: Date;
+  cleanupRules?: SanitizationRules[];
 }
