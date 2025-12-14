@@ -1,3 +1,8 @@
+## <small>4.5.1 (2025-12-14)</small>
+
+* Merge branch 'fix/leaflet-implementation' ([8c8558b](https://github.com/JoRouquette/obsidian-vps-publish/commit/8c8558b))
+* fix(leaflet): implement end-to-end Leaflet map support with plugin sanitization ([332eec7](https://github.com/JoRouquette/obsidian-vps-publish/commit/332eec7))
+
 ## 4.5.0 (2025-12-11)
 
 * Merge branch 'feat/implementation-leaflet' ([403b23f](https://github.com/JoRouquette/obsidian-vps-publish/commit/403b23f))
