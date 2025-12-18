@@ -9,10 +9,10 @@
   width: 100%;
   height: 0;
   padding-bottom: 56.25%; // Ratio 16:9 par défaut
-  border: 1px solid var(--c-outline, var(--its-outline, #ddd));
+  border: 1px solid var(--c-outline, var(--color-border-default));
   border-radius: 8px;
   overflow: hidden;
-  background: var(--c-surface, var(--its-surface, #fff));
+  background: var(--c-surface, var(--color-bg-secondary));
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 
   // La carte prend tout l'espace du conteneur
@@ -156,13 +156,13 @@
   // Contrôles Leaflet (zoom, fullscreen, etc.)
   ::ng-deep .leaflet-control-zoom,
   ::ng-deep .leaflet-control-fullscreen {
-    border: 2px solid var(--its-outline, #283846);
+    border: 2px solid var(--color-border-default);
     border-radius: 8px;
     overflow: hidden;
 
     a {
-      background-color: var(--its-surface-variant, #2f3b4d);
-      color: var(--its-on-surface, #bccad8);
+      background-color: var(--color-surface-default);
+      color: var(--color-text-primary);
       border: none;
       width: 36px;
       height: 36px;
@@ -171,7 +171,7 @@
       transition: background-color 0.2s ease;
 
       &:hover {
-        background-color: var(--its-surface, #1a1e24);
+        background-color: var(--color-bg-secondary);
       }
 
       @media (min-width: 768px) {
@@ -191,7 +191,7 @@
       content: '⛶';
       font-size: 18px;
       display: block;
-      color: var(--its-on-surface, #bccad8);
+      color: var(--color-text-primary);
 
       @media (min-width: 768px) {
         font-size: 20px;
@@ -206,14 +206,14 @@
 
   // Fond de la carte (visible si pas de tuiles)
   ::ng-deep .leaflet-container {
-    background: var(--its-background, #0b0f13);
+    background: var(--color-bg-primary);
   }
 
   // Popup
   ::ng-deep .leaflet-popup-content-wrapper {
-    background: var(--its-surface, #1a1e24);
-    color: var(--its-on-surface, #bccad8);
-    border: 1px solid var(--its-outline, #283846);
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border-default);
     border-radius: 8px;
     padding: 12px 16px;
     font-size: 14px;
@@ -225,34 +225,34 @@
     }
 
     a {
-      color: var(--its-secondary, #61afef);
+      color: var(--color-accent-secondary);
       text-decoration: underline;
 
       &:hover {
-        color: var(--its-primary, #c14343);
+        color: var(--color-accent-header);
       }
     }
   }
 
   ::ng-deep .leaflet-popup-tip {
-    background: var(--its-surface, #1a1e24);
+    background: var(--color-bg-secondary);
   }
 
   // Fermeture popup
   ::ng-deep .leaflet-popup-close-button {
-    color: var(--its-on-surface, #bccad8) !important;
+    color: var(--color-text-primary) !important;
     font-size: 20px;
     padding: 4px 8px;
 
     &:hover {
-      color: var(--its-primary, #c14343) !important;
+      color: var(--color-accent-header) !important;
     }
   }
 
   // Attribution (plus compact sur mobile)
   ::ng-deep .leaflet-control-attribution {
     background: rgba(26, 30, 36, 0.9);
-    color: var(--its-on-surface, #bccad8);
+    color: var(--color-text-primary);
     font-size: 10px;
     padding: 2px 6px;
 
@@ -262,7 +262,7 @@
     }
 
     a {
-      color: var(--its-secondary, #61afef);
+      color: var(--color-accent-secondary);
     }
   }
 

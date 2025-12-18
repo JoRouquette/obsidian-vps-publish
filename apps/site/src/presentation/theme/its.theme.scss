@@ -1,41 +1,291 @@
 @use '@angular/material' as mat;
 
-.theme-light {
-  --its-primary: #c14343;
-  --its-on-primary: #ffffff;
-  --its-secondary: #5599d0;
-  --its-on-secondary: #0e1116;
-  --its-tertiary: #912e2e;
-  --its-on-tertiary: #ffffff;
+/* ========================================================================
+   ITS Theme - Design Tokens
+   Source: docs/references/Obsidian--ITS-Theme/theme.css (lines 2952-3170)
+   Extraction Date: 2025-12-18
+   ======================================================================== */
 
-  --its-surface: #f8fbff;
-  --its-on-surface: #30353a;
-  --its-surface-variant: #d6deea;
-  --its-outline: #ccd6eb;
-  --its-background: #eef3fd;
+/* ========================================================================
+   DARK THEME
+   ======================================================================== */
+:root.theme-dark {
+  /* ========================================
+     Background Layer (60%)
+     ITS tokens: outer-bar, note, dark-sidebar, bg
+     ======================================== */
+  --color-bg-primary: #1a1e24; /* note: workspace bg (ITS référence) */
+  --color-bg-secondary: #252c36; /* bg: content area bg (ITS référence, plus clair pour images) */
+  --color-bg-tertiary: #0b0f13; /* outer-bar: deepest bg (ITS référence) */
+
+  /* ========================================
+     Surface Layer (30%)
+     ITS tokens: bg, code-bg, aside-bg, embed-bg
+     ======================================== */
+  --color-surface-default: #252c36; /* bg: general surface (ITS référence) */
+  --color-surface-raised: #232831; /* code-bg: elevated surface (ITS référence) */
+  --color-surface-inset: #11151d; /* aside-bg: inset/callout surface (ITS référence) */
+  --color-surface-input: rgba(0, 0, 0, 0.3); /* input-bg: form field bg */
+  --color-surface-embed: #0d1014; /* embed-bg: embedded content bg */
+
+  /* ========================================
+     Text Layer
+     ITS tokens: text, soft-text, faint-text, text-dl, code-text
+     ======================================== */
+  --color-text-primary: #bccad8; /* text: main text */
+  --color-text-secondary: #97a1b9; /* soft-text: muted text */
+  --color-text-tertiary: #4e5b6f; /* faint-text: hints/placeholders */
+  --color-text-on-accent: #e5ebee; /* text-dl: text on dark accent bg */
+  --color-text-code: #fa4545; /* code-text: inline code color */
+  --color-text-footnote: #63778f; /* footnote: footnote text */
+
+  /* ========================================
+     Accent Layer (10%)
+     ITS tokens: accent, lite-accent, dark-accent, accent2-lite, headers
+     ======================================== */
+  --color-accent-primary: #863737; /* accent: main accent */
+  --color-accent-light: #c94d4d; /* lite-accent: lighter accent */
+  --color-accent-dark: #652121; /* dark-accent: darker accent */
+  --color-accent-deepest: #3f1010; /* deep-dark-accent: deepest accent */
+  --color-accent-secondary: #61afef; /* accent2-lite: blue accent */
+  --color-accent-header: #c14343; /* headers: signature ITS red */
+
+  /* ========================================
+     Border & Divider Layer
+     ITS tokens: hr, lines, outline
+     ======================================== */
+  --color-border-default: #2f3b4d; /* hr/lines: standard border (ITS référence) */
+  --color-border-subtle: #0b0f13; /* outline: subtle border (ITS référence) */
+  --color-divider: #2f3b4d; /* hr: divider lines (ITS référence) */
+
+  /* ========================================
+     Interactive States
+     ITS tokens: hvr, hvr-active, highlight
+     ======================================== */
+  --color-hover-bg: rgba(168, 60, 60, 0.4); /* hvr: hover background */
+  --color-hover-active: rgba(212, 47, 47, 0.4); /* hvr-active: active hover */
+  --color-selection: #7a141466; /* highlight: text selection */
+
+  /* ========================================
+     Semantic Colors
+     ITS tokens: success-bg, failure-bg, accent2
+     ======================================== */
+  --color-success-bg: #32603e; /* success-bg: success state */
+  --color-error-bg: #772d2d; /* failure-bg: error state */
+  --color-info-bg: #42536e; /* accent2: info state */
+  --color-warning-bg: #d59929; /* rainbow-2: warning state */
+
+  /* ========================================
+     UI Components
+     ITS tokens: th, table, td, tag, bttn
+     ======================================== */
+  --color-table-header-bg: #652121; /* th: table header */
+  --color-table-row-bg: #283345; /* table: table row */
+  --color-table-overlay: #06080c60; /* td: table cell overlay */
+
+  --color-tag-bg: #652121; /* tag: tag background */
+  --color-tag-text: #d04e4e; /* tag-text: tag text */
+
+  --color-button-bg: #652121; /* bttn: button background */
+  --color-button-text: #e5ebee; /* text-dl: button text */
+
+  /* ========================================
+     Special Elements
+     ITS tokens: code-bg, accent2-lite, folder, file-icon-color
+     ======================================== */
+  --color-code-bg: #232831; /* code-bg: code block bg */
+  --color-link-default: #61afef; /* accent2-lite: link color */
+  --color-link-hover: #c94d4d; /* lite-accent: link hover */
+
+  /* ========================================
+     File Explorer
+     ITS tokens: folder, folder-open, file-icon-color
+     ======================================== */
+  --color-folder-icon: #863737; /* folder: folder icon */
+  --color-folder-open: #e05858; /* folder-open: open folder */
+  --color-file-icon: #586477; /* file-icon-color: file icon */
+  --color-inactive: #586477; /* inactive: inactive UI elements */
+
+  /* ========================================
+     Progress & Loading
+     ITS tokens: progress, progress-bg
+     ======================================== */
+  --color-progress-fill: #863737; /* progress: progress bar fill */
+  --color-progress-bg: #252c36; /* progress-bg: progress bar bg */
+
+  /* ========================================
+     Shadows & Overlays
+     ITS tokens: drop-shadow, td
+     ======================================== */
+  --color-shadow: #06080c60; /* drop-shadow: shadow color */
+  --color-overlay: #06080c60; /* overlay for modals/backdrops */
+
+  /* ========================================
+     Typography
+     ITS tokens: font-default, font-monospace, font (headings)
+     ======================================== */
+  --font-family-default:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-family-heading:
+    'Calisto MT', 'Palatino Black', 'Book Antiqua', 'Georgia', 'Suez One', serif;
+  --font-family-mono: 'Fira Code', 'Fira Code Medium', 'Source Code Pro', monospace;
+
+  /* ========================================
+     Border Radius (ITS default: no rounded corners)
+     ITS tokens: radius-s, radius-m
+     ======================================== */
+  --radius-small: 0px;
+  --radius-medium: 0px;
+  --radius-large: 0px;
 }
 
-.theme-dark {
-  --its-primary: #c14343;
-  --its-on-primary: #0b0f13;
-  --its-secondary: #61afef;
-  --its-on-secondary: #0b0f13;
-  --its-tertiary: #863737;
-  --its-on-tertiary: #ffffff;
+/* ========================================================================
+   LIGHT THEME
+   ======================================================================== */
+:root.theme-light {
+  /* ========================================
+     Background Layer (60%)
+     ITS tokens: outer-bar, note, dark-sidebar
+     ======================================== */
+  --color-bg-primary: #eef3fd; /* outer-bar: deepest workspace bg */
+  --color-bg-secondary: #f8fbff; /* note: content area bg */
+  --color-bg-tertiary: #f1f5ff; /* dark-sidebar: sidebar bg */
 
-  --its-surface: #1a1e24;
-  --its-on-surface: #bccad8;
-  --its-surface-variant: #2f3b4d;
-  --its-outline: #283846;
-  --its-background: #0b0f13;
+  /* ========================================
+     Surface Layer (30%)
+     ITS tokens: bg, code-bg, aside-bg, embed-bg
+     ======================================== */
+  --color-surface-default: #e1e9f6; /* bg: general surface */
+  --color-surface-raised: #f1f5ff; /* code-bg: elevated surface */
+  --color-surface-inset: #f1f5ff; /* aside-bg: inset/callout surface */
+  --color-surface-input: #d0ddef62; /* input-bg: form field bg (semi-transparent) */
+  --color-surface-embed: #f1f5ff; /* embed-bg: embedded content bg */
+
+  /* ========================================
+     Text Layer
+     ITS tokens: text, soft-text, faint-text, text-dl, code-text
+     ======================================== */
+  --color-text-primary: #30353a; /* text: main text (dark) */
+  --color-text-secondary: #697580; /* soft-text: muted text */
+  --color-text-tertiary: #4e5b6f; /* faint-text: hints/placeholders */
+  --color-text-on-accent: #e5ebee; /* text-dl: text on dark accent bg */
+  --color-text-code: #ea4262; /* code-text: inline code color */
+  --color-text-footnote: #8996a0; /* footnote: footnote text */
+
+  /* ========================================
+     Accent Layer (10%)
+     ITS tokens: accent, lite-accent, dark-accent, accent2-lite, headers
+     ======================================== */
+  --color-accent-primary: #912e2e; /* accent: main accent */
+  --color-accent-light: #cd2626; /* lite-accent: lighter accent */
+  --color-accent-dark: #c35c5c; /* dark-accent: darker accent */
+  --color-accent-deepest: #2f1010; /* deep-dark-accent: deepest accent */
+  --color-accent-secondary: #5599d0; /* accent2-lite: blue accent */
+  --color-accent-header: #c14343; /* headers: signature ITS red */
+
+  /* ========================================
+     Border & Divider Layer
+     ITS tokens: lines, hr, outline
+     ======================================== */
+  --color-border-default: #b5c2d8; /* lines: standard border */
+  --color-border-subtle: #e1e9f6; /* outline: subtle border */
+  --color-divider: #d6deea; /* hr: divider lines */
+
+  /* ========================================
+     Interactive States
+     ITS tokens: hvr, hvr-active, highlight
+     ======================================== */
+  --color-hover-bg: rgba(255, 0, 0, 0.212); /* hvr: hover background */
+  --color-hover-active: rgba(253, 115, 115, 0.4); /* hvr-active: active hover */
+  --color-selection: rgba(229, 149, 149, 0.37); /* highlight: text selection */
+
+  /* ========================================
+     Semantic Colors
+     ITS tokens: success-bg, failure-bg, accent2
+     ======================================== */
+  --color-success-bg: #599049; /* success-bg: success state */
+  --color-error-bg: #772d2d; /* failure-bg: error state */
+  --color-info-bg: #aac1d3; /* accent2: info state */
+  --color-warning-bg: #f1ab27; /* rainbow-2: warning state */
+
+  /* ========================================
+     UI Components
+     ITS tokens: th, table, td, tag, bttn
+     ======================================== */
+  --color-table-header-bg: #c14343; /* th: table header */
+  --color-table-row-bg: #ccd6eb; /* table: table row */
+  --color-table-overlay: #d0ddef62; /* td: table cell overlay */
+
+  --color-tag-bg: #c65656; /* tag: tag background */
+  --color-tag-text: #cd2626; /* tag-text: tag text */
+
+  --color-button-bg: #c14343; /* bttn: button background */
+  --color-button-text: #e5ebee; /* text-dl: button text */
+
+  /* ========================================
+     Special Elements
+     ITS tokens: code-bg, accent2-lite, folder, file-icon-color
+     ======================================== */
+  --color-code-bg: #f1f5ff; /* code-bg: code block bg */
+  --color-link-default: #5599d0; /* accent2-lite: link color */
+  --color-link-hover: #cd2626; /* lite-accent: link hover */
+
+  /* ========================================
+     File Explorer
+     ITS tokens: folder, folder-open, file-icon-color
+     ======================================== */
+  --color-folder-icon: #912e2e; /* folder: folder icon */
+  --color-folder-open: #ce6d6d; /* folder-open: open folder */
+  --color-file-icon: #7e8ea3; /* file-icon-color: file icon */
+  --color-inactive: #a6bbde; /* inactive: inactive UI elements */
+
+  /* ========================================
+     Progress & Loading
+     ITS tokens: progress, progress-bg
+     ======================================== */
+  --color-progress-fill: #912e2e; /* progress: progress bar fill */
+  --color-progress-bg: #e1e9f6; /* progress-bg: progress bar bg */
+
+  /* ========================================
+     Shadows & Overlays
+     ITS tokens: drop-shadow, td
+     ======================================== */
+  --color-shadow: #d0ddef62; /* drop-shadow: shadow color */
+  --color-overlay: rgba(0, 0, 0, 0.3); /* overlay for modals/backdrops */
+
+  /* ========================================
+     Typography
+     ITS tokens: font-default, font-monospace, font (headings)
+     ======================================== */
+  --font-family-default:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-family-heading:
+    'Calisto MT', 'Palatino Black', 'Book Antiqua', 'Georgia', 'Suez One', serif;
+  --font-family-mono: 'Fira Code', 'Fira Code Medium', 'Source Code Pro', monospace;
+
+  /* ========================================
+     Border Radius (ITS default: no rounded corners)
+     ITS tokens: radius-s, radius-m
+     ======================================== */
+  --radius-small: 0px;
+  --radius-medium: 0px;
+  --radius-large: 0px;
 }
+
+/* ========================================================================
+   Material Design Theme Integration
+   Note: Angular Material v20+ uses M3 design system
+   We use default palettes but rely on CSS custom properties for styling
+   ======================================================================== */
 
 $its-light: mat.define-theme(
   (
     color: (
       theme-type: light,
-      primary: mat.$cyan-palette,
-      tertiary: mat.$red-palette,
+      primary: mat.$red-palette,
+      // Aligned with ITS red accent
+      tertiary: mat.$azure-palette,
+      // Aligned with ITS blue accent
     ),
   )
 );
@@ -44,8 +294,10 @@ $its-dark: mat.define-theme(
   (
     color: (
       theme-type: dark,
-      primary: mat.$cyan-palette,
-      tertiary: mat.$red-palette,
+      primary: mat.$red-palette,
+      // Aligned with ITS red accent
+      tertiary: mat.$azure-palette,
+      // Aligned with ITS blue accent
     ),
   )
 );

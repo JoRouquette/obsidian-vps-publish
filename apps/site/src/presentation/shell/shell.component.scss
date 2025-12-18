@@ -1,16 +1,16 @@
 $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: controls + breadcrumbs)
 
 :host {
-  /* ITS theme aliases (fallback Material) */
-  --c-surface: var(--its-surface, var(--mat-sys-surface));
-  --c-on-surface: var(--its-on-surface, var(--mat-sys-on-surface));
-  --c-surface-variant: var(--its-surface-variant, var(--mat-sys-surface-variant));
-  --c-on-surface-variant: var(--its-on-surface-variant, var(--mat-sys-on-surface-variant));
-  --c-outline: var(--its-outline, var(--mat-sys-outline-variant));
-  --c-outline-strong: var(--its-outline, var(--mat-sys-outline));
-  --c-primary: var(--its-primary, var(--mat-sys-primary));
-  --c-tertiary: var(--its-tertiary, var(--mat-sys-tertiary));
-  --c-background: var(--its-background, var(--mat-sys-background));
+  /* Normalized ITS theme tokens (60/30/10 distribution) */
+  --c-surface: var(--color-bg-secondary); /* 60%: content reading area */
+  --c-on-surface: var(--color-text-primary);
+  --c-surface-variant: var(--color-surface-default); /* 30%: panels/cards */
+  --c-on-surface-variant: var(--color-text-secondary);
+  --c-outline: var(--color-border-default);
+  --c-outline-strong: var(--color-border-default);
+  --c-primary: var(--color-accent-header); /* 10%: accent */
+  --c-tertiary: var(--color-accent-primary); /* 10%: accent */
+  --c-background: var(--color-bg-primary); /* 60%: deepest workspace bg */
 
   display: block;
   /* Hauteur minimum = viewport, permet au contenu de pousser le footer naturellement si nécessaire */

@@ -13,14 +13,14 @@
 }
 
 .home {
-  /* Variables alignées sur le viewer */
-  --c-surface: var(--its-surface, var(--mat-sys-surface));
-  --c-on-surface: var(--its-on-surface, var(--mat-sys-on-surface));
-  --c-surface-variant: var(--its-surface-variant, var(--mat-sys-surface-variant));
-  --c-outline: var(--its-outline, var(--mat-sys-outline-variant));
-  --c-primary: var(--its-primary, var(--mat-sys-primary));
-  --c-secondary: var(--its-secondary, var(--mat-sys-secondary));
-  --c-headers: var(--its-headers, var(--its-primary, var(--mat-sys-primary)));
+  /* Normalized ITS theme tokens (60/30/10) */
+  --c-surface: var(--color-bg-secondary); /* 60%: content area */
+  --c-on-surface: var(--color-text-primary);
+  --c-surface-variant: var(--color-surface-default); /* 30%: cards */
+  --c-outline: var(--color-border-default);
+  --c-primary: var(--color-accent-header); /* 10%: accent */
+  --c-secondary: var(--color-accent-secondary); /* 10%: accent */
+  --c-headers: var(--color-accent-header); /* 10%: accent headers */
 
   --container-pad-inline: clamp(12px, 3vw, 24px);
 
