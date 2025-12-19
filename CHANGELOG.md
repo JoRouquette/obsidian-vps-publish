@@ -1,3 +1,9 @@
+## 4.6.0 (2025-12-19)
+
+* Merge branch 'feat/implement-dataview' ([abd4891](https://github.com/JoRouquette/obsidian-vps-publish/commit/abd4891))
+* feat: implement markdown-native conversion and custom index support ([e737e11](https://github.com/JoRouquette/obsidian-vps-publish/commit/e737e11))
+* style: better its-theme ([0315607](https://github.com/JoRouquette/obsidian-vps-publish/commit/0315607))
+
 ## <small>4.5.1 (2025-12-14)</small>
 
 * Merge branch 'fix/leaflet-implementation' ([8c8558b](https://github.com/JoRouquette/obsidian-vps-publish/commit/8c8558b))
