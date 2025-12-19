@@ -1,9 +1,12 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ComponentRef,
   computed,
+  createComponent,
   effect,
   ElementRef,
+  EnvironmentInjector,
   Inject,
   ViewChild,
   ViewEncapsulation,
@@ -16,6 +19,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
 import { DomSanitizer } from '@angular/platform-browser';
 import { Router } from '@angular/router';
+import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
 import type { ManifestPage } from '@core-domain/entities/manifest-page';
 import { from } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -24,6 +28,7 @@ import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { ConfigFacade } from '../../../application/facades/config-facade';
 import type { ContentRepository } from '../../../domain/ports/content-repository.port';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
+import { LeafletMapComponent } from '../../components/leaflet-map/leaflet-map.component';
 
 type Section = {
   key: string;
@@ -45,6 +50,7 @@ export class HomeComponent {
   @ViewChild('contentEl', { static: false }) contentEl?: ElementRef<HTMLElement>;
 
   private readonly cleanupFns: Array<() => void> = [];
+  private readonly leafletComponentRefs: ComponentRef<LeafletMapComponent>[] = [];
 
   welcomeTitle = computed(() => {
     const cfg = this.config.cfg();
@@ -65,7 +71,8 @@ export class HomeComponent {
     private readonly config: ConfigFacade,
     @Inject(CONTENT_REPOSITORY) private readonly contentRepo: ContentRepository,
     private readonly sanitizer: DomSanitizer,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly environmentInjector: EnvironmentInjector
   ) {
     void this.catalog.ensureManifest();
     void this.config.ensure();
@@ -73,12 +80,16 @@ export class HomeComponent {
     // Effect pour décorer les liens après chargement du HTML
     effect(() => {
       this.rootIndexHtml();
-      setTimeout(() => this.decorateLinks());
+      setTimeout(() => {
+        this.decorateLinks();
+        this.injectLeafletComponents();
+      });
     });
   }
 
   ngOnDestroy(): void {
     this.cleanupLinks();
+    this.cleanupLeafletComponents();
   }
 
   private decorateLinks(): void {
@@ -120,6 +131,64 @@ export class HomeComponent {
 
     event.preventDefault();
     void this.router.navigateByUrl(href);
+  }
+
+  /**
+   * Injecte dynamiquement les composants Leaflet dans les placeholders HTML de l'index custom
+   */
+  private injectLeafletComponents(): void {
+    this.cleanupLeafletComponents();
+
+    const container = this.contentEl?.nativeElement;
+    if (!container) return;
+
+    // Trouver tous les placeholders dans le HTML avec les données embarquées
+    const placeholders = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-leaflet-block]')
+    );
+
+    if (placeholders.length === 0) return;
+
+    console.log('[HomeComponent] Found Leaflet placeholders:', placeholders.length);
+
+    for (const placeholder of placeholders) {
+      const blockDataStr = placeholder.dataset['leafletBlock'];
+      if (!blockDataStr) continue;
+
+      try {
+        // Désérialiser les données du bloc depuis l'attribut data-leaflet-block
+        const block: LeafletBlock = JSON.parse(blockDataStr);
+
+        // Créer le composant dynamiquement
+        const componentRef = createComponent(LeafletMapComponent, {
+          environmentInjector: this.environmentInjector,
+          hostElement: placeholder,
+        });
+
+        // Passer les données au composant
+        componentRef.setInput('block', block);
+
+        // Déclencher la détection de changement
+        componentRef.changeDetectorRef.detectChanges();
+
+        // Stocker la référence pour nettoyage ultérieur
+        this.leafletComponentRefs.push(componentRef);
+
+        console.log('[HomeComponent] Injected Leaflet component:', block.id);
+      } catch (error) {
+        console.error('[HomeComponent] Failed to inject Leaflet component:', error);
+      }
+    }
+  }
+
+  /**
+   * Nettoie les composants Leaflet injectés dynamiquement
+   */
+  private cleanupLeafletComponents(): void {
+    for (const componentRef of this.leafletComponentRefs) {
+      componentRef.destroy();
+    }
+    this.leafletComponentRefs.length = 0;
   }
 
   sections = computed<Section[]>(() => {

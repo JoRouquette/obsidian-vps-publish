@@ -27,7 +27,10 @@ export class BuildTreeHandler implements QueryHandler<Manifest, TreeNode> {
   async handle(manifest: Manifest): Promise<TreeNode> {
     const root: TreeNode = this.folder('', '', '');
 
-    for (const page of manifest.pages) {
+    // Filter out custom index pages from the tree
+    const regularPages = manifest.pages.filter((page) => !page.isCustomIndex);
+
+    for (const page of regularPages) {
       this.processPage(page, root);
     }
 

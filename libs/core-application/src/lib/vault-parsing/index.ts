@@ -9,4 +9,5 @@ export * from './services/detect-wikilinks.service';
 export * from './services/ensure-title-header.service';
 export * from './services/normalize-frontmatter.service';
 export * from './services/render-inline-dataview.service';
+export * from './services/resolve-custom-index.service';
 export * from './services/resolve-wikilinks.service';

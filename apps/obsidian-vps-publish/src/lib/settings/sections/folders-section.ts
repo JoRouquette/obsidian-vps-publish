@@ -4,6 +4,7 @@ import type { VpsConfig } from '@core-domain/entities/vps-config';
 import { Notice, Setting } from 'obsidian';
 
 import type { Translations } from '../../../i18n';
+import { FileSuggest } from '../../suggesters/file-suggester';
 import { FolderSuggest } from '../../suggesters/folder-suggester';
 import type { SettingsViewContext } from '../context';
 
@@ -171,6 +172,27 @@ function renderFolderConfig(
         void ctx.save();
       })
   );
+
+  // Custom index file
+  const customIndexSetting = new Setting(singleFolderFieldset)
+    .setName('Custom Index File')
+    .setDesc(
+      "Optional: Select a file from your vault to prepend to this folder's generated index page."
+    );
+
+  customIndexSetting.addText((text) => {
+    text
+      .setPlaceholder('folder/custom-index.md')
+      .setValue(folderCfg.customIndexFile ?? '')
+      .onChange((value) => {
+        const trimmed = value.trim();
+        logger.debug('Folder customIndexFile changed', { folderId: folderCfg.id, value: trimmed });
+        folderCfg.customIndexFile = trimmed || undefined;
+        void ctx.save();
+      });
+
+    new FileSuggest(ctx.app, text.inputEl);
+  });
 
   // Cleanup rules ignore section
   renderCleanupRulesIgnoreSection(singleFolderFieldset, vps, folderCfg, ctx);

@@ -1,5 +1,12 @@
 import z from 'zod';
 
+const CustomIndexConfigDto = z.object({
+  id: z.string().min(1),
+  folderPath: z.string(),
+  indexFilePath: z.string().min(1),
+  isRootIndex: z.boolean().optional(),
+});
+
 export const CreateSessionBodyDto = z.object({
   notesPlanned: z.number().int().nonnegative(),
   assetsPlanned: z.number().int().nonnegative(),
@@ -14,4 +21,5 @@ export const CreateSessionBodyDto = z.object({
       })
     )
     .optional(),
+  customIndexConfigs: z.array(CustomIndexConfigDto).optional(),
 });

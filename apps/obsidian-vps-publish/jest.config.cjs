@@ -16,5 +16,9 @@ module.exports = {
 
   transformIgnorePatterns: ['node_modules/'],
 
+  moduleNameMapper: {
+    '^obsidian$': '<rootDir>/src/_tests/__mocks__/obsidian.ts',
+  },
+
   coverageDirectory: '../../coverage/apps/obsidian-vps-publish',
 };

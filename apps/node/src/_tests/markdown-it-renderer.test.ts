@@ -114,11 +114,17 @@ describe('MarkdownItRenderer', () => {
 
     const html = await renderer.render(note);
 
+    // Resolved wikilink
     expect(html).toContain(
       '<a class="wikilink" data-wikilink="Resolved" href="/notes/resolved">Alias</a>'
     );
+
+    // Unresolved wikilink: rendered as <span> (not <a>)
     expect(html).toContain('<span class="wikilink wikilink-unresolved"');
-    expect(html).not.toContain('[[Missing]]');
+    expect(html).toContain('data-wikilink="Missing"');
+    expect(html).toContain('data-tooltip="Cette page arrive prochainement"');
+    expect(html).toContain('>Missing</span>'); // Display basename in span
+    expect(html).not.toContain('[[Missing]]'); // No raw wikilink syntax
   });
 
   it('renders obsidian callouts with title and body', async () => {
@@ -184,5 +190,124 @@ describe('MarkdownItRenderer', () => {
     expect(html).toContain('<th>Header 1</th>');
     expect(html).toContain('<tbody>');
     expect(html).toContain('<td>Cell 1</td>');
+  });
+
+  it('preserves inline HTML in markdown content (for Dataview rendered blocks)', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+
+    // Simuler un bloc Dataview déjà rendu en HTML (Priority 1 approach)
+    note.content = `# My Page
+
+Some text before.
+
+<div class="dataview dataview-container">
+  <ul class="dataview-result-list-ul">
+    <li>Item 1</li>
+    <li>Item 2</li>
+  </ul>
+</div>
+
+Some text after.`;
+
+    const html = await renderer.render(note);
+
+    // Le HTML inline doit être préservé tel quel
+    expect(html).toContain('<div class="dataview dataview-container">');
+    expect(html).toContain('<ul class="dataview-result-list-ul">');
+    expect(html).toContain('<li>Item 1</li>');
+    expect(html).toContain('<li>Item 2</li>');
+    expect(html).toContain('</ul>');
+    expect(html).toContain('</div>');
+
+    // Le markdown autour doit aussi être rendu
+    expect(html).toContain('<h1>My Page</h1>');
+    expect(html).toContain('Some text before.');
+    expect(html).toContain('Some text after.');
+  });
+
+  it('should NOT add <p> tags inside <li> elements (Dataview lists)', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+
+    // Markdown list généré par Dataview
+    note.content = `# Factions
+
+- [[Conclave Saphir|Conclave Saphir]]
+- [[Larmes de Miséricorde|Larmes de Miséricorde]]
+- [[Ligue d'Émeraude|Ligue d'Émeraude]]
+- [[Monairie|Monairie]]`;
+
+    note.resolvedWikilinks = [
+      {
+        raw: '[[Conclave Saphir|Conclave Saphir]]',
+        target: 'Conclave Saphir',
+        path: '/factions/conclave-saphir',
+        isResolved: true,
+        alias: 'Conclave Saphir',
+        kind: 'note',
+      },
+      {
+        raw: '[[Larmes de Miséricorde|Larmes de Miséricorde]]',
+        target: 'Larmes de Miséricorde',
+        path: '/factions/larmes-de-misericorde',
+        isResolved: true,
+        alias: 'Larmes de Miséricorde',
+        kind: 'note',
+      },
+      {
+        raw: "[[Ligue d'Émeraude|Ligue d'Émeraude]]",
+        target: "Ligue d'Émeraude",
+        path: '/factions/ligue-demeraude',
+        isResolved: true,
+        alias: "Ligue d'Émeraude",
+        kind: 'note',
+      },
+      {
+        raw: '[[Monairie|Monairie]]',
+        target: 'Monairie',
+        path: '/factions/monairie',
+        isResolved: true,
+        alias: 'Monairie',
+        kind: 'note',
+      },
+    ];
+
+    const html = await renderer.render(note);
+
+    // ✅ MUST contain <ul> and <li>
+    expect(html).toContain('<ul>');
+    expect(html).toContain('<li>');
+
+    // ✅ MUST contain wikilinks as anchors
+    expect(html).toContain('href="/factions/conclave-saphir"');
+    expect(html).toContain('>Conclave Saphir</a>');
+
+    // ❌ MUST NOT contain <p> inside <li> (adds unwanted padding/margin)
+    expect(html).not.toMatch(/<li>\s*<p>/);
+    expect(html).not.toMatch(/<\/p>\s*<\/li>/);
+  });
+
+  it('should render separate Dataview blocks as separate lists', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+
+    // Deux blocks Dataview distincts (séparés par ligne vide)
+    note.content = `# Factions
+
+## Block 1
+- Item 1
+- Item 2
+
+## Block 2
+- Item 3
+- Item 4`;
+
+    const html = await renderer.render(note);
+
+    // Should contain two separate <ul> elements
+    const ulMatches = html.match(/<ul>/g);
+    expect(ulMatches).toBeTruthy();
+    expect(ulMatches!.length).toBe(2);
   });
 });

@@ -1,29 +1,30 @@
 import { type ManifestPage } from '@core-domain';
-
-function capitalize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
+import { humanizePropertyKey } from '@core-domain/utils/string.utils';
 
 function escapeHtml(s: string) {
-  let escaped = s.replace(
+  const escaped = s.replace(
     /[&<>"']/g,
     (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!
   );
 
-  return capitalize(escaped);
+  return escaped;
 }
 
-export function renderRootIndex(dirs: { name: string; link: string; count: number }[]) {
+export function renderRootIndex(
+  dirs: { name: string; link: string; count: number }[],
+  customContent?: string
+) {
   const items = dirs
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(
       (d) =>
-        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(d.name)}</a><span class="index-count">(${d.count})</span></li>`
+        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(humanizePropertyKey(d.name))}</a><span class="index-count">(${d.count})</span></li>`
     )
     .join('');
 
   return `
 <div class="markdown-body">
+  ${customContent || ''}
   <h1>Dossiers</h1>
   <ul class="index-list">${items || '<li><em>Aucun dossier</em></li>'}</ul>
 </div>`;
@@ -32,16 +33,17 @@ export function renderRootIndex(dirs: { name: string; link: string; count: numbe
 export function renderFolderIndex(
   folderPath: string,
   pages: ManifestPage[],
-  subfolders: { name: string; link: string; count: number }[]
+  subfolders: { name: string; link: string; count: number }[],
+  customContent?: string
 ) {
   const folderName = folderPath === '/' ? '/' : folderPath.split('/').filter(Boolean).pop()!;
-  const folderTitle = capitalize(folderName) || 'Home';
+  const folderTitle = humanizePropertyKey(folderName) || 'Home';
 
   const subfoldList = subfolders
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(
       (d) =>
-        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(d.name)}</a><span class="index-count">(${d.count})</span></li>`
+        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(humanizePropertyKey(d.name))}</a><span class="index-count">(${d.count})</span></li>`
     )
     .join('');
 
@@ -54,6 +56,7 @@ export function renderFolderIndex(
     .join('');
 
   return `<div class="markdown-body">
+  ${customContent || ''}
   <h1>${escapeHtml(folderTitle)}</h1>
   <section>
     <h2>Sous-dossiers</h2>

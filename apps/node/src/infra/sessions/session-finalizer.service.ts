@@ -11,9 +11,10 @@ import {
   type MarkdownRendererPort,
   ResolveWikilinksService,
   type SessionNotesStoragePort,
+  type SessionRepository,
   UploadNotesHandler,
 } from '@core-application';
-import { type LoggerPort, LogLevel } from '@core-domain';
+import { type CustomIndexConfig, type LoggerPort, LogLevel } from '@core-domain';
 
 import { type StagingManager } from '../filesystem/staging-manager';
 import { ContentSearchIndexer } from '../search/content-search-indexer';
@@ -54,6 +55,7 @@ export class SessionFinalizerService {
     private readonly markdownRenderer: MarkdownRendererPort,
     private readonly contentStorage: ContentStorageFactory,
     private readonly manifestStorage: ManifestStorageFactory,
+    private readonly sessionRepository: SessionRepository,
     logger?: LoggerPort
   ) {
     this.logger = logger?.child({ service: 'SessionFinalizerService' }) ?? new NullLogger();
@@ -70,6 +72,11 @@ export class SessionFinalizerService {
 
     log.debug('Rebuilding session content from stored notes', { count: rawNotes.length });
 
+    // Étape 0: Charger la session pour récupérer les customIndexConfigs
+    const session = await this.sessionRepository.findById(sessionId);
+    const customIndexConfigs = session?.customIndexConfigs ?? [];
+    log.debug('Loaded custom index configs from session', { count: customIndexConfigs.length });
+
     // Étape 1: Charger les règles de nettoyage envoyées par le plugin
     const cleanupRules = await this.notesStorage.loadCleanupRules(sessionId);
     log.debug('Loaded cleanup rules for session', {
@@ -83,11 +90,15 @@ export class SessionFinalizerService {
       })),
     });
 
-    // Étape 2: Détecter les blocks de plugins (Leaflet, etc.) AVANT la sanitization
+    // Étape 2: Détecter les blocks de plugins (Leaflet) AVANT la sanitization
+    // Note: Dataview blocks are now pre-serialized by the plugin and included in serializedDataviewBlocks.
+    // The server no longer attempts to detect or execute Dataview queries.
+    // The plugin converts Dataview blocks to native Markdown before upload.
+
     const leafletDetector = new DetectLeafletBlocksService(this.logger);
     const withLeaflet = leafletDetector.process(rawNotes);
 
-    // Étape 3: Sanitization du contenu (supprime les blocks de code restants)
+    // Étape 3: Sanitization du contenu (supprime les blocks de code restants + frontmatter)
     const contentSanitizer = new ContentSanitizerService(
       cleanupRules,
       undefined,
@@ -96,7 +107,7 @@ export class SessionFinalizerService {
     );
     const sanitized = contentSanitizer.process(withLeaflet);
 
-    // Étape 4: Résolution des wikilinks et routing
+    // Étape 5: Résolution des wikilinks et routing
     const detect = new DetectWikilinksService(this.logger);
     const resolve = new ResolveWikilinksService(this.logger, detect);
     const computeRouting = new ComputeRoutingService(this.logger);
@@ -114,12 +125,243 @@ export class SessionFinalizerService {
       this.logger
     );
 
+    // Publier toutes les notes (y compris les fichiers d'index custom)
     await renderer.handle({ sessionId, notes: routed });
+
+    // Étape 6: Récupérer le HTML des fichiers d'index custom et les supprimer du manifest
+    const customIndexesHtml = await this.extractCustomIndexesHtml(
+      customIndexConfigs,
+      sessionId,
+      log
+    );
+
+    // Étape 7: Rebuild des index avec contenu custom
+    const manifestPort = this.manifestStorage(sessionId);
+    const manifest = await manifestPort.load();
+    if (manifest) {
+      await manifestPort.rebuildIndex(manifest, customIndexesHtml);
+      log.debug('Indexes rebuilt with custom content');
+    }
 
     await this.rebuildContentSearchIndex(sessionId);
 
     await this.notesStorage.clear(sessionId);
     log.debug('Session rebuild complete');
+  }
+
+  /**
+   * Extract HTML content from custom index files and remove them from manifest
+   * Custom index files are already published as normal pages, we just need to:
+   * 1. Read their generated HTML
+   * 2. Remove them from the manifest to avoid duplication
+   */
+  private async extractCustomIndexesHtml(
+    configs: CustomIndexConfig[],
+    sessionId: string,
+    log: LoggerPort
+  ): Promise<Map<string, string>> {
+    const result = new Map<string, string>();
+
+    if (configs.length === 0) {
+      return result;
+    }
+
+    log.debug('Extracting custom index HTML and removing from manifest', {
+      count: configs.length,
+      configs: configs.map((c) => ({
+        indexFilePath: c.indexFilePath,
+        folderPath: c.folderPath,
+        isRootIndex: c.isRootIndex,
+      })),
+    });
+
+    const manifestPort = this.manifestStorage(sessionId);
+    const manifest = await manifestPort.load();
+
+    if (!manifest) {
+      log.warn('No manifest found, cannot extract custom indexes');
+      return result;
+    }
+
+    log.debug('Manifest loaded', {
+      pagesCount: manifest.pages.length,
+      vaultPaths: manifest.pages.map((p) => p.vaultPath),
+    });
+
+    const contentPort = this.contentStorage(sessionId);
+    let manifestUpdated = false;
+
+    for (const config of configs) {
+      try {
+        // Find the page in manifest by vaultPath
+        const page = manifest.pages.find((p) => p.vaultPath === config.indexFilePath);
+
+        if (!page) {
+          log.warn('Custom index page not found in manifest', {
+            indexFilePath: config.indexFilePath,
+            availableVaultPaths: manifest.pages.map((p) => p.vaultPath),
+          });
+          continue;
+        }
+
+        log.debug('Found custom index page in manifest', {
+          indexFilePath: config.indexFilePath,
+          pageId: page.id,
+          route: page.route,
+          slug: page.slug.value,
+        });
+
+        // Read the generated HTML content using the route (which should match the file path)
+        // The file is saved as: [...folders, slug.html]
+        const htmlContent = await contentPort.read(page.route);
+
+        if (!htmlContent) {
+          log.warn('Custom index HTML not found', {
+            indexFilePath: config.indexFilePath,
+            route: page.route,
+          });
+          continue;
+        }
+
+        log.debug('Read HTML content', {
+          route: page.route,
+          htmlLength: htmlContent.length,
+          htmlPreview: htmlContent.substring(0, 200),
+        });
+
+        // Inject rendered Dataview and Leaflet blocks before extracting
+        const htmlWithBlocks = this.injectRenderedBlocks(htmlContent, page);
+
+        // Extract body content from full HTML page
+        let bodyContent = this.extractBodyContent(htmlWithBlocks);
+
+        // For root index, remove the first H1 title (auto-generated from filename)
+        if (config.isRootIndex || config.folderPath === '' || config.folderPath === '/') {
+          bodyContent = this.removeFirstH1(bodyContent);
+          log.debug('Removed first H1 from root index');
+        }
+
+        log.debug('Extracted body content', {
+          originalLength: htmlContent.length,
+          bodyLength: bodyContent.length,
+          bodyPreview: bodyContent.substring(0, 200),
+        });
+
+        // Store by folder path (empty string for root becomes '/')
+        const key = config.folderPath || '/';
+        result.set(key, bodyContent);
+
+        // Instead of removing the page, update its route to be the index route
+        // so the ViewerComponent can find it and inject Leaflet/Dataview blocks
+        const indexRoute = config.folderPath ? `${config.folderPath}/index` : '/index';
+        page.route = indexRoute;
+        page.slug = { value: 'index' };
+        page.isCustomIndex = true; // Mark to exclude from vault explorer
+        manifestUpdated = true;
+
+        log.debug('Custom index page route updated', {
+          folderPath: config.folderPath,
+          key,
+          newRoute: page.route,
+          htmlLength: bodyContent.length,
+        });
+      } catch (error) {
+        log.error('Failed to extract custom index HTML', {
+          config,
+          error,
+        });
+      }
+    }
+
+    // Save manifest with updated routes
+    if (manifestUpdated) {
+      await manifestPort.save(manifest);
+      log.debug('Updated custom index page routes in manifest');
+    }
+
+    return result;
+  }
+
+  /**
+   * Extract body content from full HTML page
+   * Removes the HTML structure, keeping only the markdown-body div content
+   */
+  private extractBodyContent(fullHtml: string): string {
+    // Find the opening tag
+    const startPattern = /<div class="markdown-body">/;
+    const startMatch = fullHtml.match(startPattern);
+
+    if (!startMatch) {
+      return fullHtml; // Fallback if pattern not found
+    }
+
+    const startIndex = startMatch.index! + startMatch[0].length;
+
+    // Count nested divs to find the matching closing tag
+    let depth = 1;
+    let i = startIndex;
+
+    while (i < fullHtml.length && depth > 0) {
+      if (fullHtml.substring(i, i + 5) === '<div ') {
+        depth++;
+        i += 5;
+      } else if (fullHtml.substring(i, i + 6) === '</div>') {
+        depth--;
+        if (depth === 0) {
+          // Found the matching closing tag
+          return fullHtml.substring(startIndex, i).trim();
+        }
+        i += 6;
+      } else {
+        i++;
+      }
+    }
+
+    // Fallback: return everything after the opening tag
+    return fullHtml.substring(startIndex).trim();
+  }
+
+  /**
+   * Remove the first H1 heading from HTML content
+   * Used for root index to remove auto-generated title
+   */
+  private removeFirstH1(html: string): string {
+    // Match the first <h1>...</h1> tag and remove it
+    const h1Pattern = /<h1[^>]*>.*?<\/h1>/i;
+    return html.replace(h1Pattern, '').trim();
+  }
+
+  /**
+   * Enrich Leaflet block placeholders with full block data
+   * Dataview blocks are left as-is (placeholders) for client-side injection
+   */
+  private injectRenderedBlocks(
+    html: string,
+    page: { dataviewBlocks?: unknown[]; leafletBlocks?: unknown[] }
+  ): string {
+    let result = html;
+
+    // For Dataview: Keep placeholders as-is, ViewerComponent will inject them client-side
+    // No modification needed - the HTML already contains the placeholders
+
+    // For Leaflet: Enrich placeholders with full block data for client-side rendering
+    if (page.leafletBlocks && Array.isArray(page.leafletBlocks)) {
+      for (const block of page.leafletBlocks) {
+        if (block && typeof block === 'object' && 'id' in block) {
+          const blockId = String(block.id);
+          // Serialize block data as JSON and embed in data attribute
+          const blockDataJson = JSON.stringify(block)
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+          const placeholder = `<div class="leaflet-map-placeholder" data-leaflet-map-id="${blockId}"></div>`;
+          const enhancedPlaceholder = `<div class="leaflet-map-placeholder" data-leaflet-map-id="${blockId}" data-leaflet-block='${blockDataJson}'></div>`;
+          result = result.replace(placeholder, enhancedPlaceholder);
+        }
+      }
+    }
+
+    return result;
   }
 
   private async resetContentStage(contentStage: string, log: LoggerPort) {

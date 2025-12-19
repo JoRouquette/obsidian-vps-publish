@@ -22,14 +22,21 @@ export class ResolveWikilinksService implements BaseService {
 
     for (const note of notes) {
       this._logger.debug('Processing note for wikilinks', { note });
-      const wikilinks: WikilinkRef[] = this.detectWikilinksService.process(note);
 
-      if (wikilinks.length === 0) {
+      // Extract markdown wikilinks (Dataview already converted to markdown wikilinks by plugin)
+      const markdownLinks: WikilinkRef[] = this.detectWikilinksService.process(note);
+
+      if (markdownLinks.length === 0) {
         this._logger.debug('No wikilinks found in note', { noteId: note.noteId });
         continue;
       }
 
-      wikilinksByNotes[note.noteId] = wikilinks;
+      this._logger.debug('Found wikilinks in note', {
+        noteId: note.noteId,
+        wikilinkCount: markdownLinks.length,
+      });
+
+      wikilinksByNotes[note.noteId] = markdownLinks;
     }
 
     for (const note of notes) {
@@ -189,5 +196,66 @@ export class ResolveWikilinksService implements BaseService {
       .trim()
       .toLowerCase()
       .replace(/\s/g, '-');
+  }
+
+  /**
+   * Merge and deduplicate wikilinks from markdown and Dataview HTML.
+   *
+   * Deduplication strategy:
+   * - Normalize paths (lowercase, strip .md, normalize accents)
+   * - Keep first occurrence (markdown links take precedence over Dataview)
+   * - Preserve all metadata from first occurrence
+   *
+   * @param markdownLinks - Links extracted from markdown wikilink syntax
+   * @param dataviewLinks - Links extracted from Dataview HTML data-wikilink attributes
+   * @returns Merged and deduplicated array
+   */
+  private mergeAndDeduplicateLinks(
+    markdownLinks: WikilinkRef[],
+    dataviewLinks: WikilinkRef[]
+  ): WikilinkRef[] {
+    const seen = new Set<string>();
+    const merged: WikilinkRef[] = [];
+
+    // Process markdown links first (they take precedence)
+    for (const link of markdownLinks) {
+      const key = this.getLinkDeduplicationKey(link);
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(link);
+      }
+    }
+
+    // Add Dataview links that weren't already present in markdown
+    for (const link of dataviewLinks) {
+      const key = this.getLinkDeduplicationKey(link);
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(link);
+      }
+    }
+
+    return merged;
+  }
+
+  /**
+   * Generate deduplication key for a wikilink.
+   * Uses origin + frontmatterPath + normalized target path + subpath (if any).
+   *
+   * Origin and frontmatterPath are included to avoid deduplicating links
+   * that appear in both content and frontmatter, as they serve different purposes.
+   *
+   * Examples:
+   * - [[Folder/Note]] in content → "content::folder/note"
+   * - [[Folder/Note]] in frontmatter → "frontmatter:links[0]:folder/note"
+   * - [[Folder/Note#Section]] → "content::folder/note#section"
+   * - [[Note|Alias]] → "content::note" (alias ignored)
+   */
+  private getLinkDeduplicationKey(link: WikilinkRef): string {
+    const normalizedPath = this.normalizePath(link.path);
+    const normalizedSubpath = link.subpath ? `#${link.subpath.toLowerCase()}` : '';
+    const origin = link.origin || 'content';
+    const fmPath = link.frontmatterPath || '';
+    return `${origin}:${fmPath}:${normalizedPath}${normalizedSubpath}`;
   }
 }

@@ -132,6 +132,7 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
       minZoom?: number;
       maxZoom?: number;
       zoomControl: boolean;
+      attributionControl: boolean;
       scrollWheelZoom: boolean;
       doubleClickZoom: boolean;
       boxZoom: boolean;
@@ -147,6 +148,7 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
       minZoom: this.block.minZoom ?? (hasImageOverlays ? -5 : undefined),
       maxZoom: this.block.maxZoom ?? (hasImageOverlays ? 2 : undefined),
       zoomControl: true,
+      attributionControl: false, // Désactiver l'attribution Leaflet par défaut
       scrollWheelZoom: true,
       doubleClickZoom: true,
       boxZoom: true,

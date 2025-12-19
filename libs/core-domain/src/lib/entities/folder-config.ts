@@ -15,4 +15,10 @@ export interface FolderConfig {
    * These are opt-out from VPS-level cleanup rules
    */
   ignoredCleanupRuleIds: string[];
+
+  /**
+   * Optional custom index file path (relative to vault root)
+   * This file's content will be prepended to the generated folder index
+   */
+  customIndexFile?: string;
 }

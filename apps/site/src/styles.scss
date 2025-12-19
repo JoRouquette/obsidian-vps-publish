@@ -4,6 +4,9 @@
 // Import Leaflet CSS for map rendering
 @import 'leaflet/dist/leaflet.css';
 
+// Import Material Design fonts
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
+
 @include mat.core();
 
 :root.theme-light {

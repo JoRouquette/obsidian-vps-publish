@@ -1,3 +1,4 @@
+import type { CustomIndexConfig } from './custom-index-config';
 import type { FolderConfig } from './folder-config';
 import type { IgnoreRule } from './ignore-rule';
 import type { SanitizationRules, SanitizationRulesDefaults } from './sanitization-rules';
@@ -26,6 +27,19 @@ export interface VpsConfig {
 
   /** Folders associated with this VPS (minimum 1 required) */
   folders: FolderConfig[];
+
+  /**
+   * Custom index configurations for folders.
+   * Allows defining custom index files to be included at the beginning
+   * of generated folder indices.
+   */
+  customIndexes?: CustomIndexConfig[];
+
+  /**
+   * Optional custom root index file path (relative to vault root).
+   * This file's content will be used as the root index page (/).
+   */
+  customRootIndexFile?: string;
 }
 
 /**

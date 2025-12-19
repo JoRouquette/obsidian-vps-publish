@@ -1,3 +1,4 @@
+export * from './dataview';
 export * from './entities';
 export * from './entities/chunked-data';
 export * from './entities/publishing-stats';

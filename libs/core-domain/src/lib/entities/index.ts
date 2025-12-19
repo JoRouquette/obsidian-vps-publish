@@ -4,6 +4,7 @@ export * from './asset-display-options';
 export * from './asset-kind';
 export * from './asset-ref';
 export * from './collected-note';
+export * from './custom-index-config';
 export * from './domain-frontmatter';
 export * from './folder-config';
 export * from './http-response';

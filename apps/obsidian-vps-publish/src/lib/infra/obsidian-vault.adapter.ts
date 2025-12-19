@@ -7,19 +7,80 @@ import { type App, type TAbstractFile, TFile, TFolder } from 'obsidian';
 
 export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
   private readonly logger: LoggerPort;
+  private readonly customIndexFiles: Set<string> = new Set();
 
   constructor(
     private readonly app: App,
     private readonly guidGenerator: GuidGeneratorPort,
-    logger: LoggerPort
+    logger: LoggerPort,
+    private readonly customRootIndexFile?: string
   ) {
     this.logger = logger;
-    this.logger.debug('ObsidianVaultAdapter initialized');
+    this.logger.debug('ObsidianVaultAdapter initialized', { customRootIndexFile });
+
+    // Add root index to exclusion list
+    if (customRootIndexFile) {
+      this.customIndexFiles.add(this.normalizePath(customRootIndexFile));
+    }
   }
 
   async collectFromFolder(params: { folderConfig: FolderConfig[] }): Promise<CollectedNote[]> {
     const { folderConfig } = params;
     const result: CollectedNote[] = [];
+
+    // Build list of custom index files (for special handling, not exclusion)
+    for (const cfg of folderConfig) {
+      if (cfg.customIndexFile) {
+        this.customIndexFiles.add(this.normalizePath(cfg.customIndexFile));
+      }
+    }
+
+    if (this.customIndexFiles.size > 0) {
+      this.logger.debug('Custom index files detected for special handling', {
+        count: this.customIndexFiles.size,
+        files: Array.from(this.customIndexFiles),
+      });
+    }
+
+    // Collect custom root index file first (if configured)
+    if (this.customRootIndexFile) {
+      const rootIndexFile = this.app.vault.getAbstractFileByPath(this.customRootIndexFile);
+      if (rootIndexFile && rootIndexFile instanceof TFile) {
+        this.logger.debug('Collecting custom root index file', { path: this.customRootIndexFile });
+        const rawContent = await this.app.vault.read(rootIndexFile);
+        const cache = this.app.metadataCache.getFileCache(rootIndexFile);
+        const frontmatter: Record<string, unknown> =
+          (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+
+        const content = this.stripFrontmatter(rawContent);
+
+        result.push({
+          noteId: this.guidGenerator.generateGuid(),
+          title: rootIndexFile.basename,
+          vaultPath: rootIndexFile.path,
+          relativePath: rootIndexFile.path, // Root file has no relative path
+          content,
+          frontmatter: { flat: frontmatter, nested: {}, tags: [] },
+          folderConfig: {
+            id: 'root-index',
+            vpsId: '', // Will be filled by plugin main
+            vaultFolder: '',
+            routeBase: '/',
+            ignoredCleanupRuleIds: [],
+          },
+        });
+
+        this.logger.debug('Collected custom root index file', {
+          path: rootIndexFile.path,
+          originalLength: rawContent.length,
+          strippedLength: content.length,
+        });
+      } else {
+        this.logger.warn('Custom root index file not found in vault', {
+          customRootIndexFile: this.customRootIndexFile,
+        });
+      }
+    }
 
     for (const cfg of folderConfig) {
       const rootPath = cfg.vaultFolder?.trim();
@@ -92,6 +153,13 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
       return rel.length > 0 ? rel : '';
     }
     return filePath;
+  }
+
+  /**
+   * Normalizes a file path for comparison (removes leading/trailing slashes).
+   */
+  private normalizePath(path: string): string {
+    return path.replace(/^\/+|\/+$/g, '');
   }
 
   /**

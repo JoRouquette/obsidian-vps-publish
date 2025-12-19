@@ -35,6 +35,7 @@ export class CreateSessionHandler
       status: 'pending',
       createdAt: now,
       updatedAt: now,
+      customIndexConfigs: command.customIndexConfigs,
     };
 
     await this.sessionRepository.create(session);
