@@ -1,5 +1,5 @@
 import { type HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
-import { type PublishableNote, type VpsConfig } from '@core-domain';
+import { type CustomIndexConfig, type PublishableNote, type VpsConfig } from '@core-domain';
 import { type ChunkedData } from '@core-domain/entities/chunked-data';
 import { type HttpResponse } from '@core-domain/entities/http-response';
 import { type LoggerPort } from '@core-domain/ports/logger-port';
@@ -49,12 +49,14 @@ export class SessionApiClient {
     assetsPlanned: number;
     maxBytesPerRequest: number;
     calloutStyles?: { path: string; css: string }[];
+    customIndexConfigs?: CustomIndexConfig[];
   }): Promise<StartSessionResponse> {
     const result = await this.postJson('/api/session/start', {
       notesPlanned: payload.notesPlanned,
       assetsPlanned: payload.assetsPlanned,
       batchConfig: { maxBytesPerRequest: payload.maxBytesPerRequest },
       calloutStyles: payload.calloutStyles ?? [],
+      customIndexConfigs: payload.customIndexConfigs ?? [],
     });
 
     if (result.isError) throw result.error ?? new Error('startSession failed');

@@ -6,6 +6,7 @@ import type { VpsConfig } from '@core-domain/entities/vps-config';
 import { Notice, Setting } from 'obsidian';
 
 import type { Translations } from '../../../i18n';
+import { FileSuggest } from '../../suggesters/file-suggester';
 import { defaultSanitizationRules } from '../../utils/create-default-folder-config.util';
 import type { SettingsViewContext } from '../context';
 
@@ -164,6 +165,26 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
             await ctx.save();
           })();
         });
+      });
+
+    // Custom Root Index File
+    new Setting(vpsFieldset)
+      .setName('Custom Root Index File')
+      .setDesc(
+        'Optional: Select a file from your vault to use as the root index page (/) for this VPS.'
+      )
+      .addText((text) => {
+        text
+          .setPlaceholder('index.md')
+          .setValue(vps.customRootIndexFile ?? '')
+          .onChange((value) => {
+            const trimmed = value.trim();
+            logger.debug('VPS customRootIndexFile changed', { vpsId: vps.id, value: trimmed });
+            vps.customRootIndexFile = trimmed || undefined;
+            void ctx.save();
+          });
+
+        new FileSuggest(ctx.app, text.inputEl);
       });
 
     // VPS Actions (Test Connection & Upload)

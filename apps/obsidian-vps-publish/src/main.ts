@@ -10,9 +10,10 @@ import { EnsureTitleHeaderService } from '@core-application/vault-parsing/servic
 import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
-import { type CollectedNote, type VpsConfig } from '@core-domain';
+import { type CollectedNote, type CustomIndexConfig, type VpsConfig } from '@core-domain';
 import { type HttpResponse } from '@core-domain/entities/http-response';
 import { ProgressStepId, ProgressStepStatus } from '@core-domain/entities/progress-step';
+import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import {
   createPublishingStats,
   formatPublishingStats,
@@ -24,6 +25,8 @@ import { type DataAdapter, Notice, Plugin, type RequestUrlResponse } from 'obsid
 import { getTranslations } from './i18n';
 import { decryptApiKey, encryptApiKey } from './lib/api-key-crypto';
 import { DEFAULT_LOGGER_LEVEL } from './lib/constants/default-logger-level.constant';
+import { type DataviewApi, DataviewExecutor } from './lib/dataview/dataview-executor';
+import { processDataviewBlocks } from './lib/dataview/process-dataview-blocks.service';
 import { AssetsUploaderAdapter } from './lib/infra/assets-uploader.adapter';
 import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
 import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
@@ -279,15 +282,59 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ====================================================================
       notificationAdapter.info('🔍 Analyzing vault notes...');
 
-      const vault = new ObsidianVaultAdapter(this.app, guidGenerator, scopedLogger);
+      const vault = new ObsidianVaultAdapter(
+        this.app,
+        guidGenerator,
+        scopedLogger,
+        vps.customRootIndexFile
+      );
       const notes: CollectedNote[] = await vault.collectFromFolder({
         folderConfig: vps.folders,
       });
 
       stats.totalNotesAnalyzed = notes.length;
 
-      const parseContentHandler = this.buildParseContentHandler(vps, settings, scopedLogger);
+      // Check if Dataview plugin is available
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dataviewApi = (this.app as any).plugins?.plugins?.dataview?.api as
+        | DataviewApi
+        | undefined;
+      scopedLogger.debug('🔌 Dataview plugin status check', {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        hasPluginsManager: !!(this.app as any).plugins,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        hasDataviewPlugin: !!(this.app as any).plugins?.plugins?.dataview,
+        hasDataviewApi: !!dataviewApi,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        dataviewVersion: (this.app as any).plugins?.plugins?.dataview?.manifest?.version,
+      });
+      if (!dataviewApi) {
+        scopedLogger.warn(
+          '⚠️ Dataview plugin not found or not enabled. Dataview blocks will be replaced with error messages.'
+        );
+        notificationAdapter.info(
+          '⚠️ Dataview plugin not detected. Dataview blocks will show as errors on the site.'
+        );
+      } else {
+        scopedLogger.debug('✅ Dataview plugin detected and ready');
+      }
+
+      const parseContentHandler = this.buildParseContentHandler(
+        vps,
+        settings,
+        scopedLogger,
+        dataviewApi
+      );
+
+      scopedLogger.warn('🔥 CALLING ParseContentHandler.handle()', {
+        notesCount: notes.length,
+      });
+
       const publishables = await parseContentHandler.handle(notes);
+
+      scopedLogger.warn('🔥 ParseContentHandler.handle() RETURNED', {
+        publishablesCount: publishables.length,
+      });
 
       const publishableCount = publishables.length;
       stats.notesEligible = publishableCount;
@@ -335,12 +382,43 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       );
       const calloutStyles = await this.loadCalloutStyles(settings.calloutStylePaths ?? []);
 
+      // Build custom index configs from VPS and folder settings
+      const customIndexConfigs: CustomIndexConfig[] = [];
+      const guidGen = new GuidGeneratorAdapter();
+
+      // Add root index if configured
+      if (vps.customRootIndexFile) {
+        customIndexConfigs.push({
+          id: guidGen.generateGuid(),
+          folderPath: '',
+          indexFilePath: vps.customRootIndexFile,
+          isRootIndex: true,
+        });
+      }
+
+      // Add folder indexes if configured
+      for (const folder of vps.folders) {
+        if (folder.customIndexFile) {
+          customIndexConfigs.push({
+            id: guidGen.generateGuid(),
+            folderPath: folder.routeBase, // Use routeBase (published route) not vaultFolder
+            indexFilePath: folder.customIndexFile,
+          });
+        }
+      }
+
+      this.logger.debug('Custom index configs built', {
+        count: customIndexConfigs.length,
+        configs: customIndexConfigs,
+      });
+
       const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
       const started = await sessionClient.startSession({
         notesPlanned: publishableCount,
         assetsPlanned: assetsPlanned,
         maxBytesPerRequest: defaultNginxLimit,
         calloutStyles,
+        customIndexConfigs,
       });
 
       sessionId = started.sessionId;
@@ -597,7 +675,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
   private buildParseContentHandler(
     vps: VpsConfig,
     settings: PluginSettings,
-    logger: LoggerPort
+    logger: LoggerPort,
+    dataviewApi?: DataviewApi
   ): ParseContentHandler {
     const normalizeFrontmatterService = new NormalizeFrontmatterService(logger);
     const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(
@@ -606,6 +685,38 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     );
     const noteMapper = new NotesMapper();
     const inlineDataviewRenderer = new RenderInlineDataviewService(logger);
+
+    // Dataview block processor (plugin-side only)
+    // Executes blocks via Dataview API and converts results to native Markdown
+    // (wikilinks, inclusions, tables MD, lists) - NOT HTML
+    const dataviewProcessor = async (notes: PublishableNote[]): Promise<PublishableNote[]> => {
+      // Create executor if Dataview API is available
+      const executor = dataviewApi ? new DataviewExecutor(dataviewApi, this.app) : undefined;
+
+      return Promise.all(
+        notes.map(async (note) => {
+          try {
+            const result = await processDataviewBlocks(note.content, executor, note.vaultPath);
+
+            // CRITICAL: Replace content with native Markdown
+            // This ensures fenced code blocks are NEVER uploaded
+            // Content now has Markdown wikilinks/tables instead of ```dataview blocks
+            return {
+              ...note,
+              content: result.content, // Content now has Markdown instead of ```dataview blocks
+            };
+          } catch (error) {
+            logger.error('Failed to process Dataview blocks', {
+              noteId: note.noteId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            // Return note unchanged on catastrophic error
+            return note;
+          }
+        })
+      );
+    };
+
     const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
     // Note: ContentSanitizerService est maintenant appliqué côté backend après la finalisation
     const assetsDetector = new DetectAssetsService(logger);
@@ -624,7 +735,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       assetsDetector,
       resolveWikilinks,
       computeRoutingService,
-      logger
+      logger,
+      dataviewProcessor // Plugin-side Dataview processing
     );
   }
 }

@@ -10,6 +10,9 @@ import type { ResolvedWikilink } from './resolved-wikilink';
  *
  * Chaque usecase ajoute son petit morceau (routing, assets, wikilinks, etc.)
  * en enrichissant la note, sans créer de hiérarchie de classes.
+ *
+ * NOTE: Dataview blocks are rendered to HTML and embedded directly in `content`.
+ * No separate metadata needed since blocks are replaced before upload.
  */
 export interface PublishableNote extends NoteCore {
   routing: NoteRoutingInfo;

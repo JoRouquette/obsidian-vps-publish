@@ -6,6 +6,7 @@ describe('ContentStoragePort', () => {
   beforeEach(() => {
     contentStorage = {
       save: jest.fn().mockResolvedValue(undefined),
+      read: jest.fn().mockResolvedValue(null),
     };
   });
 
@@ -24,9 +25,27 @@ describe('ContentStoragePort', () => {
   it('should reject if save throws an error', async () => {
     const errorStorage: ContentStoragePort = {
       save: jest.fn().mockRejectedValue(new Error('Failed to save')),
+      read: jest.fn().mockResolvedValue(null),
     };
     await expect(
       errorStorage.save({ route: '/fail', content: 'fail', slug: 'fail-slug' })
     ).rejects.toThrow('Failed to save');
+  });
+
+  it('should call read with correct route', async () => {
+    const route = '/test/page';
+    await contentStorage.read(route);
+    expect(contentStorage.read).toHaveBeenCalledWith(route);
+  });
+
+  it('should return content when read is successful', async () => {
+    const mockContent = '<div>Test content</div>';
+    (contentStorage.read as jest.Mock).mockResolvedValue(mockContent);
+    await expect(contentStorage.read('/test')).resolves.toBe(mockContent);
+  });
+
+  it('should return null when content not found', async () => {
+    (contentStorage.read as jest.Mock).mockResolvedValue(null);
+    await expect(contentStorage.read('/not-found')).resolves.toBeNull();
   });
 });

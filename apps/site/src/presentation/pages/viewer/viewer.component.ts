@@ -66,12 +66,12 @@ export class ViewerComponent {
           if (p) {
             this.title.set(this.capitalize(p.title) ?? '');
             // Mettre à jour les blocs Leaflet si présents
-            const blocks = p.leafletBlocks ?? [];
+            const leafletBlocks = p.leafletBlocks ?? [];
             console.log('[ViewerComponent] Found page:', {
               route: normalized,
-              leafletBlocks: blocks,
+              leafletBlocks,
             });
-            this.leafletBlocks.set(blocks);
+            this.leafletBlocks.set(leafletBlocks);
           } else {
             console.log('[ViewerComponent] Page not found in manifest:', normalized);
             this.leafletBlocks.set([]);

@@ -13,4 +13,10 @@ export interface ManifestPage {
   relativePath?: string;
   tags?: string[];
   leafletBlocks?: LeafletBlock[];
+
+  /**
+   * Indicates if this page is a custom index file
+   * Custom indexes should not appear in vault explorer
+   */
+  isCustomIndex?: boolean;
 }

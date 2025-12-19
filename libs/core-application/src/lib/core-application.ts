@@ -7,6 +7,10 @@ export * from './ports/id-generator.port';
 export * from './ports/logger.port';
 export * from './ports/markdown-renderer.port';
 
+// Dataview (Application Layer)
+export * from './dataview/dataview-to-markdown.converter';
+export * from './dataview/markdown-link-normalizer';
+
 // Sessions
 export * from './sessions/commands/abort-session.command';
 export * from './sessions/commands/abort-session.result';

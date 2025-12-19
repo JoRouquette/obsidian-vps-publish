@@ -15,12 +15,60 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     this.calloutRenderer = calloutRenderer ?? new CalloutRendererService();
     this.md = new MarkdownIt({
       html: true,
-      linkify: true,
+      linkify: false, // Wikilinks already converted before render (no auto-linking needed)
       typographer: true,
     });
 
     this.calloutRenderer.register(this.md);
     this.customizeTableRenderer();
+    this.customizeListRenderer();
+  }
+
+  /**
+   * Customise le rendu des listes pour supprimer les <p> superflus dans les <li>
+   * Les <p> ajoutent du padding/margin inutile
+   */
+  private customizeListRenderer(): void {
+    const defaultParagraphOpen =
+      this.md.renderer.rules.paragraph_open ||
+      function (tokens, idx, options, env, self) {
+        return self.renderToken(tokens, idx, options);
+      };
+
+    const defaultParagraphClose =
+      this.md.renderer.rules.paragraph_close ||
+      function (tokens, idx, options, env, self) {
+        return self.renderToken(tokens, idx, options);
+      };
+
+    this.md.renderer.rules.paragraph_open = (tokens, idx, options, env, self) => {
+      // Simple check: count open/close list_item tokens before this paragraph
+      let listItemDepth = 0;
+      for (let i = 0; i < idx; i++) {
+        if (tokens[i].type === 'list_item_open') listItemDepth++;
+        if (tokens[i].type === 'list_item_close') listItemDepth--;
+      }
+
+      // If we're inside a list item (depth > 0), skip <p> tag
+      if (listItemDepth > 0) {
+        return '';
+      }
+      return defaultParagraphOpen(tokens, idx, options, env, self);
+    };
+
+    this.md.renderer.rules.paragraph_close = (tokens, idx, options, env, self) => {
+      // Same logic for closing tag
+      let listItemDepth = 0;
+      for (let i = 0; i < idx; i++) {
+        if (tokens[i].type === 'list_item_open') listItemDepth++;
+        if (tokens[i].type === 'list_item_close') listItemDepth--;
+      }
+
+      if (listItemDepth > 0) {
+        return '';
+      }
+      return defaultParagraphClose(tokens, idx, options, env, self);
+    };
   }
 
   /**
@@ -60,6 +108,7 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     const withAssets = this.injectAssets(note.content, contentAssets);
     const withLinks = this.injectWikilinks(withAssets, contentLinks);
     const html = this.md.render(withLinks);
+
     const iconFontLink = [
       '<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />',
       '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />',

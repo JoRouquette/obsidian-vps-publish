@@ -42,7 +42,7 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
         // 1. Déterminer la cible textuelle
         const target = this.extractLinkTarget(asset);
         if (!target) {
-          this._logger.warn('Unable to extract link target from asset', asset);
+          this._logger.debug('Unable to extract link target from asset', asset);
           continue;
         }
 
@@ -165,7 +165,7 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
       const inner = (match ? match[1] : raw).trim();
 
       if (!inner) {
-        this._logger.warn('No inner content found in raw asset', { raw });
+        this._logger.debug('No inner content found in raw asset', { raw });
         return null;
       }
 
@@ -174,7 +174,7 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
       return firstPart || null;
     }
 
-    this._logger.warn('Unable to extract link target from asset', { asset });
+    this._logger.debug('Unable to extract link target from asset', { asset });
     return null;
   }
 

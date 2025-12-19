@@ -18,6 +18,7 @@ export interface ManifestPort {
   /**
    * Reconstruit tous les index du site à partir du manifest.
    * @param manifest Le manifest du site.
+   * @param customIndexesHtml Optional custom HTML content for indexes, keyed by folder path
    */
-  rebuildIndex(manifest: Manifest): Promise<void>;
+  rebuildIndex(manifest: Manifest, customIndexesHtml?: Map<string, string>): Promise<void>;
 }

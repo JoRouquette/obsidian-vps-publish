@@ -20,8 +20,12 @@ describe('ConsoleLoggerAdapter', () => {
 
     expect(child.level & LogLevel.info).toBe(LogLevel.info);
     child.debug('hello');
-    const lastArg = (console.debug as jest.Mock).mock.calls[0].slice(-1)[0];
-    expect(lastArg).toMatchObject({ root: true, feature: 'x' });
+
+    // Le logger formate tout dans une seule chaîne avec JSON.stringify
+    const output = (console.debug as jest.Mock).mock.calls[0][0];
+    expect(output).toContain('hello');
+    expect(output).toContain('"root": true');
+    expect(output).toContain('"feature": "x"');
   });
 
   it('filtre les logs selon le niveau', () => {

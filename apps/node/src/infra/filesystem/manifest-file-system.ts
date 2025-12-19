@@ -72,11 +72,11 @@ export class ManifestFileSystem implements ManifestPort {
           const serializedPage = {
             ...p,
             publishedAt: p.publishedAt.toISOString(),
-            // Explicitly include leafletBlocks to ensure they're serialized
+            // Explicitly include blocks to ensure they're serialized
             leafletBlocks: p.leafletBlocks ?? undefined,
           };
 
-          // Debug log for pages with Leaflet blocks
+          // Debug log for pages with plugin blocks
           if (p.leafletBlocks && p.leafletBlocks.length > 0) {
             this._logger?.debug('Serializing page with Leaflet blocks', {
               title: p.title,
@@ -98,8 +98,11 @@ export class ManifestFileSystem implements ManifestPort {
     }
   }
 
-  async rebuildIndex(manifest: Manifest): Promise<void> {
-    this._logger?.debug('Rebuilding all indexes', { contentRoot: this.contentRoot });
+  async rebuildIndex(manifest: Manifest, customIndexesHtml?: Map<string, string>): Promise<void> {
+    this._logger?.debug('Rebuilding all indexes', {
+      contentRoot: this.contentRoot,
+      hasCustomContent: customIndexesHtml ? customIndexesHtml.size : 0,
+    });
     const folders = this.buildFolderMap(manifest);
 
     const topDirs = [...folders.keys()]
@@ -111,9 +114,14 @@ export class ManifestFileSystem implements ManifestPort {
         return { name: dir.replace('/', ''), link: dir, count };
       });
 
-    await this.writeHtml(path.join(this.contentRoot, 'index.html'), renderRootIndex(topDirs));
+    const rootCustomContent = customIndexesHtml?.get('/');
+    await this.writeHtml(
+      path.join(this.contentRoot, 'index.html'),
+      renderRootIndex(topDirs, rootCustomContent)
+    );
     this._logger?.debug('Root index.html written', {
       path: path.join(this.contentRoot, 'index.html'),
+      hasCustomContent: !!rootCustomContent,
     });
 
     for (const [folder, data] of folders.entries()) {
@@ -129,13 +137,17 @@ export class ManifestFileSystem implements ManifestPort {
         return { name: sf, link: sfPath, count };
       });
 
+      // Get custom content only for this exact folder (no inheritance)
+      const folderCustomContent = customIndexesHtml?.get(folder);
+
       await this.writeHtml(
         path.join(folderDir, 'index.html'),
-        renderFolderIndex(folder, data.pages, subfolders)
+        renderFolderIndex(folder, data.pages, subfolders, folderCustomContent)
       );
       this._logger?.debug('Folder index.html written', {
         folder,
         path: path.join(folderDir, 'index.html'),
+        hasCustomContent: !!folderCustomContent,
       });
     }
     this._logger?.debug('All indexes rebuilt');

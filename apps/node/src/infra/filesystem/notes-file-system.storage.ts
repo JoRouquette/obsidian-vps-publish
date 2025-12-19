@@ -42,4 +42,46 @@ export class NotesFileSystemStorage implements ContentStoragePort {
       throw error;
     }
   }
+
+  async read(route: string): Promise<string | null> {
+    const cleanedRoute = path.posix.normalize('/' + (route || '').trim());
+    const segs = cleanedRoute.replace(/^\/+/, '').split('/').filter(Boolean);
+
+    try {
+      let filePath: string;
+
+      // Build file path: route segments except last, then last segment with .html
+      if (segs.length === 0) {
+        this.logger?.warn('Cannot read root level file without segments', { route });
+        return null;
+      }
+
+      // The route already contains the full path including the slug
+      // Just need to add .html extension if not present
+      const lastSeg = segs[segs.length - 1];
+      const fileSegments = lastSeg.endsWith('.html')
+        ? segs
+        : [...segs.slice(0, -1), `${lastSeg}.html`];
+
+      filePath = resolveWithinRoot(this.rootDir, ...fileSegments);
+
+      this.logger?.debug('Attempting to read HTML file', {
+        route,
+        fileSegments,
+        filePath,
+      });
+
+      const content = await fs.readFile(filePath, 'utf8');
+      this.logger?.debug('Read HTML from file', { filePath, route, contentLength: content.length });
+      return content;
+    } catch (error) {
+      const code = (error as { code?: string } | undefined)?.code;
+      if (code === 'ENOENT') {
+        this.logger?.debug('HTML file not found', { route });
+        return null;
+      }
+      this.logger?.error('Failed to read HTML file', { error, route });
+      throw error;
+    }
+  }
 }

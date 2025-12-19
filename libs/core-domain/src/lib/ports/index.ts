@@ -1,4 +1,6 @@
 export * from './assets-vault-port';
+export * from './custom-index-resolver-port';
+export * from './dataview-processor-port';
 export * from './guid-generator-port';
 export * from './logger-port';
 export * from './manifest-repository.port';

@@ -105,6 +105,7 @@ export function createApp(rootLogger?: LoggerPort) {
     markdownRenderer,
     noteStorage,
     manifestFileSystem,
+    sessionRepository,
     rootLogger
   );
 

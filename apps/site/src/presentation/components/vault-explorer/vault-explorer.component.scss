@@ -10,11 +10,12 @@
   --indent: 0.5em;
   --label-gap: 0.8em;
 
-  --bg-surface: var(--its-background, var(--mat-sys-surface));
-  --on-surface: var(--its-on-surface, var(--mat-sys-on-surface));
-  --primary: var(--its-primary, var(--mat-sys-primary));
-  --secondary: var(--its-secondary, var(--mat-sys-secondary));
-  --tertiary: var(--its-tertiary, var(--mat-sys-tertiary));
+  /* Normalized ITS theme tokens (60/30/10) */
+  --bg-surface: var(--color-bg-primary); /* 60%: panel background */
+  --on-surface: var(--color-text-primary);
+  --primary: var(--color-accent-header); /* 10%: accent */
+  --secondary: var(--color-accent-secondary); /* 10%: accent */
+  --tertiary: var(--color-accent-primary); /* 10%: accent */
 }
 
 .explorer {

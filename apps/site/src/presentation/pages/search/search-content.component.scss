@@ -5,12 +5,13 @@
 }
 
 .search-page {
-  --c-surface: var(--its-surface, var(--mat-sys-surface));
-  --c-surface-variant: var(--its-surface-variant, var(--mat-sys-surface-variant));
-  --c-on-surface: var(--its-on-surface, var(--mat-sys-on-surface));
-  --c-outline: var(--its-outline, var(--mat-sys-outline-variant));
-  --c-primary: var(--its-primary, var(--mat-sys-primary));
-  --c-secondary: var(--its-secondary, var(--mat-sys-secondary));
+  /* Normalized ITS theme tokens (60/30/10) */
+  --c-surface: var(--color-bg-secondary); /* 60%: content area */
+  --c-surface-variant: var(--color-surface-default); /* 30%: cards */
+  --c-on-surface: var(--color-text-primary);
+  --c-outline: var(--color-border-default);
+  --c-primary: var(--color-accent-header); /* 10%: accent */
+  --c-secondary: var(--color-accent-secondary); /* 10%: accent */
 
   max-width: 1080px;
   margin: 0 auto;
