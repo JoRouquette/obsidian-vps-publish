@@ -102,7 +102,7 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
         }
 
         if (!file) {
-          this._logger.warn('Asset not found in vault', {
+          this._logger.debug('Asset not found in vault', {
             target,
             note: note.vaultPath,
           });

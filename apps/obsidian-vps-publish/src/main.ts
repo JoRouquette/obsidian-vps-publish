@@ -309,14 +309,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         dataviewVersion: (this.app as any).plugins?.plugins?.dataview?.manifest?.version,
       });
       if (!dataviewApi) {
-        scopedLogger.warn(
-          '⚠️ Dataview plugin not found or not enabled. Dataview blocks will be replaced with error messages.'
+        scopedLogger.debug(
+          'Dataview plugin not found or not enabled. Dataview blocks will be replaced with error messages.'
         );
         notificationAdapter.info(
           '⚠️ Dataview plugin not detected. Dataview blocks will show as errors on the site.'
         );
       } else {
-        scopedLogger.debug('✅ Dataview plugin detected and ready');
+        scopedLogger.debug('Dataview plugin detected and ready');
       }
 
       const parseContentHandler = this.buildParseContentHandler(
@@ -326,13 +326,13 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         dataviewApi
       );
 
-      scopedLogger.warn('🔥 CALLING ParseContentHandler.handle()', {
+      scopedLogger.debug('Parsing content', {
         notesCount: notes.length,
       });
 
       const publishables = await parseContentHandler.handle(notes);
 
-      scopedLogger.warn('🔥 ParseContentHandler.handle() RETURNED', {
+      scopedLogger.debug('Content parsed', {
         publishablesCount: publishables.length,
       });
 
