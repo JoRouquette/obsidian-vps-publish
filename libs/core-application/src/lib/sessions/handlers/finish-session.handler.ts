@@ -1,7 +1,6 @@
-import { SessionInvalidError, SessionNotFoundError } from '@core-domain';
+import { SessionInvalidError, SessionNotFoundError, type LoggerPort } from '@core-domain';
 
 import { type CommandHandler } from '../../common/command-handler';
-import { type LoggerPort } from '../../ports/logger.port';
 import { type FinishSessionCommand } from '../commands/finish-session.command';
 import { type FinishSessionResult } from '../commands/finish-session.result';
 import { type SessionRepository } from '../ports/session.repository';
@@ -15,20 +14,30 @@ export class FinishSessionHandler
     private readonly sessionRepository: SessionRepository,
     logger?: LoggerPort
   ) {
-    this.logger = logger?.child({ handler: 'FinishSessionHandler' });
+    this.logger = logger?.child({ scope: 'sessions', operation: 'finishSession' });
   }
 
   async handle(command: FinishSessionCommand): Promise<FinishSessionResult> {
-    const logger = this.logger?.child({ method: 'handle', sessionId: command.sessionId });
+    const logger = this.logger?.child({ sessionId: command.sessionId });
 
     const session = await this.sessionRepository.findById(command.sessionId);
     if (!session) {
-      logger?.warn('Session not found');
+      logger?.error('Finish failed: session not found', {
+        sessionId: command.sessionId,
+        reason: 'SessionNotFoundError',
+        action: 'Verify sessionId or start new session',
+      });
       throw new SessionNotFoundError(command.sessionId);
     }
 
     if (session.status === 'aborted' || session.status === 'finished') {
-      logger?.warn('Invalid session status for finish', { status: session.status });
+      logger?.error('Finish failed: invalid session status', {
+        sessionId: session.id,
+        status: session.status,
+        validStatuses: ['pending', 'active'],
+        reason: 'SessionInvalidError',
+        action: 'Can only finish pending or active sessions',
+      });
       throw new SessionInvalidError(
         `Cannot finish session with status ${session.status}`,
         session.id
@@ -43,7 +52,12 @@ export class FinishSessionHandler
 
     await this.sessionRepository.save(session);
 
-    logger?.debug('Session finished');
+    logger?.info('Session finished successfully', {
+      sessionId: session.id,
+      notesProcessed: session.notesProcessed,
+      assetsProcessed: session.assetsProcessed,
+      previousStatus: session.status,
+    });
 
     return {
       sessionId: session.id,

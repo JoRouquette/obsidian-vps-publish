@@ -1,8 +1,7 @@
-import { type Session } from '@core-domain';
+import { type LoggerPort, type Session } from '@core-domain';
 
 import { type CommandHandler } from '../../common/command-handler';
 import { type IdGeneratorPort } from '../../ports/id-generator.port';
-import { type LoggerPort } from '../../ports/logger.port';
 import { type CreateSessionCommand } from '../commands/create-session.command';
 import { type CreateSessionResult } from '../commands/create-session.result';
 import { type SessionRepository } from '../ports/session.repository';
@@ -17,13 +16,14 @@ export class CreateSessionHandler
     private readonly sessionRepository: SessionRepository,
     logger?: LoggerPort
   ) {
-    this.logger = logger?.child({ handler: 'CreateSessionHandler' });
+    this.logger = logger?.child({ scope: 'sessions', operation: 'createSession' });
   }
 
   async handle(command: CreateSessionCommand): Promise<CreateSessionResult> {
-    const logger = this.logger?.child({ method: 'handle' });
-
+    const startTime = Date.now();
     const sessionId = this.idGenerator.generateId();
+    const logger = this.logger?.child({ sessionId });
+
     const now = new Date();
 
     const session: Session = {
@@ -40,7 +40,14 @@ export class CreateSessionHandler
 
     await this.sessionRepository.create(session);
 
-    logger?.debug('Session created', { sessionId });
+    const duration = Date.now() - startTime;
+    logger?.info('Session created successfully', {
+      sessionId,
+      status: session.status,
+      notesPlanned: session.notesPlanned,
+      assetsPlanned: session.assetsPlanned,
+      durationMs: duration,
+    });
 
     return {
       sessionId,
