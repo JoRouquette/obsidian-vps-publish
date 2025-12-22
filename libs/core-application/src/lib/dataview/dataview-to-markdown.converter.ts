@@ -15,6 +15,7 @@
  */
 
 import type { LoggerPort } from '@core-domain';
+
 import { MarkdownLinkNormalizer } from './markdown-link-normalizer';
 
 /**
