@@ -31,19 +31,19 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
   ) {}
 
   async handle(notes: CollectedNote[]): Promise<PublishableNote[]> {
-    this.logger?.warn('🚀 ParseContentHandler.handle() CALLED', {
+    this.logger?.debug('ParseContentHandler.handle() called', {
       inputNotesCount: notes.length,
     });
 
     let normalizedNotes: CollectedNote[] = this.normalizeFrontmatterService.process(notes);
 
-    this.logger?.warn('✅ Frontmatter normalized', {
+    this.logger?.debug('Frontmatter normalized', {
       notesCount: normalizedNotes.length,
     });
 
     const converted = normalizedNotes.map(this.noteMapper.map);
 
-    this.logger?.warn('✅ Notes converted to PublishableNote', {
+    this.logger?.debug('Notes converted to PublishableNote', {
       notesCount: converted.length,
     });
 
@@ -56,27 +56,27 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
       })
       .filter((n): n is PublishableNote => n !== undefined);
 
-    this.logger?.warn('✅ Ignore rules evaluated', {
+    this.logger?.debug('Ignore rules evaluated', {
       publishableNotesCount: publishableNotes.length,
       ignoredCount: converted.length - publishableNotes.length,
     });
 
     publishableNotes = this.inlineDataviewRenderer.process(publishableNotes);
 
-    this.logger?.warn('✅ Inline dataview processed', {
+    this.logger?.debug('Inline dataview processed', {
       notesCount: publishableNotes.length,
     });
 
     // Process Dataview blocks if processor is provided (plugin-side only)
     if (this.dataviewProcessor) {
-      this.logger?.warn('📝 Processing Dataview blocks', {
+      this.logger?.debug('Processing Dataview blocks', {
         notesCount: publishableNotes.length,
         notesWithDataview: publishableNotes.filter((n) => n.content.includes('```dataview')).length,
       });
 
       publishableNotes = await this.dataviewProcessor(publishableNotes);
 
-      this.logger?.warn('✅ Dataview blocks processed', {
+      this.logger?.debug('Dataview blocks processed', {
         notesCount: publishableNotes.length,
       });
     }
