@@ -17,7 +17,7 @@ export function normalizeSettings(settings: PluginSettings, logger?: LoggerPort)
   try {
     VpsConfigInvariants.validateMinimumVps(settings.vpsConfigs);
   } catch (e) {
-    logger?.error('VPS invariant violation, creating default VPS', e);
+    logger?.error('VPS invariant violation, creating default VPS', { error: e });
     settings.vpsConfigs = [createDefaultVps()];
   }
 
@@ -28,7 +28,7 @@ export function normalizeSettings(settings: PluginSettings, logger?: LoggerPort)
       VpsConfigInvariants.validateUniqueName(settings.vpsConfigs, vps.name, vps.id);
       VpsConfigInvariants.validateUniqueUrl(settings.vpsConfigs, vps.baseUrl, vps.id);
     } catch (e) {
-      logger?.error(`VPS #${index} validation failed`, e);
+      logger?.error(`VPS #${index} validation failed`, { error: e });
       // Fix the VPS
       if (!vps.folders || vps.folders.length === 0) {
         vps.folders = [createDefaultFolder(vps.id)];

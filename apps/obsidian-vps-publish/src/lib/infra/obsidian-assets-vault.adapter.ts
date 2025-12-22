@@ -42,7 +42,9 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
         // 1. Déterminer la cible textuelle
         const target = this.extractLinkTarget(asset);
         if (!target) {
-          this._logger.debug('Unable to extract link target from asset', asset);
+          this._logger.debug('Unable to extract link target from asset', {
+            assetTarget: asset.target,
+          });
           continue;
         }
 
@@ -100,7 +102,7 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
         }
 
         if (!file) {
-          this._logger.warn('Asset not found in vault', {
+          this._logger.debug('Asset not found in vault', {
             target,
             note: note.vaultPath,
           });

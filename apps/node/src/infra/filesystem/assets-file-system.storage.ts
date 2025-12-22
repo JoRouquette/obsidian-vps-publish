@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { type AssetStoragePort, type LoggerPort } from '@core-application';
+import { type AssetStoragePort } from '@core-application';
+import { type LoggerPort } from '@core-domain';
 
 import { resolveWithinRoot } from '../utils/path-utils.util';
 

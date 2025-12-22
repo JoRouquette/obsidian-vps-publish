@@ -172,7 +172,7 @@ function renderCleanupSetting(inner: HTMLElement, ctx: SettingsViewContext): voi
           await plugin.cleanupVps(target, typedName);
           new Notice(t.settings.advanced.cleanup.success);
         } catch (err) {
-          logger.error('VPS cleanup failed', err);
+          logger.error('VPS cleanup failed', { error: err });
           new Notice(t.settings.advanced.cleanup.error);
         } finally {
           cleanupInProgress = false;

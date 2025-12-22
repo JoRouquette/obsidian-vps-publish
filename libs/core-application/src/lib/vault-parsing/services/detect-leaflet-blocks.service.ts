@@ -28,23 +28,23 @@ export class DetectLeafletBlocksService implements BaseService {
   private readonly _logger: LoggerPort;
 
   constructor(logger: LoggerPort) {
-    this._logger = logger.child({ service: 'DetectLeafletBlocksService' });
+    this._logger = logger.child({ scope: 'vault-parsing', operation: 'detectLeafletBlocks' });
   }
 
   process(notes: PublishableNote[]): PublishableNote[] {
-    this._logger.debug('Starting Leaflet blocks detection', { notesCount: notes.length });
+    const startTime = Date.now();
+    let totalBlocks = 0;
+    let notesWithBlocks = 0;
 
-    return notes.map((note) => {
+    const result = notes.map((note) => {
       const blocks = this.extractLeafletBlocks(note.content);
 
       if (blocks.length === 0) {
         return note;
       }
 
-      this._logger.debug('Found Leaflet blocks in note', {
-        noteId: note.noteId,
-        blocksCount: blocks.length,
-      });
+      totalBlocks += blocks.length;
+      notesWithBlocks++;
 
       // Remplacer les blocs Leaflet par des placeholders HTML
       // Cela permet au frontend Angular d'injecter dynamiquement le composant
@@ -61,19 +61,21 @@ export class DetectLeafletBlocksService implements BaseService {
         return `<div class="leaflet-map-placeholder" data-leaflet-map-id="${block.id}"></div>`;
       });
 
-      this._logger.debug('Replaced Leaflet blocks with HTML placeholders', {
-        noteId: note.noteId,
-        originalLength: note.content.length,
-        processedLength: processedContent.length,
-        blocksCount: blocks.length,
-      });
-
       return {
         ...note,
         content: processedContent,
         leafletBlocks: blocks,
       };
     });
+
+    this._logger.info('Leaflet block detection complete', {
+      notesProcessed: notes.length,
+      notesWithBlocks,
+      totalBlocks,
+      durationMs: Date.now() - startTime,
+    });
+
+    return result;
   }
 
   /**

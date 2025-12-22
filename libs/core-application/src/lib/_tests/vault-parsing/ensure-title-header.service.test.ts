@@ -1,33 +1,13 @@
-import { type LoggerPort, LogLevel, type PublishableNote } from '@core-domain';
+import { type PublishableNote } from '@core-domain';
 
 import { EnsureTitleHeaderService } from '../../vault-parsing/services/ensure-title-header.service';
-
-class NoopLogger implements LoggerPort {
-  private _level: LogLevel = LogLevel.debug;
-
-  set level(level: LogLevel) {
-    this._level = level;
-  }
-
-  get level(): LogLevel {
-    return this._level;
-  }
-
-  child(): LoggerPort {
-    return this;
-  }
-
-  debug(): void {}
-  warn(): void {}
-  error(): void {}
-}
+import { NoopLogger } from '../helpers/fake-logger';
 
 describe('EnsureTitleHeaderService', () => {
+  const logger = new NoopLogger();
   let service: EnsureTitleHeaderService;
-  let logger: LoggerPort;
 
   beforeEach(() => {
-    logger = new NoopLogger();
     service = new EnsureTitleHeaderService(logger);
   });
 

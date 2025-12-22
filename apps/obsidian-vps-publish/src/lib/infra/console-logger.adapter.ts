@@ -1,22 +1,12 @@
-import { type LoggerPort, LogLevel } from '@core-domain/ports/logger-port';
+import { type LoggerPort, LogLevel, type LogMeta, type OperationContext } from '@core-domain';
 
 import { DEFAULT_LOGGER_LEVEL } from '../constants/default-logger-level.constant';
 
-/*
-export enum LogLevel {
-  error = 1,
-  warn = 2,
-  info = 4,
-  debug = 8,
-}
-
-*/
-
 export class ConsoleLoggerAdapter implements LoggerPort {
   private _level: LogLevel;
-  private _context: Record<string, unknown>;
+  private _context: OperationContext;
 
-  constructor(context: Record<string, unknown>, level?: LogLevel) {
+  constructor(context: OperationContext = {}, level?: LogLevel) {
     this._context = context;
     this._level = this.getComposedLevel(level ?? DEFAULT_LOGGER_LEVEL);
   }
@@ -29,71 +19,48 @@ export class ConsoleLoggerAdapter implements LoggerPort {
     return this._level;
   }
 
-  child(context: Record<string, unknown>, level?: LogLevel): ConsoleLoggerAdapter {
-    let logLevel;
-    if (level === undefined) {
-      logLevel = this._level;
-    } else {
-      logLevel = this.getComposedLevel(level);
-    }
-
+  child(context: OperationContext, level?: LogLevel): ConsoleLoggerAdapter {
+    const logLevel = level === undefined ? this._level : this.getComposedLevel(level);
     return new ConsoleLoggerAdapter({ ...this._context, ...context }, logLevel);
   }
 
-  debug(message: string, ...args: unknown[]): void {
-    if ((this._level & LogLevel.debug) === 0) {
-      return;
-    }
-
-    const data = this.flattenArgs(args);
+  debug(message: string, meta?: LogMeta): void {
+    if ((this._level & LogLevel.debug) === 0) return;
+    const data = this.mergeContextAndMeta(meta);
     console.debug(`[${this.getCurrentDatetime()}] [debug] ${message}\n${this.serialize(data)}`);
   }
 
-  warn(message: string, ...args: unknown[]): void {
-    if ((this._level & LogLevel.warn) === 0) {
-      return;
-    }
+  info(message: string, meta?: LogMeta): void {
+    if ((this._level & LogLevel.info) === 0) return;
+    const data = this.mergeContextAndMeta(meta);
+    console.log(`[${this.getCurrentDatetime()}] [info] ${message}\n${this.serialize(data)}`);
+  }
 
-    const data = this.flattenArgs(args);
+  warn(message: string, meta?: LogMeta): void {
+    if ((this._level & LogLevel.warn) === 0) return;
+    const data = this.mergeContextAndMeta(meta);
     console.warn(`[${this.getCurrentDatetime()}] [warn] ${message}\n${this.serialize(data)}`);
   }
 
-  error(message: string, ...args: unknown[]): void {
-    if ((this._level & LogLevel.error) === 0) {
-      return;
-    }
-
-    const data = this.flattenArgs(args);
+  error(message: string, meta?: LogMeta): void {
+    if ((this._level & LogLevel.error) === 0) return;
+    const data = this.mergeContextAndMeta(meta);
     console.error(`[${this.getCurrentDatetime()}] [error] ${message}\n${this.serialize(data)}`);
   }
 
-  private flattenArgs(args: unknown[]): Record<string, unknown> {
-    const result: Record<string, unknown> = { ...this._context };
-
-    args.forEach((arg, index) => {
-      if (arg !== null && typeof arg === 'object' && !Array.isArray(arg)) {
-        // Merge object arguments
-        Object.assign(result, arg);
-      } else {
-        // For non-object arguments, use indexed key
-        result[`arg${index}`] = arg;
-      }
-    });
-
-    return result;
+  private mergeContextAndMeta(meta?: LogMeta): Record<string, unknown> {
+    return { ...this._context, ...(meta ?? {}) };
   }
 
   private serialize(data: Record<string, unknown>): string {
     try {
       return JSON.stringify(data, this.jsonReplacer, 2);
     } catch {
-      // Fallback si circular reference ou autre erreur
       return String(data);
     }
   }
 
-  private jsonReplacer(key: string, value: unknown): unknown {
-    // Gérer les erreurs
+  private jsonReplacer(_key: string, value: unknown): unknown {
     if (value instanceof Error) {
       return {
         name: value.name,
@@ -102,7 +69,6 @@ export class ConsoleLoggerAdapter implements LoggerPort {
       };
     }
 
-    // Gérer les circular references (Set, Map, etc.)
     if (value instanceof Set) {
       return Array.from(value);
     }
@@ -111,7 +77,6 @@ export class ConsoleLoggerAdapter implements LoggerPort {
       return Object.fromEntries(value);
     }
 
-    // Autres types restent inchangés
     return value;
   }
 
@@ -120,7 +85,6 @@ export class ConsoleLoggerAdapter implements LoggerPort {
   }
 
   private getComposedLevel(level: LogLevel): LogLevel {
-    // Si le niveau contient plusieurs bits, on considère que c'est déjà un masque
     const bits = [LogLevel.error, LogLevel.warn, LogLevel.info, LogLevel.debug].filter(
       (l) => (level & l) !== 0
     ).length;
@@ -132,6 +96,8 @@ export class ConsoleLoggerAdapter implements LoggerPort {
     switch (level) {
       case LogLevel.debug:
         return LogLevel.debug | LogLevel.info | LogLevel.warn | LogLevel.error;
+      case LogLevel.info:
+        return LogLevel.info | LogLevel.warn | LogLevel.error;
       case LogLevel.warn:
         return LogLevel.warn | LogLevel.error;
       case LogLevel.error:

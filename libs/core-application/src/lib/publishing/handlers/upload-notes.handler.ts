@@ -1,5 +1,6 @@
 import {
   type AssetRef,
+  type LoggerPort,
   type Manifest,
   type ManifestPage,
   type PublishableNote,
@@ -9,7 +10,6 @@ import {
 import { humanizePropertyKey } from '@core-domain/utils/string.utils';
 
 import { type CommandHandler } from '../../common/command-handler';
-import { type LoggerPort } from '../../ports/logger.port';
 import type { MarkdownRendererPort } from '../../ports/markdown-renderer.port';
 import { type UploadNotesCommand, type UploadNotesResult } from '../commands/upload-notes.command';
 import { type ContentStoragePort } from '../ports/content-storage.port';

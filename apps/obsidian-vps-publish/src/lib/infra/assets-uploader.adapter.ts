@@ -62,7 +62,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
     try {
       apiAssets = await Promise.all(assets.map(async (asset) => await this.buildApiAsset(asset)));
     } catch (err) {
-      this._logger.error('Failed to build API assets', err);
+      this._logger.error('Failed to build API assets', { error: err });
       throw err;
     }
 

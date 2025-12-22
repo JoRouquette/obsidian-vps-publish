@@ -1,7 +1,8 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { type LoggerPort, type SessionNotesStoragePort } from '@core-application';
+import { type SessionNotesStoragePort } from '@core-application';
+import { type LoggerPort } from '@core-domain';
 import { type PublishableNote, type SanitizationRules } from '@core-domain';
 
 export class SessionNotesFileStorage implements SessionNotesStoragePort {
