@@ -9,35 +9,35 @@ export class NormalizeFrontmatterService implements BaseService {
   private readonly _logger: LoggerPort;
 
   constructor(logger: LoggerPort) {
-    this._logger = logger.child({ usecase: 'NormalizeFrontmatterUseCase' });
-    this._logger.debug('NormalizeFrontmatterUseCase initialized');
+    this._logger = logger.child({ scope: 'vault-parsing', operation: 'normalizeFrontmatter' });
   }
 
   process(input?: CollectedNote[]): CollectedNote[] {
-    this._logger.debug('Normalizing frontmatter for notes', { inputLength: input?.length });
+    const startTime = Date.now();
 
     if (!input || !Array.isArray(input)) {
-      this._logger.error('No notes input provided, returning empty array');
+      this._logger.warn('Invalid input provided to NormalizeFrontmatterService', {
+        inputType: typeof input,
+        isArray: Array.isArray(input),
+      });
       return [];
     }
 
+    this._logger.debug('Starting frontmatter normalization', {
+      notesCount: input.length,
+    });
+
     const results: CollectedNote[] = [];
+    let errorsCount = 0;
 
     for (let i = 0; i < input.length; i++) {
       const note = input[i];
       try {
-        this._logger.warn(`📌 START processing note ${i}`, {
-          noteIndex: i,
-          noteId: note.noteId,
-          vaultPath: note.vaultPath,
-        });
-
         const frontmatter = note.frontmatter;
         const source = this.extractRawFrontmatter(frontmatter);
 
         if (!source) {
-          this._logger.error('No frontmatter in note, setting empty frontmatter', {
-            noteIndex: i,
+          this._logger.debug('Note has no frontmatter, using empty', {
             noteId: note.noteId,
             vaultPath: note.vaultPath,
           });
@@ -45,34 +45,23 @@ export class NormalizeFrontmatterService implements BaseService {
           continue;
         }
 
-        this._logger.warn(
-          `📝 Processing ${Object.keys(source).length} frontmatter entries for note ${i}`
-        );
-
         const flat: Record<string, unknown> = {};
         const nested: Record<string, unknown> = {};
 
-        let entryCount = 0;
         for (const [key, value] of Object.entries(source)) {
           try {
-            this._logger.warn(`🔑 Processing frontmatter entry ${entryCount}: key="${key}"`);
             const normalizedKey = normalizePropertyKey(key);
             flat[normalizedKey] = value;
-            this._logger.warn(`📍 About to call setNestedValue for entry ${entryCount}`);
             this.setNestedValue(nested, key, value);
-            this._logger.warn(`✅ setNestedValue completed for entry ${entryCount}`);
-            entryCount++;
           } catch (entryError) {
-            this._logger.error(`❌ Error processing frontmatter entry ${entryCount}`, {
+            this._logger.warn('Failed to process frontmatter entry', {
+              noteId: note.noteId,
               key,
               error: entryError instanceof Error ? entryError.message : String(entryError),
-              stack: entryError instanceof Error ? entryError.stack : undefined,
             });
             // Continue with next entry
           }
         }
-
-        this._logger.warn(`🏷️ Extracting tags for note ${i}`);
 
         const tagsRaw =
           (source as Record<string, unknown>)['tags'] ??
@@ -84,23 +73,10 @@ export class NormalizeFrontmatterService implements BaseService {
               ? [tagsRaw]
               : [];
 
-        this._logger.warn(`✅ Note ${i} processed, building result object`);
-
-        this._logger.warn('Frontmatter normalization result', {
-          noteIndex: i,
-          noteId: note.noteId,
-          flatKeysCount: Object.keys(flat).length,
-          nestedKeysCount: Object.keys(nested).length,
-          tagsCount: tags.length,
-        });
-
-        this._logger.warn(`💾 Pushing result for note ${i} to results array`);
-
         results.push({ ...note, frontmatter: { flat, nested, tags } });
-
-        this._logger.warn(`✅ DONE processing note ${i}`);
       } catch (error) {
-        this._logger.error('Error processing note frontmatter', {
+        errorsCount++;
+        this._logger.error('Failed to normalize frontmatter for note', {
           noteIndex: i,
           noteId: note.noteId,
           vaultPath: note.vaultPath,
@@ -112,9 +88,12 @@ export class NormalizeFrontmatterService implements BaseService {
       }
     }
 
-    this._logger.warn('✅ All notes frontmatter normalized', {
+    const duration = Date.now() - startTime;
+    this._logger.info('Frontmatter normalization completed', {
       totalNotes: input.length,
-      successCount: results.length,
+      successCount: results.length - errorsCount,
+      errorsCount,
+      durationMs: duration,
     });
 
     return results;
@@ -145,13 +124,12 @@ export class NormalizeFrontmatterService implements BaseService {
   private setNestedValue(target: Record<string, unknown>, path: string, value: unknown): void {
     const segments = path.split('.').map(normalizePropertyKey);
 
-    // Safety check: limit depth to prevent infinite loops
+    // Safety check: limit depth to prevent deep nesting issues
     if (segments.length > 10) {
-      this._logger.warn('⚠️ Frontmatter path too deep, flattening', {
+      this._logger.debug('Frontmatter path exceeds depth limit, flattening', {
         path,
         depth: segments.length,
       });
-      // Just set at top level with full path as key
       target[path] = value;
       return;
     }
