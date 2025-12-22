@@ -4,7 +4,6 @@ export * from './common/query-handler';
 
 // Ports génériques
 export * from './ports/id-generator.port';
-export * from './ports/logger.port';
 export * from './ports/markdown-renderer.port';
 
 // Dataview (Application Layer)

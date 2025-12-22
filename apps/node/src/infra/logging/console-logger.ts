@@ -1,16 +1,15 @@
-import { type LoggerPort, LogLevel } from '@core-domain';
+import { type LoggerPort, type LogMeta, type OperationContext, LogLevel } from '@core-domain';
 
 type ConsoleLevel = 'debug' | 'info' | 'warn' | 'error';
-type LogMeta = Record<string, unknown>;
 
 export interface ConsoleLoggerOptions {
   level?: ConsoleLevel | LogLevel;
-  context?: LogMeta;
+  context?: OperationContext;
 }
 
 export class ConsoleLogger implements LoggerPort {
   private _level: LogLevel;
-  private readonly context: LogMeta;
+  private readonly context: OperationContext;
 
   private static levelOrder: Record<ConsoleLevel, number> = {
     debug: 10,
@@ -32,7 +31,7 @@ export class ConsoleLogger implements LoggerPort {
     return this._level;
   }
 
-  child(context: LogMeta, level?: LogLevel): LoggerPort {
+  child(context: OperationContext, level?: LogLevel): LoggerPort {
     return new ConsoleLogger({
       level: level ?? this._level,
       context: { ...this.context, ...context },
