@@ -1,24 +1,7 @@
 import type { CollectedNote } from '@core-domain/entities';
-import type { LoggerPort } from '@core-domain/ports/logger-port';
 
 import { NormalizeFrontmatterService } from '../../vault-parsing/services/normalize-frontmatter.service';
-
-class NoopLogger implements LoggerPort {
-  private _level: any = 0;
-  set level(level: any) {
-    this._level = level;
-  }
-  get level() {
-    return this._level;
-  }
-  child(): LoggerPort {
-    return this;
-  }
-  debug(): void {}
-  info(): void {}
-  warn(): void {}
-  error(): void {}
-}
+import { NoopLogger } from '../helpers/fake-logger';
 
 describe('NormalizeFrontmatterService', () => {
   const logger = new NoopLogger();

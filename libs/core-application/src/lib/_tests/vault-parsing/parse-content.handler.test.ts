@@ -1,6 +1,5 @@
 import type { CollectedNote } from '@core-domain/entities/collected-note';
 import type { IgnoreRule } from '@core-domain/entities/ignore-rule';
-import type { LoggerPort } from '@core-domain/ports/logger-port';
 
 import { EvaluateIgnoreRulesHandler } from '../../vault-parsing/handler/evaluate-ignore-rules.handler';
 import { ParseContentHandler } from '../../vault-parsing/handler/parse-content.handler';
@@ -13,23 +12,7 @@ import { EnsureTitleHeaderService } from '../../vault-parsing/services/ensure-ti
 import { NormalizeFrontmatterService } from '../../vault-parsing/services/normalize-frontmatter.service';
 import { RenderInlineDataviewService } from '../../vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '../../vault-parsing/services/resolve-wikilinks.service';
-
-class NoopLogger implements LoggerPort {
-  private _level: any = 0;
-  set level(level: any) {
-    this._level = level;
-  }
-  get level() {
-    return this._level;
-  }
-  child(): LoggerPort {
-    return this;
-  }
-  debug(): void {}
-  info(): void {}
-  warn(): void {}
-  error(): void {}
-}
+import { NoopLogger } from '../helpers/fake-logger';
 
 describe('ParseContentHandler', () => {
   const logger = new NoopLogger();

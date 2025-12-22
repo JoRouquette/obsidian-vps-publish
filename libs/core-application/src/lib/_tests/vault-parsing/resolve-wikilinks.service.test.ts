@@ -1,25 +1,8 @@
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
-import type { LoggerPort } from '@core-domain/ports/logger-port';
 
 import { DetectWikilinksService } from '../../vault-parsing/services/detect-wikilinks.service';
 import { ResolveWikilinksService } from '../../vault-parsing/services/resolve-wikilinks.service';
-
-class NoopLogger implements LoggerPort {
-  private _level: any = 0;
-  set level(level: any) {
-    this._level = level;
-  }
-  get level() {
-    return this._level;
-  }
-  child(): LoggerPort {
-    return this;
-  }
-  debug(): void {}
-  info(): void {}
-  warn(): void {}
-  error(): void {}
-}
+import { NoopLogger } from '../helpers/fake-logger';
 
 describe('ResolveWikilinksService', () => {
   const logger = new NoopLogger();

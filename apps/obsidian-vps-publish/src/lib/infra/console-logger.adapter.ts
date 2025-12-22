@@ -1,4 +1,4 @@
-import { type LoggerPort, type LogMeta, type OperationContext, LogLevel } from '@core-domain';
+import { type LoggerPort, LogLevel, type LogMeta, type OperationContext } from '@core-domain';
 
 import { DEFAULT_LOGGER_LEVEL } from '../constants/default-logger-level.constant';
 
