@@ -158,7 +158,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           await this.uploadToVps(vps);
         });
       } catch (e) {
-        this.logger.error('Publish failed from ribbon', e);
+        this.logger.error('Publish failed from ribbon', { error: e });
         new Notice(t.plugin.publishError);
       }
     });
@@ -181,7 +181,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         snapshotRaw = JSON.parse(content);
       }
     } catch (e) {
-      this.logger.error('Failed to load snapshot settings', e);
+      this.logger.error('Failed to load snapshot settings', { error: e });
     }
     const merged: PluginSettings = {
       ...defaultSettings,
@@ -546,9 +546,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const summary = formatPublishingStats(stats);
       new Notice(summary, 10000); // Afficher pendant 10 secondes
 
-      this.logger.debug('Publishing completed successfully', stats);
+      this.logger.debug('Publishing completed successfully', { stats });
     } catch (err) {
-      this.logger.error('Publishing failed, aborting session if created', err);
+      this.logger.error('Publishing failed, aborting session if created', { error: err });
 
       stats.completedAt = new Date();
       stats.notesFailed = stats.notesEligible - stats.notesUploaded;
@@ -570,7 +570,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         try {
           await sessionClient.abortSession(sessionId);
         } catch (abortErr) {
-          this.logger.error('Failed to abort session', abortErr);
+          this.logger.error('Failed to abort session', { error: abortErr });
         }
       }
 
@@ -630,7 +630,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       this.logger.debug(`Test connection message: ${res.text}`);
       new Notice(t.settings.testConnection.success);
     } else {
-      this.logger.error('VPS connection test failed: ', res.error);
+      this.logger.error('VPS connection test failed: ', { error: res.error });
       new Notice(
         `${t.settings.testConnection.failed} ${
           res.error instanceof Error ? res.error.message : JSON.stringify(res.error)

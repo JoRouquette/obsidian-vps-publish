@@ -1,4 +1,4 @@
-import { type LoggerPort } from '@core-application';
+import { type LoggerPort } from '@core-domain';
 import { type Request, type Response, Router } from 'express';
 
 export function createHealthCheckController(logger?: LoggerPort): Router {

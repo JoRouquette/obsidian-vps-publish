@@ -1,22 +1,19 @@
 import { type IdGeneratorPort } from '../../../ports/id-generator.port';
-import { type LoggerPort } from '../../../ports/logger.port';
 import { type CreateSessionCommand } from '../../../sessions/commands/create-session.command';
 import { CreateSessionHandler } from '../../../sessions/handlers/create-session.handler';
 import { type SessionRepository } from '../../../sessions/ports/session.repository';
+import { FakeLogger } from '../../helpers/fake-logger';
 
 describe('CreateSessionHandler', () => {
   let idGenerator: jest.Mocked<IdGeneratorPort>;
   let sessionRepository: jest.Mocked<SessionRepository>;
-  let logger: jest.Mocked<LoggerPort>;
+  let logger: FakeLogger;
   let handler: CreateSessionHandler;
 
   beforeEach(() => {
     idGenerator = { generateId: jest.fn().mockReturnValue('session-123') } as any;
     sessionRepository = { create: jest.fn() } as any;
-    logger = {
-      child: jest.fn().mockReturnThis(),
-      debug: jest.fn(),
-    } as any;
+    logger = new FakeLogger();
     handler = new CreateSessionHandler(idGenerator, sessionRepository, logger);
   });
 
@@ -45,9 +42,10 @@ describe('CreateSessionHandler', () => {
       })
     );
     expect(result).toEqual({ sessionId: 'session-123', success: true });
-    expect(logger.child).toHaveBeenCalledWith({ handler: 'CreateSessionHandler' });
-    expect(logger.child).toHaveBeenCalledWith({ method: 'handle' });
-    expect(logger.debug).toHaveBeenCalledWith('Session created', { sessionId: 'session-123' });
+    const infoLogs = logger.getByLevel('info');
+    expect(infoLogs).toHaveLength(1);
+    expect(infoLogs[0].message).toBe('Session created successfully');
+    expect(infoLogs[0].meta).toMatchObject({ sessionId: 'session-123' });
   });
 
   it('should handle missing logger gracefully', async () => {

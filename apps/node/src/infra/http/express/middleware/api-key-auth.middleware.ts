@@ -1,4 +1,4 @@
-import { type LoggerPort } from '@core-application';
+import { type LoggerPort } from '@core-domain';
 import type { NextFunction, Request, Response } from 'express';
 
 const norm = (s: string | undefined) => (s ?? '').replace(/^\uFEFF/, '').trim();

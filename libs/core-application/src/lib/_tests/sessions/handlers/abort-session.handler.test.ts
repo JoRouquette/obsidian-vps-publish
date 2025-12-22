@@ -1,13 +1,13 @@
 import { type Session } from '@core-domain';
 
-import { type LoggerPort } from '../../../ports/logger.port';
 import { type AbortSessionCommand } from '../../../sessions/commands/abort-session.command';
 import { AbortSessionHandler } from '../../../sessions/handlers/abort-session.handler';
 import { type SessionRepository } from '../../../sessions/ports/session.repository';
+import { FakeLogger } from '../../helpers/fake-logger';
 
 describe('AbortSessionHandler', () => {
   let sessionRepository: jest.Mocked<SessionRepository>;
-  let logger: jest.Mocked<LoggerPort>;
+  let logger: FakeLogger;
   let handler: AbortSessionHandler;
 
   const sessionId = 'session-123';
@@ -18,11 +18,7 @@ describe('AbortSessionHandler', () => {
       save: jest.fn(),
     } as any;
 
-    logger = {
-      child: jest.fn().mockReturnThis(),
-      warn: jest.fn(),
-      debug: jest.fn(),
-    } as any;
+    logger = new FakeLogger();
 
     handler = new AbortSessionHandler(sessionRepository, logger);
   });
@@ -48,7 +44,9 @@ describe('AbortSessionHandler', () => {
     expect(session.status).toBe('aborted');
     expect(sessionRepository.save).toHaveBeenCalledWith(session);
     expect(result).toEqual({ sessionId, success: true });
-    expect(logger.debug).toHaveBeenCalledWith('Session aborted');
+    const infoLogs = logger.getByLevel('info');
+    expect(infoLogs).toHaveLength(1);
+    expect(infoLogs[0].message).toBe('Session aborted successfully');
   });
 
   it('should throw SessionNotFoundError if session does not exist', async () => {
@@ -57,7 +55,9 @@ describe('AbortSessionHandler', () => {
     const command: AbortSessionCommand = { sessionId };
 
     await expect(handler.handle(command)).rejects.toBeInstanceOf(Error);
-    expect(logger.warn).toHaveBeenCalledWith('Session not found');
+    const errorLogs = logger.getByLevel('error');
+    expect(errorLogs).toHaveLength(1);
+    expect(errorLogs[0].message).toBe('Abort failed: session not found');
   });
 
   it('should throw SessionInvalidError if session is finished', async () => {
@@ -75,6 +75,8 @@ describe('AbortSessionHandler', () => {
 
     const command: AbortSessionCommand = { sessionId };
     await expect(handler.handle(command)).rejects.toThrow('Cannot abort a finished session');
-    expect(logger.warn).toHaveBeenCalledWith('Cannot abort finished session');
+    const errorLogs = logger.getByLevel('error');
+    expect(errorLogs).toHaveLength(1);
+    expect(errorLogs[0].message).toBe('Abort failed: session already finished');
   });
 });

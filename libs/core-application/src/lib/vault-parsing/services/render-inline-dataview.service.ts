@@ -15,7 +15,9 @@ export class RenderInlineDataviewService implements BaseService {
   }
 
   process(notes: PublishableNote[]): PublishableNote[] {
-    this._logger.debug('Starting inline dataview rendering for notes:', notes);
+    this._logger.debug('Starting inline dataview rendering for notes', {
+      notesCount: notes.length,
+    });
 
     return notes.map((note) => {
       const { content, frontmatter } = note;
@@ -165,7 +167,7 @@ export class RenderInlineDataviewService implements BaseService {
       current = (current as Record<string, unknown>)[segment];
     }
 
-    logger.debug(`Resolved property path '${propertyPath}' to value:`, current);
+    logger.debug(`Resolved property path '${propertyPath}' to value`, { value: current });
     return current;
   }
 
@@ -176,11 +178,11 @@ export class RenderInlineDataviewService implements BaseService {
     }
 
     if (Array.isArray(value)) {
-      logger.debug('Rendering array value:', value);
+      logger.debug('Rendering array value', { value, length: value.length });
       return value.map((v) => String(v)).join(', ');
     }
 
-    logger.debug('Rendering scalar value:', value);
+    logger.debug('Rendering scalar value', { value: String(value) });
     return String(value);
   }
 }

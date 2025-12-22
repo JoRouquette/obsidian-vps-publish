@@ -19,7 +19,7 @@
  * - {path: "Image.png", embed: true} → ![[Image.png]] (assets keep extension)
  */
 
-import type { LoggerPort } from '../ports/logger.port';
+import type { LoggerPort } from '@core-domain';
 
 /**
  * Dataview Link object (from Dataview API).

@@ -14,7 +14,7 @@
  * wikilink resolution / asset detection / routing pipeline.
  */
 
-import type { LoggerPort } from '../ports/logger.port';
+import type { LoggerPort } from '@core-domain';
 import { MarkdownLinkNormalizer } from './markdown-link-normalizer';
 
 /**

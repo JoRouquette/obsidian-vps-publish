@@ -3,10 +3,11 @@ import { type Session } from '@core-domain';
 import { type FinishSessionCommand } from '../../../../lib/sessions/commands/finish-session.command';
 import { FinishSessionHandler } from '../../../../lib/sessions/handlers/finish-session.handler';
 import { type SessionRepository } from '../../../../lib/sessions/ports/session.repository';
+import { FakeLogger } from '../../helpers/fake-logger';
 
 describe('FinishSessionHandler', () => {
   let sessionRepository: jest.Mocked<SessionRepository>;
-  let logger: any;
+  let logger: FakeLogger;
   let handler: FinishSessionHandler;
 
   const baseSession: Session = {
@@ -26,11 +27,7 @@ describe('FinishSessionHandler', () => {
       save: jest.fn(),
     } as any;
 
-    logger = {
-      child: jest.fn().mockReturnThis(),
-      warn: jest.fn(),
-      debug: jest.fn(),
-    };
+    logger = new FakeLogger();
 
     handler = new FinishSessionHandler(sessionRepository, logger);
   });
@@ -57,7 +54,9 @@ describe('FinishSessionHandler', () => {
       })
     );
     expect(result).toEqual({ sessionId: 'session-1', success: true });
-    expect(logger.debug).toHaveBeenCalledWith('Session finished');
+    const infoLogs = logger.getByLevel('info');
+    expect(infoLogs).toHaveLength(1);
+    expect(infoLogs[0].message).toBe('Session finished successfully');
   });
 
   it('should throw SessionNotFoundError if session does not exist', async () => {
@@ -70,7 +69,9 @@ describe('FinishSessionHandler', () => {
     };
 
     await expect(handler.handle(command)).rejects.toBeInstanceOf(Error);
-    expect(logger.warn).toHaveBeenCalledWith('Session not found');
+    const errorLogs = logger.getByLevel('error');
+    expect(errorLogs).toHaveLength(1);
+    expect(errorLogs[0].message).toBe('Finish failed: session not found');
   });
 
   it('should throw SessionInvalidError if session is already finished', async () => {
@@ -83,9 +84,9 @@ describe('FinishSessionHandler', () => {
     };
 
     await expect(handler.handle(command)).rejects.toBeInstanceOf(Error);
-    expect(logger.warn).toHaveBeenCalledWith('Invalid session status for finish', {
-      status: 'finished',
-    });
+    const errorLogs = logger.getByLevel('error');
+    expect(errorLogs).toHaveLength(1);
+    expect(errorLogs[0].message).toBe('Finish failed: invalid session status');
   });
 
   it('should throw SessionInvalidError if session is aborted', async () => {
@@ -98,9 +99,9 @@ describe('FinishSessionHandler', () => {
     };
 
     await expect(handler.handle(command)).rejects.toBeInstanceOf(Error);
-    expect(logger.warn).toHaveBeenCalledWith('Invalid session status for finish', {
-      status: 'aborted',
-    });
+    const errorLogs = logger.getByLevel('error');
+    expect(errorLogs).toHaveLength(1);
+    expect(errorLogs[0].message).toBe('Finish failed: invalid session status');
   });
 
   it('should update updatedAt to a recent date', async () => {

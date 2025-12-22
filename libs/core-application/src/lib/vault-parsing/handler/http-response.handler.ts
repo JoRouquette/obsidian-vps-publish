@@ -46,7 +46,11 @@ export class HttpResponseHandler<T> implements Handler<T> {
           text,
         };
       } else {
-        this._logger.debug(`HTTP request failed ${response.status}`, text, response);
+        this._logger.debug(`HTTP request failed ${response.status}`, {
+          text,
+          status: response.status,
+          statusText: response.statusText,
+        });
 
         return {
           isError: true,
@@ -56,7 +60,7 @@ export class HttpResponseHandler<T> implements Handler<T> {
         };
       }
     } catch (error) {
-      this._logger.debug('Error handling HTTP response ', error);
+      this._logger.debug('Error handling HTTP response', { error });
       return {
         isError: true,
         error: error instanceof Error ? error : new Error(String(error)),

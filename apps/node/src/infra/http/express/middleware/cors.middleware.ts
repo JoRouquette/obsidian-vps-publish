@@ -1,4 +1,4 @@
-import { type LoggerPort } from '@core-application';
+import { type LoggerPort } from '@core-domain';
 import { type NextFunction, type Request, type Response } from 'express';
 
 export function createCorsMiddleware(allowedOrigins: string[], logger?: LoggerPort) {

@@ -1,5 +1,6 @@
+import { type LoggerPort } from '@core-domain';
+
 import { type CommandHandler } from '../../common/command-handler';
-import { type LoggerPort } from '../../ports/logger.port';
 import {
   type UploadAssetsCommand,
   type UploadAssetsResult,

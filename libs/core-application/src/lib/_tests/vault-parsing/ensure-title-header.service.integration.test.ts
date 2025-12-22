@@ -9,6 +9,7 @@ describe('EnsureTitleHeaderService - Integration', () => {
     const logger: LoggerPort = {
       level: LogLevel.debug,
       child: () => logger,
+      info: jest.fn(),
       debug: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),

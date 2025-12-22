@@ -1,4 +1,4 @@
-import { SessionInvalidError, SessionNotFoundError, type LoggerPort } from '@core-domain';
+import { type LoggerPort, SessionInvalidError, SessionNotFoundError } from '@core-domain';
 
 import { type CommandHandler } from '../../common/command-handler';
 import { type AbortSessionCommand } from '../commands/abort-session.command';

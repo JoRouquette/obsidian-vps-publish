@@ -1,4 +1,5 @@
-import type { LoggerPort, MarkdownRendererPort } from '@core-application';
+import type { MarkdownRendererPort } from '@core-application';
+import type { LoggerPort } from '@core-domain';
 import { type AssetRef, type PublishableNote, type ResolvedWikilink } from '@core-domain';
 import MarkdownIt from 'markdown-it';
 
@@ -125,7 +126,7 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       noteId: note.noteId,
       slug: note.routing.slug,
     });
-    this.logger?.debug('Rendered HTML content', withStyles);
+    this.logger?.debug('Rendered HTML content', { htmlLength: withStyles.length });
     return withStyles;
   }
 

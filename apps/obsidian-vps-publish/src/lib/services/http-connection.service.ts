@@ -45,7 +45,7 @@ export async function testVpsConnection(
 
     return await handleHttpResponse.handleResponseAsync({ response: res, url });
   } catch (e) {
-    logger.error(`something when wrong in testVpsConnection `, e);
+    logger.error(`something when wrong in testVpsConnection `, { error: e });
     return {
       isError: true,
       error: e instanceof Error ? e : new Error(String(e)),
