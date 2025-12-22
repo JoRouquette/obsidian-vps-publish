@@ -11,18 +11,19 @@ export class ResolveWikilinksService implements BaseService {
     logger: LoggerPort,
     private readonly detectWikilinksService: DetectWikilinksService
   ) {
-    this._logger = logger.child({ usecase: 'ResolveWikilinksUseCase' });
+    this._logger = logger.child({ scope: 'vault-parsing', operation: 'resolveWikilinks' });
   }
 
   process(notes: PublishableNote[]): PublishableNote[] {
-    this._logger.debug('Resolving wikilinks for notes', { notesLength: notes.length });
+    const startTime = Date.now();
+    let totalWikilinks = 0;
+    let resolvedCount = 0;
+    let unresolvedCount = 0;
 
     const wikilinksByNotes: Record<string, WikilinkRef[]> = {};
     const lookup = this.buildNoteLookup(notes);
 
     for (const note of notes) {
-      this._logger.debug('Processing note for wikilinks', { note });
-
       // Extract markdown wikilinks (Dataview already converted to markdown wikilinks by plugin)
       const markdownLinks: WikilinkRef[] = this.detectWikilinksService.process(note);
 
@@ -31,12 +32,8 @@ export class ResolveWikilinksService implements BaseService {
         continue;
       }
 
-      this._logger.debug('Found wikilinks in note', {
-        noteId: note.noteId,
-        wikilinkCount: markdownLinks.length,
-      });
-
       wikilinksByNotes[note.noteId] = markdownLinks;
+      totalWikilinks += markdownLinks.length;
     }
 
     for (const note of notes) {
@@ -50,6 +47,13 @@ export class ResolveWikilinksService implements BaseService {
           targetPath && wikilink.subpath
             ? `${targetPath}#${wikilink.subpath}`
             : (targetPath ?? undefined);
+
+        if (isResolved) {
+          resolvedCount++;
+        } else {
+          unresolvedCount++;
+        }
+
         return {
           ...wikilink,
           isResolved,
@@ -60,11 +64,15 @@ export class ResolveWikilinksService implements BaseService {
       });
 
       note.resolvedWikilinks = resolvedWikilinks;
-      this._logger.debug('Resolved wikilinks for note', {
-        noteId: note.noteId,
-        resolvedWikilinks,
-      });
     }
+
+    this._logger.info('Wikilink resolution complete', {
+      notesProcessed: notes.length,
+      totalWikilinks,
+      resolved: resolvedCount,
+      unresolved: unresolvedCount,
+      durationMs: Date.now() - startTime,
+    });
 
     return notes;
   }

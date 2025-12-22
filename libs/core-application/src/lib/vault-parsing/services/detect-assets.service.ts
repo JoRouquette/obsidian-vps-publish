@@ -19,32 +19,39 @@ export class DetectAssetsService implements BaseService {
   private readonly _logger: LoggerPort;
 
   constructor(logger: LoggerPort) {
-    this._logger = logger.child({ usecase: 'DetectAssetsUseCase' });
+    this._logger = logger.child({ scope: 'vault-parsing', operation: 'detectAssets' });
   }
 
   process(notes: PublishableNote[]): PublishableNote[] {
-    return notes.map((note) => {
+    const startTime = Date.now();
+    let totalAssets = 0;
+    let notesWithAssets = 0;
+
+    const result = notes.map((note) => {
       const contentAssets = this.detectInText(note.content, 'content');
       const frontmatterAssets = this.detectInFrontmatter(note);
       const leafletAssets = this.detectInLeafletBlocks(note);
       const assets = [...contentAssets, ...frontmatterAssets, ...leafletAssets];
 
-      if (assets.length === 0) {
-        this._logger.debug(`No assets detected in note "${note.title}"`);
-        return note;
+      if (assets.length > 0) {
+        totalAssets += assets.length;
+        notesWithAssets++;
       }
-
-      this._logger.debug(`Detected ${assets.length} asset(s) in note "${note.title}"`, {
-        content: contentAssets.length,
-        frontmatter: frontmatterAssets.length,
-        leaflet: leafletAssets.length,
-      });
 
       return {
         ...note,
         assets: assets,
       };
     });
+
+    this._logger.info('Asset detection complete', {
+      notesProcessed: notes.length,
+      notesWithAssets,
+      totalAssets,
+      durationMs: Date.now() - startTime,
+    });
+
+    return result;
   }
 
   private classifyAssetKind(target: string): AssetKind {
@@ -92,13 +99,17 @@ export class DetectAssetsService implements BaseService {
 
     let match: RegExpExecArray | null;
     let embedCount = 0;
+    let skippedEmpty = 0;
+    let skippedNoSegments = 0;
+    let skippedNonAsset = 0;
+
     while ((match = EMBED_REGEX.exec(markdown)) !== null) {
       embedCount++;
       const raw = match[0]; // "![[...]]"
       const inner = match[1].trim(); // contenu interne
 
       if (!inner) {
-        this._logger.debug(`Skipped empty embed at match #${embedCount}`);
+        skippedEmpty++;
         continue;
       }
 
@@ -107,7 +118,7 @@ export class DetectAssetsService implements BaseService {
         .map((s) => s.trim())
         .filter(Boolean);
       if (segments.length === 0) {
-        this._logger.debug(`Skipped embed with no segments at match #${embedCount}: "${raw}"`);
+        skippedNoSegments++;
         continue;
       }
 
@@ -115,16 +126,12 @@ export class DetectAssetsService implements BaseService {
       const modifierTokens = segments.slice(1);
 
       const kind = this.classifyAssetKind(target);
-      const display = this.parseModifiers(modifierTokens, this._logger);
+      const display = this.parseModifiers(modifierTokens);
 
       if (kind === 'other' && !target.includes('.')) {
-        this._logger.debug(`Skipped non-asset embed: "${target}" at match #${embedCount}`);
+        skippedNonAsset++;
         continue;
       }
-
-      this._logger.debug(
-        `Detected asset: target="${target}", origin="${origin}", kind="${kind}", display=${JSON.stringify(display)}`
-      );
 
       assets.push({
         origin,
@@ -136,10 +143,24 @@ export class DetectAssetsService implements BaseService {
       });
     }
 
+    if (embedCount > 0) {
+      this._logger.debug('Detected assets in text', {
+        origin,
+        frontmatterPath,
+        embedsFound: embedCount,
+        assetsDetected: assets.length,
+        skipped: {
+          empty: skippedEmpty,
+          noSegments: skippedNoSegments,
+          nonAsset: skippedNonAsset,
+        },
+      });
+    }
+
     return assets;
   }
 
-  private parseModifiers(tokens: string[], logger?: LoggerPort): AssetDisplayOptions {
+  private parseModifiers(tokens: string[]): AssetDisplayOptions {
     let alignment: AssetAlignment | undefined;
     let width: number | undefined;
     const classes: string[] = [];
@@ -156,7 +177,6 @@ export class DetectAssetsService implements BaseService {
         const a = this.parseAlignment(token);
         if (a) {
           alignment = a;
-          logger?.debug(`Parsed alignment modifier: ${a}`);
           continue;
         }
       }
@@ -164,13 +184,11 @@ export class DetectAssetsService implements BaseService {
       // Largeur en pixels : "300"
       if (!width && /^[0-9]+$/.test(token)) {
         width = parseInt(token, 10);
-        logger?.debug(`Parsed width modifier: ${width}`);
         continue;
       }
 
       // Le reste : on le traite comme classe CSS / ITS
       classes.push(token);
-      logger?.debug(`Parsed class modifier: ${token}`);
     }
 
     return {
@@ -198,6 +216,7 @@ export class DetectAssetsService implements BaseService {
     }
 
     const assets: AssetRef[] = [];
+    let skippedEmpty = 0;
 
     for (const block of note.leafletBlocks) {
       if (!block.imageOverlays || block.imageOverlays.length === 0) {
@@ -208,7 +227,7 @@ export class DetectAssetsService implements BaseService {
         const target = this.normalizeTarget(overlay.path);
 
         if (!target) {
-          this._logger.debug(`Skipped empty image overlay path in Leaflet block "${block.id}"`);
+          skippedEmpty++;
           continue;
         }
 
@@ -228,14 +247,15 @@ export class DetectAssetsService implements BaseService {
         };
 
         assets.push(asset);
-
-        this._logger.debug(`Detected Leaflet image overlay asset`, {
-          blockId: block.id,
-          path: overlay.path,
-          target,
-          kind,
-        });
       }
+    }
+
+    if (note.leafletBlocks.length > 0) {
+      this._logger.debug('Detected Leaflet block assets', {
+        blocksProcessed: note.leafletBlocks.length,
+        assetsDetected: assets.length,
+        skippedEmpty,
+      });
     }
 
     return assets;

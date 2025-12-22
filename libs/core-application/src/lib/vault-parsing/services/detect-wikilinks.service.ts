@@ -16,7 +16,7 @@ export class DetectWikilinksService implements BaseService {
   private readonly _logger: LoggerPort;
 
   constructor(logger: LoggerPort) {
-    this._logger = logger.child({ usecase: 'DetectWikilinksUseCase' });
+    this._logger = logger.child({ scope: 'vault-parsing', operation: 'detectWikilinks' });
   }
 
   process(note: PublishableNote): WikilinkRef[] {
@@ -80,25 +80,25 @@ export class DetectWikilinksService implements BaseService {
     WIKILINK_REGEX.lastIndex = 0;
 
     let match: RegExpExecArray | null;
+    let matchesFound = 0;
+    let skippedEmpty = 0;
+    let skippedAssetEmbed = 0;
+    let skippedEmptyTarget = 0;
+    let skippedEmptyPath = 0;
 
     while ((match = WIKILINK_REGEX.exec(markdown)) !== null) {
+      matchesFound++;
       const fullMatch = match[0]; // "[[...]]"
       const inner = match[1].trim();
       if (!inner) {
-        this._logger.debug('Skipping empty wikilink match', {
-          match: fullMatch,
-          index: match.index,
-        });
+        skippedEmpty++;
         continue;
       }
 
       const startIndex = match.index ?? 0;
       // Exclude "![[...]]" (assets) by checking previous character
       if (startIndex > 0 && markdown[startIndex - 1] === '!') {
-        this._logger.debug('Skipping asset embed wikilink', {
-          match: fullMatch,
-          index: startIndex,
-        });
+        skippedAssetEmbed++;
         continue;
       }
 
@@ -107,10 +107,7 @@ export class DetectWikilinksService implements BaseService {
       const alias = aliasPart && aliasPart.trim().length > 0 ? aliasPart.trim() : undefined;
 
       if (!targetRaw) {
-        this._logger.debug('Skipping wikilink with empty target', {
-          match: fullMatch,
-          index: startIndex,
-        });
+        skippedEmptyTarget++;
         continue;
       }
 
@@ -119,10 +116,7 @@ export class DetectWikilinksService implements BaseService {
       const subpath = subpathPart && subpathPart.trim().length > 0 ? subpathPart.trim() : undefined;
 
       if (!path) {
-        this._logger.debug('Skipping wikilink with empty path', {
-          match: fullMatch,
-          index: startIndex,
-        });
+        skippedEmptyPath++;
         continue;
       }
 
@@ -139,15 +133,23 @@ export class DetectWikilinksService implements BaseService {
         kind,
       };
 
-      this._logger.debug('Detected wikilink', { wikilink, index: startIndex });
       wikilinks.push(wikilink);
     }
 
-    this._logger.debug('Detected wikilinks in text', {
-      origin,
-      frontmatterPath,
-      count: wikilinks.length,
-    });
+    if (matchesFound > 0) {
+      this._logger.debug('Detected wikilinks in text', {
+        origin,
+        frontmatterPath,
+        matchesFound,
+        wikilinksDetected: wikilinks.length,
+        skipped: {
+          empty: skippedEmpty,
+          assetEmbed: skippedAssetEmbed,
+          emptyTarget: skippedEmptyTarget,
+          emptyPath: skippedEmptyPath,
+        },
+      });
+    }
 
     return wikilinks;
   }
