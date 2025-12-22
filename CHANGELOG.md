@@ -1,3 +1,24 @@
+## <small>4.6.1 (2025-12-22)</small>
+
+* Merge branch 'feat/logging-overhaul' ([48efc06](https://github.com/JoRouquette/obsidian-vps-publish/commit/48efc06))
+* style: fix import sorting (eslint auto-fix) ([70370e7](https://github.com/JoRouquette/obsidian-vps-publish/commit/70370e7))
+* refactor(core-application): downgrade ParseContentHandler progress logs to debug ([3199631](https://github.com/JoRouquette/obsidian-vps-publish/commit/3199631))
+* refactor(logging): clean up vault-parsing services logging ([2efb5aa](https://github.com/JoRouquette/obsidian-vps-publish/commit/2efb5aa))
+* refactor(logging): eliminate noise in NormalizeFrontmatterService ([004e7f4](https://github.com/JoRouquette/obsidian-vps-publish/commit/004e7f4))
+* refactor(logging): improve session handlers with actionable messages ([5220f74](https://github.com/JoRouquette/obsidian-vps-publish/commit/5220f74))
+* refactor(logging): unify LoggerPort with OperationContext and info() ([0b18563](https://github.com/JoRouquette/obsidian-vps-publish/commit/0b18563))
+* refactor(plugin): reduce warning noise in logs ([163e821](https://github.com/JoRouquette/obsidian-vps-publish/commit/163e821))
+* fix(logging): resolve TypeScript errors from LoggerPort refactor ([bb67845](https://github.com/JoRouquette/obsidian-vps-publish/commit/bb67845))
+* docs(logging): add comprehensive logging policy guide ([98c1e89](https://github.com/JoRouquette/obsidian-vps-publish/commit/98c1e89))
+* test: replace local NoopLogger with centralized helper ([7c5b9a9](https://github.com/JoRouquette/obsidian-vps-publish/commit/7c5b9a9))
+
+
+### BREAKING CHANGE
+
+* LoggerPort.child() now requires OperationContext type.
+Merge duplicate ports, add info() method, add correlation tracking support.
+Create FakeLogger test helper. Update adapters (node + plugin).
+
 ## 4.6.0 (2025-12-19)
 
 * Merge branch 'feat/implement-dataview' ([abd4891](https://github.com/JoRouquette/obsidian-vps-publish/commit/abd4891))
