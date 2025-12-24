@@ -1,3 +1,8 @@
+## 4.8.0 (2025-12-24)
+
+* Merge branch 'feat/add-no-publishing-command' ([c73a8b0](https://github.com/JoRouquette/obsidian-vps-publish/commit/c73a8b0))
+* feat(plugin): add command to insert ^no-publishing marker ([0831e33](https://github.com/JoRouquette/obsidian-vps-publish/commit/0831e33))
+
 ## 4.7.0 (2025-12-24)
 
 * Merge branch 'feat/add-one' ([e763f27](https://github.com/JoRouquette/obsidian-vps-publish/commit/e763f27))
