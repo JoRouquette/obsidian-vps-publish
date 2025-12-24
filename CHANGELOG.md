@@ -1,3 +1,8 @@
+## 4.9.0 (2025-12-24)
+
+* Merge branch 'refacto/performances' ([165fb13](https://github.com/JoRouquette/obsidian-vps-publish/commit/165fb13))
+* feat: add comprehensive performance optimizations for publishing workflow ([3f1c58d](https://github.com/JoRouquette/obsidian-vps-publish/commit/3f1c58d))
+
 ## 4.8.0 (2025-12-24)
 
 * Merge branch 'feat/add-no-publishing-command' ([c73a8b0](https://github.com/JoRouquette/obsidian-vps-publish/commit/c73a8b0))
