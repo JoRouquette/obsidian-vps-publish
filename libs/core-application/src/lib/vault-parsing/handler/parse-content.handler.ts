@@ -11,6 +11,7 @@ import { type DetectAssetsService } from '../services/detect-assets.service';
 import { type DetectLeafletBlocksService } from '../services/detect-leaflet-blocks.service';
 import { type EnsureTitleHeaderService } from '../services/ensure-title-header.service';
 import { type NormalizeFrontmatterService } from '../services/normalize-frontmatter.service';
+import { type RemoveNoPublishingMarkerService } from '../services/remove-no-publishing-marker.service';
 import { type RenderInlineDataviewService } from '../services/render-inline-dataview.service';
 import { type ResolveWikilinksService } from '../services/resolve-wikilinks.service';
 import { type EvaluateIgnoreRulesHandler } from './evaluate-ignore-rules.handler';
@@ -23,6 +24,7 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
     private readonly inlineDataviewRenderer: RenderInlineDataviewService,
     private readonly leafletBlocksDetector: DetectLeafletBlocksService,
     private readonly ensureTitleHeaderService: EnsureTitleHeaderService,
+    private readonly removeNoPublishingMarkerService: RemoveNoPublishingMarkerService,
     private readonly assetsDetector: DetectAssetsService,
     private readonly wikilinkResolver: ResolveWikilinksService,
     private readonly computeRoutingService: ComputeRoutingService,
@@ -84,6 +86,14 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
     publishableNotes = this.leafletBlocksDetector.process(publishableNotes);
 
     publishableNotes = this.ensureTitleHeaderService.process(publishableNotes);
+
+    // Remove ^no-publishing markers and their associated content
+    // This must happen BEFORE assets detection to avoid detecting assets in excluded sections
+    publishableNotes = this.removeNoPublishingMarkerService.process(publishableNotes);
+
+    this.logger?.debug('^no-publishing markers processed', {
+      notesCount: publishableNotes.length,
+    });
 
     publishableNotes = this.assetsDetector.process(publishableNotes);
 

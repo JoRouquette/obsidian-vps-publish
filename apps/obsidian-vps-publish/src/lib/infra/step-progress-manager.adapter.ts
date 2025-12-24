@@ -11,16 +11,34 @@ import type {
   StepProgressManagerPort,
 } from '@core-domain/ports/step-progress-manager-port';
 
+import type { NoticeProgressAdapter } from './notice-progress.adapter';
+
+/**
+ * Step weights for calculating global progress percentage.
+ * These weights are NOT based on file counts to avoid revealing statistics.
+ * Each step has a fixed weight representing its relative duration/importance.
+ */
+const STEP_WEIGHTS: Record<ProgressStepId, number> = {
+  [ProgressStepId.PARSE_VAULT]: 25, // 25% - parsing and analysis
+  [ProgressStepId.UPLOAD_NOTES]: 35, // 35% - uploading notes
+  [ProgressStepId.UPLOAD_ASSETS]: 30, // 30% - uploading assets
+  [ProgressStepId.FINALIZE_SESSION]: 10, // 10% - finalization
+};
+
+const TOTAL_WEIGHT = Object.values(STEP_WEIGHTS).reduce((sum, w) => sum + w, 0);
+
 /**
  * Gestionnaire de progression par étapes avec notifications
  * Orchestre progress global + progress par étape + notifications
+ * Uses step-based weights instead of file counts for progress calculation.
  */
 export class StepProgressManagerAdapter implements StepProgressManagerPort {
   private readonly steps = new Map<ProgressStepId, ProgressStepMetadata>();
   private readonly callbacks: ProgressStepCallback[] = [];
+  private readonly stepTimings = new Map<ProgressStepId, number>();
 
   constructor(
-    private readonly progressPort: ProgressPort,
+    private readonly progressPort: ProgressPort | NoticeProgressAdapter,
     private readonly notificationPort: NotificationPort,
     private readonly messages: StepMessages
   ) {}
@@ -36,12 +54,16 @@ export class StepProgressManagerAdapter implements StepProgressManagerPort {
     };
 
     this.steps.set(stepId, metadata);
+    this.stepTimings.set(stepId, Date.now());
 
     // Notification de démarrage
     const startMsg = this.messages.getStartMessage(stepId);
     if (startMsg) {
       this.notificationPort.info(startMsg);
     }
+
+    // Update progress bar
+    this.updateProgressBar();
 
     // Émettre callback
     const step = new ProgressStep(metadata);
@@ -63,8 +85,8 @@ export class StepProgressManagerAdapter implements StepProgressManagerPort {
 
     metadata.current = Math.min(metadata.total, metadata.current + stepAmount);
 
-    // Mettre à jour le progress global
-    this.progressPort.advance(stepAmount);
+    // Update progress bar with current step
+    this.updateProgressBar();
 
     // Émettre callback
     const step = new ProgressStep(metadata);
@@ -81,11 +103,21 @@ export class StepProgressManagerAdapter implements StepProgressManagerPort {
     metadata.completedAt = new Date().toISOString();
     metadata.current = metadata.total; // S'assurer que current = total
 
+    // Calculate step duration
+    const startTime = this.stepTimings.get(stepId);
+    if (startTime) {
+      const duration = Date.now() - startTime;
+      this.stepTimings.set(stepId, duration);
+    }
+
     // Notification de succès
     const successMsg = this.messages.getSuccessMessage(stepId);
     if (successMsg) {
       this.notificationPort.success(successMsg);
     }
+
+    // Update progress bar
+    this.updateProgressBar();
 
     // Émettre callback
     const step = new ProgressStep(metadata);
@@ -125,14 +157,14 @@ export class StepProgressManagerAdapter implements StepProgressManagerPort {
       metadata.errorMessage = reason;
     }
 
-    // Avancer le progress global du total de cette étape
-    this.progressPort.advance(metadata.total);
-
     // Notification optionnelle
     const skipMsg = this.messages.getSkipMessage?.(stepId);
     if (skipMsg) {
       this.notificationPort.info(skipMsg);
     }
+
+    // Update progress bar
+    this.updateProgressBar();
 
     // Émettre callback
     const step = new ProgressStep(metadata);
@@ -150,18 +182,16 @@ export class StepProgressManagerAdapter implements StepProgressManagerPort {
   }
 
   getGlobalPercentage(): number {
-    const allSteps = this.getAllSteps();
-    if (allSteps.length === 0) return 0;
+    return this.calculateWeightedProgress();
+  }
 
-    const totalWeight = allSteps.reduce((sum, step) => sum + step.total, 0);
-    if (totalWeight === 0) return 100;
-
-    const currentWeight = allSteps.reduce((sum, step) => sum + step.current, 0);
-    return Math.floor((currentWeight / totalWeight) * 100);
+  getStepTimings(): Map<ProgressStepId, number> {
+    return new Map(this.stepTimings);
   }
 
   reset(): void {
     this.steps.clear();
+    this.stepTimings.clear();
   }
 
   onStepUpdate(callback: ProgressStepCallback): void {
@@ -171,6 +201,52 @@ export class StepProgressManagerAdapter implements StepProgressManagerPort {
   private emitUpdate(step: ProgressStep): void {
     for (const callback of this.callbacks) {
       callback(step);
+    }
+  }
+
+  /**
+   * Calculate weighted progress based on step weights, not file counts.
+   * This ensures progress doesn't reveal internal statistics.
+   */
+  private calculateWeightedProgress(): number {
+    let completedWeight = 0;
+
+    for (const [stepId, metadata] of this.steps.entries()) {
+      const weight = STEP_WEIGHTS[stepId] || 0;
+
+      if (
+        metadata.status === ProgressStepStatus.COMPLETED ||
+        metadata.status === ProgressStepStatus.SKIPPED
+      ) {
+        completedWeight += weight;
+      } else if (metadata.status === ProgressStepStatus.IN_PROGRESS) {
+        // Partial progress within step based on current/total
+        const stepProgress = metadata.total > 0 ? metadata.current / metadata.total : 0;
+        completedWeight += weight * stepProgress;
+      }
+      // PENDING and FAILED steps contribute 0
+    }
+
+    return Math.min(100, Math.floor((completedWeight / TOTAL_WEIGHT) * 100));
+  }
+
+  /**
+   * Update the progress bar with current weighted percentage and step message.
+   */
+  private updateProgressBar(): void {
+    const percent = this.calculateWeightedProgress();
+
+    // Find current step in progress
+    const currentStepMeta = Array.from(this.steps.values()).find(
+      (meta) => meta.status === ProgressStepStatus.IN_PROGRESS
+    );
+
+    const stepMessage = currentStepMeta ? currentStepMeta.label : 'Processing...';
+
+    // If progressPort has updateProgress method (NoticeProgressAdapter), use it
+    const progressAdapter = this.progressPort as NoticeProgressAdapter;
+    if (progressAdapter && typeof progressAdapter.updateProgress === 'function') {
+      progressAdapter.updateProgress(percent, stepMessage);
     }
   }
 }

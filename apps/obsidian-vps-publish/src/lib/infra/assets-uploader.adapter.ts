@@ -8,6 +8,7 @@ import type { StepProgressManagerPort } from '@core-domain/ports/step-progress-m
 import { type UploaderPort } from '@core-domain/ports/uploader-port';
 
 import { type SessionApiClient } from '../services/session-api.client';
+import { processWithConcurrencyControl, yieldToEventLoop } from '../utils/async-helpers.util';
 import { batchByBytes } from '../utils/batch-by-bytes.util';
 import { BrowserEncodingAdapter } from './browser-encoding.adapter';
 import { AssetChunkUploaderAdapter } from './chunk-uploader.adapter';
@@ -60,7 +61,22 @@ export class AssetsUploaderAdapter implements UploaderPort {
 
     let apiAssets: ApiAsset[];
     try {
-      apiAssets = await Promise.all(assets.map(async (asset) => await this.buildApiAsset(asset)));
+      // Use controlled concurrency instead of Promise.all to avoid blocking
+      apiAssets = await processWithConcurrencyControl(
+        assets,
+        async (asset) => await this.buildApiAsset(asset),
+        {
+          concurrency: 5, // Process 5 assets at a time
+          batchSize: 10, // Yield to event loop every 10 assets
+          onProgress: (completed, total) => {
+            this._logger.debug('Assets preparation progress', {
+              completed,
+              total,
+              percent: ((completed / total) * 100).toFixed(1),
+            });
+          },
+        }
+      );
     } catch (err) {
       this._logger.error('Failed to build API assets', { error: err });
       throw err;
@@ -110,6 +126,9 @@ export class AssetsUploaderAdapter implements UploaderPort {
         batchSize: batch.length,
       });
       this.advanceProgress(batch.length);
+
+      // Yield to event loop between batches
+      await yieldToEventLoop();
     }
 
     this._logger.debug('Assets upload completed');
@@ -124,8 +143,11 @@ export class AssetsUploaderAdapter implements UploaderPort {
       return { batchCount: 0 };
     }
 
-    const apiAssets = await Promise.all(
-      assets.map(async (asset) => await this.buildApiAsset(asset))
+    // Use controlled concurrency for batch info calculation too
+    const apiAssets = await processWithConcurrencyControl(
+      assets,
+      async (asset) => await this.buildApiAsset(asset),
+      { concurrency: 5, batchSize: 10 }
     );
 
     const batches = batchByBytes(apiAssets, this.maxBytesPerRequest, (batch) => ({

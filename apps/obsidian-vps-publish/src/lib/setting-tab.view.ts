@@ -36,6 +36,20 @@ export class ObsidianVpsPublishSettingTab extends PluginSettingTab {
 
     new Setting(root).setName(ctx.t.settings.tabTitle).setHeading();
 
+    // Help button at the top
+    new Setting(root)
+      .setName(ctx.t.help.settingsButtonLabel)
+      .setDesc(ctx.t.help.settingsButtonDescription)
+      .addButton((btn) => {
+        btn
+          .setButtonText(ctx.t.help.settingsButtonLabel)
+          .setIcon('help-circle')
+          .onClick(() => {
+            const { HelpModal } = require('./modals/help-modal');
+            new HelpModal(this.app, ctx.t).open();
+          });
+      });
+
     renderLanguageSection(root, ctx);
     renderVaultSection(root, ctx);
     renderFoldersSection(root, ctx);
