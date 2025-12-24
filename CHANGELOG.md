@@ -1,3 +1,8 @@
+## 4.7.0 (2025-12-24)
+
+* Merge branch 'feat/add-one' ([e763f27](https://github.com/JoRouquette/obsidian-vps-publish/commit/e763f27))
+* feat(plugin): add help modal and improve progress UX ([7fc4082](https://github.com/JoRouquette/obsidian-vps-publish/commit/7fc4082))
+
 ## <small>4.6.1 (2025-12-22)</small>
 
 * Merge branch 'feat/logging-overhaul' ([48efc06](https://github.com/JoRouquette/obsidian-vps-publish/commit/48efc06))

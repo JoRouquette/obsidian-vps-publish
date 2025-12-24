@@ -1,6 +1,6 @@
 {
   "name": "obsidian-vps-publish",
-  "version": "4.6.1",
+  "version": "4.7.0",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
