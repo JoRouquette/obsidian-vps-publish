@@ -68,6 +68,7 @@ export function createPublishingStats(): PublishingStats {
 
 /**
  * Utilitaires pour formater les stats
+ * Format stats WITHOUT revealing deductible counts (e.g., if we show analyzed + eligible, ignored is deductible)
  */
 export function formatPublishingStats(stats: PublishingStats): string {
   const lines: string[] = [];
@@ -75,38 +76,46 @@ export function formatPublishingStats(stats: PublishingStats): string {
   lines.push(`📊 Publishing Summary`);
   lines.push(`─────────────────────`);
 
-  // Notes
-  lines.push(`📝 Notes:`);
-  lines.push(`  • Analyzed: ${stats.totalNotesAnalyzed}`);
-  lines.push(`  • Eligible: ${stats.notesEligible}`);
-  if (stats.notesIgnored > 0) {
-    lines.push(`  • Ignored: ${stats.notesIgnored}`);
-  }
-  lines.push(`  • Uploaded: ${stats.notesUploaded}`);
+  // Notes: only show uploaded count to avoid deducing ignored count
+  lines.push(`📝 Content Published:`);
+  lines.push(`  • Notes: ${stats.notesUploaded}`);
   if (stats.notesFailed > 0) {
-    lines.push(`  • Failed: ${stats.notesFailed}`);
+    lines.push(`  • Errors: ${stats.notesFailed}`);
   }
 
   // Assets
-  if (stats.assetsPlanned > 0) {
-    lines.push(``);
-    lines.push(`🖼️ Assets:`);
-    lines.push(`  • Planned: ${stats.assetsPlanned}`);
-    lines.push(`  • Uploaded: ${stats.assetsUploaded}`);
+  if (stats.assetsUploaded > 0 || stats.assetsPlanned > 0) {
+    lines.push(`  • Assets: ${stats.assetsUploaded}`);
     if (stats.assetsFailed > 0) {
-      lines.push(`  • Failed: ${stats.assetsFailed}`);
+      lines.push(`  • Asset errors: ${stats.assetsFailed}`);
     }
+  }
+
+  // Exclusions notice (without count)
+  if (stats.notesIgnored > 0) {
+    lines.push(``);
+    lines.push(`ℹ️ Some items were excluded based on your rules`);
   }
 
   // Duration
   if (stats.startedAt && stats.completedAt) {
     const durationMs = stats.completedAt.getTime() - stats.startedAt.getTime();
-    const durationSec = (durationMs / 1000).toFixed(1);
     lines.push(``);
-    lines.push(`⏱️ Duration: ${durationSec}s`);
+    lines.push(`⏱️ ${formatDuration(durationMs)}`);
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Format duration in human-readable format
+ */
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `Completed in ${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `Completed in ${minutes}m ${remainingSeconds}s`;
 }
 
 /**

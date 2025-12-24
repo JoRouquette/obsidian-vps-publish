@@ -9,6 +9,7 @@ import type { StepProgressManagerPort } from '@core-domain/ports/step-progress-m
 import type { UploaderPort } from '@core-domain/ports/uploader-port';
 
 import { type SessionApiClient } from '../services/session-api.client';
+import { yieldToEventLoop } from '../utils/async-helpers.util';
 import { batchByBytes } from '../utils/batch-by-bytes.util';
 import { BrowserEncodingAdapter } from './browser-encoding.adapter';
 import { NoteChunkUploaderAdapter } from './chunk-uploader.adapter';
@@ -102,6 +103,9 @@ export class NotesUploaderAdapter implements UploaderPort {
         batchSize: batch.length,
       });
       this.advanceProgress(batch.length);
+
+      // Yield to event loop between batches
+      await yieldToEventLoop();
     }
 
     this._logger.debug('Successfully uploaded notes to session');

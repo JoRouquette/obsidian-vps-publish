@@ -8,6 +8,7 @@ import { DetectLeafletBlocksService } from '@core-application/vault-parsing/serv
 import { DetectWikilinksService } from '@core-application/vault-parsing/services/detect-wikilinks.service';
 import { EnsureTitleHeaderService } from '@core-application/vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';
+import { RemoveNoPublishingMarkerService } from '@core-application/vault-parsing/services/remove-no-publishing-marker.service';
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
 import { type CollectedNote, type CustomIndexConfig, type VpsConfig } from '@core-domain';
@@ -148,6 +149,15 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       },
     });
 
+    this.addCommand({
+      id: 'open-help',
+      name: t.plugin.commandOpenHelp,
+      callback: () => {
+        const { HelpModal } = require('./lib/modals/help-modal');
+        new HelpModal(this.app, t).open();
+      },
+    });
+
     this.addRibbonIcon('rocket', t.plugin.commandPublish, async () => {
       try {
         if (!this.settings.vpsConfigs || this.settings.vpsConfigs.length === 0) {
@@ -273,6 +283,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       stepMessages
     );
 
+    // Start progress bar immediately (at 0%)
+    totalProgressAdapter.start(0);
+
     let sessionId: string | null = null;
     let sessionClient: SessionApiClient | null = null;
 
@@ -357,19 +370,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       if (publishableCount === 0) {
         this.logger.warn('No publishable notes after filtering; aborting upload.');
         new Notice('No publishable notes to upload.');
+        totalProgressAdapter.finish();
         return;
       }
 
-      // Afficher les stats d'analyse
-      notificationAdapter.info(
-        `✅ Analysis complete\n📝 ${stats.notesEligible} eligible notes${
-          stats.notesIgnored > 0 ? ` (${stats.notesIgnored} ignored)` : ''
-        }${stats.assetsPlanned > 0 ? `\n🖼️ ${stats.assetsPlanned} assets detected` : ''}`
-      );
-
-      // Initialiser le progress global AVANT le début des opérations réseau
-      const totalPlanned = publishableCount + assetsPlanned;
-      totalProgressAdapter.start(totalPlanned);
+      // Don't show analysis stats that could reveal ignored count
+      // Progress bar will show current step instead
 
       // ====================================================================
       // SESSION START - Démarrage de la session
@@ -719,6 +725,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
     // Note: ContentSanitizerService est maintenant appliqué côté backend après la finalisation
+    const removeNoPublishingMarkerService = new RemoveNoPublishingMarkerService(logger);
     const assetsDetector = new DetectAssetsService(logger);
     const detectWikilinks = new DetectWikilinksService(logger);
     const resolveWikilinks = new ResolveWikilinksService(logger, detectWikilinks);
@@ -732,6 +739,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       inlineDataviewRenderer,
       leafletBlocksDetector,
       ensureTitleHeaderService,
+      removeNoPublishingMarkerService,
       assetsDetector,
       resolveWikilinks,
       computeRoutingService,

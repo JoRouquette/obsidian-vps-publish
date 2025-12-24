@@ -121,6 +121,7 @@ export type PluginTranslations = {
   commandPublish: string;
   commandTestConnection: string;
   commandOpenSettings: string;
+  commandOpenHelp: string;
   publishSuccess: string;
   publishError: string;
   noConfig: string;
@@ -209,9 +210,38 @@ export type SettingsTranslations = {
   advanced: AdvancedTranslations;
 };
 
+export type HelpSection = {
+  title: string;
+  content: string;
+  examples?: Array<{ code: string; description: string }>;
+};
+
+export type HelpTranslations = {
+  title: string;
+  introduction: string;
+  sections: {
+    publishing: HelpSection;
+    noPublishing: HelpSection;
+    frontmatter: HelpSection;
+    wikilinks: HelpSection;
+    assets: HelpSection;
+    dataview: HelpSection;
+    leaflet: HelpSection;
+  };
+  footer: {
+    docsText: string;
+    docsLinkText: string;
+    docsLink?: string;
+  };
+  closeButton: string;
+  settingsButtonLabel: string;
+  settingsButtonDescription: string;
+};
+
 export type Translations = {
   plugin: PluginTranslations;
   settings: SettingsTranslations;
+  help: HelpTranslations;
 };
 
 export const en: Translations = {
@@ -220,6 +250,7 @@ export const en: Translations = {
     commandPublish: 'Launch publishing to VPS',
     commandTestConnection: 'Test VPS connection',
     commandOpenSettings: 'Open Publish to VPS Settings',
+    commandOpenHelp: 'Open Help & Documentation',
     publishSuccess: 'Publishing completed.',
     publishError: 'Error during publishing (see console).',
     noConfig: 'No VPS or folder configuration defined.',
@@ -411,6 +442,126 @@ export const en: Translations = {
       },
     },
   },
+  help: {
+    title: 'Help & Documentation',
+    introduction:
+      'This plugin allows you to publish your Obsidian vault content to a self-hosted VPS. Here are the key features and syntax supported.',
+    sections: {
+      publishing: {
+        title: 'Publishing Control',
+        content:
+          'By default, all notes in configured folders are published unless they match ignore rules.\n\nYou can control publication using frontmatter properties or inline markers.',
+        examples: [
+          {
+            code: '---\npublish: false\n---',
+            description: 'Excludes this note from publishing',
+          },
+          {
+            code: '---\ndraft: true\n---',
+            description: 'Marks note as draft (excluded if draft rule is configured)',
+          },
+        ],
+      },
+      noPublishing: {
+        title: 'Section Exclusion with ^no-publishing',
+        content:
+          'You can exclude specific sections from publication using the ^no-publishing marker.\n\nWhen a line contains ^no-publishing, the plugin removes content up to the previous delimiter:\n1. Horizontal rule (---, ***, ___) if present (highest priority)\n2. Previous header (##, ###, etc.) if no horizontal rule\n3. Start of document if no delimiter found',
+        examples: [
+          {
+            code: '## Public Header\nPublic content\n\n---\n\nPrivate content\n^no-publishing\n\n## Next Section',
+            description: 'Only content between --- and marker is removed. Header is kept.',
+          },
+          {
+            code: '## Private Header\nPrivate content\n^no-publishing\n\n## Public Section',
+            description: 'Both header and content are removed (no horizontal rule present).',
+          },
+          {
+            code: 'Public start\n\n***\n\nPrivate section\n^no-publishing',
+            description: 'Horizontal rule with asterisks works too.',
+          },
+        ],
+      },
+      frontmatter: {
+        title: 'Frontmatter Properties',
+        content:
+          'Frontmatter properties control note behavior and can be used for filtering.\n\nYou can configure which properties to exclude or use as ignore rules in settings.',
+        examples: [
+          {
+            code: '---\ntitle: My Note\ntags: [blog, tech]\npublish: true\n---',
+            description: 'Standard frontmatter with title, tags, and publish flag',
+          },
+          {
+            code: '---\ntype: Dashboard\n---',
+            description: 'Notes with type: Dashboard are excluded by default',
+          },
+        ],
+      },
+      wikilinks: {
+        title: 'Wikilinks & Internal Links',
+        content:
+          'The plugin automatically resolves Obsidian wikilinks to proper URLs.\n\nSupported formats: [[Note]], [[Note|Display Text]], [[Note#Header]], [[Folder/Note]]',
+        examples: [
+          {
+            code: 'See [[Other Note]] for details.',
+            description: 'Simple wikilink → converted to proper link',
+          },
+          {
+            code: 'Check [[Deep Concepts#Section|this section]]',
+            description: 'Wikilink with header and custom text',
+          },
+        ],
+      },
+      assets: {
+        title: 'Assets & Images',
+        content:
+          'Images and attachments are automatically detected and uploaded.\n\nSupported: ![[image.png]], ![alt](path/image.jpg), embedded PDFs, etc.\n\nAssets folder can be configured in settings.',
+        examples: [
+          {
+            code: '![[screenshot.png]]',
+            description: 'Obsidian-style image embed',
+          },
+          {
+            code: '![diagram](assets/diagram.svg)',
+            description: 'Markdown-style image with path',
+          },
+        ],
+      },
+      dataview: {
+        title: 'Dataview Support',
+        content:
+          'Dataview queries are executed and rendered to HTML before publishing.\n\nSupported: inline queries (=this.property), dataview blocks, dataviewjs.',
+        examples: [
+          {
+            code: '`= this.title`',
+            description: 'Inline dataview query',
+          },
+          {
+            code: '```dataview\nLIST FROM #tag\n```',
+            description: 'Dataview block query',
+          },
+        ],
+      },
+      leaflet: {
+        title: 'Leaflet Maps',
+        content:
+          'Leaflet code blocks are detected and preserved for client-side rendering.\n\nMaps will be interactive on the published site.',
+        examples: [
+          {
+            code: '```leaflet\nid: map-1\nlat: 48.8566\nlong: 2.3522\n```',
+            description: 'Leaflet map configuration',
+          },
+        ],
+      },
+    },
+    footer: {
+      docsText: 'For complete documentation, visit:',
+      docsLinkText: 'GitHub Repository',
+      docsLink: 'https://github.com/JoRouquette/obsidian-vps-publish',
+    },
+    closeButton: 'Close',
+    settingsButtonLabel: 'Help & Documentation',
+    settingsButtonDescription: 'Open help modal with syntax examples and documentation',
+  },
 };
 
 export const fr: Translations = {
@@ -419,6 +570,7 @@ export const fr: Translations = {
     commandPublish: 'Publier vers mon VPS personnel',
     commandTestConnection: 'Tester la connexion VPS',
     commandOpenSettings: 'Ouvrir les parametres du plugin Publier vers mon VPS personnel',
+    commandOpenHelp: "Ouvrir l'aide et la documentation",
     publishSuccess: 'Publication terminee.',
     publishError: 'Erreur lors de la publication (voir la console).',
     noConfig: 'Aucune configuration VPS ou dossier definie.',
@@ -612,5 +764,126 @@ export const fr: Translations = {
         error: 'Echec du nettoyage du VPS.',
       },
     },
+  },
+  help: {
+    title: 'Aide & Documentation',
+    introduction:
+      'Ce plugin permet de publier le contenu de votre coffre Obsidian vers un VPS auto-hébergé. Voici les fonctionnalités principales et syntaxes supportées.',
+    sections: {
+      publishing: {
+        title: 'Contrôle de Publication',
+        content:
+          "Par défaut, toutes les notes des dossiers configurés sont publiées sauf si elles correspondent aux règles d'exclusion.\n\nVous pouvez contrôler la publication avec des propriétés frontmatter ou des marqueurs inline.",
+        examples: [
+          {
+            code: '---\npublish: false\n---',
+            description: 'Exclut cette note de la publication',
+          },
+          {
+            code: '---\ndraft: true\n---',
+            description: 'Marque la note comme brouillon (exclue si règle draft configurée)',
+          },
+        ],
+      },
+      noPublishing: {
+        title: 'Exclusion de Sections avec ^no-publishing',
+        content:
+          "Vous pouvez exclure des sections spécifiques de la publication avec le marqueur ^no-publishing.\n\nQuand une ligne contient ^no-publishing, le plugin supprime le contenu jusqu'au délimiteur précédent :\n1. Ligne horizontale (---, ***, ___) si présente (priorité maximale)\n2. En-tête précédent (##, ###, etc.) si pas de ligne horizontale\n3. Début du document si aucun délimiteur trouvé",
+        examples: [
+          {
+            code: '## En-tête Public\nContenu public\n\n---\n\nContenu privé\n^no-publishing\n\n## Section Suivante',
+            description:
+              "Seul le contenu entre --- et le marqueur est supprimé. L'en-tête est conservé.",
+          },
+          {
+            code: '## En-tête Privé\nContenu privé\n^no-publishing\n\n## Section Publique',
+            description: "L'en-tête ET le contenu sont supprimés (pas de ligne horizontale).",
+          },
+          {
+            code: 'Début public\n\n***\n\nSection privée\n^no-publishing',
+            description: 'Ligne horizontale avec astérisques fonctionne aussi.',
+          },
+        ],
+      },
+      frontmatter: {
+        title: 'Propriétés Frontmatter',
+        content:
+          "Les propriétés frontmatter contrôlent le comportement des notes et peuvent être utilisées pour le filtrage.\n\nVous pouvez configurer quelles propriétés exclure ou utiliser comme règles d'ignorance dans les paramètres.",
+        examples: [
+          {
+            code: '---\ntitle: Ma Note\ntags: [blog, tech]\npublish: true\n---',
+            description: 'Frontmatter standard avec titre, tags et flag de publication',
+          },
+          {
+            code: '---\ntype: Dashboard\n---',
+            description: 'Les notes avec type: Dashboard sont exclues par défaut',
+          },
+        ],
+      },
+      wikilinks: {
+        title: 'Wikilinks & Liens Internes',
+        content:
+          'Le plugin résout automatiquement les wikilinks Obsidian en URLs appropriées.\n\nFormats supportés : [[Note]], [[Note|Texte Affiché]], [[Note#En-tête]], [[Dossier/Note]]',
+        examples: [
+          {
+            code: 'Voir [[Autre Note]] pour plus de détails.',
+            description: 'Wikilink simple → converti en lien approprié',
+          },
+          {
+            code: 'Consultez [[Concepts Profonds#Section|cette section]]',
+            description: 'Wikilink avec en-tête et texte personnalisé',
+          },
+        ],
+      },
+      assets: {
+        title: 'Assets & Images',
+        content:
+          'Les images et pièces jointes sont automatiquement détectées et envoyées.\n\nSupporté : ![[image.png]], ![alt](chemin/image.jpg), PDFs embarqués, etc.\n\nLe dossier assets peut être configuré dans les paramètres.',
+        examples: [
+          {
+            code: '![[capture.png]]',
+            description: "Embed d'image style Obsidian",
+          },
+          {
+            code: '![diagramme](assets/diagramme.svg)',
+            description: 'Image style Markdown avec chemin',
+          },
+        ],
+      },
+      dataview: {
+        title: 'Support Dataview',
+        content:
+          'Les requêtes Dataview sont exécutées et rendues en HTML avant publication.\n\nSupporté : requêtes inline (=this.property), blocs dataview, dataviewjs.',
+        examples: [
+          {
+            code: '`= this.title`',
+            description: 'Requête dataview inline',
+          },
+          {
+            code: '```dataview\nLIST FROM #tag\n```',
+            description: 'Bloc de requête dataview',
+          },
+        ],
+      },
+      leaflet: {
+        title: 'Cartes Leaflet',
+        content:
+          'Les blocs de code Leaflet sont détectés et préservés pour le rendu côté client.\n\nLes cartes seront interactives sur le site publié.',
+        examples: [
+          {
+            code: '```leaflet\nid: carte-1\nlat: 48.8566\nlong: 2.3522\n```',
+            description: 'Configuration de carte Leaflet',
+          },
+        ],
+      },
+    },
+    footer: {
+      docsText: 'Pour la documentation complète, visitez :',
+      docsLinkText: 'Dépôt GitHub',
+      docsLink: 'https://github.com/JoRouquette/obsidian-vps-publish',
+    },
+    closeButton: 'Fermer',
+    settingsButtonLabel: 'Aide & Documentation',
+    settingsButtonDescription: "Ouvrir la fenêtre d'aide avec exemples de syntaxe et documentation",
   },
 };

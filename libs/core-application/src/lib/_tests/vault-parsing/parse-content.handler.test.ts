@@ -10,6 +10,7 @@ import { DetectLeafletBlocksService } from '../../vault-parsing/services/detect-
 import { DetectWikilinksService } from '../../vault-parsing/services/detect-wikilinks.service';
 import { EnsureTitleHeaderService } from '../../vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '../../vault-parsing/services/normalize-frontmatter.service';
+import { RemoveNoPublishingMarkerService } from '../../vault-parsing/services/remove-no-publishing-marker.service';
 import { RenderInlineDataviewService } from '../../vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '../../vault-parsing/services/resolve-wikilinks.service';
 import { NoopLogger } from '../helpers/fake-logger';
@@ -29,6 +30,7 @@ describe('ParseContentHandler', () => {
     const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
     // Note: ContentSanitizerService est maintenant appliqué côté backend
     const ensureTitleHeaderService = new EnsureTitleHeaderService(logger);
+    const removeNoPublishingMarkerService = new RemoveNoPublishingMarkerService(logger);
     const assetsDetector = new DetectAssetsService(logger);
     const detectWikilinks = new DetectWikilinksService(logger);
     const resolveWikilinks = new ResolveWikilinksService(logger, detectWikilinks);
@@ -41,6 +43,7 @@ describe('ParseContentHandler', () => {
       inlineDataviewRenderer,
       leafletBlocksDetector,
       ensureTitleHeaderService,
+      removeNoPublishingMarkerService,
       assetsDetector,
       resolveWikilinks,
       computeRoutingService,
