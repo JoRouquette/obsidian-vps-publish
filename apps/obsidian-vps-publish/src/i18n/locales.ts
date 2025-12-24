@@ -122,6 +122,7 @@ export type PluginTranslations = {
   commandTestConnection: string;
   commandOpenSettings: string;
   commandOpenHelp: string;
+  commandInsertNoPublishing: string;
   publishSuccess: string;
   publishError: string;
   noConfig: string;
@@ -251,6 +252,7 @@ export const en: Translations = {
     commandTestConnection: 'Test VPS connection',
     commandOpenSettings: 'Open Publish to VPS Settings',
     commandOpenHelp: 'Open Help & Documentation',
+    commandInsertNoPublishing: 'Insert ^no-publishing marker',
     publishSuccess: 'Publishing completed.',
     publishError: 'Error during publishing (see console).',
     noConfig: 'No VPS or folder configuration defined.',
@@ -571,6 +573,7 @@ export const fr: Translations = {
     commandTestConnection: 'Tester la connexion VPS',
     commandOpenSettings: 'Ouvrir les parametres du plugin Publier vers mon VPS personnel',
     commandOpenHelp: "Ouvrir l'aide et la documentation",
+    commandInsertNoPublishing: 'Inserer le marqueur ^no-publishing',
     publishSuccess: 'Publication terminee.',
     publishError: 'Erreur lors de la publication (voir la console).',
     noConfig: 'Aucune configuration VPS ou dossier definie.',

@@ -158,6 +158,27 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       },
     });
 
+    this.addCommand({
+      id: 'insert-no-publishing',
+      name: t.plugin.commandInsertNoPublishing,
+      editorCheckCallback: (checking: boolean, editor) => {
+        // Command is only available in editor views (edit/source mode)
+        if (checking) {
+          return editor !== null;
+        }
+
+        if (editor) {
+          const cursor = editor.getCursor();
+          editor.replaceRange('^no-publishing', cursor);
+          // Move cursor after the inserted text
+          editor.setCursor({
+            line: cursor.line,
+            ch: cursor.ch + '^no-publishing'.length,
+          });
+        }
+      },
+    });
+
     this.addRibbonIcon('rocket', t.plugin.commandPublish, async () => {
       try {
         if (!this.settings.vpsConfigs || this.settings.vpsConfigs.length === 0) {
