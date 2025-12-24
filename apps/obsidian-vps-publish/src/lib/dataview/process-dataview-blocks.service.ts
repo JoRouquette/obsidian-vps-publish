@@ -24,6 +24,10 @@
  *
  * BEHAVIOR (without executor - fallback):
  * - All blocks → Warning callout explaining Dataview plugin not available
+ *
+ * PERFORMANCE OPTIMIZATIONS (v2):
+ * - Yields to event loop between block processing
+ * - Batches replacements to avoid repeated string operations
  */
 
 import { DataviewToMarkdownConverter } from '@core-application/dataview/dataview-to-markdown.converter';
@@ -55,6 +59,13 @@ export interface ProcessDataviewBlocksResult {
 }
 
 /**
+ * Yield to event loop helper
+ */
+async function yieldToEventLoop(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/**
  * Process all Dataview blocks in markdown content.
  *
  * @param content - Original markdown content
@@ -80,12 +91,18 @@ export async function processDataviewBlocks(
     };
   }
 
-  // Step 2: Execute and convert each block to Markdown
+  // Step 2: Execute and convert each block to Markdown (with periodic yields)
   const processedBlocks: ProcessedDataviewBlock[] = [];
 
-  for (const block of blocks) {
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
     const processed = await processBlock(block, executor, filePath || '', converter);
     processedBlocks.push(processed);
+
+    // Yield every 5 blocks to keep UI responsive
+    if ((i + 1) % 5 === 0) {
+      await yieldToEventLoop();
+    }
   }
 
   // Step 3: Replace blocks in content (reverse order to preserve indices)

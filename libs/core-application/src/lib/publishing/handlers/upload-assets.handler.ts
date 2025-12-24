@@ -27,22 +27,41 @@ export class UploadAssetsHandler
   async handle(command: UploadAssetsCommand): Promise<UploadAssetsResult> {
     const storage = this.resolveAssetStorage(command.sessionId);
     const errors: { assetName: string; message: string }[] = [];
-    let published = 0;
 
     const assets = Array.isArray(command.assets) ? command.assets : [];
 
-    for (const asset of assets) {
-      try {
-        const filename = asset.relativePath || asset.fileName;
-        const content = this.decodeBase64(asset.contentBase64);
-        await storage.save([{ filename, content }]);
-        published++;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
+    this._logger?.debug(
+      `Starting parallel processing of ${assets.length} assets (max 10 concurrent)`
+    );
+
+    // Process assets in parallel with controlled concurrency
+    const CONCURRENCY = 10;
+    const results: PromiseSettledResult<string>[] = [];
+
+    for (let i = 0; i < assets.length; i += CONCURRENCY) {
+      const batch = assets.slice(i, Math.min(i + CONCURRENCY, assets.length));
+      const batchResults = await Promise.allSettled(
+        batch.map(async (asset) => {
+          const filename = asset.relativePath || asset.fileName;
+          const content = this.decodeBase64(asset.contentBase64);
+          await storage.save([{ filename, content }]);
+          return filename;
+        })
+      );
+      results.push(...batchResults);
+    }
+
+    // Aggregate results
+    results.forEach((result, idx) => {
+      if (result.status === 'rejected') {
+        const asset = assets[idx];
+        const message = result.reason instanceof Error ? result.reason.message : 'Unknown error';
         errors.push({ assetName: asset.fileName, message });
         this._logger?.error('Asset upload failed', { asset: asset.fileName, message });
       }
-    }
+    });
+
+    const published = results.filter((r) => r.status === 'fulfilled').length;
 
     return {
       sessionId: command.sessionId,

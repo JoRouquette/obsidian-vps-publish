@@ -58,36 +58,58 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       }
     }
 
-    let published = 0;
     const errors: { noteId: string; message: string }[] = [];
     const succeeded: PublishableNote[] = [];
 
-    logger?.debug(`Starting publishing of ${notes.length} notes`);
+    logger?.debug(`Starting parallel publishing of ${notes.length} notes (max 10 concurrent)`);
 
-    for (const note of notes) {
-      const noteLogger = logger?.child({ noteId: note.noteId, slug: note.routing?.slug });
-      try {
-        noteLogger?.debug('Rendering markdown');
-        const bodyHtml = await this.markdownRenderer.render(note);
-        noteLogger?.debug('Building HTML page');
-        const fullHtml = this.buildHtmlPage(note, bodyHtml);
+    // Process notes in parallel with controlled concurrency
+    // Using Promise.allSettled to handle both successes and failures
+    const CONCURRENCY = 10;
+    const results: PromiseSettledResult<PublishableNote>[] = [];
 
-        noteLogger?.debug('Saving content to storage', { route: note.routing?.routeBase });
-        await contentStorage.save({
-          route: note.routing.fullPath,
-          content: fullHtml,
-          slug: note.routing.slug,
-        });
+    for (let i = 0; i < notes.length; i += CONCURRENCY) {
+      const batch = notes.slice(i, Math.min(i + CONCURRENCY, notes.length));
+      const batchResults = await Promise.allSettled(
+        batch.map(async (note) => {
+          const noteLogger = logger?.child({ noteId: note.noteId, slug: note.routing?.slug });
+          try {
+            noteLogger?.debug('Rendering markdown');
+            const bodyHtml = await this.markdownRenderer.render(note);
+            noteLogger?.debug('Building HTML page');
+            const fullHtml = this.buildHtmlPage(note, bodyHtml);
 
-        published++;
-        succeeded.push(note);
-        noteLogger?.debug('Note published successfully', { route: note.routing?.routeBase });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        errors.push({ noteId: note.noteId, message });
-        noteLogger?.error('Failed to publish note', { error: message });
-      }
+            noteLogger?.debug('Saving content to storage', { route: note.routing?.routeBase });
+            await contentStorage.save({
+              route: note.routing.fullPath,
+              content: fullHtml,
+              slug: note.routing.slug,
+            });
+
+            noteLogger?.debug('Note published successfully', { route: note.routing?.routeBase });
+            return note;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'Unknown error';
+            noteLogger?.error('Failed to publish note', { error: message });
+            throw err;
+          }
+        })
+      );
+      results.push(...batchResults);
     }
+
+    // Aggregate results
+    results.forEach((result, idx) => {
+      if (result.status === 'fulfilled') {
+        succeeded.push(result.value);
+      } else {
+        const note = notes[idx];
+        const message = result.reason instanceof Error ? result.reason.message : 'Unknown error';
+        errors.push({ noteId: note.noteId, message });
+      }
+    });
+
+    const published = succeeded.length;
 
     if (succeeded.length > 0) {
       const pages: ManifestPage[] = succeeded.map((n) => ({

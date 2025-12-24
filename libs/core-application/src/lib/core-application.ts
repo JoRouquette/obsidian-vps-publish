@@ -2,9 +2,15 @@
 export * from './common/command-handler';
 export * from './common/query-handler';
 
+// Infrastructure
+export * from './infra/performance-tracker.adapter';
+
 // Ports génériques
 export * from './ports/id-generator.port';
 export * from './ports/markdown-renderer.port';
+
+// Utils
+export * from './utils/concurrency.util';
 
 // Dataview (Application Layer)
 export * from './dataview/dataview-to-markdown.converter';

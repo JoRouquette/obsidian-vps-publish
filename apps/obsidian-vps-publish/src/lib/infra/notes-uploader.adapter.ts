@@ -1,4 +1,5 @@
 import { ChunkedUploadService } from '@core-application/publishing/services/chunked-upload.service';
+import { processWithControlledConcurrency } from '@core-application/utils/concurrency.util';
 import { ProgressStepId } from '@core-domain/entities/progress-step';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import type { SanitizationRules } from '@core-domain/entities/sanitization-rules';
@@ -9,7 +10,6 @@ import type { StepProgressManagerPort } from '@core-domain/ports/step-progress-m
 import type { UploaderPort } from '@core-domain/ports/uploader-port';
 
 import { type SessionApiClient } from '../services/session-api.client';
-import { yieldToEventLoop } from '../utils/async-helpers.util';
 import { batchByBytes } from '../utils/batch-by-bytes.util';
 import { BrowserEncodingAdapter } from './browser-encoding.adapter';
 import { NoteChunkUploaderAdapter } from './chunk-uploader.adapter';
@@ -53,60 +53,72 @@ export class NotesUploaderAdapter implements UploaderPort {
     }));
 
     this._logger.debug(
-      `Uploading ${notes.length} notes in ${batches.length} batch(es) (maxBytes=${this.maxBytesPerRequest})`
+      `Uploading ${notes.length} notes in ${batches.length} batch(es) with concurrency=3 (maxBytes=${this.maxBytesPerRequest})`
     );
 
+    // Upload batches in parallel with controlled concurrency
     let batchIndex = 0;
-    for (const batch of batches) {
-      batchIndex++;
+    await processWithControlledConcurrency(
+      batches,
+      async (batch) => {
+        const currentBatchIndex = ++batchIndex;
 
-      // Ajouter les cleanupRules uniquement au premier batch
-      const payload: { notes: PublishableNote[]; cleanupRules?: SanitizationRules[] } = {
-        notes: batch,
-      };
+        // Ajouter les cleanupRules uniquement au premier batch
+        const payload: { notes: PublishableNote[]; cleanupRules?: SanitizationRules[] } = {
+          notes: batch,
+        };
 
-      if (batchIndex === 1 && this.cleanupRules && this.cleanupRules.length > 0) {
-        payload.cleanupRules = this.cleanupRules;
-        this._logger.debug('Including cleanup rules in first batch', {
-          rulesCount: this.cleanupRules.length,
-        });
-      }
+        if (currentBatchIndex === 1 && this.cleanupRules && this.cleanupRules.length > 0) {
+          payload.cleanupRules = this.cleanupRules;
+          this._logger.debug('Including cleanup rules in first batch', {
+            rulesCount: this.cleanupRules.length,
+          });
+        }
 
-      // Use chunked upload for each batch
-      const uploadId = `notes-${this.sessionId}-${this.guidGenerator.generateGuid()}`;
+        // Use chunked upload for each batch
+        const uploadId = `notes-${this.sessionId}-${this.guidGenerator.generateGuid()}`;
 
-      this._logger.debug('Preparing chunked upload for batch', {
-        uploadId,
-        batchIndex,
-        totalBatches: batches.length,
-        batchSize: batch.length,
-      });
-
-      const chunks = await this.chunkedUploadService.prepareUpload(uploadId, payload);
-
-      // Create uploader adapter for this session
-      const uploader = new NoteChunkUploaderAdapter(this.sessionClient, this.sessionId);
-
-      await this.chunkedUploadService.uploadAll(chunks, uploader, (current, total) => {
-        this._logger.debug('Chunk upload progress', {
+        this._logger.debug('Preparing chunked upload for batch', {
           uploadId,
-          batchIndex,
-          current,
-          total,
-          percentComplete: ((current / total) * 100).toFixed(2),
+          batchIndex: currentBatchIndex,
+          totalBatches: batches.length,
+          batchSize: batch.length,
         });
-      });
 
-      this._logger.debug('Notes batch uploaded', {
-        batchIndex,
-        totalBatches: batches.length,
-        batchSize: batch.length,
-      });
-      this.advanceProgress(batch.length);
+        const chunks = await this.chunkedUploadService.prepareUpload(uploadId, payload);
 
-      // Yield to event loop between batches
-      await yieldToEventLoop();
-    }
+        // Create uploader adapter for this session
+        const uploader = new NoteChunkUploaderAdapter(this.sessionClient, this.sessionId);
+
+        await this.chunkedUploadService.uploadAll(chunks, uploader, (current, total) => {
+          this._logger.debug('Chunk upload progress', {
+            uploadId,
+            batchIndex: currentBatchIndex,
+            current,
+            total,
+            percentComplete: ((current / total) * 100).toFixed(2),
+          });
+        });
+
+        this._logger.debug('Notes batch uploaded', {
+          batchIndex: currentBatchIndex,
+          totalBatches: batches.length,
+          batchSize: batch.length,
+        });
+        this.advanceProgress(batch.length);
+      },
+      {
+        concurrency: 3, // 3 batches in parallel
+        yieldEveryN: 1, // yield after each batch
+        onProgress: (current, total) => {
+          this._logger.debug('Batch upload progress', {
+            batchesCompleted: current,
+            totalBatches: total,
+            percentComplete: ((current / total) * 100).toFixed(1),
+          });
+        },
+      }
+    );
 
     this._logger.debug('Successfully uploaded notes to session');
     return true;
