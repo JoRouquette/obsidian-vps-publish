@@ -1,4 +1,5 @@
 import { ChunkedUploadService } from '@core-application/publishing/services/chunked-upload.service';
+import { processWithControlledConcurrency } from '@core-application/utils/concurrency.util';
 import { ProgressStepId } from '@core-domain/entities/progress-step';
 import type { ResolvedAssetFile } from '@core-domain/entities/resolved-asset-file';
 import type { GuidGeneratorPort } from '@core-domain/ports/guid-generator-port';
@@ -8,7 +9,7 @@ import type { StepProgressManagerPort } from '@core-domain/ports/step-progress-m
 import { type UploaderPort } from '@core-domain/ports/uploader-port';
 
 import { type SessionApiClient } from '../services/session-api.client';
-import { processWithConcurrencyControl, yieldToEventLoop } from '../utils/async-helpers.util';
+import { processWithConcurrencyControl } from '../utils/async-helpers.util';
 import { batchByBytes } from '../utils/batch-by-bytes.util';
 import { BrowserEncodingAdapter } from './browser-encoding.adapter';
 import { AssetChunkUploaderAdapter } from './chunk-uploader.adapter';
@@ -86,50 +87,62 @@ export class AssetsUploaderAdapter implements UploaderPort {
       assets: batch,
     }));
 
-    this._logger.debug('Uploading assets to session', {
+    this._logger.debug('Uploading assets to session with concurrency=3', {
       batchCount: batches.length,
       assetCount: apiAssets.length,
     });
 
+    // Upload batches in parallel with controlled concurrency
     let batchIndex = 0;
-    for (const batch of batches) {
-      batchIndex++;
+    await processWithControlledConcurrency(
+      batches,
+      async (batch) => {
+        const currentBatchIndex = ++batchIndex;
 
-      // Use chunked upload for each batch
-      const uploadId = `assets-${this.sessionId}-${this.guidGenerator.generateGuid()}`;
+        // Use chunked upload for each batch
+        const uploadId = `assets-${this.sessionId}-${this.guidGenerator.generateGuid()}`;
 
-      this._logger.debug('Preparing chunked upload for batch', {
-        uploadId,
-        batchIndex,
-        totalBatches: batches.length,
-        batchSize: batch.length,
-      });
-
-      const chunks = await this.chunkedUploadService.prepareUpload(uploadId, { assets: batch });
-
-      // Create uploader adapter for this session
-      const uploader = new AssetChunkUploaderAdapter(this.sessionClient, this.sessionId);
-
-      await this.chunkedUploadService.uploadAll(chunks, uploader, (current, total) => {
-        this._logger.debug('Chunk upload progress', {
+        this._logger.debug('Preparing chunked upload for batch', {
           uploadId,
-          batchIndex,
-          current,
-          total,
-          percentComplete: ((current / total) * 100).toFixed(2),
+          batchIndex: currentBatchIndex,
+          totalBatches: batches.length,
+          batchSize: batch.length,
         });
-      });
 
-      this._logger.debug('Assets batch uploaded', {
-        batchIndex,
-        totalBatches: batches.length,
-        batchSize: batch.length,
-      });
-      this.advanceProgress(batch.length);
+        const chunks = await this.chunkedUploadService.prepareUpload(uploadId, { assets: batch });
 
-      // Yield to event loop between batches
-      await yieldToEventLoop();
-    }
+        // Create uploader adapter for this session
+        const uploader = new AssetChunkUploaderAdapter(this.sessionClient, this.sessionId);
+
+        await this.chunkedUploadService.uploadAll(chunks, uploader, (current, total) => {
+          this._logger.debug('Chunk upload progress', {
+            uploadId,
+            batchIndex: currentBatchIndex,
+            current,
+            total,
+            percentComplete: ((current / total) * 100).toFixed(2),
+          });
+        });
+
+        this._logger.debug('Assets batch uploaded', {
+          batchIndex: currentBatchIndex,
+          totalBatches: batches.length,
+          batchSize: batch.length,
+        });
+        this.advanceProgress(batch.length);
+      },
+      {
+        concurrency: 3, // 3 batches in parallel
+        yieldEveryN: 1, // yield after each batch
+        onProgress: (current, total) => {
+          this._logger.debug('Batch upload progress', {
+            batchesCompleted: current,
+            totalBatches: total,
+            percentComplete: ((current / total) * 100).toFixed(1),
+          });
+        },
+      }
+    );
 
     this._logger.debug('Assets upload completed');
     return true;

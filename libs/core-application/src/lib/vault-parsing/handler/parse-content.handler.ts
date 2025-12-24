@@ -2,10 +2,12 @@ import {
   type CollectedNote,
   type LoggerPort,
   type Mapper,
+  type PerformanceTrackerPort,
   type PublishableNote,
 } from '@core-domain';
 
 import { type CommandHandler } from '../../common/command-handler';
+import { YieldScheduler } from '../../utils/concurrency.util';
 import { type ComputeRoutingService } from '../services/compute-routing.service';
 import { type DetectAssetsService } from '../services/detect-assets.service';
 import { type DetectLeafletBlocksService } from '../services/detect-leaflet-blocks.service';
@@ -29,26 +31,43 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
     private readonly wikilinkResolver: ResolveWikilinksService,
     private readonly computeRoutingService: ComputeRoutingService,
     private readonly logger: LoggerPort,
-    private readonly dataviewProcessor?: (notes: PublishableNote[]) => Promise<PublishableNote[]>
+    private readonly dataviewProcessor?: (notes: PublishableNote[]) => Promise<PublishableNote[]>,
+    private readonly perfTracker?: PerformanceTrackerPort
   ) {}
 
   async handle(notes: CollectedNote[]): Promise<PublishableNote[]> {
+    const spanId = this.perfTracker?.startSpan('parse-content-full', { notesCount: notes.length });
+
     this.logger?.debug('ParseContentHandler.handle() called', {
       inputNotesCount: notes.length,
     });
 
+    const yieldScheduler = new YieldScheduler(50, 50); // Yield every 50 notes or 50ms
+
+    // Step 1: Normalize frontmatter
+    let stepSpan = this.perfTracker?.startSpan('normalize-frontmatter');
     let normalizedNotes: CollectedNote[] = this.normalizeFrontmatterService.process(notes);
+    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: normalizedNotes.length });
 
     this.logger?.debug('Frontmatter normalized', {
       notesCount: normalizedNotes.length,
     });
 
+    await yieldScheduler.maybeYield();
+
+    // Step 2: Convert to PublishableNote
+    stepSpan = this.perfTracker?.startSpan('map-to-publishable');
     const converted = normalizedNotes.map(this.noteMapper.map);
+    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: converted.length });
 
     this.logger?.debug('Notes converted to PublishableNote', {
       notesCount: converted.length,
     });
 
+    await yieldScheduler.maybeYield();
+
+    // Step 3: Evaluate ignore rules
+    stepSpan = this.perfTracker?.startSpan('evaluate-ignore-rules');
     let publishableNotes = (await this.evaluateIgnoreRulesHandler.handle(converted))
       .map((note) => {
         if (note.eligibility?.isPublishable) {
@@ -57,49 +76,95 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
         return undefined;
       })
       .filter((n): n is PublishableNote => n !== undefined);
+    this.perfTracker?.endSpan(stepSpan!, {
+      publishableCount: publishableNotes.length,
+      ignoredCount: converted.length - publishableNotes.length,
+    });
 
     this.logger?.debug('Ignore rules evaluated', {
       publishableNotesCount: publishableNotes.length,
       ignoredCount: converted.length - publishableNotes.length,
     });
 
+    await yieldScheduler.maybeYield();
+
+    // Step 4: Inline dataview
+    stepSpan = this.perfTracker?.startSpan('inline-dataview-render');
     publishableNotes = this.inlineDataviewRenderer.process(publishableNotes);
+    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
     this.logger?.debug('Inline dataview processed', {
       notesCount: publishableNotes.length,
     });
 
-    // Process Dataview blocks if processor is provided (plugin-side only)
+    await yieldScheduler.maybeYield();
+
+    // Step 5: Process Dataview blocks (async, potentially slow)
     if (this.dataviewProcessor) {
+      stepSpan = this.perfTracker?.startSpan('dataview-blocks-process');
+
       this.logger?.debug('Processing Dataview blocks', {
         notesCount: publishableNotes.length,
         notesWithDataview: publishableNotes.filter((n) => n.content.includes('```dataview')).length,
       });
 
       publishableNotes = await this.dataviewProcessor(publishableNotes);
+      this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
       this.logger?.debug('Dataview blocks processed', {
         notesCount: publishableNotes.length,
       });
+
+      await yieldScheduler.maybeYield();
     }
 
+    // Step 6: Leaflet blocks
+    stepSpan = this.perfTracker?.startSpan('detect-leaflet-blocks');
     publishableNotes = this.leafletBlocksDetector.process(publishableNotes);
+    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
+    await yieldScheduler.maybeYield();
+
+    // Step 7: Ensure title header
+    stepSpan = this.perfTracker?.startSpan('ensure-title-header');
     publishableNotes = this.ensureTitleHeaderService.process(publishableNotes);
+    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
-    // Remove ^no-publishing markers and their associated content
-    // This must happen BEFORE assets detection to avoid detecting assets in excluded sections
+    await yieldScheduler.maybeYield();
+
+    // Step 8: Remove no-publishing markers
+    stepSpan = this.perfTracker?.startSpan('remove-no-publishing-markers');
     publishableNotes = this.removeNoPublishingMarkerService.process(publishableNotes);
+    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
     this.logger?.debug('^no-publishing markers processed', {
       notesCount: publishableNotes.length,
     });
 
+    await yieldScheduler.maybeYield();
+
+    // Step 9: Detect assets
+    stepSpan = this.perfTracker?.startSpan('detect-assets');
     publishableNotes = this.assetsDetector.process(publishableNotes);
+    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
+    await yieldScheduler.maybeYield();
+
+    // Step 10: Resolve wikilinks
+    stepSpan = this.perfTracker?.startSpan('resolve-wikilinks');
     publishableNotes = this.wikilinkResolver.process(publishableNotes);
+    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
+    await yieldScheduler.maybeYield();
+
+    // Step 11: Compute routing
+    stepSpan = this.perfTracker?.startSpan('compute-routing');
     publishableNotes = this.computeRoutingService.process(publishableNotes);
+    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
+
+    this.perfTracker?.endSpan(spanId!, {
+      totalNotesProcessed: publishableNotes.length,
+    });
 
     return publishableNotes;
   }
