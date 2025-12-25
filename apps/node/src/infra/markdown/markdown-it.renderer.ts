@@ -2,6 +2,7 @@ import type { MarkdownRendererPort } from '@core-application';
 import type { LoggerPort } from '@core-domain';
 import { type AssetRef, type PublishableNote, type ResolvedWikilink } from '@core-domain';
 import MarkdownIt from 'markdown-it';
+import anchor from 'markdown-it-anchor';
 import footnote from 'markdown-it-footnote';
 
 import { CalloutRendererService } from './callout-renderer.service';
@@ -27,8 +28,13 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       typographer: true,
     });
 
-    // Register footnote plugin
+    // Register plugins
     this.md.use(footnote);
+    this.md.use(anchor, {
+      slugify: (s: string) => this.headingSlugger.slugify(s),
+      permalink: false, // Don't add permalink links
+      level: [1, 2, 3, 4, 5, 6], // Add IDs to all heading levels
+    });
 
     this.calloutRenderer.register(this.md);
     this.customizeTableRenderer();

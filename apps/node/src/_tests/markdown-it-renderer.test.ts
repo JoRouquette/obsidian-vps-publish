@@ -27,7 +27,9 @@ describe('MarkdownItRenderer', () => {
     const note = baseNote();
     note.content = '# Title';
     const html = await renderer.render(note);
-    expect(html).toContain('<h1>Title</h1>');
+    // Headings now have automatic IDs via markdown-it-anchor
+    expect(html).toContain('<h1 id="title"');
+    expect(html).toContain('>Title</h1>');
   });
 
   it('injects assets with display options', async () => {
@@ -221,7 +223,9 @@ Some text after.`;
     expect(html).toContain('</div>');
 
     // Le markdown autour doit aussi être rendu
-    expect(html).toContain('<h1>My Page</h1>');
+    // Headings now have automatic IDs via markdown-it-anchor
+    expect(html).toContain('<h1 id="my-page"');
+    expect(html).toContain('>My Page</h1>');
     expect(html).toContain('Some text before.');
     expect(html).toContain('Some text after.');
   });

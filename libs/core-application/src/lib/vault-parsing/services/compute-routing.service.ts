@@ -93,7 +93,9 @@ export class ComputeRoutingService implements BaseService {
 
       const updatedLinks = note.resolvedWikilinks.map((link) => {
         if (link.targetNoteId && routingById.has(link.targetNoteId)) {
-          return { ...link, href: routingById.get(link.targetNoteId)!.fullPath };
+          const basePath = routingById.get(link.targetNoteId)!.fullPath;
+          const href = link.subpath ? `${basePath}#${link.subpath}` : basePath;
+          return { ...link, href };
         }
         return link;
       });
