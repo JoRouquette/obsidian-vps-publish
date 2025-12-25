@@ -49,6 +49,18 @@ describe('ResolveWikilinksService', () => {
     expect(note.resolvedWikilinks?.[0].isResolved).toBe(false);
   });
 
+  it('marks wikilinks as unresolved when target exists but has no routing (not published)', () => {
+    const unpublishedTarget = {
+      ...targetNote,
+    };
+    // Remove routing to simulate unpublished note
+    delete (unpublishedTarget as any).routing;
+
+    const [note] = service.process([baseNote, unpublishedTarget as any]);
+    expect(note.resolvedWikilinks?.[0].isResolved).toBe(false);
+    expect(note.resolvedWikilinks?.[0].targetNoteId).toBe('2'); // Note ID is still captured
+  });
+
   it('resolves wikilinks without extension against matching note files', () => {
     const noteWithoutExt = {
       ...baseNote,

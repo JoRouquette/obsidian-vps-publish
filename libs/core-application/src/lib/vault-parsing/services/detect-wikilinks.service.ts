@@ -10,6 +10,13 @@ import { extractFrontmatterStrings } from '../utils/frontmatter-strings.util';
  * Asset embeds are filtered out by checking the preceding "!".
  */
 const WIKILINK_REGEX = /\[\[([^\]]+)\]\]/g;
+
+/**
+ * Regex to capture markdown links to .md files [text](file.md) or [text](file.md#section).
+ * These are treated as wikilinks for resolution purposes.
+ */
+const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\(([^)]+\.md(?:#[^)]*)?)\)/gi;
+
 type WikilinkOrigin = 'content' | 'frontmatter';
 
 export class DetectWikilinksService implements BaseService {
@@ -29,12 +36,18 @@ export class DetectWikilinksService implements BaseService {
     const fromContent = this.detectInText(note.content, 'content');
     wikilinks.push(...fromContent);
 
+    const fromMarkdownLinks = this.detectMarkdownLinks(note.content, 'content');
+    wikilinks.push(...fromMarkdownLinks);
+
     const frontmatter = note.frontmatter?.nested;
     if (frontmatter && typeof frontmatter === 'object') {
       const strings = extractFrontmatterStrings(frontmatter);
       for (const entry of strings) {
         const detected = this.detectInText(entry.value, 'frontmatter', entry.path);
         wikilinks.push(...detected);
+
+        const markdownLinks = this.detectMarkdownLinks(entry.value, 'frontmatter', entry.path);
+        wikilinks.push(...markdownLinks);
       }
     }
 
@@ -147,6 +160,78 @@ export class DetectWikilinksService implements BaseService {
           assetEmbed: skippedAssetEmbed,
           emptyTarget: skippedEmptyTarget,
           emptyPath: skippedEmptyPath,
+        },
+      });
+    }
+
+    return wikilinks;
+  }
+
+  /**
+   * Detect markdown links to .md files and convert them to wikilink references.
+   * Supports:
+   * - [text](file.md)
+   * - [text](path/to/file.md)
+   * - [text](file.md#section)
+   */
+  private detectMarkdownLinks(
+    markdown: string,
+    origin: WikilinkOrigin,
+    frontmatterPath?: string
+  ): WikilinkRef[] {
+    const wikilinks: WikilinkRef[] = [];
+    MARKDOWN_LINK_REGEX.lastIndex = 0;
+
+    let match: RegExpExecArray | null;
+    let matchesFound = 0;
+    let skippedExternal = 0;
+
+    while ((match = MARKDOWN_LINK_REGEX.exec(markdown)) !== null) {
+      matchesFound++;
+      const fullMatch = match[0]; // "[text](file.md)"
+      const alias = match[1].trim();
+      const href = match[2].trim(); // "file.md" or "file.md#section"
+
+      // Skip external URLs (http://, https://, etc.)
+      if (/^https?:\/\//i.test(href)) {
+        skippedExternal++;
+        continue;
+      }
+
+      // Remove .md extension and parse subpath
+      const hrefWithoutExt = href.replace(/\.md$/i, '');
+      const [pathPart, subpathPart] = this.splitOnce(hrefWithoutExt, '#');
+      const path = pathPart.trim();
+      const subpath = subpathPart && subpathPart.trim().length > 0 ? subpathPart.trim() : undefined;
+
+      if (!path) {
+        continue;
+      }
+
+      const kind = this.inferKind(path);
+
+      const wikilink: WikilinkRef = {
+        origin,
+        frontmatterPath,
+        raw: fullMatch,
+        target: path + (subpath ? `#${subpath}` : ''),
+        path,
+        subpath,
+        alias,
+        kind,
+      };
+
+      wikilinks.push(wikilink);
+    }
+
+    if (matchesFound > 0) {
+      this._logger.debug('Detected markdown links to .md files', {
+        origin,
+        frontmatterPath,
+        matchesFound,
+        wikilinksCreated: wikilinks.length,
+        skipped: {
+          external: skippedExternal,
         },
       });
     }

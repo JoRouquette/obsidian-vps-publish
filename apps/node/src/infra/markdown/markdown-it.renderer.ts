@@ -165,7 +165,11 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     const contentAssets = (note.assets ?? []).filter((a) => a.origin !== 'frontmatter');
     const contentLinks = (note.resolvedWikilinks ?? []).filter((l) => l.origin !== 'frontmatter');
 
-    const withAssets = this.injectAssets(note.content, contentAssets);
+    // Convert markdown links to .md files to unresolved spans
+    // (since they're not in resolvedWikilinks, they're not published)
+    const contentWithHandledMdLinks = this.handleMarkdownLinks(note.content);
+
+    const withAssets = this.injectAssets(contentWithHandledMdLinks, contentAssets);
     const withLinks = this.injectWikilinks(withAssets, contentLinks);
     const html = this.md.render(withLinks);
 
@@ -192,6 +196,32 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     });
     this.logger?.debug('Rendered HTML content', { htmlLength: filtered.length });
     return filtered;
+  }
+
+  /**
+   * Handle markdown links to .md files by rendering them as unresolved wikilink spans.
+   * This is necessary when markdown links weren't converted upstream or when resolvedWikilinks is empty.
+   */
+  private handleMarkdownLinks(content: string): string {
+    const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\(([^)]+\.md(?:#[^)]*)?)\)/gi;
+    return content.replace(MARKDOWN_LINK_REGEX, (match, text, href) => {
+      // Skip external URLs
+      if (/^https?:\/\//i.test(href)) {
+        return match;
+      }
+
+      // Remove .md extension
+      const target = href.replace(/\.md$/i, '');
+
+      // Render as unresolved wikilink span
+      return this.renderUnresolvedWikilink(target, text);
+    });
+  }
+
+  private renderUnresolvedWikilink(target: string, label: string): string {
+    const escapedLabel = this.escapeHtml(label);
+    const escapedTarget = this.escapeHtml(target);
+    return `<span class="wikilink wikilink-unresolved" role="link" aria-disabled="true" title="Cette page arrive prochainement" data-tooltip="Cette page arrive prochainement" data-wikilink="${escapedTarget}">${escapedLabel}</span>`;
   }
 
   private injectAssets(content: string, assets: AssetRef[]): string {
@@ -269,6 +299,9 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
 
     if (link.isResolved) {
       let hrefTarget = link.href ?? link.path ?? link.target;
+
+      // Remove .md extension if present (fallback safety for malformed paths)
+      hrefTarget = hrefTarget.replace(/\.md$/i, '');
 
       // Handle heading anchors: [[#Heading]] or [[Page#Heading]]
       // Transform heading text to slug matching markdown-it's behavior
