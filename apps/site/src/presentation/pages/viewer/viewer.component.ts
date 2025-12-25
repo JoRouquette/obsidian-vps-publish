@@ -186,6 +186,19 @@ export class ViewerComponent {
     const isExternal = /^[a-z]+:\/\//i.test(href) || href.startsWith('mailto:');
     if (isExternal) return;
 
+    // Handle fragment-only links (footnotes, heading anchors)
+    if (href.startsWith('#')) {
+      event.preventDefault();
+      const targetId = href.substring(1);
+      const targetElement = document.getElementById(targetId);
+      if (targetElement) {
+        targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Update URL without navigation
+        window.history.pushState(null, '', `${window.location.pathname}${href}`);
+      }
+      return;
+    }
+
     event.preventDefault();
     void this.router.navigateByUrl(href);
   }
