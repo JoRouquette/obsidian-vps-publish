@@ -45,12 +45,14 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
   /**
    * Customize footnote rendering to normalize IDs (remove colons)
    * Fixes issue where IDs like "fn:1" break HTML/CSS selectors
+   * Supports multiple references to the same footnote with unique IDs
    */
   private customizeFootnoteRenderer(): void {
     // Override footnote anchor rendering (the superscript link)
     this.md.renderer.rules.footnote_ref = (tokens, idx, _options, _env, _slf) => {
       const id = Number(tokens[idx].meta.id + 1);
-      const refId = `fnref-${id}`;
+      const subId = tokens[idx].meta.subId;
+      const refId = subId > 0 ? `fnref-${id}-${subId}` : `fnref-${id}`;
       const label = tokens[idx].meta.label ?? id;
 
       return `<sup class="footnote-ref"><a href="#fn-${id}" id="${refId}">${label}</a></sup>`;
@@ -75,8 +77,10 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     // Override footnote anchor (back to reference link)
     this.md.renderer.rules.footnote_anchor = (tokens, idx) => {
       const id = Number(tokens[idx].meta.id + 1);
-      const refId = `fnref-${id}`;
-      return ` <a href="#${refId}" class="footnote-backref" aria-label="Back to reference ${id}">↩</a>`;
+      const subId = tokens[idx].meta.subId;
+      const refId = subId > 0 ? `fnref-${id}-${subId}` : `fnref-${id}`;
+      const label = subId > 0 ? `Back to reference ${id}-${subId}` : `Back to reference ${id}`;
+      return ` <a href="#${refId}" class="footnote-backref" aria-label="${label}">↩</a>`;
     };
   }
 

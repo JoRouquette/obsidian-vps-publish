@@ -15,7 +15,8 @@ describe('Footnote Navigation', () => {
     // Apply same customization as MarkdownItRenderer
     md.renderer.rules.footnote_ref = (tokens, idx) => {
       const id = Number(tokens[idx].meta.id + 1);
-      const refId = `fnref-${id}`;
+      const subId = tokens[idx].meta.subId;
+      const refId = subId > 0 ? `fnref-${id}-${subId}` : `fnref-${id}`;
       const label = tokens[idx].meta.label ?? id;
       return `<sup class="footnote-ref"><a href="#fn-${id}" id="${refId}">${label}</a></sup>`;
     };
@@ -35,8 +36,10 @@ describe('Footnote Navigation', () => {
 
     md.renderer.rules.footnote_anchor = (tokens, idx) => {
       const id = Number(tokens[idx].meta.id + 1);
-      const refId = `fnref-${id}`;
-      return ` <a href="#${refId}" class="footnote-backref" aria-label="Back to reference ${id}">↩</a>`;
+      const subId = tokens[idx].meta.subId;
+      const refId = subId > 0 ? `fnref-${id}-${subId}` : `fnref-${id}`;
+      const label = subId > 0 ? `Back to reference ${id}-${subId}` : `Back to reference ${id}`;
+      return ` <a href="#${refId}" class="footnote-backref" aria-label="${label}">↩</a>`;
     };
   });
 
@@ -75,5 +78,27 @@ describe('Footnote Navigation', () => {
     expect(html).toContain('id="fnref-2"');
     expect(html).toContain('id="fn-2"');
     expect(html).toMatch(/id="fn-2"[\s\S]*?href="#fnref-2"/);
+  });
+
+  it('should handle multiple references to the same footnote', () => {
+    const markdown =
+      'First reference[^1] and second reference[^1].\n\n[^1]: This is the footnote content.';
+    const html = md.render(markdown);
+
+    console.log('Generated HTML with multiple refs:', html);
+
+    // Check that first reference has base ID (subId = 0)
+    expect(html).toContain('id="fnref-1"');
+
+    // Check that second reference has subId suffix (markdown-it-footnote uses subId = 1 for second occurrence)
+    expect(html).toContain('id="fnref-1-1"');
+
+    // Check that both back references exist and point to correct refs
+    expect(html).toContain('href="#fnref-1"');
+    expect(html).toContain('href="#fnref-1-1"');
+
+    // Verify there are two backref links
+    const backrefMatches = html.match(/class="footnote-backref"/g);
+    expect(backrefMatches).toHaveLength(2);
   });
 });
