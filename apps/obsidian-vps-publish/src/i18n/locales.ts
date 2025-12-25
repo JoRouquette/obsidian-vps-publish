@@ -228,6 +228,7 @@ export type HelpTranslations = {
     assets: HelpSection;
     dataview: HelpSection;
     leaflet: HelpSection;
+    markdown: HelpSection;
   };
   footer: {
     docsText: string;
@@ -554,6 +555,25 @@ export const en: Translations = {
           },
         ],
       },
+      markdown: {
+        title: 'Markdown Rendering',
+        content:
+          'Advanced Markdown features are fully supported:\n\n• Wikilinks to headings: [[#Heading]] or [[Page#Heading]]\n• Footnotes with CSS-safe IDs: [^1]\n• Tags filtering: Inline tags configured in Settings > Ignore Rules > Tags are automatically removed from rendered HTML (headings, blockquotes, paragraphs, etc.)\n\nAll these features work seamlessly with Obsidian syntax.',
+        examples: [
+          {
+            code: '[[#Introduction]] or [[Page#Section]]',
+            description: 'Link to heading in current page or another page',
+          },
+          {
+            code: 'Text with footnote[^1]\n\n[^1]: Footnote content',
+            description: 'Footnotes are rendered with proper CSS IDs',
+          },
+          {
+            code: '# Title #todo\n> #note Quote text',
+            description: 'Tags listed in Settings > Ignore Rules are removed (e.g., #todo, #note)',
+          },
+        ],
+      },
     },
     footer: {
       docsText: 'For complete documentation, visit:',
@@ -876,6 +896,24 @@ export const fr: Translations = {
           {
             code: '```leaflet\nid: carte-1\nlat: 48.8566\nlong: 2.3522\n```',
             description: 'Configuration de carte Leaflet',
+          },
+        ],
+      },
+      markdown: {
+        title: 'Rendu Markdown',
+        content: `Les fonctionnalités avancées de Markdown sont pleinement supportées :\n\n• Wikilinks vers des headings : [[#Titre]] ou [[Page#Section]]\n• Notes de bas de page avec IDs CSS-safe : [^1]\n• Filtrage des tags : Les tags inline configurés dans Paramètres > Règles d'Ignorance > Tags sont automatiquement supprimés du HTML rendu (titres, blockquotes, paragraphes, etc.)\n\nToutes ces fonctionnalités fonctionnent de manière transparente avec la syntaxe Obsidian.`,
+        examples: [
+          {
+            code: '[[#Introduction]] ou [[Page#Section]]',
+            description: 'Lien vers un titre dans la page actuelle ou une autre page',
+          },
+          {
+            code: 'Texte avec note[^1]\n\n[^1]: Contenu de la note',
+            description: 'Les notes de bas de page sont rendues avec des IDs CSS appropriés',
+          },
+          {
+            code: '# Titre #todo\n> #note Texte de citation',
+            description: `Les tags listés dans Paramètres > Règles d'Ignorance sont supprimés (ex : #todo, #note)`,
           },
         ],
       },

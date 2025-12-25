@@ -2,27 +2,76 @@ import type { MarkdownRendererPort } from '@core-application';
 import type { LoggerPort } from '@core-domain';
 import { type AssetRef, type PublishableNote, type ResolvedWikilink } from '@core-domain';
 import MarkdownIt from 'markdown-it';
+import footnote from 'markdown-it-footnote';
 
 import { CalloutRendererService } from './callout-renderer.service';
+import { HeadingSlugger } from './heading-slugger';
+import { TagFilterService } from './tag-filter.service';
 
 export class MarkdownItRenderer implements MarkdownRendererPort {
   private readonly md: MarkdownIt;
   private readonly calloutRenderer: CalloutRendererService;
+  private readonly tagFilter: TagFilterService;
+  private readonly headingSlugger: HeadingSlugger;
 
   constructor(
     calloutRenderer?: CalloutRendererService,
     private readonly logger?: LoggerPort
   ) {
     this.calloutRenderer = calloutRenderer ?? new CalloutRendererService();
+    this.tagFilter = new TagFilterService();
+    this.headingSlugger = new HeadingSlugger();
     this.md = new MarkdownIt({
       html: true,
       linkify: false, // Wikilinks already converted before render (no auto-linking needed)
       typographer: true,
     });
 
+    // Register footnote plugin
+    this.md.use(footnote);
+
     this.calloutRenderer.register(this.md);
     this.customizeTableRenderer();
     this.customizeListRenderer();
+    this.customizeFootnoteRenderer();
+  }
+
+  /**
+   * Customize footnote rendering to normalize IDs (remove colons)
+   * Fixes issue where IDs like "fn:1" break HTML/CSS selectors
+   */
+  private customizeFootnoteRenderer(): void {
+    // Override footnote anchor rendering (the superscript link)
+    this.md.renderer.rules.footnote_ref = (tokens, idx, _options, _env, _slf) => {
+      const id = Number(tokens[idx].meta.id + 1);
+      const refId = `fnref-${id}`;
+      const label = tokens[idx].meta.label ?? id;
+
+      return `<sup class="footnote-ref"><a href="#fn-${id}" id="${refId}">${label}</a></sup>`;
+    };
+
+    // Override footnote block opening
+    this.md.renderer.rules.footnote_block_open = () => {
+      return '<section class="footnotes" role="doc-endnotes">\n<hr>\n<ol class="footnotes-list">\n';
+    };
+
+    // Override footnote block closing
+    this.md.renderer.rules.footnote_block_close = () => {
+      return '</ol>\n</section>\n';
+    };
+
+    // Override footnote item opening
+    this.md.renderer.rules.footnote_open = (tokens, idx) => {
+      const id = Number(tokens[idx].meta.id + 1);
+      return `<li id="fn-${id}" class="footnote-item">`;
+    };
+
+    // Override footnote anchor (back to reference link)
+    this.md.renderer.rules.footnote_anchor = (tokens, idx) => {
+      const id = Number(tokens[idx].meta.id + 1);
+      const refId = `fnref-${id}`;
+      return ` <a href="#${refId}" class="footnote-backref" aria-label="Back to reference ${id}">↩</a>`;
+    };
   }
 
   /**
@@ -122,12 +171,17 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       userCss ? '\n' + userCss : ''
     }</style>\n${html}`;
 
+    // Filter ignored tags from rendered HTML
+    // TODO: Get ignored tags from FolderConfig or VPSConfig when implemented
+    const ignoredTags: string[] = [];
+    const filtered = this.tagFilter.filterTags(withStyles, ignoredTags);
+
     this.logger?.debug('Markdown rendered to HTML', {
       noteId: note.noteId,
       slug: note.routing.slug,
     });
-    this.logger?.debug('Rendered HTML content', { htmlLength: withStyles.length });
-    return withStyles;
+    this.logger?.debug('Rendered HTML content', { htmlLength: filtered.length });
+    return filtered;
   }
 
   private injectAssets(content: string, assets: AssetRef[]): string {
@@ -204,7 +258,18 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     );
 
     if (link.isResolved) {
-      const hrefTarget = link.href ?? link.path ?? link.target;
+      let hrefTarget = link.href ?? link.path ?? link.target;
+
+      // Handle heading anchors: [[#Heading]] or [[Page#Heading]]
+      // Transform heading text to slug matching markdown-it's behavior
+      if (hrefTarget.includes('#')) {
+        const [path, heading] = hrefTarget.split('#');
+        if (heading) {
+          const slug = this.headingSlugger.slugify(heading);
+          hrefTarget = path ? `${path}#${slug}` : `#${slug}`;
+        }
+      }
+
       const href = this.escapeAttribute(encodeURI(hrefTarget));
       return `<a class="wikilink" data-wikilink="${this.escapeAttribute(link.target)}" href="${href}">${label}</a>`;
     }
