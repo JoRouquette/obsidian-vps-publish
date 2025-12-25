@@ -137,5 +137,5 @@ No backend configuration required. Dataview processing happens in the plugin usi
 ## Related Documentation
 
 - [Markdown Rendering](./markdown-rendering.md) - Wikilinks, footnotes, tags
-- [Architecture](./architecture.md) - Monorepo structure
-- [Development](./development.md) - Local setup and testing
+- [Architecture](../architecture.md) - Monorepo structure
+- [Development](../development.md) - Local setup and testing

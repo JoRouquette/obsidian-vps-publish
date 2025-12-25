@@ -273,10 +273,214 @@ See `apps/node/src/infra/config/env-config.ts` for defaults and `.env.dev.exampl
 
 ## Additional Documentation
 
+- `docs/README.md` - **Documentation Charter** (MUST READ for any doc change)
 - `docs/architecture.md` - Detailed API routes, environment variables, deployment
 - `docs/development.md` - Setup and local workflows
 - `docs/docker.md` - Multi-stage build details, compose files
 - `docs/release.md` - semantic-release configuration and versioning strategy
+- `docs/site/` - Angular frontend documentation
+- `docs/api/` - Node.js backend documentation
+- `docs/plugin/` - Obsidian plugin documentation
+
+---
+
+## Documentation Maintenance Rules (CRITICAL)
+
+### Documentation Charter
+
+**Read `docs/README.md` FIRST** before any documentation change. It defines:
+
+- What to document (and what NOT to document)
+- Documentation structure
+- Standard document format
+- Mandatory update rules
+
+### Non-negotiable Rules
+
+1. **Documentation serves usage, not history**
+   - ❌ NO migration journals, refactoring summaries, implementation summaries
+   - ❌ NO "overhaul-summary", "migration-summary", "implementation-summary" files
+   - ✅ Document current state: architecture, usage, configuration, troubleshooting
+
+2. **Plugin changes MUST update internal help**
+   - Any change in `apps/obsidian-vps-publish/src/` affecting parsing/rendering/syntax MUST update:
+     - `apps/obsidian-vps-publish/src/i18n/locales.ts` → `help` sections (EN + FR)
+     - `docs/plugin/syntaxes.md`
+   - This includes: wikilinks, footnotes, callouts, tags filtering, dataview, leaflet, etc.
+
+3. **No orphaned documentation files**
+   - Every `.md` file in `docs/` MUST be referenced in an index README
+   - Allowed locations: `docs/{site,api,plugin}/`, `docs/en/{site,api,plugin}/`, `docs/_archive/`
+   - Anything else triggers CI failure
+
+4. **No redundant documentation**
+   - Before creating a new doc file, check if an existing file can be extended
+   - One topic = one page (don't split unnecessarily)
+   - No duplicate FR/EN unless truly useful for international audience
+
+### Decision Tree for Documentation Changes
+
+**When you make ANY code change**, ask:
+
+1. **Does this change user-facing behavior or configuration?**
+   - YES → Update relevant doc in `docs/{site,api,plugin}/`
+   - NO → No doc update needed
+
+2. **Does this change plugin parsing/rendering/syntax?**
+   - YES → **MANDATORY** update:
+     - `apps/obsidian-vps-publish/src/i18n/locales.ts` (help sections)
+     - `docs/plugin/syntaxes.md`
+   - NO → Continue to next question
+
+3. **Does this change require a new documentation file?**
+   - Check existing docs in target area (`site/`, `api/`, `plugin/`)
+   - If a relevant file exists, extend it with a new section
+   - Only create new file if topic is distinct and substantial (>50 lines)
+
+4. **Is this a refactoring/migration with historical interest?**
+   - NO new doc file allowed
+   - Update existing doc to reflect current state
+   - If truly useful for internal reference, add to `docs/_archive/` (not indexed)
+
+### Forbidden Documentation Practices
+
+❌ **Never create these types of files:**
+
+- `*-summary.md`, `*-implementation.md`, `*-migration.md`, `*-overhaul.md`
+- `*-checklist.md` (unless active, operational checklist used in CI/workflows)
+- `*-journal.md`, `*-log.md`, `*-history.md`
+- Step-by-step implementation narratives ("we did X, then Y, then Z")
+
+❌ **Never document:**
+
+- How a refactoring was done (irrelevant once complete)
+- Step-by-step migration details (document final state only)
+- Obsolete implementation details replaced by newer versions
+- Exhaustive catalogs of all internal components (document what's configurable/used)
+
+### Standard Document Format
+
+Every feature doc MUST follow this structure:
+
+```markdown
+# Feature Title
+
+## Purpose
+
+Why this feature exists, what problem it solves.
+
+## When to Use
+
+Concrete use cases, typical scenarios.
+
+## Key Concepts
+
+Definitions, architecture, involved components (keep concise).
+
+## Configuration
+
+Environment variables, settings, available options.
+
+## Usage
+
+Practical examples, commands, workflows.
+
+## Troubleshooting
+
+Common issues and solutions.
+
+## References
+
+Links to source code, relevant issues, PRs.
+```
+
+### Validation Rules (enforced by CI)
+
+The script `npm run docs:check` verifies:
+
+1. **Structure compliance**: No `.md` files outside allowed locations
+2. **Index completeness**: All `.md` files are referenced in a README index
+3. **Plugin help sync**: Changes in plugin parsing/rendering are accompanied by help updates
+
+**These checks run in CI and will fail the build if violated.**
+
+### Examples of Good Documentation Updates
+
+✅ **Adding a new feature** (Leaflet maps):
+
+1. Add section to existing doc: `docs/site/leaflet.md`
+2. Update `docs/site/README.md` index to reference it
+3. Update plugin help: `locales.ts` → `help.sections.leaflet`
+4. Run `npm run docs:check`
+
+✅ **Documenting a new API endpoint**:
+
+1. Add section to `docs/api/README.md` under "API Endpoints"
+2. If substantial (>50 lines), create `docs/api/endpoint-name.md`
+3. Update index in `docs/api/README.md`
+
+✅ **Refactoring performance**:
+
+1. Update `docs/api/performance.md` with new metrics/config
+2. Remove any mention of "how we migrated" or "before/after"
+3. Document only current state and usage
+
+❌ **Bad examples (DON'T DO THIS)**:
+
+1. Creating `docs/leaflet-implementation-summary.md` after implementing Leaflet
+2. Creating `docs/performance-overhaul-summary.md` after performance refactoring
+3. Adding step-by-step migration details to a doc
+4. Creating a new doc when existing `docs/site/leaflet.md` could be extended
+
+### Plugin Help Component Sync (CRITICAL)
+
+**File**: `apps/obsidian-vps-publish/src/i18n/locales.ts`
+
+**Sections to keep synchronized**:
+
+````typescript
+help: {
+  sections: {
+    publishing: { ... },      // publish: false, draft: true
+    noPublishing: { ... },    // ^no-publishing marker
+    frontmatter: { ... },     // YAML properties
+    wikilinks: { ... },       // [[Note]], [[#Header]], [[Note#Section]]
+    assets: { ... },          // ![[image.png]], ![](path)
+    dataview: { ... },        // `= this.prop`, dataview blocks
+    leaflet: { ... },         // ```leaflet blocks
+    markdown: { ... }         // Advanced: headings, footnotes, tags filtering
+  }
+}
+````
+
+**When to update**:
+
+- Adding/removing supported syntax
+- Changing behavior of existing syntax
+- Adding new plugin setting that affects rendering
+- Fixing a bug that changes how syntax is processed
+
+**How to update**:
+
+1. Edit `locales.ts` → `en` and `fr` help sections
+2. Update `docs/plugin/syntaxes.md` to match
+3. Test help modal in Obsidian (open with command or settings button)
+
+### Automated Checks Implementation
+
+**Script location**: `scripts/docs-check.mjs` (to be created in next step)
+
+**What it checks**:
+
+1. All `.md` files are in allowed locations
+2. All `.md` files (except `_archive/`) are referenced in an index README
+3. Changes in plugin src affecting parsing/rendering have corresponding help updates
+
+**Integration**:
+
+- Added to `package.json`: `"docs:check": "node scripts/docs-check.mjs"`
+- Runs in CI (GitHub Actions) before build/test
+- Blocks merge if checks fail
 
 ---
 

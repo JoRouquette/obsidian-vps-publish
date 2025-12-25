@@ -136,6 +136,6 @@ Aucune configuration backend requise. Le traitement Dataview se fait dans le plu
 
 ## Documentation Connexe
 
-- [Rendu Markdown](./rendu-markdown.md) - Wikilinks, footnotes, tags
-- [Architecture](./architecture.md) - Structure du monorepo
-- [Development](./development.md) - Configuration locale et tests
+- [Rendu Markdown](./markdown-rendering.md) - Wikilinks, footnotes, tags
+- [Architecture](../architecture.md) - Structure du monorepo
+- [Development](../development.md) - Configuration locale et tests
