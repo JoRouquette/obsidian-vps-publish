@@ -1,5 +1,6 @@
 import { Setting } from 'obsidian';
 
+import { translate } from '../../../i18n';
 import { FolderSuggest } from '../../suggesters/folder-suggester';
 import type { SettingsViewContext } from '../context';
 
@@ -20,7 +21,7 @@ export function renderVaultSection(root: HTMLElement, ctx: SettingsViewContext):
     .setDesc(t.settings.vault?.assetsFolderDescription)
     .addText((text) => {
       text
-        .setPlaceholder('assets')
+        .setPlaceholder(translate(t, 'placeholders.assetsFolder'))
         .setValue(settings.assetsFolder || 'assets')
         .onChange(async (value) => {
           logger.debug('Assets folder changed', { value });

@@ -2,6 +2,7 @@ import type { IgnoreRule } from '@core-domain/entities/ignore-rule';
 import type { VpsConfig } from '@core-domain/entities/vps-config';
 import { type DropdownComponent, Setting } from 'obsidian';
 
+import { translate } from '../../../i18n';
 import { FrontmatterPropertySuggester } from '../../suggesters/frontmatter-property-suggester';
 import { TagSuggester } from '../../suggesters/tag-suggester';
 import type { SettingsViewContext } from '../context';
@@ -27,7 +28,7 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
 
     new Setting(vpsSection)
       .setName(
-        `${vps.name || `VPS #${vpsIndex + 1}`} - ${t.settings.ignoreRules.rulesLabel ?? 'Ignore Rules'}`
+        `${vps.name || translate(t, 'common.vpsNumberFallback', { number: (vpsIndex + 1).toString() })} - ${t.settings.ignoreRules.rulesLabel ?? 'Ignore Rules'}`
       )
       .setHeading();
 

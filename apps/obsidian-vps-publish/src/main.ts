@@ -26,7 +26,7 @@ import { LogLevel } from '@core-domain/ports/logger-port';
 import type { PerformanceTrackerPort } from '@core-domain/ports/performance-tracker.port';
 import { type DataAdapter, Notice, Plugin, type RequestUrlResponse } from 'obsidian';
 
-import { getTranslations } from './i18n';
+import { getTranslations, translate } from './i18n';
 import { decryptApiKey, encryptApiKey } from './lib/api-key-crypto';
 import { DEFAULT_LOGGER_LEVEL } from './lib/constants/default-logger-level.constant';
 import { type DataviewApi, DataviewExecutor } from './lib/dataview/dataview-executor';
@@ -39,7 +39,7 @@ import { NoticeNotificationAdapter } from './lib/infra/notice-notification.adapt
 import { NoticeProgressAdapter } from './lib/infra/notice-progress.adapter';
 import { ObsidianAssetsVaultAdapter } from './lib/infra/obsidian-assets-vault.adapter';
 import { ObsidianVaultAdapter } from './lib/infra/obsidian-vault.adapter';
-import { createStepMessages } from './lib/infra/step-messages.factory';
+import { createStepMessages, getStepLabel } from './lib/infra/step-messages.factory';
 import { StepProgressManagerAdapter } from './lib/infra/step-progress-manager.adapter';
 import { testVpsConnection } from './lib/services/http-connection.service';
 import { SessionApiClient } from './lib/services/session-api.client';
@@ -121,9 +121,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           new Notice(t.settings.errors?.missingVpsConfig ?? 'No VPS configured');
           return;
         }
-        selectVpsOrAuto(this.app, this.settings.vpsConfigs, async (vps) => {
-          await this.uploadToVps(vps);
-        });
+        selectVpsOrAuto(
+          this.app,
+          this.settings.vpsConfigs,
+          async (vps) => {
+            await this.uploadToVps(vps);
+          },
+          t
+        );
       },
     });
 
@@ -135,9 +140,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           new Notice(t.settings.errors?.missingVpsConfig ?? 'No VPS configured');
           return;
         }
-        selectVpsOrAuto(this.app, this.settings.vpsConfigs, async (vps) => {
-          await this.testConnectionForVps(vps);
-        });
+        selectVpsOrAuto(
+          this.app,
+          this.settings.vpsConfigs,
+          async (vps) => {
+            await this.testConnectionForVps(vps);
+          },
+          t
+        );
       },
     });
 
@@ -188,9 +198,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           new Notice(t.settings.errors?.missingVpsConfig ?? 'No VPS configured');
           return;
         }
-        selectVpsOrAuto(this.app, this.settings.vpsConfigs, async (vps) => {
-          await this.uploadToVps(vps);
-        });
+        selectVpsOrAuto(
+          this.app,
+          this.settings.vpsConfigs,
+          async (vps) => {
+            await this.uploadToVps(vps);
+          },
+          t
+        );
       } catch (e) {
         this.logger.error('Publish failed from ribbon', { error: e });
         new Notice(t.plugin.publishError);
@@ -241,7 +256,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
   async testConnectionForVps(vps: VpsConfig): Promise<void> {
     const { t } = getTranslations(this.app, this.settings);
-    const res: HttpResponse = await testVpsConnection(vps, this.responseHandler, this.logger);
+    const res: HttpResponse = await testVpsConnection(vps, this.responseHandler, this.logger, t);
 
     if (!res.isError) {
       this.logger.debug('VPS connection test succeeded', { vpsId: vps.id });
@@ -249,11 +264,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       new Notice(t.settings.testConnection.success);
     } else {
       this.logger.error('VPS connection test failed', { vpsId: vps.id, error: res.error });
-      new Notice(
-        `${t.settings.testConnection.failed} ${
-          res.error instanceof Error ? res.error.message : JSON.stringify(res.error)
-        }`
-      );
+      const errorMsg = res.error instanceof Error ? res.error.message : JSON.stringify(res.error);
+      new Notice(translate(t, 'settings.testConnection.failedWithError', { error: errorMsg }));
     }
   }
 
@@ -286,7 +298,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     if (!vps.folders || vps.folders.length === 0) {
       this.logger.warn('No folders configured for VPS', { vpsId: vps.id });
-      new Notice('No folders configured for publishing.');
+      new Notice(translate(t, 'notice.noFoldersConfigured'));
       return;
     }
 
@@ -307,7 +319,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     stats.startedAt = new Date();
 
     // Initialiser le système de progress et notifications
-    const totalProgressAdapter = new NoticeProgressAdapter('Publishing to VPS');
+    const totalProgressAdapter = new NoticeProgressAdapter(translate(t, 'notice.publishing'), t);
     const notificationAdapter = new NoticeNotificationAdapter();
     const stepMessages = createStepMessages(t.plugin);
     const stepProgressManager = new StepProgressManagerAdapter(
@@ -328,7 +340,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ====================================================================
       const parseVaultSpan = perfTracker.startSpan('parse-vault');
 
-      notificationAdapter.info('🔍 Analyzing vault notes...');
+      notificationAdapter.info(translate(t, 'notice.analyzingVault'));
 
       const vault = new ObsidianVaultAdapter(
         this.app,
@@ -360,9 +372,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         scopedLogger.debug(
           'Dataview plugin not found or not enabled. Dataview blocks will be replaced with error messages.'
         );
-        notificationAdapter.info(
-          '⚠️ Dataview plugin not detected. Dataview blocks will show as errors on the site.'
-        );
+        notificationAdapter.info(translate(t, 'notice.dataviewNotDetected'));
       } else {
         scopedLogger.debug('Dataview plugin detected and ready');
       }
@@ -410,7 +420,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
       if (publishableCount === 0) {
         this.logger.warn('No publishable notes after filtering; aborting upload.');
-        new Notice('No publishable notes to upload.');
+        new Notice(translate(t, 'notice.noPublishableNotes'));
         totalProgressAdapter.finish();
         return;
       }
@@ -425,7 +435,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         vps.baseUrl,
         vps.apiKey,
         this.responseHandler,
-        this.logger
+        this.logger,
+        t
       );
       const calloutStyles = await this.loadCalloutStyles(settings.calloutStylePaths ?? []);
 
@@ -509,14 +520,15 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
       stepProgressManager.startStep(
         ProgressStepId.UPLOAD_NOTES,
-        'Uploading notes',
+        getStepLabel(t, ProgressStepId.UPLOAD_NOTES),
         publishableCount
       );
 
       notificationAdapter.info(
-        `📤 Uploading notes in ${stats.notesBatchCount} batch${
-          stats.notesBatchCount > 1 ? 'es' : ''
-        }...`
+        translate(t, 'notice.uploadingNotesBatches', {
+          count: String(stats.notesBatchCount),
+          plural: stats.notesBatchCount > 1 ? 'es' : '',
+        })
       );
 
       await notesUploader.upload(publishables);
@@ -558,14 +570,15 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
         stepProgressManager.startStep(
           ProgressStepId.UPLOAD_ASSETS,
-          'Uploading assets',
+          getStepLabel(t, ProgressStepId.UPLOAD_ASSETS),
           assetsPlanned
         );
 
         notificationAdapter.info(
-          `📤 Uploading assets in ${stats.assetsBatchCount} batch${
-            stats.assetsBatchCount > 1 ? 'es' : ''
-          }...`
+          translate(t, 'notice.uploadingAssetsBatches', {
+            count: String(stats.assetsBatchCount),
+            plural: stats.assetsBatchCount > 1 ? 'es' : '',
+          })
         );
 
         await assetsUploader.upload(resolvedAssets);
@@ -581,7 +594,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         this.logger.debug('Assets uploaded', { assetsUploaded: stats.assetsUploaded });
       } else {
         // Pas d'assets à uploader, on skip l'étape
-        stepProgressManager.skipStep(ProgressStepId.UPLOAD_ASSETS, 'No assets to upload');
+        stepProgressManager.skipStep(
+          ProgressStepId.UPLOAD_ASSETS,
+          translate(t, 'plugin.progress.uploadAssets.skip')
+        );
       }
 
       // ====================================================================
@@ -589,7 +605,11 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ====================================================================
       const finalizeSpan = perfTracker.startSpan('finalize-session');
 
-      stepProgressManager.startStep(ProgressStepId.FINALIZE_SESSION, 'Finalizing', 1);
+      stepProgressManager.startStep(
+        ProgressStepId.FINALIZE_SESSION,
+        getStepLabel(t, ProgressStepId.FINALIZE_SESSION),
+        1
+      );
 
       await sessionClient.finishSession(sessionId, {
         notesProcessed: stats.notesUploaded,
@@ -619,12 +639,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       scopedLogger.info('📊 Performance Summary:\n' + perfSummary);
 
       // Afficher les stats finales
-      const summary = formatPublishingStats(stats);
+      const summary = formatPublishingStats(stats, t.publishingStats);
 
       // Add performance hint if debug mode is off
       let perfHint = '';
       if (!debugMode) {
-        perfHint = '\n\n💡 Enable debug logging to see detailed performance metrics.';
+        perfHint = t.notice.debugModeHint;
       }
 
       new Notice(summary + perfHint, 10000); // Afficher pendant 10 secondes
@@ -660,7 +680,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       totalProgressAdapter.finish();
 
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      new Notice(`❌ Publishing failed: ${errorMsg}\n\nCheck console for details.`, 0);
+      new Notice(translate(t, 'notice.publishingFailedWithError', { error: errorMsg }), 0);
     }
   }
 
@@ -706,7 +726,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     }
 
     const vps = settings.vpsConfigs[0];
-    const res: HttpResponse = await testVpsConnection(vps, this.responseHandler, this.logger);
+    const res: HttpResponse = await testVpsConnection(vps, this.responseHandler, this.logger, t);
 
     if (!res.isError) {
       this.logger.debug('VPS connection test succeeded');
@@ -714,11 +734,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       new Notice(t.settings.testConnection.success);
     } else {
       this.logger.error('VPS connection test failed: ', { error: res.error });
-      new Notice(
-        `${t.settings.testConnection.failed} ${
-          res.error instanceof Error ? res.error.message : JSON.stringify(res.error)
-        }`
-      );
+      const errorMsg = res.error instanceof Error ? res.error.message : JSON.stringify(res.error);
+      new Notice(translate(t, 'settings.testConnection.failedWithError', { error: errorMsg }));
     }
   }
 
@@ -726,22 +743,24 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
   // VPS Maintenance
   // ---------------------------------------------------------------------------
   async cleanupVps(target: VpsConfig, confirmationName: string): Promise<void> {
+    const t = getTranslations(this.app, this.settings).t;
+
     if (!target) {
-      throw new Error('Missing VPS configuration');
+      throw new Error(translate(t, 'sessionErrors.missingVpsConfig'));
     }
 
     const targetName = (target.name ?? '').trim();
     if (!targetName) {
-      throw new Error('Missing VPS name');
+      throw new Error(translate(t, 'sessionErrors.missingVpsName'));
     }
     if (!target.baseUrl) {
-      throw new Error('Invalid VPS URL');
+      throw new Error(translate(t, 'sessionErrors.invalidUrl'));
     }
     if (!target.apiKey) {
-      throw new Error('Missing API key');
+      throw new Error(translate(t, 'sessionErrors.missingApiKey'));
     }
     if (confirmationName !== targetName) {
-      throw new Error('Confirmation name mismatch');
+      throw new Error(translate(t, 'sessionErrors.confirmationMismatch'));
     }
 
     const clientLogger = this.logger.child({ vps: target.id ?? targetName });
@@ -749,7 +768,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       target.baseUrl,
       target.apiKey,
       this.responseHandler,
-      clientLogger
+      clientLogger,
+      getTranslations(this.app, this.settings).t
     );
 
     await client.cleanupVps(confirmationName);

@@ -70,38 +70,67 @@ export function createPublishingStats(): PublishingStats {
  * Utilitaires pour formater les stats
  * Format stats WITHOUT revealing deductible counts (e.g., if we show analyzed + eligible, ignored is deductible)
  */
-export function formatPublishingStats(stats: PublishingStats): string {
+export function formatPublishingStats(
+  stats: PublishingStats,
+  t?: {
+    summary: string;
+    separator: string;
+    contentPublished: string;
+    notes: string;
+    errors: string;
+    assets: string;
+    assetErrors: string;
+    notesPublished: string;
+    notesIgnored: string;
+    completedInSeconds: string;
+    completedInMinutes: string;
+  }
+): string {
   const lines: string[] = [];
 
-  lines.push(`📊 Publishing Summary`);
-  lines.push(`─────────────────────`);
+  lines.push(t?.summary ?? '📊 Publishing Summary');
+  lines.push(t?.separator ?? '─────────────────────');
 
-  // Notes: only show uploaded count to avoid deducing ignored count
-  lines.push(`📝 Content Published:`);
-  lines.push(`  • Notes: ${stats.notesUploaded}`);
+  // Notes published
+  lines.push(
+    t?.notesPublished.replace('{count}', stats.notesUploaded.toString()) ??
+      `✅ ${stats.notesUploaded} notes published`
+  );
+
+  // Notes ignored (if any)
+  if (stats.notesIgnored > 0) {
+    lines.push(
+      t?.notesIgnored.replace('{count}', stats.notesIgnored.toString()) ??
+        `ℹ️ ${stats.notesIgnored} notes excluded by ignore rules`
+    );
+  }
+
+  // Errors
   if (stats.notesFailed > 0) {
-    lines.push(`  • Errors: ${stats.notesFailed}`);
+    lines.push(
+      `  • ${t?.errors.replace('{count}', stats.notesFailed.toString()) ?? `Errors: ${stats.notesFailed}`}`
+    );
   }
 
   // Assets
   if (stats.assetsUploaded > 0 || stats.assetsPlanned > 0) {
-    lines.push(`  • Assets: ${stats.assetsUploaded}`);
-    if (stats.assetsFailed > 0) {
-      lines.push(`  • Asset errors: ${stats.assetsFailed}`);
-    }
-  }
-
-  // Exclusions notice (without count)
-  if (stats.notesIgnored > 0) {
     lines.push(``);
-    lines.push(`ℹ️ Some items were excluded based on your rules`);
+    lines.push(t?.contentPublished ?? '📝 Content Published:');
+    lines.push(
+      `  • ${t?.assets.replace('{count}', stats.assetsUploaded.toString()) ?? `Assets: ${stats.assetsUploaded}`}`
+    );
+    if (stats.assetsFailed > 0) {
+      lines.push(
+        `  • ${t?.assetErrors.replace('{count}', stats.assetsFailed.toString()) ?? `Asset errors: ${stats.assetsFailed}`}`
+      );
+    }
   }
 
   // Duration
   if (stats.startedAt && stats.completedAt) {
     const durationMs = stats.completedAt.getTime() - stats.startedAt.getTime();
     lines.push(``);
-    lines.push(`⏱️ ${formatDuration(durationMs)}`);
+    lines.push(`⏱️ ${formatDuration(durationMs, t)}`);
   }
 
   return lines.join('\n');
@@ -110,26 +139,47 @@ export function formatPublishingStats(stats: PublishingStats): string {
 /**
  * Format duration in human-readable format
  */
-function formatDuration(ms: number): string {
+function formatDuration(
+  ms: number,
+  t?: { completedInSeconds: string; completedInMinutes: string }
+): string {
   const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `Completed in ${seconds}s`;
+  if (seconds < 60) {
+    return (
+      t?.completedInSeconds.replace('{seconds}', seconds.toString()) ?? `Completed in ${seconds}s`
+    );
+  }
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
-  return `Completed in ${minutes}m ${remainingSeconds}s`;
+  return (
+    t?.completedInMinutes
+      .replace('{minutes}', minutes.toString())
+      .replace('{seconds}', remainingSeconds.toString()) ??
+    `Completed in ${minutes}m ${remainingSeconds}s`
+  );
 }
 
 /**
  * Formater les stats de progression en cours
  */
-export function formatProgressStats(stats: PublishingStats): string {
+export function formatProgressStats(
+  stats: PublishingStats,
+  t?: { notesBatch: string; assetsBatch: string }
+): string {
   const parts: string[] = [];
 
   if (stats.currentNotesBatch > 0 && stats.notesBatchCount > 0) {
-    parts.push(`Notes batch ${stats.currentNotesBatch}/${stats.notesBatchCount}`);
+    const msg = t?.notesBatch
+      .replace('{current}', stats.currentNotesBatch.toString())
+      .replace('{total}', stats.notesBatchCount.toString());
+    parts.push(msg ?? `Notes batch ${stats.currentNotesBatch}/${stats.notesBatchCount}`);
   }
 
   if (stats.currentAssetsBatch > 0 && stats.assetsBatchCount > 0) {
-    parts.push(`Assets batch ${stats.currentAssetsBatch}/${stats.assetsBatchCount}`);
+    const msg = t?.assetsBatch
+      .replace('{current}', stats.currentAssetsBatch.toString())
+      .replace('{total}', stats.assetsBatchCount.toString());
+    parts.push(msg ?? `Assets batch ${stats.currentAssetsBatch}/${stats.assetsBatchCount}`);
   }
 
   if (stats.notesUploaded > 0 && stats.notesEligible > 0) {

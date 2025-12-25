@@ -101,18 +101,108 @@ if (!fs.existsSync(README_PATH)) {
   errors.push(`Missing README.md at ${README_PATH}`);
 }
 
+// Check for hardcoded UI strings in plugin source
+console.log('\\nChecking for hardcoded UI strings in plugin source...');
+const PLUGIN_SRC = path.join(PLUGIN_ROOT, 'src');
+const hardcodedStringsErrors = checkHardcodedStrings(PLUGIN_SRC);
+if (hardcodedStringsErrors.length > 0) {
+  errors.push(...hardcodedStringsErrors);
+}
+
 if (errors.length) {
-  console.error('Compliance check failed:');
+  console.error('\\nCompliance check failed:');
   errors.forEach((e) => console.error(` - ${e}`));
 } else {
-  console.log('Manifest and README present with required keys.');
+  console.log('\\nManifest and README present with required keys.');
+  console.log('No hardcoded UI strings detected.');
 }
 
 if (warnings.length) {
-  console.warn('Warnings:');
+  console.warn('\\nWarnings:');
   warnings.forEach((w) => console.warn(` - ${w}`));
 }
 
 if (errors.length) {
   process.exitCode = 1;
+}
+
+/**
+ * Check for hardcoded UI strings in plugin source files
+ * @param {string} dir - Directory to scan
+ * @returns {string[]} Array of error messages
+ */
+function checkHardcodedStrings(dir) {
+  const errors = [];
+  const forbiddenPatterns = [
+    {
+      pattern: /new\s+Notice\s*\(\s*["'`][^"'`]+["'`]/g,
+      message: 'Hardcoded string in Notice constructor',
+      // Allow Notice('', ...) for empty progress notices
+      allowPattern: /new\s+Notice\s*\(\s*["'`]["'`]/,
+    },
+    {
+      pattern: /\.setPlaceholder\s*\(\s*["'`][^"'`]+["'`]/g,
+      message: 'Hardcoded placeholder text',
+    },
+    {
+      pattern: /\.setName\s*\(\s*["'`][^"'`]{10,}["'`]/g,
+      message: 'Hardcoded setting name (consider i18n)',
+      // Allow template strings containing translate() calls
+      allowPattern: /\.setName\s*\(\s*`[^`]*translate\([^)]+\)[^`]*`/,
+    },
+    {
+      pattern: /\.setDesc\s*\(\s*["'`][^"'`]{20,}["'`]/g,
+      message: 'Hardcoded setting description (consider i18n)',
+    },
+  ];
+
+  function scanFile(filePath) {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const relativePath = path.relative(PLUGIN_ROOT, filePath);
+
+    // Skip test files and i18n files themselves
+    if (filePath.includes('/_tests/') || filePath.includes('/i18n/')) {
+      return;
+    }
+
+    forbiddenPatterns.forEach(({ pattern, message, allowPattern }) => {
+      const matches = content.matchAll(pattern);
+      for (const match of matches) {
+        // Skip if allow pattern matches (e.g., empty strings)
+        if (allowPattern && allowPattern.test(match[0])) {
+          continue;
+        }
+
+        // Skip template strings that contain translate() calls (extract a larger context)
+        const matchStart = match.index;
+        const matchEnd = matchStart + match[0].length;
+        // Look for the closing parenthesis of setName/setDesc/etc. (up to 200 chars ahead)
+        const contextEnd = Math.min(matchEnd + 200, content.length);
+        const fullContext = content.substring(matchStart, contextEnd);
+        if (/translate\s*\(/.test(fullContext)) {
+          continue;
+        }
+
+        const lineNumber = content.substring(0, match.index).split('\n').length;
+        errors.push(`${relativePath}:${lineNumber} - ${message}: ${match[0].substring(0, 60)}...`);
+      }
+    });
+  }
+
+  function scanDir(dir) {
+    if (!fs.existsSync(dir)) return;
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        scanDir(fullPath);
+      } else if (entry.isFile() && entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) {
+        scanFile(fullPath);
+      }
+    }
+  }
+
+  scanDir(dir);
+  return errors;
 }
