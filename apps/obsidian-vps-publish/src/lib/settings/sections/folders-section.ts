@@ -4,6 +4,7 @@ import type { VpsConfig } from '@core-domain/entities/vps-config';
 import { Notice, Setting } from 'obsidian';
 
 import type { Translations } from '../../../i18n';
+import { translate } from '../../../i18n';
 import { FileSuggest } from '../../suggesters/file-suggester';
 import { FolderSuggest } from '../../suggesters/folder-suggester';
 import type { SettingsViewContext } from '../context';
@@ -41,7 +42,7 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
 
     new Setting(vpsSection)
       .setName(
-        `${vps.name || `VPS #${vpsIndex + 1}`} - ${t.settings.folders.foldersLabel ?? 'Folders'}`
+        `${vps.name || translate(t, 'common.vpsNumberFallback', { number: (vpsIndex + 1).toString() })} - ${t.settings.folders.foldersLabel ?? 'Folders'}`
       )
       .setHeading();
 
@@ -139,7 +140,7 @@ function renderFolderConfig(
 
   vaultSetting.addText((text) => {
     text
-      .setPlaceholder('Blog')
+      .setPlaceholder(translate(t, 'placeholders.vaultFolder'))
       .setValue(folderCfg.vaultFolder)
       .onChange((value) => {
         logger.debug('Folder vaultFolder changed', { folderId: folderCfg.id, value });
@@ -157,7 +158,7 @@ function renderFolderConfig(
 
   routeSetting.addText((text) =>
     text
-      .setPlaceholder('/blog')
+      .setPlaceholder(translate(t, 'placeholders.routePath'))
       .setValue(folderCfg.routeBase)
       .onChange((value) => {
         let route = value.trim();
@@ -175,14 +176,12 @@ function renderFolderConfig(
 
   // Custom index file
   const customIndexSetting = new Setting(singleFolderFieldset)
-    .setName('Custom Index File')
-    .setDesc(
-      "Optional: Select a file from your vault to prepend to this folder's generated index page."
-    );
+    .setName(t.settings.folders.customIndexLabel)
+    .setDesc(t.settings.folders.customIndexDescription);
 
   customIndexSetting.addText((text) => {
     text
-      .setPlaceholder('folder/custom-index.md')
+      .setPlaceholder(translate(t, 'placeholders.customIndexFile'))
       .setValue(folderCfg.customIndexFile ?? '')
       .onChange((value) => {
         const trimmed = value.trim();

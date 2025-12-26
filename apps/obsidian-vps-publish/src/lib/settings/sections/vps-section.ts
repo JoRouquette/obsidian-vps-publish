@@ -6,6 +6,7 @@ import type { VpsConfig } from '@core-domain/entities/vps-config';
 import { Notice, Setting } from 'obsidian';
 
 import type { Translations } from '../../../i18n';
+import { translate } from '../../../i18n';
 import { FileSuggest } from '../../suggesters/file-suggester';
 import { defaultSanitizationRules } from '../../utils/create-default-folder-config.util';
 import type { SettingsViewContext } from '../context';
@@ -72,7 +73,7 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
       .setDesc(t.settings.vps.nameDescription)
       .addText((text) => {
         text
-          .setPlaceholder('VPS')
+          .setPlaceholder(translate(t, 'placeholders.vpsName'))
           .setValue(vps.name)
           .onChange((value) => {
             // Update value in real-time without trimming or validating
@@ -111,7 +112,7 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
       .addText((text) => {
         const legacyVps = vps as unknown as { url?: string };
         text
-          .setPlaceholder('https://...')
+          .setPlaceholder(translate(t, 'placeholders.vpsUrl'))
           .setValue(vps.baseUrl || legacyVps.url || '')
           .onChange((value) => {
             // Update value in real-time without trimming
@@ -150,7 +151,7 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
       .setDesc(t.settings.vps.apiKeyDescription)
       .addText((text) => {
         text
-          .setPlaceholder('********')
+          .setPlaceholder(translate(t, 'placeholders.apiKey'))
           .setValue(vps.apiKey)
           .onChange((value) => {
             // Update value in real-time without trimming
@@ -169,13 +170,11 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
 
     // Custom Root Index File
     new Setting(vpsFieldset)
-      .setName('Custom Root Index File')
-      .setDesc(
-        'Optional: Select a file from your vault to use as the root index page (/) for this VPS.'
-      )
+      .setName(t.settings.vps.customRootIndexLabel)
+      .setDesc(t.settings.vps.customRootIndexDescription)
       .addText((text) => {
         text
-          .setPlaceholder('index.md')
+          .setPlaceholder(translate(t, 'placeholders.customIndexFile'))
           .setValue(vps.customRootIndexFile ?? '')
           .onChange((value) => {
             const trimmed = value.trim();
@@ -409,7 +408,7 @@ function renderCleanupRuleItem(
   const patternSetting = new Setting(wrapper)
     .setName(t.settings.vps.rulePatternLabel ?? 'Pattern (regex)')
     .addText((text) => {
-      text.setPlaceholder('e.g. ```[\\s\\S]*?```').setValue(rule.regex || '');
+      text.setPlaceholder(translate(t, 'placeholders.regexPattern')).setValue(rule.regex || '');
       if (isDefault) {
         text.setDisabled(true);
       } else {

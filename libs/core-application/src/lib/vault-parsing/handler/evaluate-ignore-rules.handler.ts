@@ -5,9 +5,10 @@ import { normalizePropertyKey } from '@core-domain/utils/string.utils';
 
 import { type CommandHandler } from '../../common/command-handler';
 
-export class EvaluateIgnoreRulesHandler
-  implements CommandHandler<PublishableNote[], PublishableNote[]>
-{
+export class EvaluateIgnoreRulesHandler implements CommandHandler<
+  PublishableNote[],
+  PublishableNote[]
+> {
   private readonly _logger: LoggerPort;
 
   constructor(

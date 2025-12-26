@@ -71,7 +71,7 @@ describe('UploadNotesHandler', () => {
 
     const result = await handler.handle(command);
 
-    expect(markdownRenderer.render).toHaveBeenCalledWith(note);
+    expect(markdownRenderer.render).toHaveBeenCalledWith(note, { ignoredTags: undefined });
     expect(contentStorage.save).toHaveBeenCalledWith({
       route: note.routing.fullPath,
       content: expect.stringContaining('<div class="markdown-body">'),

@@ -30,6 +30,7 @@ export class HelpModal extends Modal {
     this.renderSection(contentEl, this.t.help.sections.assets);
     this.renderSection(contentEl, this.t.help.sections.dataview);
     this.renderSection(contentEl, this.t.help.sections.leaflet);
+    this.renderSection(contentEl, this.t.help.sections.markdown);
 
     // Footer with links
     const footer = contentEl.createDiv({ cls: 'help-footer' });

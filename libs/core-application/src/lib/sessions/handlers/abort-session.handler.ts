@@ -5,9 +5,10 @@ import { type AbortSessionCommand } from '../commands/abort-session.command';
 import { type AbortSessionResult } from '../commands/abort-session.result';
 import { type SessionRepository } from '../ports/session.repository';
 
-export class AbortSessionHandler
-  implements CommandHandler<AbortSessionCommand, AbortSessionResult>
-{
+export class AbortSessionHandler implements CommandHandler<
+  AbortSessionCommand,
+  AbortSessionResult
+> {
   private readonly logger?: LoggerPort;
 
   constructor(

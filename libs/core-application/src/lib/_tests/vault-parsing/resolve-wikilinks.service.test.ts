@@ -49,6 +49,18 @@ describe('ResolveWikilinksService', () => {
     expect(note.resolvedWikilinks?.[0].isResolved).toBe(false);
   });
 
+  it('marks wikilinks as unresolved when target exists but has no routing (not published)', () => {
+    const unpublishedTarget = {
+      ...targetNote,
+    };
+    // Remove routing to simulate unpublished note
+    delete (unpublishedTarget as any).routing;
+
+    const [note] = service.process([baseNote, unpublishedTarget as any]);
+    expect(note.resolvedWikilinks?.[0].isResolved).toBe(false);
+    expect(note.resolvedWikilinks?.[0].targetNoteId).toBe('2'); // Note ID is still captured
+  });
+
   it('resolves wikilinks without extension against matching note files', () => {
     const noteWithoutExt = {
       ...baseNote,
@@ -66,6 +78,12 @@ describe('ResolveWikilinksService', () => {
       noteId: 'tenebra-id',
       title: 'Ténébra',
       relativePath: 'Divinites/Tenebra.md',
+      routing: {
+        slug: 'tenebra',
+        path: '/blog/divinites/tenebra',
+        routeBase: '/blog',
+        fullPath: '/blog/divinites/tenebra',
+      },
     };
     const noteWithAccent = {
       ...baseNote,
@@ -76,7 +94,7 @@ describe('ResolveWikilinksService', () => {
 
     expect(note.resolvedWikilinks?.[0].isResolved).toBe(true);
     expect(note.resolvedWikilinks?.[0].targetNoteId).toBe('tenebra-id');
-    expect(note.resolvedWikilinks?.[0].path).toContain('Divinites');
+    expect(note.resolvedWikilinks?.[0].path).toContain('divinites');
   });
 
   it('detects frontmatter wikilinks and keeps their origin', () => {

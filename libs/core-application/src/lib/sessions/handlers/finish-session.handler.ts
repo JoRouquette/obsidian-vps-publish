@@ -5,9 +5,10 @@ import { type FinishSessionCommand } from '../commands/finish-session.command';
 import { type FinishSessionResult } from '../commands/finish-session.result';
 import { type SessionRepository } from '../ports/session.repository';
 
-export class FinishSessionHandler
-  implements CommandHandler<FinishSessionCommand, FinishSessionResult>
-{
+export class FinishSessionHandler implements CommandHandler<
+  FinishSessionCommand,
+  FinishSessionResult
+> {
   private readonly logger?: LoggerPort;
 
   constructor(

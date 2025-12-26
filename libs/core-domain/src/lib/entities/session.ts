@@ -14,4 +14,5 @@ export interface Session {
   updatedAt: Date;
   cleanupRules?: SanitizationRules[];
   customIndexConfigs?: CustomIndexConfig[];
+  ignoredTags?: string[];
 }

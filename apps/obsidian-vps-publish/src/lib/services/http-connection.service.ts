@@ -4,6 +4,9 @@ import type { VpsConfig } from '@core-domain/entities/vps-config';
 import { type LoggerPort } from '@core-domain/ports/logger-port';
 import { requestUrl, type RequestUrlResponse } from 'obsidian';
 
+import { translate } from '../../i18n';
+import type { Translations } from '../../i18n/locales';
+
 function normalizeBaseUrl(url: string): string {
   let u = url.trim();
   if (u.endsWith('/')) u = u.slice(0, -1);
@@ -13,17 +16,24 @@ function normalizeBaseUrl(url: string): string {
 export async function testVpsConnection(
   vps: VpsConfig,
   handleHttpResponse: HttpResponseHandler<RequestUrlResponse>,
-  logger: LoggerPort
+  logger: LoggerPort,
+  translations?: Translations
 ): Promise<HttpResponse> {
   logger = logger.child({ function: 'testVpsConnection' });
   logger.debug('Testing VPS connection', { vps });
 
   if (!vps.apiKey) {
-    return { isError: true, error: new Error('Missing API key') };
+    const errorMsg = translations
+      ? translate(translations, 'sessionErrors.missingApiKey')
+      : 'Missing API key';
+    return { isError: true, error: new Error(errorMsg) };
   }
 
   if (!vps.baseUrl) {
-    return { isError: true, error: new Error('Invalid URL') };
+    const errorMsg = translations
+      ? translate(translations, 'sessionErrors.invalidUrl')
+      : 'Invalid URL';
+    return { isError: true, error: new Error(errorMsg) };
   }
 
   const baseUrl = normalizeBaseUrl(vps.baseUrl);

@@ -4,6 +4,83 @@ type ErrorTranslations = {
   failureToExportSettings: string;
 };
 
+type NoticeTranslations = {
+  noFoldersConfigured: string;
+  noPublishableNotes: string;
+  publishing: string;
+  publishingCompleted: string;
+  publishingFailed: string;
+  publishingFailedWithError: string;
+  analyzingVault: string;
+  uploadingNotesBatches: string;
+  uploadingAssetsBatches: string;
+  dataviewNotDetected: string;
+  completedIn: string;
+  debugModeHint: string;
+};
+
+type PublishingStatsTranslations = {
+  summary: string;
+  separator: string;
+  contentPublished: string;
+  notes: string;
+  errors: string;
+  assets: string;
+  assetErrors: string;
+  notesPublished: string;
+  notesIgnored: string;
+  completedInSeconds: string;
+  completedInMinutes: string;
+  notesBatch: string;
+  assetsBatch: string;
+};
+
+type CommonTranslations = {
+  ok: string;
+  cancel: string;
+  yes: string;
+  no: string;
+  continue: string;
+  confirm: string;
+  delete: string;
+  add: string;
+  enabled: string;
+  disabled: string;
+  initializing: string;
+  processing: string;
+  vpsNumberFallback: string; // "VPS #{number}"
+};
+
+type PlaceholdersTranslations = {
+  selectVps: string;
+  vpsName: string;
+  vpsUrl: string;
+  apiKey: string;
+  vaultFolder: string;
+  routePath: string;
+  assetsFolder: string;
+  regexPattern: string;
+  customIndexFile: string;
+  frontmatterProperty: string;
+  tagsList: string;
+  enterVpsName: string;
+  calloutStylesPaths: string;
+};
+
+type SessionErrorsTranslations = {
+  startFailed: string;
+  uploadNotesFailed: string;
+  uploadAssetsFailed: string;
+  finishFailed: string;
+  abortFailed: string;
+  cleanupFailed: string;
+  missingApiKey: string;
+  invalidUrl: string;
+  missingVpsConfig: string;
+  missingVpsName: string;
+  confirmationMismatch: string;
+};
+
 type IgnoreRulesDefaults = {
   publishingProperty: string;
   nonPublishingValue: string;
@@ -47,6 +124,8 @@ type VpsTranslations = {
   ruleReplacementLabel: string;
   ruleEnabledLabel: string;
   defaultRuleIndicator: string;
+  customRootIndexLabel: string;
+  customRootIndexDescription: string;
 };
 
 type CleanupRulesTranslations = {
@@ -80,6 +159,8 @@ type FoldersTranslations = {
   ruleEnabledLabel: string;
   ignoredCleanupRulesTitle: string;
   ignoredCleanupRulesDescription: string;
+  customIndexLabel: string;
+  customIndexDescription: string;
 };
 
 type IgnoreRulesTranslations = {
@@ -107,6 +188,7 @@ type TestConnectionTranslations = {
   label: string;
   notImplemented: string;
   failed: string;
+  failedWithError: string;
   success: string;
   invalidConfig: string;
   invalidJson: string;
@@ -129,22 +211,26 @@ export type PluginTranslations = {
   error: ErrorTranslations;
   progress: {
     parseVault: {
+      label: string;
       start: string;
       success: string;
       error: string;
     };
     uploadNotes: {
+      label: string;
       start: string;
       success: string;
       error: string;
     };
     uploadAssets: {
+      label: string;
       start: string;
       success: string;
       error: string;
       skip: string;
     };
     finalizeSession: {
+      label: string;
       start: string;
       success: string;
       error: string;
@@ -228,6 +314,7 @@ export type HelpTranslations = {
     assets: HelpSection;
     dataview: HelpSection;
     leaflet: HelpSection;
+    markdown: HelpSection;
   };
   footer: {
     docsText: string;
@@ -243,6 +330,11 @@ export type Translations = {
   plugin: PluginTranslations;
   settings: SettingsTranslations;
   help: HelpTranslations;
+  notice: NoticeTranslations;
+  publishingStats: PublishingStatsTranslations;
+  common: CommonTranslations;
+  placeholders: PlaceholdersTranslations;
+  sessionErrors: SessionErrorsTranslations;
 };
 
 export const en: Translations = {
@@ -261,22 +353,26 @@ export const en: Translations = {
     },
     progress: {
       parseVault: {
+        label: 'Parsing vault',
         start: 'Parsing vault content...',
         success: 'Vault parsed successfully',
         error: 'Failed to parse vault',
       },
       uploadNotes: {
+        label: 'Uploading notes',
         start: 'Uploading notes...',
         success: 'Notes uploaded successfully',
         error: 'Failed to upload notes',
       },
       uploadAssets: {
+        label: 'Uploading assets',
         start: 'Uploading assets...',
         success: 'Assets uploaded successfully',
         error: 'Failed to upload assets',
         skip: 'No assets to upload',
       },
       finalizeSession: {
+        label: 'Finalizing',
         start: 'Finalizing publication...',
         success: 'Publication finalized',
         error: 'Failed to finalize publication',
@@ -332,6 +428,9 @@ export const en: Translations = {
       ruleReplacementLabel: 'Replacement',
       ruleEnabledLabel: 'Enabled',
       defaultRuleIndicator: 'Default rule (read-only)',
+      customRootIndexLabel: 'Custom Root Index File',
+      customRootIndexDescription:
+        'Optional: Select a file from your vault to use as the root index page (/) for this VPS.',
     },
     folders: {
       title: 'Folders to publish',
@@ -358,6 +457,9 @@ export const en: Translations = {
       ignoredCleanupRulesTitle: 'Ignored Cleanup Rules',
       ignoredCleanupRulesDescription:
         'Select which VPS cleanup rules should NOT be applied to this folder',
+      customIndexLabel: 'Custom Index File',
+      customIndexDescription:
+        "Optional: Select a file from your vault to prepend to this folder's generated index page.",
     },
     cleanupRules: {
       removeCodeBlocks: {
@@ -390,6 +492,7 @@ export const en: Translations = {
       label: 'Test connection',
       notImplemented: 'Connection test not implemented yet.',
       failed: 'Connection test failed.',
+      failedWithError: 'Connection test failed: {error}',
       success: 'Connection test succeeded.',
       invalidConfig: 'Invalid VPS configuration.',
       invalidJson: 'Invalid JSON response.',
@@ -554,6 +657,25 @@ export const en: Translations = {
           },
         ],
       },
+      markdown: {
+        title: 'Markdown Rendering',
+        content:
+          'Advanced Markdown features are fully supported:\n\n• Wikilinks to headings: [[#Heading]] or [[Page#Heading]]\n• Footnotes with CSS-safe IDs: [^1]\n• Tags filtering: Inline tags configured in Settings > Ignore Rules > Tags are automatically removed from rendered HTML (headings, blockquotes, paragraphs, etc.)\n\nAll these features work seamlessly with Obsidian syntax.',
+        examples: [
+          {
+            code: '[[#Introduction]] or [[Page#Section]]',
+            description: 'Link to heading in current page or another page',
+          },
+          {
+            code: 'Text with footnote[^1]\n\n[^1]: Footnote content',
+            description: 'Footnotes are rendered with proper CSS IDs',
+          },
+          {
+            code: '# Title #todo\n> #note Quote text',
+            description: 'Tags listed in Settings > Ignore Rules are removed (e.g., #todo, #note)',
+          },
+        ],
+      },
     },
     footer: {
       docsText: 'For complete documentation, visit:',
@@ -563,6 +685,79 @@ export const en: Translations = {
     closeButton: 'Close',
     settingsButtonLabel: 'Help & Documentation',
     settingsButtonDescription: 'Open help modal with syntax examples and documentation',
+  },
+  notice: {
+    noFoldersConfigured: 'No folders configured for publishing.',
+    noPublishableNotes: 'No publishable notes to upload.',
+    publishing: 'Publishing to VPS',
+    publishingCompleted: '✅ {label} completed in {duration}',
+    publishingFailed: 'Publishing failed',
+    publishingFailedWithError: '❌ Publishing failed: {error}\n\nCheck console for details.',
+    analyzingVault: '🔍 Analyzing vault notes...',
+    uploadingNotesBatches: '📤 Uploading notes in {count} batch{plural}...',
+    uploadingAssetsBatches: '📤 Uploading assets in {count} batch{plural}...',
+    dataviewNotDetected:
+      '⚠️ Dataview plugin not detected. Dataview blocks will show as errors on the site.',
+    completedIn: 'completed in',
+    debugModeHint: '\n\n💡 Enable debug logging to see detailed performance metrics.',
+  },
+  publishingStats: {
+    summary: '📊 Publishing Summary',
+    separator: '─────────────────────',
+    contentPublished: '📝 Content Published:',
+    notes: 'Notes: {count}',
+    errors: 'Errors: {count}',
+    assets: 'Assets: {count}',
+    assetErrors: 'Asset errors: {count}',
+    notesPublished: '✅ {count} notes published',
+    notesIgnored: 'ℹ️ {count} notes excluded by ignore rules',
+    completedInSeconds: 'Completed in {seconds}s',
+    completedInMinutes: 'Completed in {minutes}m {seconds}s',
+    notesBatch: 'Notes batch {current}/{total}',
+    assetsBatch: 'Assets batch {current}/{total}',
+  },
+  common: {
+    ok: 'OK',
+    cancel: 'Cancel',
+    yes: 'Yes',
+    no: 'No',
+    continue: 'Continue',
+    confirm: 'Confirm',
+    delete: 'Delete',
+    add: 'Add',
+    enabled: 'Enabled',
+    disabled: 'Disabled',
+    initializing: 'Initializing...',
+    processing: 'Processing...',
+    vpsNumberFallback: 'VPS #{number}',
+  },
+  placeholders: {
+    selectVps: 'Select a VPS to target...',
+    vpsName: 'VPS',
+    vpsUrl: 'https://...',
+    apiKey: '********',
+    vaultFolder: 'Blog',
+    routePath: '/blog',
+    assetsFolder: 'assets',
+    regexPattern: 'e.g. ```[\\s\\S]*?```',
+    customIndexFile: 'folder/custom-index.md',
+    frontmatterProperty: 'e.g. publish, draft, private',
+    tagsList: 'e.g. draft, private, internal',
+    enterVpsName: 'Enter VPS name',
+    calloutStylesPaths: '.obsidian/snippets/callouts.css',
+  },
+  sessionErrors: {
+    startFailed: 'Failed to start session',
+    uploadNotesFailed: 'Failed to upload notes',
+    uploadAssetsFailed: 'Failed to upload assets',
+    finishFailed: 'Failed to finalize session',
+    abortFailed: 'Failed to abort session',
+    cleanupFailed: 'Failed to cleanup VPS',
+    missingApiKey: 'Missing API key',
+    invalidUrl: 'Invalid URL',
+    missingVpsConfig: 'Missing VPS configuration',
+    missingVpsName: 'Missing VPS name',
+    confirmationMismatch: 'Confirmation name mismatch',
   },
 };
 
@@ -582,22 +777,26 @@ export const fr: Translations = {
     },
     progress: {
       parseVault: {
+        label: 'Analyse du vault',
         start: 'Analyse du vault en cours...',
         success: 'Vault analyse avec succes',
         error: "Echec de l'analyse du vault",
       },
       uploadNotes: {
+        label: 'Envoi des notes',
         start: 'Envoi des notes...',
         success: 'Notes envoyees avec succes',
         error: "Echec de l'envoi des notes",
       },
       uploadAssets: {
+        label: 'Envoi des ressources',
         start: 'Envoi des ressources...',
         success: 'Ressources envoyees avec succes',
         error: "Echec de l'envoi des ressources",
         skip: 'Aucune ressource a envoyer',
       },
       finalizeSession: {
+        label: 'Finalisation',
         start: 'Finalisation de la publication...',
         success: 'Publication finalisee',
         error: 'Echec de la finalisation',
@@ -620,7 +819,7 @@ export const fr: Translations = {
       },
     },
     language: {
-      title: 'Selection de la langue',
+      title: 'Sélection de la langue',
       label: 'Langue',
       description: 'Choisir la langue du plugin.',
     },
@@ -637,9 +836,9 @@ export const fr: Translations = {
       urlDescription: 'Ex : https://notes.mondomaine.fr',
       urlRequired: "L'URL du VPS est requise",
       urlDuplicate: 'Cette URL de VPS existe déjà',
-      apiKeyLabel: 'Cle API',
-      apiKeyDescription: 'Cle utilisee pour authentifier les envois.',
-      help: 'Les requetes HTTP vers /api/upload utiliseront cette URL et cette cle.',
+      apiKeyLabel: 'Clé API',
+      apiKeyDescription: 'Clé utilisée pour authentifier les envois.',
+      help: 'Les requêtes HTTP vers /api/upload utiliseront cette URL et cette clé.',
       actionsTitle: 'Actions',
       actionsDescription: 'Tester la connexion ou uploader vers ce VPS',
       uploadButton: 'Uploader vers ce VPS',
@@ -653,6 +852,9 @@ export const fr: Translations = {
       ruleReplacementLabel: 'Remplacement',
       ruleEnabledLabel: 'Activé',
       defaultRuleIndicator: 'Règle par défaut (lecture seule)',
+      customRootIndexLabel: "Fichier d'index racine personnalisé",
+      customRootIndexDescription:
+        "Optionnel : Sélectionnez un fichier de votre coffre à utiliser comme page d'index racine (/) pour ce VPS.",
     },
     folders: {
       title: 'Dossiers a publier',
@@ -663,23 +865,26 @@ export const fr: Translations = {
       vaultDescription: 'Ex : Blog, Notes/Docs, etc.',
       routeLabel: 'Route du site',
       routeDescription: 'Ex : /blog, /docs, etc.',
-      sanitizationTitle: 'Regles de nettoyage',
-      sanitizationHelp: 'Definissez des regles regex appliquees au contenu avant publication.',
-      defaultSanitizationRuleBanner: 'Regle par defaut (non modifiable)',
-      addSanitizationRule: 'Ajouter une regle',
-      deleteSanitizationRule: 'Supprimer la regle',
-      ruleNameLabel: 'Nom de la regle',
+      sanitizationTitle: 'Règles de nettoyage',
+      sanitizationHelp: 'Définissez des règles regex appliquées au contenu avant publication.',
+      defaultSanitizationRuleBanner: 'Règle par défaut (non modifiable)',
+      addSanitizationRule: 'Ajouter une règle',
+      deleteSanitizationRule: 'Supprimer la règle',
+      ruleNameLabel: 'Nom de la règle',
       rulePatternLabel: 'Motif (regex)',
       ruleReplacementLabel: 'Remplacement',
-      ruleEnabledLabel: 'Activee',
+      ruleEnabledLabel: 'Activée',
       rulesHelp:
-        'Les notes dont le frontmatter correspond aux regles ci-dessous ne seront pas publiees.',
+        'Les notes dont le frontmatter correspond aux règles ci-dessous ne seront pas publiées.',
       vpsLabel: 'VPS cible',
       vpsDescription: 'Choisissez la configuration VPS a utiliser pour ce dossier.',
       foldersLabel: 'Dossiers',
       ignoredCleanupRulesTitle: 'Règles de Nettoyage Ignorées',
       ignoredCleanupRulesDescription:
         'Sélectionnez les règles de nettoyage du VPS qui ne doivent PAS être appliquées à ce dossier',
+      customIndexLabel: "Fichier d'index personnalisé",
+      customIndexDescription:
+        "Optionnel : Sélectionnez un fichier de votre coffre à ajouter en début de page d'index générée pour ce dossier.",
     },
     cleanupRules: {
       removeCodeBlocks: {
@@ -688,66 +893,67 @@ export const fr: Translations = {
       },
     },
     ignoreRules: {
-      title: "Regles d'ignorance",
+      title: "Règles d'exclusion",
       description:
-        'Les notes avec ces proprietes de frontmatter seront ignorees lors de la publication.',
-      help: 'Vous pouvez definir des regles globales basees sur les proprietes et valeurs du frontmatter.',
-      addButton: "Ajouter une regle d'ignorance",
-      deleteButton: "Supprimer la regle d'ignorance",
-      propertyLabel: 'Propriete du frontmatter',
-      propertyDescription: 'Propriete a inspecter dans le frontmatter.',
-      valueLabel: 'Valeur(s) a ignorer',
+        'Les notes avec ces propriétés de frontmatter seront ignorées lors de la publication.',
+      help: 'Vous pouvez définir des règles globales basées sur les propriétés et valeurs du frontmatter.',
+      addButton: "Ajouter une règle d'exclusion",
+      deleteButton: "Supprimer la règle d'exclusion",
+      propertyLabel: 'Propriété du frontmatter',
+      propertyDescription: 'Propriété à inspecter dans le frontmatter.',
+      valueLabel: 'Valeur(s) à ignorer',
       valueDescription:
-        'Liste de valeurs a ignorer pour cette propriete (separees par des virgules).',
+        'Liste de valeurs à ignorer pour cette propriété (séparées par des virgules).',
       modeValues: 'Ignorer des valeurs specifiques',
       modeBoolean: 'Ignorer si egal (true/false)',
-      rulesLabel: "Règles d'Ignorance",
-      frontmatterKeysLabel: 'Cles de frontmatter a supprimer',
+      rulesLabel: "Règles d'Exclusion",
+      frontmatterKeysLabel: 'Clés de frontmatter à supprimer',
       frontmatterKeysDescription:
-        'Ces proprietes de frontmatter seront retirees des notes avant publication.',
+        'Ces propriétés de frontmatter seront retirées des notes avant publication.',
       frontmatterKeysPlaceholder: 'ex: publish, draft, private',
-      tagsLabel: 'Tags a exclure',
-      tagsDescription: 'Ces tags seront retires des notes avant publication.',
+      tagsLabel: 'Tags à exclure',
+      tagsDescription: 'Ces tags seront retirés des notes avant publication.',
       tagsPlaceholder: 'ex: draft, private, internal',
     },
     testConnection: {
       label: 'Tester la connexion',
       notImplemented: "Test de connexion non implemente pour l'instant.",
-      failed: 'Echec du test de connexion.',
-      success: 'Test de connexion reussi.',
+      failed: 'Échec du test de connexion.',
+      failedWithError: 'Échec du test de connexion : {error}',
+      success: 'Test de connexion réussi.',
       invalidConfig: 'Configuration VPS invalide.',
-      invalidJson: 'Reponse JSON invalide.',
-      missingApiKey: 'Cle API manquante.',
+      invalidJson: 'Réponse JSON invalide.',
+      missingApiKey: 'Clé API manquante.',
       invalidUrl: 'URL invalide.',
-      resultPrefix: 'Resultat du test de connexion : ',
-      unexpectedResponsePrefix: 'Reponse inattendue du serveur : ',
+      resultPrefix: 'Résultat du test de connexion : ',
+      unexpectedResponsePrefix: 'Réponse inattendue du serveur : ',
     },
     vault: {
       title: 'Vault & assets',
-      help: "Reglages globaux lies au vault : dossier d'assets et fallback.",
+      help: "Réglages globaux liés au vault : dossier d'assets et fallback.",
       assetsFolderLabel: "Dossier d'assets dans le vault",
       assetsFolderDescription:
-        'Dossier dans le vault ou les assets (images, fichiers) sont situes. Ex : Assets, Media, etc.',
+        'Dossier dans le vault où les assets (images, fichiers) sont situés. Ex : Assets, Media, etc.',
       enableAssetsVaultFallbackLabel: 'Permettre le recours a la racine du vault',
       enableAssetsVaultFallbackDescription:
         "Si active, lorsqu'un asset n'est pas trouve dans le dossier specifie, le systeme le cherchera a la racine du vault et dans tous les dossiers.",
     },
     advanced: {
-      title: 'Parametres avances',
+      title: 'Paramètres avancés',
       logLevelLabel: 'Niveau de log',
       logLevelDescription: 'De debug (verbeux) a warning (par defaut). Applique immediatement.',
       logLevelDebug: 'Debug (tres verbeux)',
       logLevelInfo: 'Info',
-      logLevelWarn: 'Warning (defaut)',
+      logLevelWarn: 'Warning (défaut)',
       logLevelError: 'Error uniquement',
       calloutStylesLabel: 'Styles de callouts (chemins CSS)',
       calloutStylesDescription:
-        'Chemins (un par ligne ou separes par des virgules) vers des fichiers CSS du vault. Ils seront envoyes, parses et utilises pour etendre la configuration des callouts cote serveur.',
+        'Chemins (un par ligne ou séparés par des virgules) vers des fichiers CSS du vault. Ils seront envoyés, parsés et utilisés pour étendre la configuration des callouts côté serveur.',
       calloutStylesPlaceholder: '.obsidian/snippets/callouts.css',
       cleanup: {
         title: 'Nettoyage du VPS',
         description:
-          'Supprime tout le contenu publie et les assets du VPS cible. Operation irreversible.',
+          'Supprime tout le contenu publié et les assets du VPS cible. Opération irréversible.',
         button: 'Nettoyer le VPS',
         targetLabel: 'VPS cible',
         confirmTitle: 'Confirmer le nettoyage',
@@ -879,6 +1085,24 @@ export const fr: Translations = {
           },
         ],
       },
+      markdown: {
+        title: 'Rendu Markdown',
+        content: `Les fonctionnalités avancées de Markdown sont pleinement supportées :\n\n• Wikilinks vers des headings : [[#Titre]] ou [[Page#Section]]\n• Notes de bas de page avec IDs CSS-safe : [^1]\n• Filtrage des tags : Les tags inline configurés dans Paramètres > Règles d'Ignorance > Tags sont automatiquement supprimés du HTML rendu (titres, blockquotes, paragraphes, etc.)\n\nToutes ces fonctionnalités fonctionnent de manière transparente avec la syntaxe Obsidian.`,
+        examples: [
+          {
+            code: '[[#Introduction]] ou [[Page#Section]]',
+            description: 'Lien vers un titre dans la page actuelle ou une autre page',
+          },
+          {
+            code: 'Texte avec note[^1]\n\n[^1]: Contenu de la note',
+            description: 'Les notes de bas de page sont rendues avec des IDs CSS appropriés',
+          },
+          {
+            code: '# Titre #todo\n> #note Texte de citation',
+            description: `Les tags listés dans Paramètres > Règles d'Ignorance sont supprimés (ex : #todo, #note)`,
+          },
+        ],
+      },
     },
     footer: {
       docsText: 'Pour la documentation complète, visitez :',
@@ -888,5 +1112,80 @@ export const fr: Translations = {
     closeButton: 'Fermer',
     settingsButtonLabel: 'Aide & Documentation',
     settingsButtonDescription: "Ouvrir la fenêtre d'aide avec exemples de syntaxe et documentation",
+  },
+  notice: {
+    noFoldersConfigured: 'Aucun dossier configuré pour la publication.',
+    noPublishableNotes: 'Aucune note publiable à envoyer.',
+    publishing: 'Publication vers le VPS',
+    publishingCompleted: '✅ {label} terminé en {duration}',
+    publishingFailed: 'Échec de la publication',
+    publishingFailedWithError:
+      '❌ Échec de la publication : {error}\n\nConsultez la console pour plus de détails.',
+    analyzingVault: '🔍 Analyse des notes du vault...',
+    uploadingNotesBatches: '📤 Envoi des notes en {count} lot{plural}...',
+    uploadingAssetsBatches: '📤 Envoi des ressources en {count} lot{plural}...',
+    dataviewNotDetected:
+      '⚠️ Plugin Dataview non détecté. Les blocs Dataview apparaîtront comme erreurs sur le site.',
+    completedIn: 'terminé en',
+    debugModeHint:
+      '\n\n💡 Activez le mode debug pour voir les métriques de performance détaillées.',
+  },
+  publishingStats: {
+    summary: '📊 Résumé de la publication',
+    separator: '─────────────────────',
+    contentPublished: '📝 Contenu publié :',
+    notes: 'Notes : {count}',
+    errors: 'Erreurs : {count}',
+    assets: 'Ressources : {count}',
+    assetErrors: 'Erreurs de ressources : {count}',
+    notesPublished: '✅ {count} notes publiées',
+    notesIgnored: 'ℹ️ {count} notes exclues par les règles',
+    completedInSeconds: 'Terminé en {seconds}s',
+    completedInMinutes: 'Terminé en {minutes}m {seconds}s',
+    notesBatch: 'Lot de notes {current}/{total}',
+    assetsBatch: 'Lot de ressources {current}/{total}',
+  },
+  common: {
+    ok: 'OK',
+    cancel: 'Annuler',
+    yes: 'Oui',
+    no: 'Non',
+    continue: 'Continuer',
+    confirm: 'Confirmer',
+    delete: 'Supprimer',
+    add: 'Ajouter',
+    enabled: 'Activé',
+    disabled: 'Désactivé',
+    initializing: 'Initialisation...',
+    processing: 'Traitement...',
+    vpsNumberFallback: 'VPS n°{number}',
+  },
+  placeholders: {
+    selectVps: 'Sélectionnez un VPS cible...',
+    vpsName: 'VPS',
+    vpsUrl: 'https://...',
+    apiKey: '********',
+    vaultFolder: 'Blog',
+    routePath: '/blog',
+    assetsFolder: 'assets',
+    regexPattern: 'ex: ```[\\s\\S]*?```',
+    customIndexFile: 'dossier/index-personnalise.md',
+    frontmatterProperty: 'ex: publish, draft, private',
+    tagsList: 'ex: draft, private, internal',
+    enterVpsName: 'Nom exact du VPS',
+    calloutStylesPaths: '.obsidian/snippets/callouts.css',
+  },
+  sessionErrors: {
+    startFailed: 'Échec du démarrage de la session',
+    uploadNotesFailed: "Échec de l'envoi des notes",
+    uploadAssetsFailed: "Échec de l'envoi des ressources",
+    finishFailed: 'Échec de la finalisation',
+    abortFailed: "Échec de l'annulation de la session",
+    cleanupFailed: 'Échec du nettoyage du VPS',
+    missingApiKey: 'Clé API manquante',
+    invalidUrl: 'URL invalide',
+    missingVpsConfig: 'Configuration VPS manquante',
+    missingVpsName: 'Nom du VPS manquant',
+    confirmationMismatch: 'Le nom de confirmation ne correspond pas',
   },
 };

@@ -107,12 +107,18 @@ export class SessionFinalizerService {
     );
     const sanitized = contentSanitizer.process(withLeaflet);
 
+    // Étape 4: Convert markdown links to wikilinks before detection
+    const withConvertedLinks = sanitized.map((note) => ({
+      ...note,
+      content: this.convertMarkdownLinksToWikilinks(note.content),
+    }));
+
     // Étape 5: Résolution des wikilinks et routing
     const detect = new DetectWikilinksService(this.logger);
     const resolve = new ResolveWikilinksService(this.logger, detect);
     const computeRouting = new ComputeRoutingService(this.logger);
 
-    const withLinks = resolve.process(sanitized);
+    const withLinks = resolve.process(withConvertedLinks);
     const routed = computeRouting.process(withLinks);
 
     const contentStage = this.stagingManager.contentStagingPath(sessionId);
@@ -122,7 +128,9 @@ export class SessionFinalizerService {
       this.markdownRenderer,
       this.contentStorage,
       this.manifestStorage,
-      this.logger
+      this.logger,
+      undefined, // notesStorage not needed here
+      session?.ignoredTags // Pass ignoredTags from session
     );
 
     // Publier toutes les notes (y compris les fichiers d'index custom)
@@ -362,6 +370,27 @@ export class SessionFinalizerService {
     }
 
     return result;
+  }
+
+  /**
+   * Convert markdown links to .md files into wikilink syntax.
+   * [text](file.md) → [[file|text]]
+   * [text](file.md#section) → [[file#section|text]]
+   */
+  private convertMarkdownLinksToWikilinks(content: string): string {
+    const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\(([^)]+\.md(?:#[^)]*)?)\)/gi;
+    return content.replace(MARKDOWN_LINK_REGEX, (match, text, href) => {
+      // Skip external URLs
+      if (/^https?:\/\//i.test(href)) {
+        return match;
+      }
+
+      // Remove .md extension
+      const target = href.replace(/\.md$/i, '');
+
+      // Convert to wikilink: [[target|text]]
+      return `[[${target}|${text}]]`;
+    });
   }
 
   private async resetContentStage(contentStage: string, log: LoggerPort) {

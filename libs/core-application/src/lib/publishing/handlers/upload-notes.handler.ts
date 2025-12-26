@@ -32,7 +32,8 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     private readonly contentStorage: ContentStoragePort | ContentStorageFactory,
     private readonly manifestStorage: ManifestPort | ManifestStorageFactory,
     logger?: LoggerPort,
-    private readonly notesStorage?: SessionNotesStoragePort
+    private readonly notesStorage?: SessionNotesStoragePort,
+    private readonly ignoredTags?: string[]
   ) {
     this.logger = logger?.child({ handler: 'UploadNotesHandler' });
   }
@@ -75,7 +76,9 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
           const noteLogger = logger?.child({ noteId: note.noteId, slug: note.routing?.slug });
           try {
             noteLogger?.debug('Rendering markdown');
-            const bodyHtml = await this.markdownRenderer.render(note);
+            const bodyHtml = await this.markdownRenderer.render(note, {
+              ignoredTags: this.ignoredTags,
+            });
             noteLogger?.debug('Building HTML page');
             const fullHtml = this.buildHtmlPage(note, bodyHtml);
 

@@ -1,12 +1,18 @@
 import type { ProgressPort } from '@core-domain/ports/progress-port';
 import { Notice } from 'obsidian';
 
+import { translate } from '../../i18n';
+import type { Translations } from '../../i18n/locales';
+
 /**
  * Progress adapter using HTML progress bar instead of text percentage.
  * Progress is step-weighted, not file-count based, to avoid revealing internal statistics.
  */
 export class NoticeProgressAdapter implements ProgressPort {
-  constructor(private readonly label = 'Publishing') {}
+  constructor(
+    private readonly label = 'Publishing',
+    private readonly translations?: Translations
+  ) {}
 
   private notice: Notice | null = null;
   private progressBarFillEl: HTMLDivElement | null = null;
@@ -19,7 +25,9 @@ export class NoticeProgressAdapter implements ProgressPort {
   start(_total: number): void {
     this.startTime = Date.now();
     this.currentPercent = 0;
-    this.currentStep = 'Initializing...';
+    this.currentStep = this.translations
+      ? translate(this.translations, 'common.initializing')
+      : 'Initializing...';
 
     // Create notice with Obsidian-style progress bar
     const container = document.createElement('div');
@@ -92,8 +100,15 @@ export class NoticeProgressAdapter implements ProgressPort {
     closableNotice?.hide?.();
     this.notice = null;
 
-    // Show completion message with duration
-    new Notice(`✅ ${this.label} completed in ${durationText}`, 5000);
+    // Show completion message with duration (use i18n if available)
+    const message = this.translations
+      ? translate(this.translations, 'notice.publishingCompleted', {
+          label: this.label,
+          duration: durationText,
+        })
+      : `✅ ${this.label} completed in ${durationText}`;
+
+    new Notice(message, 5000);
   }
 
   private formatDuration(ms: number): string {

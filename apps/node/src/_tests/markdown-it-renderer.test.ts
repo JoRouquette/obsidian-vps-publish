@@ -27,7 +27,9 @@ describe('MarkdownItRenderer', () => {
     const note = baseNote();
     note.content = '# Title';
     const html = await renderer.render(note);
-    expect(html).toContain('<h1>Title</h1>');
+    // Headings now have automatic IDs via markdown-it-anchor
+    expect(html).toContain('<h1 id="title"');
+    expect(html).toContain('>Title</h1>');
   });
 
   it('injects assets with display options', async () => {
@@ -127,6 +129,42 @@ describe('MarkdownItRenderer', () => {
     expect(html).not.toContain('[[Missing]]'); // No raw wikilink syntax
   });
 
+  it('strips .md extension from wikilink paths (fallback for malformed paths)', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = 'See [[Ambassade]] and [[Cartulaire]].';
+    note.resolvedWikilinks = [
+      {
+        raw: '[[Ambassade]]',
+        target: 'Ambassade',
+        path: 'Ambassade.md', // Malformed path with .md extension
+        kind: 'note',
+        isResolved: true,
+        targetNoteId: 'ambassade-id',
+        // No href defined - renderer must handle this
+      },
+      {
+        raw: '[[Cartulaire]]',
+        target: 'Cartulaire',
+        path: 'Cartulaire.md', // Malformed path with .md extension
+        kind: 'note',
+        isResolved: true,
+        targetNoteId: 'cartulaire-id',
+        // No href defined - renderer must handle this
+      },
+    ];
+
+    const html = await renderer.render(note);
+
+    // Should strip .md and render clean links
+    expect(html).toContain('<a class="wikilink" data-wikilink="Ambassade" href="Ambassade">');
+    expect(html).toContain('<a class="wikilink" data-wikilink="Cartulaire" href="Cartulaire">');
+
+    // Should NOT contain .md in href
+    expect(html).not.toContain('href="Ambassade.md"');
+    expect(html).not.toContain('href="Cartulaire.md"');
+  });
+
   it('renders obsidian callouts with title and body', async () => {
     const renderer = new MarkdownItRenderer();
     const note = baseNote();
@@ -221,7 +259,9 @@ Some text after.`;
     expect(html).toContain('</div>');
 
     // Le markdown autour doit aussi être rendu
-    expect(html).toContain('<h1>My Page</h1>');
+    // Headings now have automatic IDs via markdown-it-anchor
+    expect(html).toContain('<h1 id="my-page"');
+    expect(html).toContain('>My Page</h1>');
     expect(html).toContain('Some text before.');
     expect(html).toContain('Some text after.');
   });

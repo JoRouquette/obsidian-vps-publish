@@ -5,6 +5,9 @@ import { type HttpResponse } from '@core-domain/entities/http-response';
 import { type LoggerPort } from '@core-domain/ports/logger-port';
 import { requestUrl, type RequestUrlResponse } from 'obsidian';
 
+import { translate } from '../../i18n';
+import type { Translations } from '../../i18n/locales';
+
 export interface StartSessionResponse {
   sessionId: string;
   maxBytesPerRequest: number;
@@ -15,7 +18,8 @@ export class SessionApiClient {
     private readonly baseUrl: string,
     private readonly apiKey: VpsConfig['apiKey'],
     private readonly responseHandler: HttpResponseHandler<RequestUrlResponse>,
-    private readonly logger: LoggerPort
+    private readonly logger: LoggerPort,
+    private readonly translations?: Translations
   ) {
     this.logger = logger.child({ component: 'SessionApiClient' });
     this.logger.debug('SessionApiClient initialized', { baseUrl });
@@ -50,6 +54,7 @@ export class SessionApiClient {
     maxBytesPerRequest: number;
     calloutStyles?: { path: string; css: string }[];
     customIndexConfigs?: CustomIndexConfig[];
+    ignoredTags?: string[];
   }): Promise<StartSessionResponse> {
     const result = await this.postJson('/api/session/start', {
       notesPlanned: payload.notesPlanned,
@@ -57,9 +62,15 @@ export class SessionApiClient {
       batchConfig: { maxBytesPerRequest: payload.maxBytesPerRequest },
       calloutStyles: payload.calloutStyles ?? [],
       customIndexConfigs: payload.customIndexConfigs ?? [],
+      ignoredTags: payload.ignoredTags ?? [],
     });
 
-    if (result.isError) throw result.error ?? new Error('startSession failed');
+    if (result.isError) {
+      const errorMsg = this.translations
+        ? translate(this.translations, 'sessionErrors.startFailed')
+        : 'startSession failed';
+      throw result.error ?? new Error(errorMsg);
+    }
     const parsed = JSON.parse(result.text ?? '{}');
 
     return {
@@ -73,14 +84,24 @@ export class SessionApiClient {
     const result = await this.postJson(`/api/session/${sessionId}/notes/upload`, {
       notes,
     });
-    if (result.isError) throw result.error ?? new Error('uploadNotes failed');
+    if (result.isError) {
+      const errorMsg = this.translations
+        ? translate(this.translations, 'sessionErrors.uploadNotesFailed')
+        : 'uploadNotes failed';
+      throw result.error ?? new Error(errorMsg);
+    }
   }
 
   async uploadAssets(sessionId: string, assets: unknown[]): Promise<void> {
     const result = await this.postJson(`/api/session/${sessionId}/assets/upload`, {
       assets,
     });
-    if (result.isError) throw result.error ?? new Error('uploadAssets failed');
+    if (result.isError) {
+      const errorMsg = this.translations
+        ? translate(this.translations, 'sessionErrors.uploadAssetsFailed')
+        : 'uploadAssets failed';
+      throw result.error ?? new Error(errorMsg);
+    }
   }
 
   /**
@@ -123,17 +144,32 @@ export class SessionApiClient {
     payload: { notesProcessed: number; assetsProcessed: number }
   ): Promise<void> {
     const result = await this.postJson(`/api/session/${sessionId}/finish`, payload);
-    if (result.isError) throw result.error ?? new Error('finishSession failed');
+    if (result.isError) {
+      const errorMsg = this.translations
+        ? translate(this.translations, 'sessionErrors.finishFailed')
+        : 'finishSession failed';
+      throw result.error ?? new Error(errorMsg);
+    }
   }
 
   async abortSession(sessionId: string): Promise<void> {
     const result = await this.postJson(`/api/session/${sessionId}/abort`, {});
-    if (result.isError) throw result.error ?? new Error('abortSession failed');
+    if (result.isError) {
+      const errorMsg = this.translations
+        ? translate(this.translations, 'sessionErrors.abortFailed')
+        : 'abortSession failed';
+      throw result.error ?? new Error(errorMsg);
+    }
   }
 
   async cleanupVps(targetName: string): Promise<void> {
     const result = await this.postJson('/api/maintenance/cleanup', { targetName });
-    if (result.isError) throw result.error ?? new Error('cleanupVps failed');
+    if (result.isError) {
+      const errorMsg = this.translations
+        ? translate(this.translations, 'sessionErrors.cleanupFailed')
+        : 'cleanupVps failed';
+      throw result.error ?? new Error(errorMsg);
+    }
     this.logger.debug('VPS cleanup completed', { targetName });
   }
 }

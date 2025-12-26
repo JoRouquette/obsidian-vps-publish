@@ -7,4 +7,5 @@ export interface CreateSessionCommand {
     maxBytesPerRequest: number;
   };
   customIndexConfigs?: CustomIndexConfig[];
+  ignoredTags?: string[];
 }

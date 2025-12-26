@@ -22,4 +22,5 @@ export const CreateSessionBodyDto = z.object({
     )
     .optional(),
   customIndexConfigs: z.array(CustomIndexConfigDto).optional(),
+  ignoredTags: z.array(z.string()).optional(),
 });

@@ -241,7 +241,9 @@ export class StepProgressManagerAdapter implements StepProgressManagerPort {
       (meta) => meta.status === ProgressStepStatus.IN_PROGRESS
     );
 
-    const stepMessage = currentStepMeta ? currentStepMeta.label : 'Processing...';
+    // Note: currentStepMeta should always exist when this is called from a step operation
+    // If it doesn't, it indicates a logic error in the calling code
+    const stepMessage = currentStepMeta?.label ?? 'Processing...';
 
     // If progressPort has updateProgress method (NoticeProgressAdapter), use it
     const progressAdapter = this.progressPort as NoticeProgressAdapter;
