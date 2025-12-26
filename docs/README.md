@@ -139,6 +139,7 @@ Ce script est exécuté en CI pour garantir le respect des règles.
 - **[Development](./development.md)** - Configuration locale, scripts npm, workflows Git
 - **[Docker](./docker.md)** - Image container, volumes, healthcheck, déploiement
 - **[Release](./release.md)** - Processus de release, semantic-release, versioning
+- **[Load Testing](./LOAD-TESTING.md)** - Tests de montée en charge avec Artillery
 
 ### Frontend Angular (`site/`)
 

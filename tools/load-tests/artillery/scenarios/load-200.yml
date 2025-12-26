@@ -1,13 +1,13 @@
 config:
-  target: "{{ $env.BASE_URL || 'http://localhost:3000' }}"
+  target: 'http://localhost:3000'
   phases:
     - duration: 120
       arrivalRate: 1
       maxVusers: 1
-      name: 'Medium load - 200 notes'
-  processor: './helpers/session-processor.js'
+      name: 'Load test - 200 notes'
+  processor: '../helpers/session-processor.js'
   variables:
-    apiKey: "{{ $env.API_KEY || 'test-api-key' }}"
+    apiKey: '{{ $env.API_KEY }}'
     notesCount: 200
     assetsCount: 40
   plugins:

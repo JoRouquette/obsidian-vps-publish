@@ -7,9 +7,9 @@ const crypto = require('crypto');
 
 /**
  * Size profiles for notes (in KB)
- * small: 1-5 KB (70%)
- * medium: 20-80 KB (25%)
- * large: 200-800 KB (5%)
+ * small: 1-5 KB
+ * medium: 20-80 KB
+ * large: 200-800 KB
  */
 const SIZE_PROFILES = {
   small: { min: 1, max: 5 },
@@ -17,11 +17,25 @@ const SIZE_PROFILES = {
   large: { min: 200, max: 800 },
 };
 
-const DISTRIBUTION = {
-  small: 0.7,
-  medium: 0.25,
-  large: 0.05,
+/**
+ * Distribution presets
+ * default: 60% small, 30% medium, 10% large (better coverage)
+ * balanced: 33% small, 33% medium, 34% large (equal coverage)
+ * small-focused: 80% small, 15% medium, 5% large (fast tests)
+ * large-focused: 20% small, 30% medium, 50% large (stress tests)
+ */
+const DISTRIBUTIONS = {
+  default: { small: 0.6, medium: 0.3, large: 0.1 },
+  balanced: { small: 0.33, medium: 0.33, large: 0.34 },
+  smallFocused: { small: 0.8, medium: 0.15, large: 0.05 },
+  largeFocused: { small: 0.2, medium: 0.3, large: 0.5 },
 };
+
+// Get distribution from env or use default
+function getDistribution() {
+  const profile = process.env.NOTE_SIZE_PROFILE || 'default';
+  return DISTRIBUTIONS[profile] || DISTRIBUTIONS.default;
+}
 
 /**
  * Seeded random number generator for reproducibility
@@ -44,10 +58,10 @@ class SeededRandom {
     return array[this.range(0, array.length - 1)];
   }
 
-  weighted() {
+  weighted(distribution) {
     const rand = this.next();
-    if (rand < DISTRIBUTION.small) return 'small';
-    if (rand < DISTRIBUTION.small + DISTRIBUTION.medium) return 'medium';
+    if (rand < distribution.small) return 'small';
+    if (rand < distribution.small + distribution.medium) return 'medium';
     return 'large';
   }
 }
@@ -152,6 +166,7 @@ function generateNotes(userContext, events, done) {
   const count = parseInt(process.env.NOTES_COUNT || '50', 10);
   const seed = parseInt(process.env.SEED || Date.now().toString(), 10);
   const rng = new SeededRandom(seed + userContext.vars.$loopCount || 0);
+  const distribution = getDistribution();
 
   const folderConfig = {
     id: 'folder-loadtest',
@@ -162,13 +177,22 @@ function generateNotes(userContext, events, done) {
   };
 
   const notes = [];
+  const sizeStats = { small: 0, medium: 0, large: 0 };
+
   for (let i = 0; i < count; i++) {
-    const sizeProfile = rng.weighted();
+    const sizeProfile = rng.weighted(distribution);
+    sizeStats[sizeProfile]++;
     notes.push(generateNote(i, sizeProfile, folderConfig, rng));
   }
 
   userContext.vars.notes = notes;
   userContext.vars.notesCount = count;
+  userContext.vars.noteSizeStats = sizeStats;
+
+  // Log distribution for verification
+  console.log(
+    `[Generator] Generated ${count} notes - Small: ${sizeStats.small}, Medium: ${sizeStats.medium}, Large: ${sizeStats.large}`
+  );
 
   return done();
 }
