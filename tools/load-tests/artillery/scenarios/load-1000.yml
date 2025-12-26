@@ -1,0 +1,68 @@
+config:
+  target: "{{ $env.BASE_URL || 'http://localhost:3000' }}"
+  phases:
+    - duration: 300
+      arrivalRate: 1
+      maxVusers: 1
+      name: 'Extreme load - 1000 notes'
+  processor: './helpers/session-processor.js'
+  variables:
+    apiKey: "{{ $env.API_KEY || 'test-api-key' }}"
+    notesCount: 1000
+    assetsCount: 150
+  plugins:
+    expect: {}
+
+scenarios:
+  - name: 'Extreme Load Test - 1000 Notes'
+    flow:
+      - function: 'generateSessionPayloads'
+
+      - post:
+          url: '/api/session/start'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            notesPlanned: 1000
+            assetsPlanned: 150
+            batchConfig:
+              maxBytesPerRequest: 10485760
+            ignoredTags: []
+          capture:
+            - json: '$.sessionId'
+              as: 'sessionId'
+          expect:
+            - statusCode: 201
+
+      - post:
+          url: '/api/session/{{ sessionId }}/notes/upload'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            notes: '{{ notes }}'
+            cleanupRules: '{{ cleanupRules }}'
+          expect:
+            - statusCode: 200
+
+      - post:
+          url: '/api/session/{{ sessionId }}/assets/upload'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            assets: '{{ assets }}'
+          expect:
+            - statusCode: 200
+
+      - post:
+          url: '/api/session/{{ sessionId }}/finish'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            notesProcessed: 1000
+            assetsProcessed: 150
+          expect:
+            - statusCode: 200
