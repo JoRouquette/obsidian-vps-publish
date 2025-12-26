@@ -10,7 +10,7 @@ import { type UploaderPort } from '@core-domain/ports/uploader-port';
 
 import { type SessionApiClient } from '../services/session-api.client';
 import { processWithConcurrencyControl } from '../utils/async-helpers.util';
-import { batchByBytes } from '../utils/batch-by-bytes.util';
+import { batchByBytesAsync } from '../utils/batch-by-bytes.util';
 import { BrowserEncodingAdapter } from './browser-encoding.adapter';
 import { AssetChunkUploaderAdapter } from './chunk-uploader.adapter';
 import { ObsidianCompressionAdapter } from './obsidian-compression.adapter';
@@ -83,7 +83,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
       throw err;
     }
 
-    const batches = batchByBytes(apiAssets, this.maxBytesPerRequest, (batch) => ({
+    const batches = await batchByBytesAsync(apiAssets, this.maxBytesPerRequest, (batch) => ({
       assets: batch,
     }));
 
@@ -163,7 +163,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
       { concurrency: 5, batchSize: 10 }
     );
 
-    const batches = batchByBytes(apiAssets, this.maxBytesPerRequest, (batch) => ({
+    const batches = await batchByBytesAsync(apiAssets, this.maxBytesPerRequest, (batch) => ({
       assets: batch,
     }));
 

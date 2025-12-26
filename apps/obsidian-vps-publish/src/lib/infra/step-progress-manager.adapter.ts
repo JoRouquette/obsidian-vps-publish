@@ -31,11 +31,15 @@ const TOTAL_WEIGHT = Object.values(STEP_WEIGHTS).reduce((sum, w) => sum + w, 0);
  * Gestionnaire de progression par étapes avec notifications
  * Orchestre progress global + progress par étape + notifications
  * Uses step-based weights instead of file counts for progress calculation.
+ * Progress updates are throttled to prevent excessive UI repaints.
  */
 export class StepProgressManagerAdapter implements StepProgressManagerPort {
   private readonly steps = new Map<ProgressStepId, ProgressStepMetadata>();
   private readonly callbacks: ProgressStepCallback[] = [];
   private readonly stepTimings = new Map<ProgressStepId, number>();
+  private lastProgressUpdateTime = 0;
+  private readonly progressThrottleMs = 80; // Throttle progress updates to max every 80ms
+  private pendingProgressUpdate = false;
 
   constructor(
     private readonly progressPort: ProgressPort | NoticeProgressAdapter,
@@ -85,8 +89,8 @@ export class StepProgressManagerAdapter implements StepProgressManagerPort {
 
     metadata.current = Math.min(metadata.total, metadata.current + stepAmount);
 
-    // Update progress bar with current step
-    this.updateProgressBar();
+    // Update progress bar with throttling to prevent excessive UI repaints
+    this.updateProgressBarThrottled();
 
     // Émettre callback
     const step = new ProgressStep(metadata);
@@ -116,8 +120,9 @@ export class StepProgressManagerAdapter implements StepProgressManagerPort {
       this.notificationPort.success(successMsg);
     }
 
-    // Update progress bar
+    // Update progress bar immediately (no throttling for completion)
     this.updateProgressBar();
+    this.lastProgressUpdateTime = Date.now();
 
     // Émettre callback
     const step = new ProgressStep(metadata);
@@ -163,8 +168,9 @@ export class StepProgressManagerAdapter implements StepProgressManagerPort {
       this.notificationPort.info(skipMsg);
     }
 
-    // Update progress bar
+    // Update progress bar immediately (no throttling for skip)
     this.updateProgressBar();
+    this.lastProgressUpdateTime = Date.now();
 
     // Émettre callback
     const step = new ProgressStep(metadata);
@@ -228,6 +234,32 @@ export class StepProgressManagerAdapter implements StepProgressManagerPort {
     }
 
     return Math.min(100, Math.floor((completedWeight / TOTAL_WEIGHT) * 100));
+  }
+
+  /**
+   * Update the progress bar with throttling to prevent excessive UI repaints.
+   * Ensures progress updates happen at most every 80ms.
+   */
+  private updateProgressBarThrottled(): void {
+    const now = Date.now();
+    const elapsed = now - this.lastProgressUpdateTime;
+
+    if (elapsed >= this.progressThrottleMs) {
+      // Enough time has passed, update immediately
+      this.updateProgressBar();
+      this.lastProgressUpdateTime = now;
+      this.pendingProgressUpdate = false;
+    } else if (!this.pendingProgressUpdate) {
+      // Schedule a deferred update
+      this.pendingProgressUpdate = true;
+      const delay = this.progressThrottleMs - elapsed;
+      setTimeout(() => {
+        this.pendingProgressUpdate = false;
+        this.updateProgressBar();
+        this.lastProgressUpdateTime = Date.now();
+      }, delay);
+    }
+    // Else: update already scheduled, skip
   }
 
   /**

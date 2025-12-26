@@ -10,7 +10,7 @@ import type { StepProgressManagerPort } from '@core-domain/ports/step-progress-m
 import type { UploaderPort } from '@core-domain/ports/uploader-port';
 
 import { type SessionApiClient } from '../services/session-api.client';
-import { batchByBytes } from '../utils/batch-by-bytes.util';
+import { batchByBytes, batchByBytesAsync } from '../utils/batch-by-bytes.util';
 import { BrowserEncodingAdapter } from './browser-encoding.adapter';
 import { NoteChunkUploaderAdapter } from './chunk-uploader.adapter';
 import { ObsidianCompressionAdapter } from './obsidian-compression.adapter';
@@ -48,7 +48,7 @@ export class NotesUploaderAdapter implements UploaderPort {
       return false;
     }
 
-    const batches = batchByBytes(notes, this.maxBytesPerRequest, (batch) => ({
+    const batches = await batchByBytesAsync(notes, this.maxBytesPerRequest, (batch) => ({
       notes: batch,
     }));
 

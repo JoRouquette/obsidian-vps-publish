@@ -1,9 +1,9 @@
 import type { CollectedNote } from '@core-domain/entities/collected-note';
 import type { FolderConfig } from '@core-domain/entities/folder-config';
+import type { CancellationPort } from '@core-domain/ports/cancellation-port';
 import { type GuidGeneratorPort } from '@core-domain/ports/guid-generator-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { VaultPort } from '@core-domain/ports/vault-port';
-import type { CancellationPort } from '@core-domain/ports/cancellation-port';
 import { type App, type TAbstractFile, TFile, TFolder } from 'obsidian';
 
 /**

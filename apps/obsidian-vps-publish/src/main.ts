@@ -13,10 +13,11 @@ import { RemoveNoPublishingMarkerService } from '@core-application/vault-parsing
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
 import {
+  CancellationError,
+  type CancellationPort,
   type CollectedNote,
   type CustomIndexConfig,
   type VpsConfig,
-  CancellationError,
 } from '@core-domain';
 import { type HttpResponse } from '@core-domain/entities/http-response';
 import { ProgressStepId, ProgressStepStatus } from '@core-domain/entities/progress-step';
