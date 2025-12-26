@@ -12,6 +12,7 @@ node scripts/generate-test-vault.mjs --notes 500 --assets 100 --output test-file
 ```
 
 This creates a realistic test vault with:
+
 - 500 markdown notes (various sizes, frontmatter, tags)
 - 100 dummy image assets (PNG format)
 - Wikilinks between notes
@@ -41,6 +42,7 @@ This creates a realistic test vault with:
 3. Publishing starts immediately
 
 **What to monitor**:
+
 - **Obsidian UI**: Try moving the window, clicking buttons → should remain responsive
 - **Console** (Ctrl+Shift+I):
   - Look for `📊 Performance Summary` at the end
@@ -77,13 +79,13 @@ Top 5 longest blocking operations:
 
 #### ✅ Good Metrics (500-note vault)
 
-| Metric | Target | Meaning |
-|--------|--------|---------|
-| Total publish time | < 30s | Depends on network speed |
-| Progress updates/sec | < 10 | UI not spammed |
-| Notices/sec | < 2 | Not too many popups |
-| Longest block | < 100ms | No major UI freeze |
-| Blocking ops count | < 10 | Few synchronous delays |
+| Metric               | Target  | Meaning                  |
+| -------------------- | ------- | ------------------------ |
+| Total publish time   | < 30s   | Depends on network speed |
+| Progress updates/sec | < 10    | UI not spammed           |
+| Notices/sec          | < 2     | Not too many popups      |
+| Longest block        | < 100ms | No major UI freeze       |
+| Blocking ops count   | < 10    | Few synchronous delays   |
 
 #### ⚠️ Warning Signs
 
@@ -107,18 +109,21 @@ New settings are available in `data.json` (plugin data folder):
 ### When to Adjust
 
 #### High-end Machine (fast CPU, good network)
+
 - Increase `maxConcurrentUploads` to `5` or `6`
 - Increase `maxConcurrentDataviewNotes` to `8` or `10`
 - **Benefit**: Faster uploads
 - **Risk**: Higher memory usage, potential UI lag if too aggressive
 
 #### Low-end Machine (older CPU, slow network)
+
 - Decrease `maxConcurrentUploads` to `2`
 - Decrease `maxConcurrentDataviewNotes` to `3`
 - **Benefit**: More UI responsiveness
 - **Trade-off**: Slower overall publish time
 
 #### Default Values (recommended for most users)
+
 - `maxConcurrentDataviewNotes: 5` → Balanced for typical vaults
 - `maxConcurrentUploads: 3` → Conservative, stable
 - `maxConcurrentFileReads: 5` → Matches dataview concurrency
@@ -128,11 +133,13 @@ New settings are available in `data.json` (plugin data folder):
 ### UI Still Freezes During Publish
 
 **Possible causes**:
+
 1. **Dataview plugin slow**: Disable Dataview plugin temporarily and re-test
 2. **Large individual notes**: If a single note has huge dataview queries, it may block
 3. **Network congestion**: Check network speed, increase chunk size
 
 **Actions**:
+
 - Lower concurrency: `maxConcurrentDataviewNotes: 3`
 - Check console for "Blocking operations" > 200ms
 - Report issue with console logs attached
@@ -140,11 +147,13 @@ New settings are available in `data.json` (plugin data folder):
 ### Publish Fails or Times Out
 
 **Possible causes**:
+
 1. **API overloaded**: Check API logs for event-loop lag warnings
 2. **Network timeout**: Increase timeout in API (not yet configurable)
 3. **Memory exhaustion**: Check API `heapUsed` in performance summary
 
 **Actions**:
+
 - Reduce upload concurrency: `maxConcurrentUploads: 2`
 - Check API `PerformanceMonitoringMiddleware` output
 - Monitor API with `docker stats` or equivalent
@@ -156,19 +165,23 @@ Example warnings and their meaning:
 ```
 ⚠️ WARNING: High progress update rate (15/sec)
 ```
+
 → Progress bar is updated too frequently, may cause lag
 
 ```
 ⚠️ WARNING: High notice creation rate (5/sec)
 ```
+
 → Too many popups, user experience degraded
 
 ```
 ⚠️ WARNING: Very long blocking operation detected (234.56ms)
 ```
+
 → A synchronous operation took too long, UI froze temporarily
 
 **Actions**: Report these on GitHub Issues with:
+
 - Vault size (number of notes/assets)
 - Full console log output
 - System specs (CPU, RAM)
@@ -176,31 +189,39 @@ Example warnings and their meaning:
 ## Generating Different Test Scenarios
 
 ### Small Vault (Quick Test)
+
 ```bash
 node scripts/generate-test-vault.mjs --notes 50 --assets 10
 ```
+
 - Fast publish (< 5s)
 - Good for smoke testing
 
 ### Medium Vault (Typical User)
+
 ```bash
 node scripts/generate-test-vault.mjs --notes 200 --assets 50
 ```
+
 - Realistic for personal knowledge bases
 - Publish time: ~10-15s
 
 ### Large Vault (Stress Test)
+
 ```bash
 node scripts/generate-test-vault.mjs --notes 1000 --assets 368
 ```
+
 - Matches your reported scenario
 - Publish time: ~30-60s (depends on network)
 - Use this to verify no UI freeze
 
 ### Extreme Vault (Edge Case)
+
 ```bash
 node scripts/generate-test-vault.mjs --notes 5000 --assets 1000
 ```
+
 - Beyond typical use case
 - Publish time: several minutes
 - May reveal edge cases (memory, timeout)
@@ -208,6 +229,7 @@ node scripts/generate-test-vault.mjs --notes 5000 --assets 1000
 ## Automated Testing (Future)
 
 Planned enhancements:
+
 - CI performance regression tests
 - Benchmark suite with fixed test vaults
 - Automated metrics collection and comparison

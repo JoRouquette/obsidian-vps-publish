@@ -3,10 +3,11 @@ import { type CustomIndexConfig, type PublishableNote, type VpsConfig } from '@c
 import { type ChunkedData } from '@core-domain/entities/chunked-data';
 import { type HttpResponse } from '@core-domain/entities/http-response';
 import { type LoggerPort } from '@core-domain/ports/logger-port';
-import { requestUrl, type RequestUrlResponse } from 'obsidian';
+import type { RequestUrlResponse } from 'obsidian';
 
 import { translate } from '../../i18n';
 import type { Translations } from '../../i18n/locales';
+import { requestUrlWithRetry } from '../utils/request-with-retry.util';
 
 export interface StartSessionResponse {
   sessionId: string;
@@ -31,16 +32,20 @@ export class SessionApiClient {
 
   private async postJson<TBody>(path: string, body: TBody): Promise<HttpResponse> {
     const url = this.buildUrl(path);
-    const res = await requestUrl({
-      url,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': this.apiKey,
+    const res = await requestUrlWithRetry(
+      {
+        url,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+        },
+        body: JSON.stringify(body),
+        throw: false,
       },
-      body: JSON.stringify(body),
-      throw: false,
-    });
+      undefined, // Use default retry config
+      this.logger
+    );
 
     return this.responseHandler.handleResponseAsync({
       response: res,
