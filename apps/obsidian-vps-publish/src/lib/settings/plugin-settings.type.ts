@@ -15,6 +15,10 @@ export type PluginSettings = PublishPluginSettings &
     frontmatterTagsToExclude: string[];
     logLevel: LogLevel;
     calloutStylePaths: string[];
+    // Performance tuning (advanced)
+    maxConcurrentDataviewNotes?: number;
+    maxConcurrentUploads?: number;
+    maxConcurrentFileReads?: number;
   };
 
 export type SettingsSave = () => Promise<void>;
