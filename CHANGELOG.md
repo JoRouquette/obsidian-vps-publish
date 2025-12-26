@@ -1,3 +1,16 @@
+## 4.10.0 (2025-12-26)
+
+* Merge branch 'feat/footnotes' ([c32d152](https://github.com/JoRouquette/obsidian-vps-publish/commit/c32d152))
+* chore: fix lint/test issues and restore node_modules ([e792447](https://github.com/JoRouquette/obsidian-vps-publish/commit/e792447))
+* feat: add ignoredTags configuration for tag filtering ([276f647](https://github.com/JoRouquette/obsidian-vps-publish/commit/276f647))
+* feat(backend): add advanced Markdown rendering (wikilinks to headings, footnotes, tag filtering) ([3091e4b](https://github.com/JoRouquette/obsidian-vps-publish/commit/3091e4b))
+* feat(markdown): add automatic heading IDs with markdown-it-anchor ([d91d5de](https://github.com/JoRouquette/obsidian-vps-publish/commit/d91d5de)), closes [Note#Section](https://github.com/Note/issues/Section)
+* feat(markdown): convert markdown links to wikilinks and handle unpublished notes ([a8636ef](https://github.com/JoRouquette/obsidian-vps-publish/commit/a8636ef))
+* feat(site): add smooth scroll navigation for footnotes and anchors ([08cc258](https://github.com/JoRouquette/obsidian-vps-publish/commit/08cc258)), closes [#anchor](https://github.com/JoRouquette/obsidian-vps-publish/issues/anchor)
+* fix(markdown): handle multiple references to same footnote with unique IDs ([985e30b](https://github.com/JoRouquette/obsidian-vps-publish/commit/985e30b))
+* refactor(plugin): centralize UI strings in i18n system ([f00684d](https://github.com/JoRouquette/obsidian-vps-publish/commit/f00684d))
+* docs: establish documentation charter and restructure ([d622ace](https://github.com/JoRouquette/obsidian-vps-publish/commit/d622ace))
+
 ## 4.9.0 (2025-12-24)
 
 * Merge branch 'refacto/performances' ([165fb13](https://github.com/JoRouquette/obsidian-vps-publish/commit/165fb13))
