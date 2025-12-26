@@ -6,6 +6,11 @@
 !.env.**example
 /tmp
 diff.md
+report.json
+report.html
+
+# Load test reports
+/tools/load-tests/artillery/reports/**/*
 
 /docs/references/**/* 
 
