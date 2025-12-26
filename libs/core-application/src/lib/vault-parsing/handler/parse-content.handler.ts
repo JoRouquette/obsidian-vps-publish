@@ -1,10 +1,10 @@
 import {
+  type CancellationPort,
   type CollectedNote,
   type LoggerPort,
   type Mapper,
   type PerformanceTrackerPort,
   type PublishableNote,
-  type CancellationPort,
 } from '@core-domain';
 
 import { type CommandHandler } from '../../common/command-handler';

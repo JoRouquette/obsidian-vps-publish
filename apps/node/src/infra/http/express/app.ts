@@ -8,6 +8,7 @@ import {
   UploadNotesHandler,
 } from '@core-application';
 import { type LoggerPort } from '@core-domain';
+import compression from 'compression';
 import express from 'express';
 
 import { EnvConfig } from '../../config/env-config';
@@ -34,7 +35,32 @@ export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
 export function createApp(rootLogger?: LoggerPort) {
   const app = express();
 
-  app.use(express.json({ limit: BYTES_LIMIT }));
+  // Enable compression for all responses (gzip/deflate)
+  app.use(
+    compression({
+      level: 6, // Balance between speed and compression ratio
+      threshold: 1024, // Only compress responses > 1KB
+      filter: (req, res) => {
+        // Don't compress if the client doesn't support it
+        if (req.headers['x-no-compression']) {
+          return false;
+        }
+        // Use default compression filter
+        return compression.filter(req, res);
+      },
+    })
+  );
+
+  // Optimize JSON parsing
+  app.use(
+    express.json({
+      limit: BYTES_LIMIT,
+      strict: true, // Only parse objects and arrays
+    })
+  );
+
+  // Disable X-Powered-By header for security
+  app.disable('x-powered-by');
 
   app.use(createCorsMiddleware(EnvConfig.allowedOrigins()));
   const apiKeyMiddleware = createApiKeyAuthMiddleware(EnvConfig.apiKey());
@@ -51,16 +77,38 @@ export function createApp(rootLogger?: LoggerPort) {
     next();
   };
 
-  // Static assets
+  // Static assets with aggressive caching (immutable content)
   app.use(
     '/assets',
-    disableCache,
-    express.static(EnvConfig.assetsRoot(), { etag: false, cacheControl: false, maxAge: 0 })
+    express.static(EnvConfig.assetsRoot(), {
+      etag: true,
+      lastModified: true,
+      maxAge: '365d', // Cache assets for 1 year
+      immutable: true, // Assets never change
+    })
   );
+
+  // Content with no-cache (dynamic content, frequently updated)
   app.use(
     '/content',
     disableCache,
     express.static(EnvConfig.contentRoot(), { etag: false, cacheControl: false, maxAge: 0 })
+  );
+
+  // UI files with moderate caching (versioned via deployment)
+  const ANGULAR_DIST = EnvConfig.uiRoot();
+  app.use(
+    express.static(ANGULAR_DIST, {
+      etag: true,
+      lastModified: true,
+      maxAge: '1h', // Cache UI for 1 hour
+      setHeaders: (res, filePath) => {
+        // Cache index.html for only 5 minutes (entry point)
+        if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'public, max-age=300');
+        }
+      },
+    })
   );
 
   // Log app startup and config
@@ -135,18 +183,23 @@ export function createApp(rootLogger?: LoggerPort) {
     )
   );
 
-  app.use('/api', apiRouter);
-
-  const ANGULAR_DIST = EnvConfig.uiRoot();
-  app.use(express.static(ANGULAR_DIST));
-
-  // Log each incoming request
+  // Log incoming requests (before routes for accurate timing)
   app.use((req, res, next) => {
-    rootLogger?.debug(
-      `Incoming request received method: ${req.method}, url: ${req.originalUrl}, ip: ${req.ip}`
-    );
+    const startTime = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - startTime;
+      rootLogger?.debug('Request completed', {
+        method: req.method,
+        url: req.originalUrl,
+        status: res.statusCode,
+        duration: `${duration}ms`,
+        ip: req.ip,
+      });
+    });
     next();
   });
+
+  app.use('/api', apiRouter);
 
   app.use(createHealthCheckController());
 
