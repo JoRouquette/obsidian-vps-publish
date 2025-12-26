@@ -33,7 +33,7 @@ export class ConsoleLoggerAdapter implements LoggerPort {
   info(message: string, meta?: LogMeta): void {
     if ((this._level & LogLevel.info) === 0) return;
     const data = this.mergeContextAndMeta(meta);
-    console.log(`[${this.getCurrentDatetime()}] [info] ${message}\n${this.serialize(data)}`);
+    console.debug(`[${this.getCurrentDatetime()}] [info] ${message}\n${this.serialize(data)}`);
   }
 
   warn(message: string, meta?: LogMeta): void {

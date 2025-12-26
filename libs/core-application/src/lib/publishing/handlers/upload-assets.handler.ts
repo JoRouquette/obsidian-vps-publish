@@ -9,9 +9,10 @@ import { type AssetStoragePort } from '../ports/assets-storage.port';
 
 type AssetStorageFactory = (sessionId: string) => AssetStoragePort;
 
-export class UploadAssetsHandler
-  implements CommandHandler<UploadAssetsCommand, UploadAssetsResult>
-{
+export class UploadAssetsHandler implements CommandHandler<
+  UploadAssetsCommand,
+  UploadAssetsResult
+> {
   private readonly _logger;
 
   constructor(

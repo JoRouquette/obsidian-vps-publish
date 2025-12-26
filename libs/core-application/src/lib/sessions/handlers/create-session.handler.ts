@@ -6,9 +6,10 @@ import { type CreateSessionCommand } from '../commands/create-session.command';
 import { type CreateSessionResult } from '../commands/create-session.result';
 import { type SessionRepository } from '../ports/session.repository';
 
-export class CreateSessionHandler
-  implements CommandHandler<CreateSessionCommand, CreateSessionResult>
-{
+export class CreateSessionHandler implements CommandHandler<
+  CreateSessionCommand,
+  CreateSessionResult
+> {
   private readonly logger?: LoggerPort;
 
   constructor(

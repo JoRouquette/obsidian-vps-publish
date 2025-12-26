@@ -3,13 +3,13 @@ import * as path from 'path';
 
 import { MarkdownItRenderer } from '../infra/markdown/markdown-it.renderer';
 
-describe('Real-world Markdown Rendering (Le Code.md)', () => {
+describe('Real-world Markdown Rendering (le-code.md)', () => {
   let renderer: MarkdownItRenderer;
   let markdown: string;
 
   beforeAll(async () => {
     renderer = new MarkdownItRenderer();
-    const testFilePath = path.resolve(__dirname, '../../../../test-files/Le Code.md');
+    const testFilePath = path.resolve(__dirname, '../../../../test-files/le-code.md');
     markdown = await fs.readFile(testFilePath, 'utf-8');
   });
 
@@ -36,7 +36,7 @@ describe('Real-world Markdown Rendering (Le Code.md)', () => {
     expect(html).not.toContain('href="Ambassade.md"');
   });
 
-  it('should strip .md extension from all markdown links in Le Code.md', async () => {
+  it('should strip .md extension from all markdown links in le-code.md', async () => {
     const note = {
       noteId: 'le-code',
       slug: { value: 'le-code', isValid: true },

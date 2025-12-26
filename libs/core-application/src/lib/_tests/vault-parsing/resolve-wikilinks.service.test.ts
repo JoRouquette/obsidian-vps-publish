@@ -78,6 +78,12 @@ describe('ResolveWikilinksService', () => {
       noteId: 'tenebra-id',
       title: 'Ténébra',
       relativePath: 'Divinites/Tenebra.md',
+      routing: {
+        slug: 'tenebra',
+        path: '/blog/divinites/tenebra',
+        routeBase: '/blog',
+        fullPath: '/blog/divinites/tenebra',
+      },
     };
     const noteWithAccent = {
       ...baseNote,
@@ -88,7 +94,7 @@ describe('ResolveWikilinksService', () => {
 
     expect(note.resolvedWikilinks?.[0].isResolved).toBe(true);
     expect(note.resolvedWikilinks?.[0].targetNoteId).toBe('tenebra-id');
-    expect(note.resolvedWikilinks?.[0].path).toContain('Divinites');
+    expect(note.resolvedWikilinks?.[0].path).toContain('divinites');
   });
 
   it('detects frontmatter wikilinks and keeps their origin', () => {
