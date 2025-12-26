@@ -1,3 +1,12 @@
+## 4.11.0 (2025-12-26)
+
+* Merge branch 'feat/async-and-performance' ([15b48bf](https://github.com/JoRouquette/obsidian-vps-publish/commit/15b48bf))
+* perf(api): optimize Express app with compression and caching ([24da357](https://github.com/JoRouquette/obsidian-vps-publish/commit/24da357))
+* perf(plugin): optimize batch-by-bytes with async yielding ([939973a](https://github.com/JoRouquette/obsidian-vps-publish/commit/939973a))
+* feat(plugin): add cancel button to ribbon during publishing ([7784eb6](https://github.com/JoRouquette/obsidian-vps-publish/commit/7784eb6))
+* feat(plugin): add cancellation support for publishing operations ([09e5a02](https://github.com/JoRouquette/obsidian-vps-publish/commit/09e5a02))
+* test(plugin): add smoke tests for async yielding and cancellation ([2f69af3](https://github.com/JoRouquette/obsidian-vps-publish/commit/2f69af3))
+
 ## 4.10.0 (2025-12-26)
 
 * Merge branch 'feat/footnotes' ([c32d152](https://github.com/JoRouquette/obsidian-vps-publish/commit/c32d152))
