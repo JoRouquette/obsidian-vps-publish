@@ -1,15 +1,17 @@
 config:
-  target: "{{ $env.BASE_URL || 'http://localhost:3000' }}"
+  target: 'http://localhost:3000'
   phases:
     - duration: 300
       arrivalRate: 1
       maxVusers: 1
-      name: 'Extreme load - 1000 notes'
-  processor: './helpers/session-processor.js'
+      name: 'Load test - 1000 notes (balanced distribution)'
+  processor: '../helpers/session-processor.js'
   variables:
-    apiKey: "{{ $env.API_KEY || 'test-api-key' }}"
+    apiKey: '{{ $env.API_KEY }}'
     notesCount: 1000
-    assetsCount: 150
+    assetsCount: 200
+  env:
+    NOTE_SIZE_PROFILE: 'balanced'
   plugins:
     expect: {}
 
@@ -25,7 +27,7 @@ scenarios:
             Content-Type: 'application/json'
           json:
             notesPlanned: 1000
-            assetsPlanned: 150
+            assetsPlanned: 200
             batchConfig:
               maxBytesPerRequest: 10485760
             ignoredTags: []
@@ -63,6 +65,6 @@ scenarios:
             Content-Type: 'application/json'
           json:
             notesProcessed: 1000
-            assetsProcessed: 150
+            assetsProcessed: 200
           expect:
             - statusCode: 200

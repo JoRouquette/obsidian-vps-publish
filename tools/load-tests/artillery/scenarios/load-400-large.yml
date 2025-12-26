@@ -1,33 +1,33 @@
 config:
   target: 'http://localhost:3000'
   phases:
-    - duration: 60
+    - duration: 360
       arrivalRate: 1
       maxVusers: 1
-      name: 'Single user session upload'
+      name: 'Large-focused load - 400 notes (50% large notes)'
   processor: '../helpers/session-processor.js'
   variables:
     apiKey: '{{ $env.API_KEY }}'
-    notesCount: '{{ $env.NOTES_COUNT || 50 }}'
-    assetsCount: '{{ $env.ASSETS_COUNT || 20 }}'
+    notesCount: 400
+    assetsCount: 80
+  env:
+    NOTE_SIZE_PROFILE: 'largeFocused'
   plugins:
     expect: {}
 
 scenarios:
-  - name: 'Complete Session Upload Workflow'
+  - name: 'Large-Focused Distribution - 400 Notes'
     flow:
-      # Step 1: Generate payloads
       - function: 'generateSessionPayloads'
 
-      # Step 2: Create session
       - post:
           url: '/api/session/start'
           headers:
             x-api-key: '{{ apiKey }}'
             Content-Type: 'application/json'
           json:
-            notesPlanned: '{{ notesCount }}'
-            assetsPlanned: '{{ assetsCount }}'
+            notesPlanned: 400
+            assetsPlanned: 80
             batchConfig:
               maxBytesPerRequest: 10485760
             ignoredTags: []
@@ -36,10 +36,7 @@ scenarios:
               as: 'sessionId'
           expect:
             - statusCode: 201
-            - contentType: json
-            - hasProperty: 'sessionId'
 
-      # Step 3: Upload notes
       - post:
           url: '/api/session/{{ sessionId }}/notes/upload'
           headers:
@@ -50,9 +47,7 @@ scenarios:
             cleanupRules: '{{ cleanupRules }}'
           expect:
             - statusCode: 200
-            - contentType: json
 
-      # Step 4: Upload assets
       - post:
           url: '/api/session/{{ sessionId }}/assets/upload'
           headers:
@@ -62,20 +57,14 @@ scenarios:
             assets: '{{ assets }}'
           expect:
             - statusCode: 200
-            - contentType: json
 
-      # Step 5: Finish session
       - post:
           url: '/api/session/{{ sessionId }}/finish'
           headers:
             x-api-key: '{{ apiKey }}'
             Content-Type: 'application/json'
           json:
-            notesProcessed: '{{ notesCount }}'
-            assetsProcessed: '{{ assetsCount }}'
+            notesProcessed: 400
+            assetsProcessed: 80
           expect:
             - statusCode: 200
-            - contentType: json
-            - hasProperty: 'success'
-
-      - think: 2

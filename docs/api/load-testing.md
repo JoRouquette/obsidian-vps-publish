@@ -25,25 +25,49 @@ The load tests use **Artillery** to simulate realistic user sessions that upload
 
 ### Test Profiles
 
-| Profile | Notes | Assets | Duration | Use Case |
-|---------|-------|--------|----------|----------|
-| **quick** | 10 | 5 | 30s | Smoke test, CI/CD |
-| **load-50** | 50 | 20 | 60s | Light load baseline |
-| **load-200** | 200 | 40 | 120s | Medium load |
-| **load-500** | 500 | 80 | 180s | Heavy load |
-| **load-1000** | 1000 | 150 | 300s | Extreme load |
+| Profile               | Notes | Assets | Distribution        | Duration | Use Case                  |
+| --------------------- | ----- | ------ | ------------------- | -------- | ------------------------- |
+| **quick**             | 10    | 5      | default (60/30/10)  | 30s      | Smoke test, CI/CD         |
+| **load-50**           | 50    | 20     | default (60/30/10)  | 60s      | Light load baseline       |
+| **load-200**          | 200   | 40     | default (60/30/10)  | 120s     | Medium load               |
+| **load-300-balanced** | 300   | 60     | balanced (33/33/34) | 240s     | Equal size coverage       |
+| **load-400-large**    | 400   | 80     | large (20/30/50)    | 360s     | Large notes stress test   |
+| **load-500**          | 500   | 100    | balanced (33/33/34) | 180s     | Heavy load with balance   |
+| **load-1000**         | 1000  | 200    | balanced (33/33/34) | 300s     | Extreme load with balance |
 
 ### Payload Size Distribution
 
+**Distribution Presets** (configurable via `NOTE_SIZE_PROFILE` env var):
+
+- **default** (60/30/10): 60% small, 30% medium, 10% large - Better coverage for all sizes
+- **balanced** (33/33/34): Equal distribution - Comprehensive testing of all sizes
+- **smallFocused** (80/15/5): Mostly small notes - Fast tests, minimal resource usage
+- **largeFocused** (20/30/50): Majority large notes - Stress test with heavy payloads
+
 **Notes** (markdown content):
-- Small (70%): 1-5 KB
-- Medium (25%): 20-80 KB
-- Large (5%): 200-800 KB
+
+- Small (1-5 KB): Basic notes with headers and paragraphs
+- Medium (20-80 KB): Detailed notes with code blocks, lists
+- Large (200-800 KB): Extensive documents with multiple sections
 
 **Assets** (base64-encoded binaries):
-- Small (70%): 50 KB
-- Medium (25%): 500 KB
-- Large (5%): 2-8 MB
+
+- Small (50 KB): Icons, thumbnails
+- Medium (500 KB): Standard images
+- Large (2-8 MB): High-res images, PDFs
+
+**Example usage**:
+
+```bash
+# Use balanced distribution for comprehensive testing
+NOTE_SIZE_PROFILE=balanced npm run load:api:500
+
+# Stress test with large notes
+NOTE_SIZE_PROFILE=largeFocused npm run load:api:400
+
+# Quick test with small notes only
+NOTE_SIZE_PROFILE=smallFocused npm run load:api:50
+```
 
 ## Configuration
 
@@ -68,17 +92,20 @@ API_KEY=your-api-key-here
 NOTES_COUNT=50
 ASSETS_COUNT=20
 SEED=12345  # For reproducible results
+NOTE_SIZE_PROFILE=default  # default | balanced | smallFocused | largeFocused
 ```
 
 ### Scenario Files
 
 Located in `tools/load-tests/artillery/scenarios/`:
 
-- `quick.yml` - Fast smoke test (10 notes)
+- `quick.yml` - Fast smoke test (10 notes, default distribution)
 - `session-upload.yml` - Configurable via env vars
-- `load-200.yml` - 200 notes
-- `load-500.yml` - 500 notes
-- `load-1000.yml` - 1000 notes
+- `load-200.yml` - 200 notes (default distribution)
+- `load-300-balanced.yml` - 300 notes (balanced: 100 of each size)
+- `load-400-large.yml` - 400 notes (large-focused: 50% large notes)
+- `load-500.yml` - 500 notes (balanced: ~167 of each size)
+- `load-1000.yml` - 1000 notes (balanced: ~333 of each size)
 
 ### Payload Generators
 
@@ -89,6 +116,7 @@ Located in `tools/load-tests/artillery/helpers/`:
 - `session-processor.js` - Orchestrates the session workflow
 
 All generators respect:
+
 - Zod DTOs from `apps/node/src/infra/http/express/dto/`
 - Size distributions
 - Reproducible randomness via `SEED`
@@ -114,26 +142,35 @@ npm run docker:dev:up
 ### Running Tests
 
 **Quick smoke test** (for CI):
+
 ```bash
 npm run load:api:quick
 ```
 
 **Standard profiles**:
+
 ```bash
-npm run load:api:50      # 50 notes
-npm run load:api:200     # 200 notes
-npm run load:api:500     # 500 notes
-npm run load:api:1000    # 1000 notes
+npm run load:api:50              # 50 notes (default: 30 small, 15 medium, 5 large)
+npm run load:api:200             # 200 notes (default: 120 small, 60 medium, 20 large)
+npm run load:api:300:balanced    # 300 notes (balanced: ~100 of each size)
+npm run load:api:400:large       # 400 notes (large-focused: ~200 large notes)
+npm run load:api:500             # 500 notes (balanced: ~167 of each size)
+npm run load:api:1000            # 1000 notes (balanced: ~333 of each size)
 ```
 
 **With JSON report output**:
+
 ```bash
 npm run load:api:50:report
 npm run load:api:200:report
-# etc.
+npm run load:api:300:balanced:report
+npm run load:api:400:large:report
+npm run load:api:500:report
+npm run load:api:1000:report
 ```
 
 **Custom parameters**:
+
 ```bash
 NOTES_COUNT=100 ASSETS_COUNT=30 SEED=999 npm run load:api:50
 ```
@@ -159,15 +196,18 @@ open tools/load-tests/artillery/reports/load-200.html
 Artillery outputs several critical metrics:
 
 **Request Metrics**:
+
 - `http.requests`: Total requests made
 - `http.responses`: Total responses received
 - `http.response_time.*`: Response time percentiles (p50, p95, p99)
 
 **Scenario Metrics**:
+
 - `vusers.completed`: Number of completed scenarios (should be 1)
 - `vusers.failed`: Number of failed scenarios (should be 0)
 
 **Status Codes**:
+
 - `http.codes.200`: Successful operations
 - `http.codes.201`: Session created
 - `http.codes.4xx/5xx`: Errors (investigate if present)
@@ -208,6 +248,7 @@ Summary report @ 16:23:45(+0100)
 ```
 
 **Interpretation**:
+
 - ✅ All scenarios completed (1/1)
 - ✅ All requests successful (201 for create, 200 for others)
 - ✅ Response times acceptable (p95 = 2.1s for large payload)
@@ -216,25 +257,30 @@ Summary report @ 16:23:45(+0100)
 ### Troubleshooting
 
 **High latency (p95 > 5s)**:
+
 - Check payload sizes: large assets may exceed server limits
 - Monitor server resources: CPU, memory, disk I/O
 - Review `console.log` output in terminal for generator timings
 
 **4xx errors**:
+
 - `400 Bad Request`: DTO validation failed, check payload structure
 - `401 Unauthorized`: API_KEY incorrect or missing
 - `404 Not Found`: Session expired or invalid endpoint
 
 **5xx errors**:
+
 - `500 Internal Server Error`: Server-side crash, check backend logs
 - `503 Service Unavailable`: Server overloaded or out of memory
 
 **Timeout errors**:
+
 - Increase Artillery timeout in config: `config.timeout: 300`
 - Reduce payload size or note count
 - Check network latency to server
 
 **Memory issues**:
+
 ```bash
 # Monitor Docker container
 docker stats
@@ -258,8 +304,8 @@ config:
     - duration: 240
       arrivalRate: 1
       maxVusers: 1
-      name: "Load test - 750 notes"
-  processor: "./helpers/session-processor.js"
+      name: 'Load test - 750 notes'
+  processor: './helpers/session-processor.js'
   variables:
     apiKey: "{{ $env.API_KEY || 'test-api-key' }}"
     notesCount: 750
@@ -268,9 +314,9 @@ config:
     expect: {}
 
 scenarios:
-  - name: "Load Test - 750 Notes"
+  - name: 'Load Test - 750 Notes'
     flow:
-      - function: "generateSessionPayloads"
+      - function: 'generateSessionPayloads'
       # ... (same structure as other scenarios)
 ```
 
@@ -278,7 +324,7 @@ scenarios:
 
 ```json
 "load:api:750": "artillery run tools/load-tests/artillery/scenarios/load-750.yml --dotenv .env.artillery",
-"load:api:750:report": "artillery run tools/load-tests/artillery/scenarios/load-750.yml --dotenv .env.artillery --output tools/load-tests/artillery/reports/load-750-$(date +%Y%m%d-%H%M%S).json"
+"load:api:750:report": "artillery run tools/load-tests/artillery/scenarios/load-750.yml --dotenv .env.artillery --output tools/load-tests/artillery/reports/load-750.json"
 ```
 
 3. **Run and validate**:
@@ -333,6 +379,7 @@ All payloads are **strictly validated** against Zod schemas:
 - `FinishSessionBodyDto`: notesProcessed, assetsProcessed
 
 Generators ensure:
+
 - Required fields present
 - Correct types (string, number, boolean, array, object)
 - Valid enums (e.g., `origin: 'content' | 'frontmatter'`)
@@ -349,6 +396,7 @@ SEED=12345 npm run load:api:50
 Same seed → same notes → same assets → same payloads.
 
 Useful for:
+
 - Debugging specific payload combinations
 - Comparing performance across code changes
 - Reproducing issues in CI
