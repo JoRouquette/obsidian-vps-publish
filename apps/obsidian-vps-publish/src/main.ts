@@ -477,6 +477,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         maxBytesPerRequest: defaultNginxLimit,
         calloutStyles,
         customIndexConfigs,
+        ignoredTags: settings.frontmatterTagsToExclude || [],
       });
 
       sessionId = started.sessionId;

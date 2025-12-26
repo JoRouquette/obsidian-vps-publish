@@ -128,7 +128,9 @@ export class SessionFinalizerService {
       this.markdownRenderer,
       this.contentStorage,
       this.manifestStorage,
-      this.logger
+      this.logger,
+      undefined, // notesStorage not needed here
+      session?.ignoredTags // Pass ignoredTags from session
     );
 
     // Publier toutes les notes (y compris les fichiers d'index custom)

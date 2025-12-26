@@ -47,8 +47,14 @@ export function createSessionController(
     }
 
     // Ensure required fields are present for CreateSessionCommand
-    const { notesPlanned, assetsPlanned, batchConfig, calloutStyles, customIndexConfigs } =
-      parsed.data;
+    const {
+      notesPlanned,
+      assetsPlanned,
+      batchConfig,
+      calloutStyles,
+      customIndexConfigs,
+      ignoredTags,
+    } = parsed.data;
     if (typeof notesPlanned !== 'number' || typeof assetsPlanned !== 'number') {
       routeLogger?.warn('Missing required fields for session creation', {
         notesPlanned,
@@ -66,6 +72,7 @@ export function createSessionController(
         maxBytesPerRequest: batchConfig.maxBytesPerRequest,
       },
       customIndexConfigs,
+      ignoredTags,
     };
 
     try {

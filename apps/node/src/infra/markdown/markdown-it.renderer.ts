@@ -1,4 +1,4 @@
-import type { MarkdownRendererPort } from '@core-application';
+import type { MarkdownRendererPort, RenderContext } from '@core-application';
 import type { LoggerPort } from '@core-domain';
 import { type AssetRef, type PublishableNote, type ResolvedWikilink } from '@core-domain';
 import MarkdownIt from 'markdown-it';
@@ -161,7 +161,7 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     };
   }
 
-  async render(note: PublishableNote): Promise<string> {
+  async render(note: PublishableNote, context?: RenderContext): Promise<string> {
     const contentAssets = (note.assets ?? []).filter((a) => a.origin !== 'frontmatter');
     const contentLinks = (note.resolvedWikilinks ?? []).filter((l) => l.origin !== 'frontmatter');
 
@@ -186,13 +186,14 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     }</style>\n${html}`;
 
     // Filter ignored tags from rendered HTML
-    // TODO: Get ignored tags from FolderConfig or VPSConfig when implemented
-    const ignoredTags: string[] = [];
+    // Get from context if available, otherwise use empty array (no default filtering)
+    const ignoredTags = context?.ignoredTags ?? [];
     const filtered = this.tagFilter.filterTags(withStyles, ignoredTags);
 
     this.logger?.debug('Markdown rendered to HTML', {
       noteId: note.noteId,
       slug: note.routing.slug,
+      ignoredTagsCount: ignoredTags.length,
     });
     this.logger?.debug('Rendered HTML content', { htmlLength: filtered.length });
     return filtered;

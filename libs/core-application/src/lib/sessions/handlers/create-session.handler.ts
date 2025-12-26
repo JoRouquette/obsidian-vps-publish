@@ -36,6 +36,7 @@ export class CreateSessionHandler
       createdAt: now,
       updatedAt: now,
       customIndexConfigs: command.customIndexConfigs,
+      ignoredTags: command.ignoredTags,
     };
 
     await this.sessionRepository.create(session);

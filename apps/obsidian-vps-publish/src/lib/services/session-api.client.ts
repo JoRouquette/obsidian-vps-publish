@@ -54,6 +54,7 @@ export class SessionApiClient {
     maxBytesPerRequest: number;
     calloutStyles?: { path: string; css: string }[];
     customIndexConfigs?: CustomIndexConfig[];
+    ignoredTags?: string[];
   }): Promise<StartSessionResponse> {
     const result = await this.postJson('/api/session/start', {
       notesPlanned: payload.notesPlanned,
@@ -61,6 +62,7 @@ export class SessionApiClient {
       batchConfig: { maxBytesPerRequest: payload.maxBytesPerRequest },
       calloutStyles: payload.calloutStyles ?? [],
       customIndexConfigs: payload.customIndexConfigs ?? [],
+      ignoredTags: payload.ignoredTags ?? [],
     });
 
     if (result.isError) {
