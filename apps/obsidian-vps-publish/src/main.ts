@@ -66,6 +66,10 @@ const defaultSettings: PluginSettings = {
   frontmatterTagsToExclude: [],
   logLevel: DEFAULT_LOGGER_LEVEL,
   calloutStylePaths: [],
+  // Performance defaults (conservative values for stability)
+  maxConcurrentDataviewNotes: 5,
+  maxConcurrentUploads: 3,
+  maxConcurrentFileReads: 5,
 };
 
 // -----------------------------------------------------------------------------
@@ -583,7 +587,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         this.logger,
         serverRequestLimit,
         stepProgressManager,
-        validCleanupRules
+        validCleanupRules,
+        settings.maxConcurrentUploads || 3
       );
 
       // Calculer le nombre de batchs
@@ -627,7 +632,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           new GuidGeneratorAdapter(),
           this.logger,
           serverRequestLimit,
-          stepProgressManager
+          stepProgressManager,
+          settings.maxConcurrentUploads || 3
         );
 
         const resolvedAssets = await assetsVault.resolveAssetsFromNotes(
@@ -893,8 +899,15 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // Create executor if Dataview API is available
       const executor = dataviewApi ? new DataviewExecutor(dataviewApi, this.app) : undefined;
 
-      return Promise.all(
-        notes.map(async (note) => {
+      // Process notes with controlled concurrency to avoid UI freeze
+      const { processWithControlledConcurrency } =
+        await import('@core-application/utils/concurrency.util');
+
+      const results: PublishableNote[] = [];
+
+      await processWithControlledConcurrency(
+        notes,
+        async (note) => {
           cancel?.throwIfCancelled();
 
           try {
@@ -908,20 +921,33 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
             // CRITICAL: Replace content with native Markdown
             // This ensures fenced code blocks are NEVER uploaded
             // Content now has Markdown wikilinks/tables instead of ```dataview blocks
-            return {
+            results.push({
               ...note,
               content: result.content, // Content now has Markdown instead of ```dataview blocks
-            };
+            });
           } catch (error) {
             logger.error('Failed to process Dataview blocks', {
               noteId: note.noteId,
               error: error instanceof Error ? error.message : String(error),
             });
             // Return note unchanged on catastrophic error
-            return note;
+            results.push(note);
           }
-        })
+        },
+        {
+          concurrency: settings.maxConcurrentDataviewNotes || 5, // Configurable
+          yieldEveryN: 5, // Yield to UI every 5 notes
+          onProgress: (current, total) => {
+            logger.debug('Dataview processing progress', {
+              current,
+              total,
+              percentComplete: ((current / total) * 100).toFixed(1),
+            });
+          },
+        }
       );
+
+      return results;
     };
 
     const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
