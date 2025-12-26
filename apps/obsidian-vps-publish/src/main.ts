@@ -106,6 +106,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
   responseHandler!: HttpResponseHandler<RequestUrlResponse>;
   logger = new ConsoleLoggerAdapter({ plugin: 'ObsidianVpsPublish' });
   private currentPublishAbortController: AbortController | null = null;
+  private cancelRibbonIcon: HTMLElement | null = null;
 
   async onload() {
     await this.loadSettings();
@@ -234,7 +235,35 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       }
     });
 
+    // Add cancel ribbon icon (initially hidden)
+    this.cancelRibbonIcon = this.addRibbonIcon('x-circle', t.plugin.commandCancelPublish, () => {
+      if (this.currentPublishAbortController) {
+        this.logger.info('User requested cancellation via ribbon');
+        this.currentPublishAbortController.abort();
+        new Notice('Cancelling publishing...', 3000);
+      }
+    });
+    this.cancelRibbonIcon.style.display = 'none'; // Hide initially
+
     this.logger.debug('Plugin loaded.');
+  }
+
+  /**
+   * Show cancel ribbon icon during publishing
+   */
+  private showCancelRibbon() {
+    if (this.cancelRibbonIcon) {
+      this.cancelRibbonIcon.style.display = 'flex';
+    }
+  }
+
+  /**
+   * Hide cancel ribbon icon after publishing completes/fails
+   */
+  private hideCancelRibbon() {
+    if (this.cancelRibbonIcon) {
+      this.cancelRibbonIcon.style.display = 'none';
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -328,6 +357,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     const abortController = new AbortController();
     this.currentPublishAbortController = abortController;
     const cancellation = new AbortCancellationAdapter(abortController.signal);
+
+    // Show cancel ribbon icon
+    this.showCancelRibbon();
 
     const scopedLogger = this.logger.child({ vps: vps.id ?? 'default' });
     const guidGenerator = new GuidGeneratorAdapter();
@@ -727,6 +759,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     } finally {
       // Clean up abort controller
       this.currentPublishAbortController = null;
+      // Hide cancel ribbon icon
+      this.hideCancelRibbon();
     }
   }
 
