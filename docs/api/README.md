@@ -18,6 +18,10 @@ Le backend Node.js/Express :
 
 - **[Logging](./logging.md)** - Système de logging : niveaux, configuration, sortie console/fichier
 - **[Performance](./performance.md)** - Optimisations API, métriques, diagnostics
+- **[Performance Enhancements](./performance-enhancements.md)** - Détails techniques des optimisations implémentées
+- **[Performance Testing](./performance-testing.md)** - Guide de test de performance manuel
+- **[Performance Validation](./performance-validation.md)** - Tests automatisés et validation CI
+- **[Load Testing](./load-testing.md)** - Tests de charge Artillery avec scénarios de montée en charge
 
 ## 🚀 Démarrage rapide
 
