@@ -27,6 +27,7 @@ import { createMaintenanceController } from './controllers/maintenance-controlle
 import { createPingController } from './controllers/ping.controller';
 import { createSessionController } from './controllers/session-controller';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
+import { BackpressureMiddleware } from './middleware/backpressure.middleware';
 import { ChunkedUploadMiddleware } from './middleware/chunked-upload.middleware';
 import { createCorsMiddleware } from './middleware/cors.middleware';
 import { PerformanceMonitoringMiddleware } from './middleware/performance-monitoring.middleware';
@@ -35,6 +36,17 @@ export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
 
 export function createApp(rootLogger?: LoggerPort) {
   const app = express();
+
+  // Initialize backpressure protection (before performance monitoring)
+  const backpressure = new BackpressureMiddleware(
+    {
+      maxEventLoopLagMs: 200,
+      maxMemoryUsageMB: 500,
+      maxActiveRequests: 50,
+    },
+    rootLogger
+  );
+  app.use(backpressure.handle());
 
   // Initialize performance monitoring
   const perfMonitor = new PerformanceMonitoringMiddleware(rootLogger);
