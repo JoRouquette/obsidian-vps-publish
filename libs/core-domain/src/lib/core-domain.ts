@@ -5,6 +5,7 @@ export * from './entities/publishing-context';
 export * from './entities/publishing-stats';
 export * from './errors/session-error';
 export * from './ports';
+export * from './ports/cancellation-port';
 export * from './ports/compression-port';
 export * from './ports/performance-tracker.port';
 export * from './utils';
