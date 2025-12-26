@@ -1,0 +1,71 @@
+# Artillery Load Test Reports
+
+This directory contains generated Artillery load test reports (JSON and HTML).
+
+All files in this directory are gitignored except this .gitkeep file.
+
+## Generated Files
+
+When you run load tests with the `:report` suffix, Artillery will generate timestamped JSON files:
+
+```
+reports/
+├── quick-20251227-161530.json
+├── load-50-20251227-162045.json
+├── load-200-20251227-163012.json
+└── ...
+```
+
+## Generating HTML Reports
+
+To convert JSON reports to HTML:
+
+```bash
+artillery report reports/load-50-20251227-162045.json --output reports/load-50.html
+```
+
+Or use the npm scripts with `:report` suffix:
+
+```bash
+npm run load:api:50:report
+# Generates: reports/load-50-YYYYMMDD-HHMMSS.json
+```
+
+## Viewing Reports
+
+Open HTML reports in your browser:
+
+```bash
+# Windows
+start reports/load-50.html
+
+# macOS
+open reports/load-50.html
+
+# Linux
+xdg-open reports/load-50.html
+```
+
+## Cleaning Up
+
+To remove old reports:
+
+```bash
+# Remove all JSON reports older than 7 days
+find tools/load-tests/artillery/reports/ -name "*.json" -mtime +7 -delete
+
+# Remove all reports (keeps .gitkeep)
+rm -f tools/load-tests/artillery/reports/*.json tools/load-tests/artillery/reports/*.html
+```
+
+## Report Contents
+
+Artillery reports include:
+
+- **Summary metrics**: scenarios completed/failed, requests, response times
+- **Percentiles**: p50, p95, p99 response times
+- **Status codes**: breakdown of HTTP responses
+- **Errors**: detailed error messages if any
+- **Timeline**: request rate and response time over duration
+
+See [docs/api/load-testing.md](../../../../docs/api/load-testing.md#interpreting-results) for interpretation guide.
