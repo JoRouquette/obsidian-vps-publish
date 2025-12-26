@@ -1,4 +1,4 @@
-import { batchByBytes, jsonSizeBytes } from '../lib/utils/batch-by-bytes.util';
+import { batchByBytes, batchByBytesAsync, jsonSizeBytes } from '../lib/utils/batch-by-bytes.util';
 
 const wrap = (batch: unknown[]) => ({ data: batch });
 
@@ -55,6 +55,51 @@ describe('batchByBytes', () => {
     expect(result.length).toBe(3);
     expect(result[0]).toEqual([huge1]);
     expect(result[1]).toEqual([huge2]);
+    expect(result[2]).toEqual([small]);
+  });
+});
+
+describe('batchByBytesAsync', () => {
+  it('produces same batches as sync version', async () => {
+    const items = ['a', 'b', 'c', 'd'];
+    const sizeForTwo = jsonSizeBytes(wrap(items.slice(0, 2)));
+    const maxBytes = sizeForTwo + 1;
+
+    const syncResult = batchByBytes(items, maxBytes, wrap);
+    const asyncResult = await batchByBytesAsync(items, maxBytes, wrap);
+
+    expect(asyncResult).toEqual(syncResult);
+  });
+
+  it('yields periodically with yieldEvery param', async () => {
+    const items = Array.from({ length: 100 }, (_, i) => `item-${i}`);
+    const maxBytes = jsonSizeBytes(wrap([items[0]])) * 10; // Fit 10 items per batch
+
+    let yielded = false;
+    jest.spyOn(global, 'setTimeout').mockImplementation((fn) => {
+      if (typeof fn === 'function') {
+        yielded = true;
+        fn();
+      }
+      return 0 as unknown as NodeJS.Timeout;
+    });
+
+    await batchByBytesAsync(items, maxBytes, wrap, 10); // Yield every 10 items
+
+    expect(yielded).toBe(true);
+    jest.restoreAllMocks();
+  });
+
+  it('handles oversized items correctly', async () => {
+    const huge = 'x'.repeat(1024);
+    const small = 'y';
+    const maxBytes = 50;
+
+    const result = await batchByBytesAsync([small, huge, small], maxBytes, wrap);
+
+    expect(result.length).toBe(3);
+    expect(result[0]).toEqual([small]);
+    expect(result[1]).toEqual([huge]);
     expect(result[2]).toEqual([small]);
   });
 });

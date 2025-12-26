@@ -1,9 +1,17 @@
 import type { CollectedNote } from '@core-domain/entities/collected-note';
 import type { FolderConfig } from '@core-domain/entities/folder-config';
+import type { CancellationPort } from '@core-domain/ports/cancellation-port';
 import { type GuidGeneratorPort } from '@core-domain/ports/guid-generator-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { VaultPort } from '@core-domain/ports/vault-port';
 import { type App, type TAbstractFile, TFile, TFolder } from 'obsidian';
+
+/**
+ * Yield to event loop helper
+ */
+async function yieldToEventLoop(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
 export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
   private readonly logger: LoggerPort;
@@ -24,9 +32,15 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
     }
   }
 
-  async collectFromFolder(params: { folderConfig: FolderConfig[] }): Promise<CollectedNote[]> {
+  async collectFromFolder(
+    params: { folderConfig: FolderConfig[] },
+    cancellation?: CancellationPort
+  ): Promise<CollectedNote[]> {
     const { folderConfig } = params;
     const result: CollectedNote[] = [];
+
+    // Check for cancellation before starting
+    cancellation?.throwIfCancelled();
 
     // Build list of custom index files (for special handling, not exclusion)
     for (const cfg of folderConfig) {
@@ -44,6 +58,8 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
 
     // Collect custom root index file first (if configured)
     if (this.customRootIndexFile) {
+      cancellation?.throwIfCancelled();
+
       const rootIndexFile = this.app.vault.getAbstractFileByPath(this.customRootIndexFile);
       if (rootIndexFile && rootIndexFile instanceof TFile) {
         this.logger.debug('Collecting custom root index file', { path: this.customRootIndexFile });
@@ -89,13 +105,19 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
         continue;
       }
 
+      cancellation?.throwIfCancelled();
+
       const root = this.app.vault.getAbstractFileByPath(rootPath);
       if (!root) {
         this.logger.warn('Root folder not found in vault', { rootPath });
         continue;
       }
 
+      let fileCount = 0;
       const walk = async (node: TAbstractFile) => {
+        // Check for cancellation periodically
+        cancellation?.throwIfCancelled();
+
         if (node instanceof TFolder) {
           this.logger.debug('Walking folder', { path: node.path });
           for (const child of node.children) {
@@ -131,6 +153,12 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
             originalLength: rawContent.length,
             strippedLength: content.length,
           });
+
+          // Yield to event loop every 10 files to keep UI responsive
+          fileCount++;
+          if (fileCount % 10 === 0) {
+            await yieldToEventLoop();
+          }
         }
       };
 

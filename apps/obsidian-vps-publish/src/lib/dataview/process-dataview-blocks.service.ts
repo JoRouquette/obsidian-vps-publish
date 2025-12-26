@@ -32,6 +32,7 @@
 
 import { DataviewToMarkdownConverter } from '@core-application/dataview/dataview-to-markdown.converter';
 import type { DataviewBlock } from '@core-domain/dataview/dataview-block';
+import type { CancellationPort } from '@core-domain/ports/cancellation-port';
 
 import { parseDataviewBlocks } from './dataview-block.parser';
 import type { DataviewExecutor } from './dataview-executor';
@@ -71,13 +72,18 @@ async function yieldToEventLoop(): Promise<void> {
  * @param content - Original markdown content
  * @param executor - Optional Dataview executor (if Dataview plugin available)
  * @param filePath - Path of the note being processed (for Dataview context)
+ * @param cancellation - Optional cancellation token
  * @returns Result with modified content (Markdown) and processed blocks
  */
 export async function processDataviewBlocks(
   content: string,
   executor?: DataviewExecutor,
-  filePath?: string
+  filePath?: string,
+  cancellation?: CancellationPort
 ): Promise<ProcessDataviewBlocksResult> {
+  // Check for cancellation before starting
+  cancellation?.throwIfCancelled();
+
   // Optional logger can be passed in future if needed
   const converter = new DataviewToMarkdownConverter();
 
@@ -95,12 +101,14 @@ export async function processDataviewBlocks(
   const processedBlocks: ProcessedDataviewBlock[] = [];
 
   for (let i = 0; i < blocks.length; i++) {
+    cancellation?.throwIfCancelled();
+
     const block = blocks[i];
     const processed = await processBlock(block, executor, filePath || '', converter);
     processedBlocks.push(processed);
 
-    // Yield every 5 blocks to keep UI responsive
-    if ((i + 1) % 5 === 0) {
+    // Yield every 3 blocks to keep UI responsive (more aggressive than before)
+    if ((i + 1) % 3 === 0) {
       await yieldToEventLoop();
     }
   }

@@ -11,6 +11,7 @@ type NoticeTranslations = {
   publishingCompleted: string;
   publishingFailed: string;
   publishingFailedWithError: string;
+  publishingCancelled: string;
   analyzingVault: string;
   uploadingNotesBatches: string;
   uploadingAssetsBatches: string;
@@ -201,6 +202,7 @@ type TestConnectionTranslations = {
 export type PluginTranslations = {
   name: string;
   commandPublish: string;
+  commandCancelPublish: string;
   commandTestConnection: string;
   commandOpenSettings: string;
   commandOpenHelp: string;
@@ -341,6 +343,7 @@ export const en: Translations = {
   plugin: {
     name: 'Publish to VPS',
     commandPublish: 'Launch publishing to VPS',
+    commandCancelPublish: 'Cancel ongoing publishing',
     commandTestConnection: 'Test VPS connection',
     commandOpenSettings: 'Open Publish to VPS Settings',
     commandOpenHelp: 'Open Help & Documentation',
@@ -693,6 +696,7 @@ export const en: Translations = {
     publishingCompleted: '✅ {label} completed in {duration}',
     publishingFailed: 'Publishing failed',
     publishingFailedWithError: '❌ Publishing failed: {error}\n\nCheck console for details.',
+    publishingCancelled: 'Publishing cancelled by user.',
     analyzingVault: '🔍 Analyzing vault notes...',
     uploadingNotesBatches: '📤 Uploading notes in {count} batch{plural}...',
     uploadingAssetsBatches: '📤 Uploading assets in {count} batch{plural}...',
@@ -765,6 +769,7 @@ export const fr: Translations = {
   plugin: {
     name: 'Publier vers mon VPS personnel',
     commandPublish: 'Publier vers mon VPS personnel',
+    commandCancelPublish: 'Annuler la publication en cours',
     commandTestConnection: 'Tester la connexion VPS',
     commandOpenSettings: 'Ouvrir les parametres du plugin Publier vers mon VPS personnel',
     commandOpenHelp: "Ouvrir l'aide et la documentation",
@@ -1121,6 +1126,7 @@ export const fr: Translations = {
     publishingFailed: 'Échec de la publication',
     publishingFailedWithError:
       '❌ Échec de la publication : {error}\n\nConsultez la console pour plus de détails.',
+    publishingCancelled: "Publication annulée par l'utilisateur.",
     analyzingVault: '🔍 Analyse des notes du vault...',
     uploadingNotesBatches: '📤 Envoi des notes en {count} lot{plural}...',
     uploadingAssetsBatches: '📤 Envoi des ressources en {count} lot{plural}...',

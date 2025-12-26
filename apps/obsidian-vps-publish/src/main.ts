@@ -12,7 +12,13 @@ import { NormalizeFrontmatterService } from '@core-application/vault-parsing/ser
 import { RemoveNoPublishingMarkerService } from '@core-application/vault-parsing/services/remove-no-publishing-marker.service';
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
-import { type CollectedNote, type CustomIndexConfig, type VpsConfig } from '@core-domain';
+import {
+  CancellationError,
+  type CancellationPort,
+  type CollectedNote,
+  type CustomIndexConfig,
+  type VpsConfig,
+} from '@core-domain';
 import { type HttpResponse } from '@core-domain/entities/http-response';
 import { ProgressStepId, ProgressStepStatus } from '@core-domain/entities/progress-step';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
@@ -31,6 +37,7 @@ import { decryptApiKey, encryptApiKey } from './lib/api-key-crypto';
 import { DEFAULT_LOGGER_LEVEL } from './lib/constants/default-logger-level.constant';
 import { type DataviewApi, DataviewExecutor } from './lib/dataview/dataview-executor';
 import { processDataviewBlocks } from './lib/dataview/process-dataview-blocks.service';
+import { AbortCancellationAdapter } from './lib/infra/abort-cancellation.adapter';
 import { AssetsUploaderAdapter } from './lib/infra/assets-uploader.adapter';
 import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
 import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
@@ -98,6 +105,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
   settings!: PluginSettings;
   responseHandler!: HttpResponseHandler<RequestUrlResponse>;
   logger = new ConsoleLoggerAdapter({ plugin: 'ObsidianVpsPublish' });
+  private currentPublishAbortController: AbortController | null = null;
+  private cancelRibbonIcon: HTMLElement | null = null;
 
   async onload() {
     await this.loadSettings();
@@ -129,6 +138,20 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           },
           t
         );
+      },
+    });
+
+    this.addCommand({
+      id: 'cancel-publish',
+      name: t.plugin.commandCancelPublish,
+      callback: () => {
+        if (this.currentPublishAbortController) {
+          this.logger.info('User requested cancellation');
+          this.currentPublishAbortController.abort();
+          new Notice('Cancelling publishing...', 3000);
+        } else {
+          new Notice('No publishing operation in progress', 3000);
+        }
       },
     });
 
@@ -212,7 +235,35 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       }
     });
 
+    // Add cancel ribbon icon (initially hidden)
+    this.cancelRibbonIcon = this.addRibbonIcon('x-circle', t.plugin.commandCancelPublish, () => {
+      if (this.currentPublishAbortController) {
+        this.logger.info('User requested cancellation via ribbon');
+        this.currentPublishAbortController.abort();
+        new Notice('Cancelling publishing...', 3000);
+      }
+    });
+    this.cancelRibbonIcon.style.display = 'none'; // Hide initially
+
     this.logger.debug('Plugin loaded.');
+  }
+
+  /**
+   * Show cancel ribbon icon during publishing
+   */
+  private showCancelRibbon() {
+    if (this.cancelRibbonIcon) {
+      this.cancelRibbonIcon.style.display = 'flex';
+    }
+  }
+
+  /**
+   * Hide cancel ribbon icon after publishing completes/fails
+   */
+  private hideCancelRibbon() {
+    if (this.cancelRibbonIcon) {
+      this.cancelRibbonIcon.style.display = 'none';
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -302,6 +353,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       return;
     }
 
+    // Create AbortController for cancellation support
+    const abortController = new AbortController();
+    this.currentPublishAbortController = abortController;
+    const cancellation = new AbortCancellationAdapter(abortController.signal);
+
+    // Show cancel ribbon icon
+    this.showCancelRibbon();
+
     const scopedLogger = this.logger.child({ vps: vps.id ?? 'default' });
     const guidGenerator = new GuidGeneratorAdapter();
 
@@ -348,9 +407,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         scopedLogger,
         vps.customRootIndexFile
       );
-      const notes: CollectedNote[] = await vault.collectFromFolder({
-        folderConfig: vps.folders,
-      });
+      const notes: CollectedNote[] = await vault.collectFromFolder(
+        {
+          folderConfig: vps.folders,
+        },
+        cancellation
+      );
 
       stats.totalNotesAnalyzed = notes.length;
 
@@ -382,7 +444,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         settings,
         scopedLogger,
         dataviewApi,
-        perfTracker.child('content-pipeline')
+        perfTracker.child('content-pipeline'),
+        cancellation
       );
 
       scopedLogger.debug('Parsing content', {
@@ -652,7 +715,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
       this.logger.debug('Publishing completed successfully', { stats });
     } catch (err) {
-      this.logger.error('Publishing failed, aborting session if created', { error: err });
+      // Check if error is a cancellation
+      const isCancellation = err instanceof CancellationError;
+
+      if (isCancellation) {
+        this.logger.info('Publishing cancelled by user');
+      } else {
+        this.logger.error('Publishing failed, aborting session if created', { error: err });
+      }
 
       stats.completedAt = new Date();
       stats.notesFailed = stats.notesEligible - stats.notesUploaded;
@@ -662,7 +732,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const currentStep = stepProgressManager
         .getAllSteps()
         .find((step) => step.status === ProgressStepStatus.IN_PROGRESS);
-      if (currentStep) {
+      if (currentStep && !isCancellation) {
         stepProgressManager.failStep(
           currentStep.id,
           err instanceof Error ? err.message : 'Unknown error'
@@ -680,8 +750,17 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
       totalProgressAdapter.finish();
 
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      new Notice(translate(t, 'notice.publishingFailedWithError', { error: errorMsg }), 0);
+      if (isCancellation) {
+        new Notice(translate(t, 'notice.publishingCancelled'), 5000);
+      } else {
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+        new Notice(translate(t, 'notice.publishingFailedWithError', { error: errorMsg }), 0);
+      }
+    } finally {
+      // Clean up abort controller
+      this.currentPublishAbortController = null;
+      // Hide cancel ribbon icon
+      this.hideCancelRibbon();
     }
   }
 
@@ -781,7 +860,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     settings: PluginSettings,
     logger: LoggerPort,
     dataviewApi?: DataviewApi,
-    perfTracker?: PerformanceTrackerPort
+    perfTracker?: PerformanceTrackerPort,
+    cancellation?: CancellationPort
   ): ParseContentHandler {
     const normalizeFrontmatterService = new NormalizeFrontmatterService(logger);
     const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(
@@ -794,14 +874,24 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     // Dataview block processor (plugin-side only)
     // Executes blocks via Dataview API and converts results to native Markdown
     // (wikilinks, inclusions, tables MD, lists) - NOT HTML
-    const dataviewProcessor = async (notes: PublishableNote[]): Promise<PublishableNote[]> => {
+    const dataviewProcessor = async (
+      notes: PublishableNote[],
+      cancel?: CancellationPort
+    ): Promise<PublishableNote[]> => {
       // Create executor if Dataview API is available
       const executor = dataviewApi ? new DataviewExecutor(dataviewApi, this.app) : undefined;
 
       return Promise.all(
         notes.map(async (note) => {
+          cancel?.throwIfCancelled();
+
           try {
-            const result = await processDataviewBlocks(note.content, executor, note.vaultPath);
+            const result = await processDataviewBlocks(
+              note.content,
+              executor,
+              note.vaultPath,
+              cancel
+            );
 
             // CRITICAL: Replace content with native Markdown
             // This ensures fenced code blocks are NEVER uploaded
@@ -844,7 +934,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       computeRoutingService,
       logger,
       dataviewProcessor, // Plugin-side Dataview processing
-      perfTracker // Performance tracking
+      perfTracker, // Performance tracking
+      cancellation // Cancellation support
     );
   }
 }
