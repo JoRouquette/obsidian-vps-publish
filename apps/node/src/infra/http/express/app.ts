@@ -29,11 +29,16 @@ import { createSessionController } from './controllers/session-controller';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
 import { ChunkedUploadMiddleware } from './middleware/chunked-upload.middleware';
 import { createCorsMiddleware } from './middleware/cors.middleware';
+import { PerformanceMonitoringMiddleware } from './middleware/performance-monitoring.middleware';
 
 export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
 
 export function createApp(rootLogger?: LoggerPort) {
   const app = express();
+
+  // Initialize performance monitoring
+  const perfMonitor = new PerformanceMonitoringMiddleware(rootLogger);
+  app.use(perfMonitor.handle());
 
   // Enable compression for all responses (gzip/deflate)
   app.use(
@@ -226,5 +231,5 @@ export function createApp(rootLogger?: LoggerPort) {
   // Log app ready
   rootLogger?.debug('Express app initialized');
 
-  return { app, logger: rootLogger };
+  return { app, logger: rootLogger, perfMonitor };
 }

@@ -48,6 +48,7 @@ import { ObsidianAssetsVaultAdapter } from './lib/infra/obsidian-assets-vault.ad
 import { ObsidianVaultAdapter } from './lib/infra/obsidian-vault.adapter';
 import { createStepMessages, getStepLabel } from './lib/infra/step-messages.factory';
 import { StepProgressManagerAdapter } from './lib/infra/step-progress-manager.adapter';
+import { UiPressureMonitorAdapter } from './lib/infra/ui-pressure-monitor.adapter';
 import { testVpsConnection } from './lib/services/http-connection.service';
 import { SessionApiClient } from './lib/services/session-api.client';
 import { ObsidianVpsPublishSettingTab } from './lib/setting-tab.view';
@@ -373,13 +374,20 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       vpsName: vps.name,
     });
 
+    // Initialize UI pressure monitor
+    const uiMonitor = new UiPressureMonitorAdapter(scopedLogger);
+
     // Initialiser les statistiques de publication
     const stats: PublishingStats = createPublishingStats();
     stats.startedAt = new Date();
 
     // Initialiser le système de progress et notifications
-    const totalProgressAdapter = new NoticeProgressAdapter(translate(t, 'notice.publishing'), t);
-    const notificationAdapter = new NoticeNotificationAdapter();
+    const totalProgressAdapter = new NoticeProgressAdapter(
+      translate(t, 'notice.publishing'),
+      t,
+      uiMonitor
+    );
+    const notificationAdapter = new NoticeNotificationAdapter(uiMonitor);
     const stepMessages = createStepMessages(t.plugin);
     const stepProgressManager = new StepProgressManagerAdapter(
       totalProgressAdapter,
@@ -701,6 +709,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // Generate and log performance summary
       const perfSummary = perfTracker.generateSummary();
       scopedLogger.info('📊 Performance Summary:\n' + perfSummary);
+
+      // Generate and log UI pressure summary
+      const uiPressureSummary = uiMonitor.generateSummary();
+      scopedLogger.info('🎯 ' + uiPressureSummary);
 
       // Afficher les stats finales
       const summary = formatPublishingStats(stats, t.publishingStats);

@@ -2,6 +2,8 @@ import type { NotificationData, NotificationPort } from '@core-domain/ports/noti
 import { NotificationType } from '@core-domain/ports/notification-port';
 import { Notice } from 'obsidian';
 
+import type { UiPressureMonitorAdapter } from './ui-pressure-monitor.adapter';
+
 /**
  * Adapter pour envoyer des notifications via l'API Notice d'Obsidian
  */
@@ -13,7 +15,11 @@ export class NoticeNotificationAdapter implements NotificationPort {
     ERROR: 0, // Persistant pour les erreurs
   };
 
+  constructor(private readonly uiMonitor?: UiPressureMonitorAdapter) {}
+
   notify(data: NotificationData): void {
+    // Record notice creation for UI pressure monitoring
+    this.uiMonitor?.recordNoticeCreated();
     const duration = data.duration ?? this.defaultDuration[data.type];
     const message = data.details ? `${data.message}\n${data.details}` : data.message;
 
