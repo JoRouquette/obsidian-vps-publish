@@ -3,6 +3,7 @@ import { Notice } from 'obsidian';
 
 import { translate } from '../../i18n';
 import type { Translations } from '../../i18n/locales';
+import type { UiPressureMonitorAdapter } from './ui-pressure-monitor.adapter';
 
 /**
  * Progress adapter using HTML progress bar instead of text percentage.
@@ -11,7 +12,8 @@ import type { Translations } from '../../i18n/locales';
 export class NoticeProgressAdapter implements ProgressPort {
   constructor(
     private readonly label = 'Publishing',
-    private readonly translations?: Translations
+    private readonly translations?: Translations,
+    private readonly uiMonitor?: UiPressureMonitorAdapter
   ) {}
 
   private notice: Notice | null = null;
@@ -79,6 +81,9 @@ export class NoticeProgressAdapter implements ProgressPort {
    * This should be called by StepProgressManager, not used directly.
    */
   updateProgress(percent: number, stepMessage: string): void {
+    // Record progress update for UI pressure monitoring
+    this.uiMonitor?.recordProgressUpdate();
+
     this.currentPercent = Math.min(100, Math.max(0, percent));
     this.currentStep = stepMessage;
 
