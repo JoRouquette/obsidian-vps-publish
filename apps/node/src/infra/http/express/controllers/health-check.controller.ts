@@ -40,6 +40,7 @@ export function createHealthCheckController(
             eventLoopLagMs: parseFloat(loadMetrics.eventLoopLagMs.toFixed(2)),
             memoryUsageMB: parseFloat(loadMetrics.memoryUsageMB.toFixed(2)),
             isUnderPressure: loadMetrics.isUnderPressure,
+            rejections: loadMetrics.rejections,
           }
         : undefined,
       performance: perfMetrics
