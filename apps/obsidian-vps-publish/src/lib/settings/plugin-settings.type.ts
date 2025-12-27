@@ -19,6 +19,8 @@ export type PluginSettings = PublishPluginSettings &
     maxConcurrentDataviewNotes?: number;
     maxConcurrentUploads?: number;
     maxConcurrentFileReads?: number;
+    // Performance debugging
+    enablePerformanceDebug?: boolean; // Enable detailed performance tracing
   };
 
 export type SettingsSave = () => Promise<void>;
