@@ -87,6 +87,7 @@ module.exports = {
     const endpoint = req.url.split('?')[0];
     const status = res.statusCode;
     const duration = res.timings?.phases?.firstByte || 0;
+    const requestId = res.headers['x-request-id'];
 
     // Track backpressure responses (429)
     if (status === 429) {
@@ -94,9 +95,13 @@ module.exports = {
 
       // Extract retry-after if present
       const retryAfter = res.body?.retryAfterMs || 5000;
+      const cause = res.body?.cause || 'unknown';
+      const source = res.body?.source || 'unknown';
       ee.emit('histogram', 'backpressure.retryAfterMs', retryAfter);
 
-      console.log(`[BACKPRESSURE] ${endpoint} returned 429 - retry after ${retryAfter}ms`);
+      console.log(
+        `[BACKPRESSURE] ${endpoint} returned 429 - cause: ${cause}, source: ${source}, retry after ${retryAfter}ms, requestId: ${requestId}`
+      );
     }
 
     // Track successful session starts
@@ -104,8 +109,8 @@ module.exports = {
       ee.emit('counter', 'session.started', 1);
     }
 
-    // Track successful session finishes
-    if (endpoint.includes('/finish') && status === 200) {
+    // Track successful session finishes (now async 202)
+    if (endpoint.includes('/finish') && (status === 200 || status === 202)) {
       ee.emit('counter', 'session.finished', 1);
     }
 
@@ -126,6 +131,19 @@ module.exports = {
       console.log(`[SLOW REQUEST] ${endpoint} took ${duration}ms`);
     }
 
+    return next();
+  },
+
+  // Check if job is completed (for loop breaking)
+  checkJobCompletion: (context, ee, next) => {
+    const jobStatus = context.vars.jobStatus;
+    
+    if (jobStatus === 'completed' || jobStatus === 'failed') {
+      ee.emit('counter', `job.${jobStatus}`, 1);
+      console.log(`[JOB] Finalization ${jobStatus} for session ${context.vars.sessionId}`);
+      // Break loop by setting count to 0 (not directly supported, but we track completion)
+    }
+    
     return next();
   },
 

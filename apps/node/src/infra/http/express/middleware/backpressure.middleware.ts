@@ -69,44 +69,81 @@ export class BackpressureMiddleware {
    */
   handle() {
     return (req: Request, res: Response, next: NextFunction) => {
+      const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
+
       // Check active requests
       if (this.activeRequests >= this.config.maxActiveRequests) {
+        const retryAfterMs = 5000;
         this.logger?.warn('[BACKPRESSURE] Too many active requests', {
+          requestId,
           activeRequests: this.activeRequests,
           maxActiveRequests: this.config.maxActiveRequests,
+          cause: 'active_requests',
+          source: 'app',
         });
-        return res.status(429).json({
-          error: 'Too Many Requests',
-          message: 'Server is under high load, please retry later',
-          retryAfterMs: 5000,
-        });
+        return res
+          .status(429)
+          .header('Retry-After', Math.ceil(retryAfterMs / 1000).toString())
+          .header('X-RateLimit-Limit', this.config.maxActiveRequests.toString())
+          .header('X-RateLimit-Remaining', '0')
+          .header('X-RateLimit-Reset', new Date(Date.now() + retryAfterMs).toISOString())
+          .json({
+            error: 'Too Many Requests',
+            message: 'Server is under high load, please retry later',
+            retryAfterMs,
+            cause: 'active_requests',
+            source: 'app',
+            requestId,
+          });
       }
 
       // Check event loop lag
       if (this.eventLoopLagMs > this.config.maxEventLoopLagMs) {
+        const retryAfterMs = 5000;
         this.logger?.warn('[BACKPRESSURE] High event loop lag', {
+          requestId,
           eventLoopLagMs: this.eventLoopLagMs.toFixed(2),
           maxEventLoopLagMs: this.config.maxEventLoopLagMs,
+          cause: 'event_loop_lag',
+          source: 'app',
         });
-        return res.status(429).json({
-          error: 'Too Many Requests',
-          message: 'Server is under high load (event loop lag)',
-          retryAfterMs: 5000,
-        });
+        return res
+          .status(429)
+          .header('Retry-After', Math.ceil(retryAfterMs / 1000).toString())
+          .header('X-RateLimit-Cause', 'event_loop_lag')
+          .json({
+            error: 'Too Many Requests',
+            message: 'Server is under high load (event loop lag)',
+            retryAfterMs,
+            cause: 'event_loop_lag',
+            source: 'app',
+            requestId,
+          });
       }
 
       // Check memory usage
       const memUsageMB = process.memoryUsage().heapUsed / 1024 / 1024;
       if (memUsageMB > this.config.maxMemoryUsageMB) {
+        const retryAfterMs = 10000; // Longer retry for memory issues
         this.logger?.warn('[BACKPRESSURE] High memory usage', {
+          requestId,
           memoryUsageMB: memUsageMB.toFixed(2),
           maxMemoryUsageMB: this.config.maxMemoryUsageMB,
+          cause: 'memory_pressure',
+          source: 'app',
         });
-        return res.status(429).json({
-          error: 'Too Many Requests',
-          message: 'Server is under high load (memory)',
-          retryAfterMs: 10000, // Longer retry for memory issues
-        });
+        return res
+          .status(429)
+          .header('Retry-After', Math.ceil(retryAfterMs / 1000).toString())
+          .header('X-RateLimit-Cause', 'memory_pressure')
+          .json({
+            error: 'Too Many Requests',
+            message: 'Server is under high load (memory)',
+            retryAfterMs,
+            cause: 'memory_pressure',
+            source: 'app',
+            requestId,
+          });
       }
 
       // Track active requests
