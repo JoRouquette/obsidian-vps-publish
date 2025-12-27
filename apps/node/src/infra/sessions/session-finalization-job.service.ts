@@ -28,13 +28,17 @@ export interface FinalizationJob {
 export class SessionFinalizationJobService {
   private jobs: Map<string, FinalizationJob> = new Map();
   private processingQueue: string[] = [];
-  private isProcessing = false;
+  private activeJobs = 0;
+  private maxConcurrentJobs: number;
 
   constructor(
     private readonly sessionFinalizer: SessionFinalizerService,
     private readonly stagingManager: StagingManager,
-    private readonly logger?: LoggerPort
-  ) {}
+    private readonly logger?: LoggerPort,
+    maxConcurrentJobs?: number
+  ) {
+    this.maxConcurrentJobs = maxConcurrentJobs ?? 5;
+  }
 
   /**
    * Queue a session finalization job
@@ -86,16 +90,11 @@ export class SessionFinalizationJobService {
   }
 
   /**
-   * Process queued jobs sequentially (avoid concurrent finalization)
+   * Process queued jobs with controlled parallelism (avoid excessive concurrent finalization)
    */
   private async processQueue(): Promise<void> {
-    if (this.isProcessing) {
-      return; // Already processing
-    }
-
-    this.isProcessing = true;
-
-    while (this.processingQueue.length > 0) {
+    // Start as many jobs as allowed by concurrency limit
+    while (this.processingQueue.length > 0 && this.activeJobs < this.maxConcurrentJobs) {
       const jobId = this.processingQueue.shift()!;
       const job = this.jobs.get(jobId);
 
@@ -104,10 +103,32 @@ export class SessionFinalizationJobService {
         continue;
       }
 
-      await this.executeJob(job);
-    }
+      this.activeJobs++;
+      this.logger?.debug('[JOB] Starting job execution', {
+        jobId,
+        activeJobs: this.activeJobs,
+        queueLength: this.processingQueue.length,
+      });
 
-    this.isProcessing = false;
+      // Execute job asynchronously (non-blocking)
+      this.executeJob(job)
+        .then(() => {
+          this.activeJobs--;
+          this.logger?.debug('[JOB] Job execution completed', {
+            jobId,
+            activeJobs: this.activeJobs,
+            queueLength: this.processingQueue.length,
+          });
+          // Continue processing queue if there are more jobs
+          void this.processQueue();
+        })
+        .catch((err) => {
+          this.activeJobs--;
+          this.logger?.error('[JOB] Unexpected error in job execution', { jobId, err });
+          // Continue processing queue even on error
+          void this.processQueue();
+        });
+    }
   }
 
   /**
@@ -115,6 +136,7 @@ export class SessionFinalizationJobService {
    */
   private async executeJob(job: FinalizationJob): Promise<void> {
     const startTime = Date.now();
+    const timings: Record<string, number> = {};
 
     job.status = 'processing';
     job.startedAt = new Date();
@@ -123,38 +145,49 @@ export class SessionFinalizationJobService {
     this.logger?.info('[JOB] Starting finalization job', {
       jobId: job.jobId,
       sessionId: job.sessionId,
+      activeJobs: this.activeJobs,
+      queueLength: this.processingQueue.length,
     });
 
     try {
       // STEP 1: Rebuild from stored notes (heaviest operation)
       job.progress = 20;
+      const rebuildStart = Date.now();
       await this.sessionFinalizer.rebuildFromStored(job.sessionId);
+      timings.rebuildFromStored = Date.now() - rebuildStart;
       job.progress = 80;
 
       // STEP 2: Promote staging to production
       job.progress = 85;
+      const promoteStart = Date.now();
       await this.stagingManager.promoteSession(job.sessionId);
+      timings.promoteSession = Date.now() - promoteStart;
       job.progress = 100;
 
       // Mark as completed
       job.status = 'completed';
       job.completedAt = new Date();
 
-      const duration = Date.now() - startTime;
+      const totalDuration = Date.now() - startTime;
       this.logger?.info('[JOB] Finalization job completed', {
         jobId: job.jobId,
         sessionId: job.sessionId,
-        durationMs: duration,
+        durationMs: totalDuration,
+        timings,
+        activeJobs: this.activeJobs,
       });
     } catch (error) {
       job.status = 'failed';
       job.error = error instanceof Error ? error.message : 'Unknown error';
       job.completedAt = new Date();
 
+      const totalDuration = Date.now() - startTime;
       this.logger?.error('[JOB] Finalization job failed', {
         jobId: job.jobId,
         sessionId: job.sessionId,
         error: job.error,
+        durationMs: totalDuration,
+        timings,
       });
     }
   }
@@ -194,6 +227,8 @@ export class SessionFinalizationJobService {
       completed: 0,
       failed: 0,
       queueLength: this.processingQueue.length,
+      activeJobs: this.activeJobs,
+      maxConcurrentJobs: this.maxConcurrentJobs,
     };
 
     for (const job of this.jobs.values()) {

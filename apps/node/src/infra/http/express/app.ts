@@ -48,7 +48,7 @@ export function createApp(rootLogger?: LoggerPort) {
     {
       maxEventLoopLagMs: 200,
       maxMemoryUsageMB: 500,
-      maxActiveRequests: 50,
+      maxActiveRequests: EnvConfig.maxActiveRequests(),
     },
     rootLogger
   );
@@ -183,7 +183,8 @@ export function createApp(rootLogger?: LoggerPort) {
   const finalizationJobService = new SessionFinalizationJobService(
     sessionFinalizer,
     stagingManager,
-    rootLogger
+    rootLogger,
+    EnvConfig.maxConcurrentFinalizationJobs()
   );
 
   // Cleanup old jobs every 10 minutes

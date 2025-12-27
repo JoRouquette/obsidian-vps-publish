@@ -29,6 +29,13 @@ export class BackpressureMiddleware {
   private lastEventLoopCheck = Date.now();
   private lagIntervalId: NodeJS.Timeout | null = null;
 
+  // Metrics counters for diagnostics
+  private rejectionCounters = {
+    active_requests: 0,
+    event_loop_lag: 0,
+    memory_pressure: 0,
+  };
+
   constructor(
     private readonly config: BackpressureConfig = DEFAULT_CONFIG,
     private readonly logger?: LoggerPort
@@ -73,6 +80,7 @@ export class BackpressureMiddleware {
 
       // Check active requests
       if (this.activeRequests >= this.config.maxActiveRequests) {
+        this.rejectionCounters.active_requests++;
         const retryAfterMs = 5000;
         this.logger?.warn('[BACKPRESSURE] Too many active requests', {
           requestId,
@@ -80,10 +88,12 @@ export class BackpressureMiddleware {
           maxActiveRequests: this.config.maxActiveRequests,
           cause: 'active_requests',
           source: 'app',
+          totalRejections: this.rejectionCounters.active_requests,
         });
         return res
           .status(429)
           .header('Retry-After', Math.ceil(retryAfterMs / 1000).toString())
+          .header('X-App-Instance', 'backend-api')
           .header('X-RateLimit-Limit', this.config.maxActiveRequests.toString())
           .header('X-RateLimit-Remaining', '0')
           .header('X-RateLimit-Reset', new Date(Date.now() + retryAfterMs).toISOString())
@@ -99,6 +109,7 @@ export class BackpressureMiddleware {
 
       // Check event loop lag
       if (this.eventLoopLagMs > this.config.maxEventLoopLagMs) {
+        this.rejectionCounters.event_loop_lag++;
         const retryAfterMs = 5000;
         this.logger?.warn('[BACKPRESSURE] High event loop lag', {
           requestId,
@@ -106,10 +117,12 @@ export class BackpressureMiddleware {
           maxEventLoopLagMs: this.config.maxEventLoopLagMs,
           cause: 'event_loop_lag',
           source: 'app',
+          totalRejections: this.rejectionCounters.event_loop_lag,
         });
         return res
           .status(429)
           .header('Retry-After', Math.ceil(retryAfterMs / 1000).toString())
+          .header('X-App-Instance', 'backend-api')
           .header('X-RateLimit-Cause', 'event_loop_lag')
           .json({
             error: 'Too Many Requests',
@@ -124,6 +137,7 @@ export class BackpressureMiddleware {
       // Check memory usage
       const memUsageMB = process.memoryUsage().heapUsed / 1024 / 1024;
       if (memUsageMB > this.config.maxMemoryUsageMB) {
+        this.rejectionCounters.memory_pressure++;
         const retryAfterMs = 10000; // Longer retry for memory issues
         this.logger?.warn('[BACKPRESSURE] High memory usage', {
           requestId,
@@ -131,10 +145,12 @@ export class BackpressureMiddleware {
           maxMemoryUsageMB: this.config.maxMemoryUsageMB,
           cause: 'memory_pressure',
           source: 'app',
+          totalRejections: this.rejectionCounters.memory_pressure,
         });
         return res
           .status(429)
           .header('Retry-After', Math.ceil(retryAfterMs / 1000).toString())
+          .header('X-App-Instance', 'backend-api')
           .header('X-RateLimit-Cause', 'memory_pressure')
           .json({
             error: 'Too Many Requests',
@@ -171,6 +187,15 @@ export class BackpressureMiddleware {
       activeRequests: this.activeRequests,
       eventLoopLagMs: this.eventLoopLagMs,
       memoryUsageMB: memUsageMB,
+      rejections: {
+        active_requests: this.rejectionCounters.active_requests,
+        event_loop_lag: this.rejectionCounters.event_loop_lag,
+        memory_pressure: this.rejectionCounters.memory_pressure,
+        total:
+          this.rejectionCounters.active_requests +
+          this.rejectionCounters.event_loop_lag +
+          this.rejectionCounters.memory_pressure,
+      },
       isUnderPressure:
         this.activeRequests >= this.config.maxActiveRequests ||
         this.eventLoopLagMs > this.config.maxEventLoopLagMs ||

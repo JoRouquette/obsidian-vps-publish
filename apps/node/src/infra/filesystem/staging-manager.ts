@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { type LoggerPort } from '@core-domain';
+import { Mutex } from 'async-mutex';
 
 /**
  * Gère le cycle de vie du répertoire de staging pour une session.
@@ -9,6 +10,8 @@ import { type LoggerPort } from '@core-domain';
  * - Lors du finish (non aborted), on nettoie la racine et on promeut le staging en production.
  */
 export class StagingManager {
+  private readonly promotionMutex = new Mutex();
+
   constructor(
     private readonly contentRoot: string,
     private readonly assetsRoot: string,
@@ -25,6 +28,7 @@ export class StagingManager {
 
   /**
    * Supprime le contenu courant (hors .staging) et copie le staging de la session vers la racine.
+   * Mutex protects only the critical clear phase; copy can happen in parallel.
    */
   async promoteSession(sessionId: string): Promise<void> {
     const stagingContent = this.contentStagingPath(sessionId);
@@ -33,17 +37,23 @@ export class StagingManager {
     await fs.mkdir(stagingContent, { recursive: true });
     await fs.mkdir(stagingAssets, { recursive: true });
 
-    this.logger?.debug('Promoting staged content', {
+    this.logger?.debug('Promoting staged content (mutex on clear phase only)', {
       sessionId,
       stagingContent,
       stagingAssets,
     });
 
-    await this.clearRootExcept(this.contentRoot, ['.staging']);
-    await this.clearRootExcept(this.assetsRoot, ['.staging']);
+    // Critical section: clear production roots (mutex protected)
+    await this.promotionMutex.runExclusive(async () => {
+      await this.clearRootExcept(this.contentRoot, ['.staging']);
+      await this.clearRootExcept(this.assetsRoot, ['.staging']);
+    });
 
-    await this.copyDirContents(stagingContent, this.contentRoot);
-    await this.copyDirContents(stagingAssets, this.assetsRoot);
+    // Non-critical section: copy can happen in parallel across multiple promotions
+    await Promise.all([
+      this.copyDirContents(stagingContent, this.contentRoot),
+      this.copyDirContents(stagingAssets, this.assetsRoot),
+    ]);
 
     await this.cleanupStaging(sessionId);
 

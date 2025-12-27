@@ -55,6 +55,26 @@ GAIN  : 56% plus rapide
 
 ## Configuration
 
+### Variables d'environnement (backend)
+
+Depuis la version 4.12.0, les limites de concurrence sont configurables :
+
+```bash
+# Maximum concurrent HTTP requests (default: 150)
+MAX_ACTIVE_REQUESTS=150
+
+# Maximum parallel session finalization jobs (default: 5)
+MAX_CONCURRENT_FINALIZATION_JOBS=5
+```
+
+**Recommandations selon CPU** :
+
+- **2 cores** : `MAX_ACTIVE_REQUESTS=100`, `MAX_CONCURRENT_FINALIZATION_JOBS=3`
+- **4 cores** : `MAX_ACTIVE_REQUESTS=150`, `MAX_CONCURRENT_FINALIZATION_JOBS=5` (défaut)
+- **8+ cores** : `MAX_ACTIVE_REQUESTS=200`, `MAX_CONCURRENT_FINALIZATION_JOBS=8`
+
+⚠️ **Attention** : Augmenter ces valeurs sans ressources CPU suffisantes peut causer des erreurs HTTP 429 avec `cause: event_loop_lag`.
+
 ### Concurrence upload (plugin)
 
 Hardcodée dans `apps/obsidian-vps-publish/src/lib/infra/notes-uploader.adapter.ts` et `assets-uploader.adapter.ts` :
@@ -99,6 +119,47 @@ upload-assets: 1823ms
 ```
 
 ## Troubleshooting
+
+### HTTP 429 (Too Many Requests)
+
+**Symptômes** : Erreurs `HTTP 429` avec `Retry-After` headers pendant les tests de charge.
+
+**Causes possibles** :
+
+1. **`active_requests` limit** : Plus de `MAX_ACTIVE_REQUESTS` requêtes simultanées
+2. **`event_loop_lag`** : Event loop saturé (lag > 200ms)
+3. **`memory_pressure`** : Mémoire heap > 500MB
+
+**Solutions** :
+
+1. **Augmenter `MAX_ACTIVE_REQUESTS`** :
+   ```bash
+   MAX_ACTIVE_REQUESTS=200  # Au lieu de 150
+   ```
+2. **Augmenter `MAX_CONCURRENT_FINALIZATION_JOBS`** :
+
+   ```bash
+   MAX_CONCURRENT_FINALIZATION_JOBS=8  # Au lieu de 5
+   ```
+
+3. **Allouer plus de CPU/RAM au VPS** si event loop lag persiste
+
+4. **Identifier la cause exacte** dans les logs :
+   ```json
+   {
+     "level": "warn",
+     "message": "[BACKPRESSURE] Too many active requests",
+     "cause": "active_requests",
+     "activeRequests": 50,
+     "maxActiveRequests": 50
+   }
+   ```
+
+**Métriques à surveiller** :
+
+- `activeRequests` (gauge) : Nombre de requêtes HTTP en cours
+- `finalization_jobs_active` (gauge) : Nombre de jobs de finalisation en cours
+- `event_loop_lag_ms` (gauge) : Lag de l'event loop Node.js
 
 ### Upload trop lent
 
