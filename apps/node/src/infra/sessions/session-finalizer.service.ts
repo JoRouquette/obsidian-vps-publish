@@ -62,8 +62,14 @@ export class SessionFinalizerService {
   }
 
   async rebuildFromStored(sessionId: string): Promise<void> {
+    const startTime = performance.now();
     const log = this.logger.child({ sessionId });
+    const timings: Record<string, number> = {};
+
+    // STEP 0: Load raw notes
+    let stepStart = performance.now();
     const rawNotes = await this.notesStorage.loadAll(sessionId);
+    timings.loadRawNotes = performance.now() - stepStart;
 
     if (rawNotes.length === 0) {
       log.warn('No raw notes found for session; skipping rebuild');
@@ -72,13 +78,17 @@ export class SessionFinalizerService {
 
     log.debug('Rebuilding session content from stored notes', { count: rawNotes.length });
 
-    // Étape 0: Charger la session pour récupérer les customIndexConfigs
+    // STEP 1: Load session metadata
+    stepStart = performance.now();
     const session = await this.sessionRepository.findById(sessionId);
     const customIndexConfigs = session?.customIndexConfigs ?? [];
+    timings.loadSessionMetadata = performance.now() - stepStart;
     log.debug('Loaded custom index configs from session', { count: customIndexConfigs.length });
 
-    // Étape 1: Charger les règles de nettoyage envoyées par le plugin
+    // STEP 2: Load cleanup rules
+    stepStart = performance.now();
     const cleanupRules = await this.notesStorage.loadCleanupRules(sessionId);
+    timings.loadCleanupRules = performance.now() - stepStart;
     log.debug('Loaded cleanup rules for session', {
       count: cleanupRules.length,
       rules: cleanupRules.map((r) => ({
@@ -90,7 +100,7 @@ export class SessionFinalizerService {
       })),
     });
 
-    // Étape 2: Détecter les blocks de plugins (Leaflet) AVANT la sanitization
+    // STEP 3: Detect plugin blocks (Leaflet) BEFORE sanitization
     // Note: Dataview blocks are now pre-serialized by the plugin and included in serializedDataviewBlocks.
     // The server no longer attempts to detect or execute Dataview queries.
     // The plugin converts Dataview blocks to native Markdown before upload.
@@ -107,23 +117,32 @@ export class SessionFinalizerService {
     );
     const sanitized = contentSanitizer.process(withLeaflet);
 
-    // Étape 4: Convert markdown links to wikilinks before detection
+    // STEP 4: Convert markdown links to wikilinks before detection
+    stepStart = performance.now();
     const withConvertedLinks = sanitized.map((note) => ({
       ...note,
       content: this.convertMarkdownLinksToWikilinks(note.content),
     }));
+    timings.convertMarkdownLinks = performance.now() - stepStart;
 
-    // Étape 5: Résolution des wikilinks et routing
+    // STEP 5: Resolve wikilinks and compute routing
+    stepStart = performance.now();
     const detect = new DetectWikilinksService(this.logger);
     const resolve = new ResolveWikilinksService(this.logger, detect);
     const computeRouting = new ComputeRoutingService(this.logger);
 
     const withLinks = resolve.process(withConvertedLinks);
     const routed = computeRouting.process(withLinks);
+    timings.resolveWikilinksAndRouting = performance.now() - stepStart;
 
+    // STEP 7: Reset content staging directory
+    stepStart = performance.now();
     const contentStage = this.stagingManager.contentStagingPath(sessionId);
     await this.resetContentStage(contentStage, log);
+    timings.resetContentStage = performance.now() - stepStart;
 
+    // STEP 8: Render markdown to HTML
+    stepStart = performance.now();
     const renderer = new UploadNotesHandler(
       this.markdownRenderer,
       this.contentStorage,
@@ -135,25 +154,53 @@ export class SessionFinalizerService {
 
     // Publier toutes les notes (y compris les fichiers d'index custom)
     await renderer.handle({ sessionId, notes: routed });
+    timings.renderMarkdownToHtml = performance.now() - stepStart;
 
-    // Étape 6: Récupérer le HTML des fichiers d'index custom et les supprimer du manifest
+    // STEP 9: Extract custom index HTML and update manifest
+    stepStart = performance.now();
     const customIndexesHtml = await this.extractCustomIndexesHtml(
       customIndexConfigs,
       sessionId,
       log
     );
+    timings.extractCustomIndexes = performance.now() - stepStart;
 
-    // Étape 7: Rebuild des index avec contenu custom
+    // STEP 10: Rebuild indexes with custom content
+    stepStart = performance.now();
     const manifestPort = this.manifestStorage(sessionId);
     const manifest = await manifestPort.load();
     if (manifest) {
       await manifestPort.rebuildIndex(manifest, customIndexesHtml);
       log.debug('Indexes rebuilt with custom content');
     }
+    timings.rebuildIndexes = performance.now() - stepStart;
 
+    // STEP 11: Rebuild content search index
+    stepStart = performance.now();
     await this.rebuildContentSearchIndex(sessionId);
+    timings.rebuildSearchIndex = performance.now() - stepStart;
 
+    // STEP 12: Clear session storage
+    stepStart = performance.now();
     await this.notesStorage.clear(sessionId);
+    timings.clearSessionStorage = performance.now() - stepStart;
+
+    // Calculate total duration
+    const totalDuration = performance.now() - startTime;
+    timings.total = totalDuration;
+
+    // Log detailed timing breakdown
+    log.info('[PERF] Session rebuild completed', {
+      sessionId,
+      notesCount: rawNotes.length,
+      totalDurationMs: totalDuration.toFixed(2),
+      timings: Object.entries(timings).map(([step, duration]) => ({
+        step,
+        durationMs: duration.toFixed(2),
+        percentOfTotal: ((duration / totalDuration) * 100).toFixed(1),
+      })),
+    });
+
     log.debug('Session rebuild complete');
   }
 

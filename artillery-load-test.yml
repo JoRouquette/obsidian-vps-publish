@@ -116,7 +116,7 @@ scenarios:
           - think: 0.2
         count: '{{ assetsChunks }}'
 
-      # 4. Finaliser la session
+      # 4. Finaliser la session (now async with job queue)
       - think: 1
       - post:
           url: '/api/session/{{ sessionId }}/finish'
@@ -126,8 +126,29 @@ scenarios:
           json:
             notesProcessed: "{{ $notesCount }}"
             assetsProcessed: "{{ $assetsCount }}"
+          capture:
+            - json: '$.jobId'
+              as: 'jobId'
           expect:
-            - statusCode: [200, 429]
+            - statusCode: [202, 429] # 202 Accepted for async processing
+
+      # 5. Poll job status until completion (max 30s)
+      - loop:
+          - think: 0.5
+          - get:
+              url: '/api/session/{{ sessionId }}/status'
+              headers:
+                x-api-key: '{{ apiKey }}'
+              capture:
+                - json: '$.status'
+                  as: 'jobStatus'
+                - json: '$.progress'
+                  as: 'jobProgress'
+              expect:
+                - statusCode: [200, 404]
+          # Break if completed or failed
+          - function: 'checkJobCompletion'
+        count: 60 # Max 30 seconds (60 * 0.5s)
 
       # Pause avant la prochaine session
       - think: '{{ $randomNumber(3, 7) }}'

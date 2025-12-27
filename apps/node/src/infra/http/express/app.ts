@@ -21,6 +21,7 @@ import { StagingManager } from '../../filesystem/staging-manager';
 import { UuidIdGenerator } from '../../id/uuid-id.generator';
 import { CalloutRendererService } from '../../markdown/callout-renderer.service';
 import { MarkdownItRenderer } from '../../markdown/markdown-it.renderer';
+import { SessionFinalizationJobService } from '../../sessions/session-finalization-job.service';
 import { SessionFinalizerService } from '../../sessions/session-finalizer.service';
 import { createHealthCheckController } from './controllers/health-check.controller';
 import { createMaintenanceController } from './controllers/maintenance-controller';
@@ -31,11 +32,16 @@ import { BackpressureMiddleware } from './middleware/backpressure.middleware';
 import { ChunkedUploadMiddleware } from './middleware/chunked-upload.middleware';
 import { createCorsMiddleware } from './middleware/cors.middleware';
 import { PerformanceMonitoringMiddleware } from './middleware/performance-monitoring.middleware';
+import { RequestCorrelationMiddleware } from './middleware/request-correlation.middleware';
 
 export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
 
 export function createApp(rootLogger?: LoggerPort) {
   const app = express();
+
+  // Initialize request correlation (must be first for request ID generation)
+  const requestCorrelation = new RequestCorrelationMiddleware(rootLogger);
+  app.use(requestCorrelation.handle());
 
   // Initialize backpressure protection (before performance monitoring)
   const backpressure = new BackpressureMiddleware(
@@ -174,6 +180,20 @@ export function createApp(rootLogger?: LoggerPort) {
     rootLogger
   );
 
+  const finalizationJobService = new SessionFinalizationJobService(
+    sessionFinalizer,
+    stagingManager,
+    rootLogger
+  );
+
+  // Cleanup old jobs every 10 minutes
+  setInterval(
+    () => {
+      finalizationJobService.cleanupOldJobs(3600000); // 1 hour
+    },
+    10 * 60 * 1000
+  );
+
   // API routes (protégées par API key)
   const apiRouter = express.Router();
   apiRouter.use(apiKeyMiddleware);
@@ -196,6 +216,7 @@ export function createApp(rootLogger?: LoggerPort) {
       sessionFinalizer,
       stagingManager,
       calloutRenderer,
+      finalizationJobService,
       rootLogger
     )
   );
@@ -218,7 +239,15 @@ export function createApp(rootLogger?: LoggerPort) {
 
   app.use('/api', apiRouter);
 
-  app.use(createHealthCheckController());
+  app.use(
+    createHealthCheckController(
+      {
+        backpressure,
+        perfMonitor,
+      },
+      rootLogger
+    )
+  );
 
   app.get('/public-config', (req, res) => {
     rootLogger?.debug('Serving public config');

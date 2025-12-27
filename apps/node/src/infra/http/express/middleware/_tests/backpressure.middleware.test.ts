@@ -3,7 +3,7 @@
  * Verifies that server protection mechanisms work as expected
  */
 
-import { BackpressureMiddleware } from '../middleware/backpressure.middleware';
+import { BackpressureMiddleware } from '../backpressure.middleware';
 
 describe('Backpressure Middleware', () => {
   let middleware: BackpressureMiddleware;
@@ -18,10 +18,11 @@ describe('Backpressure Middleware', () => {
       maxActiveRequests: 50,
     });
 
-    mockReq = {};
+    mockReq = {} as any;
     mockRes = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
+      header: jest.fn().mockReturnThis(),
       on: jest.fn((event, handler) => {
         if (event === 'finish') {
           // Simulate immediate finish for tests
@@ -29,7 +30,7 @@ describe('Backpressure Middleware', () => {
         }
         return mockRes;
       }),
-    };
+    } as any;
     nextCalled = false;
   });
 
@@ -52,23 +53,33 @@ describe('Backpressure Middleware', () => {
 
     it('should reject requests when max active requests exceeded', async () => {
       const handler = middleware.handle();
-      const next = jest.fn();
 
       // Simulate 51 concurrent requests (max is 50)
+      let rejectedCount = 0;
       const requests: Promise<void>[] = [];
+
       for (let i = 0; i < 51; i++) {
-        const mockReqConcurrent = {};
+        const mockReqConcurrent = {} as any;
         const mockResConcurrent = {
-          status: jest.fn().mockReturnThis(),
+          status: jest.fn((code: number) => {
+            if (code === 429) rejectedCount++;
+            return mockResConcurrent;
+          }),
           json: jest.fn().mockReturnThis(),
-          on: jest.fn(),
-        };
+          header: jest.fn().mockReturnThis(),
+          on: jest.fn((event: string, cb: () => void) => {
+            if (event === 'finish') setTimeout(cb, 0);
+            return mockResConcurrent;
+          }),
+        } as any;
 
         requests.push(
           new Promise((resolve) => {
             handler(mockReqConcurrent, mockResConcurrent, () => {
-              resolve();
+              // next() called - request accepted
             });
+            // Resolve immediately regardless of acceptance or rejection
+            resolve();
           })
         );
       }
@@ -76,7 +87,7 @@ describe('Backpressure Middleware', () => {
       await Promise.all(requests);
 
       // At least one request should be rejected
-      expect(mockRes.status).toHaveBeenCalledWith(429);
+      expect(rejectedCount).toBeGreaterThan(0);
     });
 
     it('should return 429 with retry information', () => {
@@ -111,14 +122,22 @@ describe('Backpressure Middleware', () => {
       const metrics1 = middleware.getLoadMetrics();
       const initialActive = metrics1.activeRequests;
 
+      // Create mock with proper finish handler
+      const testRes = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+        header: jest.fn().mockReturnThis(),
+        on: jest.fn((event, cb) => {
+          if (event === 'finish') setTimeout(cb, 0);
+          return testRes;
+        }),
+      } as any;
+
       // Start request
-      handler(mockReq, mockRes, next);
+      handler({} as any, testRes, next);
 
-      // Trigger finish event
-      const finishHandler = mockRes.on.mock.calls.find((call: any) => call[0] === 'finish')?.[1];
-      if (finishHandler) finishHandler();
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // Wait for finish to be called
+      await new Promise((resolve) => setTimeout(resolve, 20));
 
       const metrics2 = middleware.getLoadMetrics();
       expect(metrics2.activeRequests).toBe(initialActive);
@@ -167,7 +186,7 @@ describe('Backpressure Middleware', () => {
     it('should use exponential moving average for lag', async () => {
       // Initial metrics
       await new Promise((resolve) => setTimeout(resolve, 200));
-      const metrics1 = middleware.getLoadMetrics();
+      const _metrics1 = middleware.getLoadMetrics();
 
       // Wait more
       await new Promise((resolve) => setTimeout(resolve, 200));
@@ -196,10 +215,17 @@ describe('Backpressure Middleware', () => {
       const handler = lowMemMiddleware.handle();
       const next = jest.fn();
 
-      handler(mockReq, mockRes, next);
+      const testRes = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+        header: jest.fn().mockReturnThis(),
+        on: jest.fn(),
+      } as any;
 
-      expect(mockRes.status).toHaveBeenCalledWith(429);
-      expect(mockRes.json).toHaveBeenCalledWith(
+      handler({} as any, testRes, next);
+
+      expect(testRes.status).toHaveBeenCalledWith(429);
+      expect(testRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           message: expect.stringContaining('memory'),
         })
@@ -215,12 +241,13 @@ describe('Backpressure Middleware', () => {
       const requests = [];
 
       for (let i = 0; i < 10; i++) {
-        const req = {};
+        const req = {} as any;
         const res = {
           status: jest.fn().mockReturnThis(),
           json: jest.fn().mockReturnThis(),
+          header: jest.fn().mockReturnThis(),
           on: jest.fn(),
-        };
+        } as any;
         const next = jest.fn();
 
         requests.push({ req, res, next });
@@ -237,11 +264,12 @@ describe('Backpressure Middleware', () => {
 
       // Spike: send many requests
       for (let i = 0; i < 10; i++) {
-        const req = {};
-        const res = {
+        const req = {} as any;
+        const res: any = {
           status: jest.fn().mockReturnThis(),
           json: jest.fn().mockReturnThis(),
-          on: jest.fn((event, cb) => {
+          header: jest.fn().mockReturnThis(),
+          on: jest.fn((event: string, cb: () => void) => {
             if (event === 'finish') setTimeout(cb, 0);
             return res;
           }),
@@ -254,12 +282,13 @@ describe('Backpressure Middleware', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       // New request should be accepted
-      const newReq = {};
+      const newReq = {} as any;
       const newRes = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn().mockReturnThis(),
+        header: jest.fn().mockReturnThis(),
         on: jest.fn(),
-      };
+      } as any;
       const newNext = jest.fn();
 
       handler(newReq, newRes, newNext);
