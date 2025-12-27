@@ -147,7 +147,7 @@ npm run docker:dev:up
 npm run load:api:quick
 ```
 
-**Standard profiles**:
+**Standard profiles** (génèrent automatiquement JSON + HTML) :
 
 ```bash
 npm run load:api:50              # 50 notes (default: 30 small, 15 medium, 5 large)
@@ -158,16 +158,23 @@ npm run load:api:500             # 500 notes (balanced: ~167 of each size)
 npm run load:api:1000            # 1000 notes (balanced: ~333 of each size)
 ```
 
-**With JSON report output**:
+**Alias `:report`** (identique aux commandes ci-dessus) :
 
 ```bash
-npm run load:api:50:report
-npm run load:api:200:report
-npm run load:api:300:balanced:report
-npm run load:api:400:large:report
-npm run load:api:500:report
-npm run load:api:1000:report
+npm run load:api:50:report              # Alias de load:api:50
+npm run load:api:200:report             # Alias de load:api:200
+npm run load:api:300:balanced:report    # Alias de load:api:300:balanced
+npm run load:api:400:large:report       # Alias de load:api:400:large
+npm run load:api:500:report             # Alias de load:api:500
+npm run load:api:1000:report            # Alias de load:api:1000
 ```
+
+**Tous les tests génèrent automatiquement** :
+
+- `*.json` : Données brutes Artillery (dans `tools/load-tests/artillery/reports/`)
+- `*.html` : Rapport interactif visualisable dans un navigateur
+
+Les rapports HTML peuvent être ouverts directement pour une visualisation complète des métriques (temps de réponse, codes HTTP, erreurs, etc.).
 
 **Custom parameters**:
 
@@ -253,6 +260,48 @@ Summary report @ 16:23:45(+0100)
 - ✅ All requests successful (201 for create, 200 for others)
 - ✅ Response times acceptable (p95 = 2.1s for large payload)
 - ⚠️ Total duration = 8.2s for entire workflow
+
+### HTML Reports
+
+Les scripts avec `:report` génèrent automatiquement un rapport HTML interactif en plus du JSON :
+
+```bash
+npm run load:api:300:balanced:report
+# Génère 2 fichiers :
+# - tools/load-tests/artillery/reports/load-300-balanced.json (données brutes)
+# - tools/load-tests/artillery/reports/load-300-balanced.html (visualisation)
+```
+
+**Ouvrir le rapport HTML** :
+
+```bash
+# Méthode 1 : Script npm (ouvre le rapport le plus récent)
+npm run load:report:open
+
+# Méthode 2 : Helper script avec nom spécifique
+node tools/load-tests/artillery/helpers/open-report.cjs load-300-balanced
+
+# Méthode 3 : Helper script (ouvre le plus récent automatiquement)
+node tools/load-tests/artillery/helpers/open-report.cjs
+
+# Méthode 4 : Commandes système
+# Windows
+start tools/load-tests/artillery/reports/load-300-balanced.html
+
+# Linux/Mac
+open tools/load-tests/artillery/reports/load-300-balanced.html
+```
+
+**Contenu du rapport HTML** :
+
+- 📊 **Vue d'ensemble** : Scénarios complétés/échoués, requêtes totales
+- 🚦 **Codes HTTP** : Distribution 2xx/4xx/5xx avec codes de couleur
+- ⏱️ **Temps de réponse** : Min/Médiane/Moyenne/P95/P99/Max avec graphiques
+- 👥 **Sessions VU** : Durée des sessions utilisateurs virtuels
+- ❌ **Erreurs** : Liste détaillée des erreurs rencontrées
+- 📈 **Métriques détaillées** : Tableau complet des codes HTTP
+
+Les rapports HTML sont **auto-suffisants** (aucune dépendance externe) et peuvent être partagés facilement avec l'équipe.
 
 ### Troubleshooting
 
