@@ -82,7 +82,15 @@ export class EventLoopMonitorAdapter {
     this.isRunning = false;
 
     const stats = this.computeStats();
-    this.logger.debug('Event loop monitor stopped', stats);
+    this.logger.debug('Event loop monitor stopped', {
+      samples: stats.samples,
+      minLagMs: stats.minLagMs,
+      maxLagMs: stats.maxLagMs,
+      avgLagMs: stats.avgLagMs,
+      p50LagMs: stats.p50LagMs,
+      p95LagMs: stats.p95LagMs,
+      p99LagMs: stats.p99LagMs,
+    });
 
     return stats;
   }
