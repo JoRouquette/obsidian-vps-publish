@@ -1,10 +1,4 @@
-import {
-  type CustomIndexConfig,
-  type LoggerPort,
-  LogLevel,
-  type Manifest,
-  Slug,
-} from '@core-domain';
+import { type CustomIndexConfig, type LoggerPort, type Manifest, Slug } from '@core-domain';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 
