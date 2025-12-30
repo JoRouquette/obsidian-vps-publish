@@ -55,17 +55,28 @@ export function renderFolderIndex(
     )
     .join('');
 
+  // Only render sections if they have content
+  const subfoldersSection =
+    subfolders.length > 0
+      ? `<section>
+    <h2>Sous-dossiers</h2>
+    <ul class="index-list">${subfoldList}</ul>
+  </section>`
+      : '';
+
+  const pagesSection =
+    pages.length > 0
+      ? `<section>
+    <h2>Pages</h2>
+    <ul class="index-list">${pageList}</ul>
+  </section>`
+      : '';
+
   return `<div class="markdown-body">
   ${customContent || ''}
   <h1>${escapeHtml(folderTitle)}</h1>
-  <section>
-    <h2>Sous-dossiers</h2>
-    <ul class="index-list">${subfoldList || '<li><em>Aucun sous dossier</em></li>'}</ul>
-  </section>
-  <section>
-    <h2>Pages</h2>
-    <ul class="index-list">${pageList || '<li><em>Aucune page</em></li>'}</ul>
-  </section>
+  ${subfoldersSection}
+  ${pagesSection}
 </div>`;
 }
 
