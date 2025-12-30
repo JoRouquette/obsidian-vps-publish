@@ -1,3 +1,8 @@
+## 5.1.0 (2025-12-30)
+
+* Merge branch 'fix/improve-setting-ui' ([785e5e5](https://github.com/JoRouquette/obsidian-vps-publish/commit/785e5e5))
+* feat(plugin): enhance folders settings UI with search, sort, and compact list ([96c8db4](https://github.com/JoRouquette/obsidian-vps-publish/commit/96c8db4))
+
 ## 5.0.0 (2025-12-30)
 
 * docs: add performance enhancements implementation summary ([b403930](https://github.com/JoRouquette/obsidian-vps-publish/commit/b403930))
