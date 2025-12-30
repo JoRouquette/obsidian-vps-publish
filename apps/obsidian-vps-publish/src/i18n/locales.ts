@@ -162,6 +162,8 @@ type FoldersTranslations = {
   ignoredCleanupRulesDescription: string;
   customIndexLabel: string;
   customIndexDescription: string;
+  flattenTreeLabel: string;
+  flattenTreeDescription: string;
 };
 
 type IgnoreRulesTranslations = {
@@ -463,6 +465,9 @@ export const en: Translations = {
       customIndexLabel: 'Custom Index File',
       customIndexDescription:
         "Optional: Select a file from your vault to prepend to this folder's generated index page.",
+      flattenTreeLabel: 'Flatten Tree',
+      flattenTreeDescription:
+        'If enabled, all notes in subfolders are published as direct children of this folder, and subfolders are hidden in navigation. URLs: routeBase/<slug> (no subfolder segments). Warning: notes with the same filename in different subfolders will conflict.',
     },
     cleanupRules: {
       removeCodeBlocks: {
@@ -890,6 +895,9 @@ export const fr: Translations = {
       customIndexLabel: "Fichier d'index personnalisé",
       customIndexDescription:
         "Optionnel : Sélectionnez un fichier de votre coffre à ajouter en début de page d'index générée pour ce dossier.",
+      flattenTreeLabel: "Aplatir l'arborescence",
+      flattenTreeDescription:
+        'Si activé, toutes les notes dans les sous-dossiers sont publiées comme enfants directs de ce dossier, et les sous-dossiers sont cachés dans la navigation. URLs : routeBase/<slug> (pas de segments de sous-dossier). Attention : les notes avec le même nom dans différents sous-dossiers entreront en conflit.',
     },
     cleanupRules: {
       removeCodeBlocks: {

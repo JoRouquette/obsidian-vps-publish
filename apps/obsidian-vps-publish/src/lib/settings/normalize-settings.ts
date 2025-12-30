@@ -100,5 +100,6 @@ function createDefaultFolder(vpsId: string): PluginSettings['vpsConfigs'][0]['fo
     vaultFolder: '',
     routeBase: '/',
     ignoredCleanupRuleIds: [],
+    flattenTree: false,
   };
 }
