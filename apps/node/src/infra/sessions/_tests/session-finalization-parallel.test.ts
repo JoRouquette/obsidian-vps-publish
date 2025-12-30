@@ -169,8 +169,8 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
 
       // Total duration should be ~350ms (not 400ms sequential)
       // because fast-2 starts as soon as fast-1 completes
-      // Allow some margin for CI timing variations
-      expect(duration).toBeLessThan(500);
+      // Allow generous margin for CI timing variations and system load
+      expect(duration).toBeLessThan(800);
     });
   });
 

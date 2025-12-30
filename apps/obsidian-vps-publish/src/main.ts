@@ -1,4 +1,5 @@
 import { PerformanceTrackerAdapter } from '@core-application/infra/performance-tracker.adapter';
+import { processWithControlledConcurrency } from '@core-application/utils/concurrency.util';
 import { EvaluateIgnoreRulesHandler } from '@core-application/vault-parsing/handler/evaluate-ignore-rules.handler';
 import { HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
 import { ParseContentHandler } from '@core-application/vault-parsing/handler/parse-content.handler';
@@ -1019,9 +1020,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const executor = dataviewApi ? new DataviewExecutor(dataviewApi, this.app) : undefined;
 
       // Process notes with controlled concurrency to avoid UI freeze
-      const { processWithControlledConcurrency } =
-        await import('@core-application/utils/concurrency.util');
-
       const results: PublishableNote[] = [];
 
       await processWithControlledConcurrency(

@@ -112,7 +112,7 @@ function extractRetryAfter(response: RequestUrlResponse): number | null {
         return retryAfterMs;
       }
     }
-  } catch (error) {
+  } catch {
     // Ignore parsing errors
   }
 

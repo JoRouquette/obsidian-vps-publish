@@ -27,6 +27,8 @@ jest.mock('../infra/config/env-config', () => ({
     reportIssuesUrl: jest.fn(() => 'http://issues'),
     homeWelcomeTitle: jest.fn(() => 'Welcome'),
     port: jest.fn(() => 3000),
+    maxActiveRequests: jest.fn(() => 100),
+    maxConcurrentFinalizationJobs: jest.fn(() => 3),
   },
 }));
 
