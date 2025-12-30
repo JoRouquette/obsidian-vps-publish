@@ -1,3 +1,58 @@
+## 5.0.0 (2025-12-30)
+
+* docs: add performance enhancements implementation summary ([b403930](https://github.com/JoRouquette/obsidian-vps-publish/commit/b403930))
+* docs: add performance testing and validation guide ([74948b9](https://github.com/JoRouquette/obsidian-vps-publish/commit/74948b9))
+* docs: add performance validation script and corrections summary ([abf465f](https://github.com/JoRouquette/obsidian-vps-publish/commit/abf465f))
+* docs: remove obsolete performance implementation and diagnostic files ([41c00b0](https://github.com/JoRouquette/obsidian-vps-publish/commit/41c00b0))
+* docs(api): add comprehensive load testing documentation ([6ff39ac](https://github.com/JoRouquette/obsidian-vps-publish/commit/6ff39ac))
+* docs(loadtest): add reports directory documentation and allow .gitkeep ([8269083](https://github.com/JoRouquette/obsidian-vps-publish/commit/8269083))
+* docs(plugin): add Phase 1 performance analysis documentation ([b8290f3](https://github.com/JoRouquette/obsidian-vps-publish/commit/b8290f3))
+* feat(api)!: implement async session finalization with performance instrumentation ([49fe95e](https://github.com/JoRouquette/obsidian-vps-publish/commit/49fe95e))
+* Merge branch 'perf/performance-enhancing' ([d1216ba](https://github.com/JoRouquette/obsidian-vps-publish/commit/d1216ba))
+* perf(plugin,api): throttle UI updates, add compression yielding, implement backpressure ([eb95557](https://github.com/JoRouquette/obsidian-vps-publish/commit/eb95557))
+* test(plugin,api): add performance instrumentation and synthetic vault generator ([0c04a9b](https://github.com/JoRouquette/obsidian-vps-publish/commit/0c04a9b))
+* perf: optimize API performance with 3 targeted improvements ([17126dd](https://github.com/JoRouquette/obsidian-vps-publish/commit/17126dd))
+* perf(plugin): add configurable concurrency limits to prevent UI freeze ([6e1f028](https://github.com/JoRouquette/obsidian-vps-publish/commit/6e1f028))
+* perf(plugin): optimize imports and improve test reliability ([965cba9](https://github.com/JoRouquette/obsidian-vps-publish/commit/965cba9))
+* test(loadtest): add artillery load test infrastructure with DTO-compliant payload generators ([eedc7e9](https://github.com/JoRouquette/obsidian-vps-publish/commit/eedc7e9))
+* test(loadtest): add payload generator validation script ([32747f3](https://github.com/JoRouquette/obsidian-vps-publish/commit/32747f3))
+* test(plugin): replace obsolete performance tests with Phase 1 instrumentation tests ([1fceace](https://github.com/JoRouquette/obsidian-vps-publish/commit/1fceace))
+* fix(plugin): disable outdated performance smoke tests temporarily ([6e77717](https://github.com/JoRouquette/obsidian-vps-publish/commit/6e77717))
+* feat: add configurable size distributions and increased note counts for comprehensive testing ([a71658f](https://github.com/JoRouquette/obsidian-vps-publish/commit/a71658f))
+* feat(perf): auto-generate HTML reports for all load tests ([291fecc](https://github.com/JoRouquette/obsidian-vps-publish/commit/291fecc))
+* feat(plugin): add Phase 1 performance instrumentation ([6c30327](https://github.com/JoRouquette/obsidian-vps-publish/commit/6c30327))
+* chore(loadtest): add npm scripts and gitignore for artillery reports ([6ba6934](https://github.com/JoRouquette/obsidian-vps-publish/commit/6ba6934))
+
+
+### BREAKING CHANGE
+
+* POST /api/session/:id/finish now returns 202 Accepted with
+jobId instead of 200 OK. Clients must poll GET /api/session/:id/status to
+check completion. Migration guide provided in docs/api/performance/IMPLEMENTATION.md.
+
+Features:
+- SessionFinalizationJobService: Async job queue with sequential processing
+- 12-step timing instrumentation in SessionFinalizerService
+- Request correlation middleware (x-request-id propagation)
+- Enhanced backpressure middleware with 429 attribution (cause/source/headers)
+- Health endpoint with event loop lag + memory metrics
+- Artillery tests updated for async workflow
+- Performance regression test suite
+
+Performance Impact:
+- Expected throughput: 1 req/s -> 5+ req/s (5x improvement)
+- Session finish latency: 1800ms -> <50ms (P95)
+- Eliminates 429 rate limiting under normal load
+
+Documentation:
+- artillery-report-analysis.md: Root cause analysis
+- validation-checklist.md: 50+ verification items
+- IMPLEMENTATION.md: Migration guide + deployment steps
+- Performance testing guide
+
+Resolves Artillery load test issues: throughput plateau, high finish latency,
+excessive 429 responses due to event loop blocking.
+
 ## 4.12.0 (2025-12-30)
 
 * Merge branch 'feat/fix-indexes-and-flattentree' ([e4aac59](https://github.com/JoRouquette/obsidian-vps-publish/commit/e4aac59))
