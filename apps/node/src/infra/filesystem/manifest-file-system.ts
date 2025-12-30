@@ -163,16 +163,6 @@ export class ManifestFileSystem implements ManifestPort {
     map.set('/', { pages: [], subfolders: new Set() });
 
     for (const p of manifest.pages) {
-      // Skip custom index pages - they are used as custom content, not listed as pages
-      if (p.isCustomIndex) {
-        continue;
-      }
-
-      // Also skip pages with slug 'index' - these are folder index pages
-      if (p.slug.value === 'index') {
-        continue;
-      }
-
       const route = p.route;
       const segs = route.split('/').filter(Boolean);
 
@@ -188,12 +178,17 @@ export class ManifestFileSystem implements ManifestPort {
         parent = folder;
       }
 
-      // Add page to its parent folder
-      const parentFolder = segs.length === 0 ? '/' : '/' + segs.slice(0, -1).join('/');
-      if (!map.has(parentFolder)) {
-        map.set(parentFolder, { pages: [], subfolders: new Set() });
+      // Add page to its parent folder ONLY if it's not a custom index page
+      // Custom index pages are used for custom content injection, not listed
+      const shouldList = !p.isCustomIndex && p.slug.value !== 'index';
+      
+      if (shouldList) {
+        const parentFolder = segs.length === 0 ? '/' : '/' + segs.slice(0, -1).join('/');
+        if (!map.has(parentFolder)) {
+          map.set(parentFolder, { pages: [], subfolders: new Set() });
+        }
+        map.get(parentFolder)!.pages.push(p);
       }
-      map.get(parentFolder)!.pages.push(p);
     }
 
     this._logger?.debug('Folder map built', { folderCount: map.size });
