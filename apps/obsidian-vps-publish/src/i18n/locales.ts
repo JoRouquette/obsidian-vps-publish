@@ -124,6 +124,7 @@ type VpsTranslations = {
   rulePatternLabel: string;
   ruleReplacementLabel: string;
   ruleEnabledLabel: string;
+  ruleEnabledTooltip: string;
   defaultRuleIndicator: string;
   customRootIndexLabel: string;
   customRootIndexDescription: string;
@@ -160,10 +161,36 @@ type FoldersTranslations = {
   ruleEnabledLabel: string;
   ignoredCleanupRulesTitle: string;
   ignoredCleanupRulesDescription: string;
+  cleanupIgnoredTooltip: string;
+  cleanupAppliedTooltip: string;
   customIndexLabel: string;
   customIndexDescription: string;
   flattenTreeLabel: string;
   flattenTreeDescription: string;
+  // Enhanced UI translations
+  searchPlaceholder: string;
+  sortLabel: string;
+  resetTooltip: string;
+  noResults: string;
+  resultCount: string;
+  editButton: string;
+  closeEditor: string;
+  editingLabel: string;
+  emptyFolderLabel: string;
+  routePrefix: string;
+  flattenedIndicator: string;
+  customIndexIndicator: string;
+  exceptionsIndicator: string;
+  warningFlattenTree: string;
+  advancedOptionsLabel: string;
+  // Sort options
+  sortFolderAsc: string;
+  sortFolderDesc: string;
+  sortRouteAsc: string;
+  sortRouteDesc: string;
+  sortCustomIndexDesc: string;
+  sortFlattenedDesc: string;
+  sortExceptionsDesc: string;
 };
 
 type IgnoreRulesTranslations = {
@@ -432,6 +459,7 @@ export const en: Translations = {
       rulePatternLabel: 'Pattern (regex)',
       ruleReplacementLabel: 'Replacement',
       ruleEnabledLabel: 'Enabled',
+      ruleEnabledTooltip: 'Toggle to enable or disable this rule',
       defaultRuleIndicator: 'Default rule (read-only)',
       customRootIndexLabel: 'Custom Root Index File',
       customRootIndexDescription:
@@ -462,12 +490,39 @@ export const en: Translations = {
       ignoredCleanupRulesTitle: 'Ignored Cleanup Rules',
       ignoredCleanupRulesDescription:
         'Select which VPS cleanup rules should NOT be applied to this folder',
+      cleanupIgnoredTooltip: 'Ignored by this folder',
+      cleanupAppliedTooltip: 'Applied to this folder',
       customIndexLabel: 'Custom Index File',
       customIndexDescription:
         "Optional: Select a file from your vault to prepend to this folder's generated index page.",
       flattenTreeLabel: 'Flatten Tree',
       flattenTreeDescription:
         'If enabled, all notes in subfolders are published as direct children of this folder, and subfolders are hidden in navigation. URLs: routeBase/<slug> (no subfolder segments). Warning: notes with the same filename in different subfolders will conflict.',
+      // Enhanced UI translations
+      searchPlaceholder: 'Search folders...',
+      sortLabel: 'Sort by',
+      resetTooltip: 'Reset filters',
+      noResults: 'No results found',
+      resultCount: '{count} result{plural}',
+      editButton: 'Edit',
+      closeEditor: 'Close editor',
+      editingLabel: 'Editing: {name}',
+      emptyFolderLabel: '(Empty folder #{index})',
+      routePrefix: 'Route: ',
+      flattenedIndicator: '📁 Flattened',
+      customIndexIndicator: '📄 Custom Index',
+      exceptionsIndicator: '🚫 {count} exception{plural}',
+      warningFlattenTree:
+        'Flattening the tree can cause slug conflicts if multiple notes share the same filename. Ensure unique names or handle conflicts manually.',
+      advancedOptionsLabel: 'Advanced options',
+      // Sort options
+      sortFolderAsc: 'Sort: Folder (A-Z)',
+      sortFolderDesc: 'Sort: Folder (Z-A)',
+      sortRouteAsc: 'Sort: Route (A-Z)',
+      sortRouteDesc: 'Sort: Route (Z-A)',
+      sortCustomIndexDesc: 'Sort: Custom Index (Yes first)',
+      sortFlattenedDesc: 'Sort: Flattened (Yes first)',
+      sortExceptionsDesc: 'Sort: Exceptions (Most first)',
     },
     cleanupRules: {
       removeCodeBlocks: {
@@ -861,6 +916,7 @@ export const fr: Translations = {
       rulePatternLabel: 'Motif (regex)',
       ruleReplacementLabel: 'Remplacement',
       ruleEnabledLabel: 'Activé',
+      ruleEnabledTooltip: 'Activer ou désactiver cette règle',
       defaultRuleIndicator: 'Règle par défaut (lecture seule)',
       customRootIndexLabel: "Fichier d'index racine personnalisé",
       customRootIndexDescription:
@@ -892,12 +948,39 @@ export const fr: Translations = {
       ignoredCleanupRulesTitle: 'Règles de Nettoyage Ignorées',
       ignoredCleanupRulesDescription:
         'Sélectionnez les règles de nettoyage du VPS qui ne doivent PAS être appliquées à ce dossier',
+      cleanupIgnoredTooltip: 'Ignorée par ce dossier',
+      cleanupAppliedTooltip: 'Appliquée à ce dossier',
       customIndexLabel: "Fichier d'index personnalisé",
       customIndexDescription:
         "Optionnel : Sélectionnez un fichier de votre coffre à ajouter en début de page d'index générée pour ce dossier.",
       flattenTreeLabel: "Aplatir l'arborescence",
       flattenTreeDescription:
         'Si activé, toutes les notes dans les sous-dossiers sont publiées comme enfants directs de ce dossier, et les sous-dossiers sont cachés dans la navigation. URLs : routeBase/<slug> (pas de segments de sous-dossier). Attention : les notes avec le même nom dans différents sous-dossiers entreront en conflit.',
+      // Enhanced UI translations
+      searchPlaceholder: 'Rechercher des dossiers...',
+      sortLabel: 'Tri',
+      resetTooltip: 'Réinitialiser les filtres',
+      noResults: 'Aucun résultat trouvé',
+      resultCount: '{count} résultat{plural}',
+      editButton: 'Éditer',
+      closeEditor: "Fermer l'éditeur",
+      editingLabel: 'Édition : {name}',
+      emptyFolderLabel: '(Dossier vide #{index})',
+      routePrefix: 'Route : ',
+      flattenedIndicator: '📁 Aplati',
+      customIndexIndicator: '📄 Index personnalisé',
+      exceptionsIndicator: '🚫 {count} exception{plural}',
+      warningFlattenTree:
+        "Aplatir l'arborescence peut causer des conflits de slugs si plusieurs notes partagent le même nom de fichier. Assurez des noms uniques ou gérez les conflits manuellement.",
+      advancedOptionsLabel: 'Options avancées',
+      // Sort options
+      sortFolderAsc: 'Tri : Dossier (A-Z)',
+      sortFolderDesc: 'Tri : Dossier (Z-A)',
+      sortRouteAsc: 'Tri : Route (A-Z)',
+      sortRouteDesc: 'Tri : Route (Z-A)',
+      sortCustomIndexDesc: 'Tri : Index personnalisé (Oui en premier)',
+      sortFlattenedDesc: 'Tri : Aplati (Oui en premier)',
+      sortExceptionsDesc: 'Tri : Exceptions (Plus en premier)',
     },
     cleanupRules: {
       removeCodeBlocks: {
