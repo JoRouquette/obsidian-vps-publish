@@ -181,7 +181,7 @@ export class ManifestFileSystem implements ManifestPort {
       // Add page to its parent folder ONLY if it's not a custom index page
       // Custom index pages are used for custom content injection, not listed
       const shouldList = !p.isCustomIndex && p.slug.value !== 'index';
-      
+
       if (shouldList) {
         const parentFolder = segs.length === 0 ? '/' : '/' + segs.slice(0, -1).join('/');
         if (!map.has(parentFolder)) {
