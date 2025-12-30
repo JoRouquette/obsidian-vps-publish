@@ -153,6 +153,20 @@ describe('Note Entities', () => {
       ignoredCleanupRuleIds: [],
     };
     expect(folder.ignoredCleanupRuleIds).toEqual([]);
+    expect(folder.customIndexFile).toBeUndefined();
+    expect(folder.flattenTree).toBeUndefined();
+  });
+
+  it('should support flattenTree option in FolderConfig', () => {
+    const flattenedFolder: FolderConfig = {
+      id: 'folder3',
+      vaultFolder: 'flore',
+      routeBase: '/le-vivant/flore',
+      vpsId: 'vps1',
+      ignoredCleanupRuleIds: [],
+      flattenTree: true,
+    };
+    expect(flattenedFolder.flattenTree).toBe(true);
   });
 
   it('should support different AssetRef kinds', () => {

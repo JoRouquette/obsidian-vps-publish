@@ -51,7 +51,11 @@ export class ComputeRoutingService implements BaseService {
         const fileBase = fileSegment.replace(/\.[^/.]+$/, '');
         const slug = this.slugifySegment(fileBase);
 
-        const sluggedDirs = dirSegments.map(this.slugifySegment).filter(Boolean);
+        // If flattenTree is enabled, ignore directory segments
+        const sluggedDirs = note.folderConfig.flattenTree
+          ? []
+          : dirSegments.map(this.slugifySegment).filter(Boolean);
+
         const path = sluggedDirs.join('/');
 
         const parts = [routeBase || ''];
@@ -72,7 +76,10 @@ export class ComputeRoutingService implements BaseService {
           routeBase,
           fullPath,
         };
-        this._logger.debug('Computed routing for note', { routing });
+        this._logger.debug('Computed routing for note', {
+          routing,
+          flattenTree: note.folderConfig.flattenTree,
+        });
       }
 
       return {
@@ -80,6 +87,9 @@ export class ComputeRoutingService implements BaseService {
         routing,
       };
     });
+
+    // Detect slug collisions in flattened folders
+    this.detectSlugCollisions(routed);
 
     const routingById = new Map<string, NoteRoutingInfo>();
     for (const note of routed) {
@@ -125,5 +135,53 @@ export class ComputeRoutingService implements BaseService {
 
   private normalizePath(path: string): string {
     return path.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
+  }
+
+  /**
+   * Detects slug collisions in folders with flattenTree enabled.
+   * When multiple notes in different subfolders have the same filename,
+   * they will generate the same route, causing a collision.
+   */
+  private detectSlugCollisions(notes: PublishableNote[]): void {
+    // Group notes by folder config ID and check for collisions within each flattened folder
+    const flattenedFolders = new Map<string, PublishableNote[]>();
+
+    for (const note of notes) {
+      if (note.folderConfig.flattenTree) {
+        const key = note.folderConfig.id;
+        if (!flattenedFolders.has(key)) {
+          flattenedFolders.set(key, []);
+        }
+        flattenedFolders.get(key)!.push(note);
+      }
+    }
+
+    for (const [folderId, folderNotes] of flattenedFolders.entries()) {
+      const routeMap = new Map<string, PublishableNote[]>();
+
+      for (const note of folderNotes) {
+        const route = note.routing.fullPath;
+        if (!routeMap.has(route)) {
+          routeMap.set(route, []);
+        }
+        routeMap.get(route)!.push(note);
+      }
+
+      // Check for collisions
+      for (const [route, conflictingNotes] of routeMap.entries()) {
+        if (conflictingNotes.length > 1) {
+          const paths = conflictingNotes.map((n) => n.relativePath).join(', ');
+          this._logger.error('Slug collision detected in flattened folder', {
+            folderId,
+            route,
+            conflictingNotes: paths,
+            count: conflictingNotes.length,
+          });
+          throw new Error(
+            `Slug collision detected: ${conflictingNotes.length} notes map to the same route "${route}" in flattened folder. Conflicting files: ${paths}. Please rename one of the files or disable flattenTree for this folder.`
+          );
+        }
+      }
+    }
   }
 }

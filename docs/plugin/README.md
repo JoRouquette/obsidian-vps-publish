@@ -60,6 +60,7 @@ Dans les settings du plugin (Obsidian) :
 - **Fallback vault root** : Chercher les assets dans tout le vault si non trouvés dans le dossier
 - **Styles de callout** : Chemins vers CSS custom (ex: `.obsidian/snippets/callouts.css`)
 - **Niveau de log** : `debug`, `info`, `warn`, `error`
+- **Flatten tree** : Ignore les sous-dossiers dans l'arborescence publiée (voir aide interne pour détails et avertissements)
 
 ## 🎨 Aide interne
 

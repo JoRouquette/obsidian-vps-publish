@@ -243,11 +243,13 @@ export class SessionFinalizerService {
         // Extract body content from full HTML page
         let bodyContent = this.extractBodyContent(htmlWithBlocks);
 
-        // For root index, remove the first H1 title (auto-generated from filename)
-        if (config.isRootIndex || config.folderPath === '' || config.folderPath === '/') {
-          bodyContent = this.removeFirstH1(bodyContent);
-          log.debug('Removed first H1 from root index');
-        }
+        // Remove the first H1 title for ALL custom indexes (auto-generated from filename)
+        // This applies to root index AND folder indexes
+        bodyContent = this.removeFirstH1(bodyContent);
+        log.debug('Removed first H1 from custom index', {
+          folderPath: config.folderPath,
+          isRootIndex: config.isRootIndex,
+        });
 
         log.debug('Extracted body content', {
           originalLength: htmlContent.length,
