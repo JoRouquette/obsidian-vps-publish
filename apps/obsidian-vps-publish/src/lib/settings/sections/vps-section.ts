@@ -386,7 +386,7 @@ function renderCleanupRuleItem(
   header.addToggle((toggle) =>
     toggle
       .setValue(rule.isEnabled ?? true)
-      .setTooltip(t.settings.vps.ruleEnabledLabel ?? 'Enabled')
+      .setTooltip(t.settings.vps.ruleEnabledTooltip ?? 'Enabled')
       .onChange((value) => {
         rule.isEnabled = value;
         void onSave();

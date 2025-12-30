@@ -1,10 +1,33 @@
 /* Conteneur global des settings du plugin */
 .obsidian-vps-publish-settings {
-  max-width: 900px;
+  max-width: 100%;
+  width: 100%;
   margin-top: 1rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  padding: 0 0.5rem;
+  box-sizing: border-box;
+}
+
+/* Limiter la largeur sur grands écrans pour une meilleure lisibilité */
+@media (min-width: 1200px) {
+  .obsidian-vps-publish-settings {
+    max-width: 900px;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1199px) {
+  .obsidian-vps-publish-settings {
+    max-width: 90%;
+  }
+}
+
+@media (max-width: 899px) {
+  .obsidian-vps-publish-settings {
+    max-width: 100%;
+    padding: 0 0.25rem;
+  }
 }
 
 /* Progress bar for publishing notifications - Obsidian native style */
@@ -253,6 +276,7 @@
   border: 1px solid var(--background-modifier-border);
   background-color: var(--background-primary);
   position: relative;
+  box-sizing: border-box;
 }
 
 .obsidian-vps-publish-settings .ptpv-folder legend {
@@ -260,6 +284,9 @@
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-normal);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 /* Liseré coloré à gauche pour bien distinguer chaque dossier */
@@ -282,6 +309,8 @@
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-normal);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* On ajoute un peu de marge entre les settings d’un même dossier */
@@ -289,7 +318,26 @@
   border-bottom: none;
   padding: 0.25rem 0;
 }
+/* Folder responsive */
+@media (max-width: 1024px) {
+  .obsidian-vps-publish-settings .ptpv-folder {
+    padding: 0.65rem 0.65rem;
+  }
+}
 
+@media (max-width: 768px) {
+  .obsidian-vps-publish-settings .ptpv-folder {
+    padding: 0.6rem 0.55rem;
+  }
+
+  .obsidian-vps-publish-settings .ptpv-folder legend {
+    font-size: 0.9rem;
+  }
+
+  .obsidian-vps-publish-settings .ptpv-folder > h4 {
+    font-size: 0.9rem;
+  }
+}
 /* Bouton "Add folder" intégré proprement */
 .obsidian-vps-publish-settings .setting-item-control button.mod-cta {
   min-width: 7rem;
@@ -582,4 +630,393 @@
 /* Large text area for callout styles and other multi-line inputs */
 .obsidian-vps-publish-settings .ptpv-textarea-large {
   min-height: 80px;
+}
+
+/* ============================================================================
+   Folders Settings UI - Enhanced UX
+   ============================================================================
+   
+   These styles enhance the visual presentation of the refactored folders
+   settings UI with search, sort, compact list, and detailed editor.
+   ============================================================================ */
+
+/* Toolbar
+   -------------------------------------------------------------------------- */
+.ptpv-folders-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 1rem;
+}
+
+.ptpv-folders-toolbar .setting-item {
+  border: none;
+  padding: 0;
+  margin: 0;
+  flex: 0 1 auto;
+}
+
+.ptpv-folders-toolbar input[type='text'] {
+  flex: 1 1 auto;
+  min-width: 150px;
+  max-width: 100%;
+}
+
+.ptpv-folders-toolbar select {
+  flex: 0 1 auto;
+  min-width: 150px;
+}
+
+.ptpv-folders-toolbar button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Toolbar responsive pour petits écrans desktop */
+@media (max-width: 1024px) {
+  .ptpv-folders-toolbar input[type='text'] {
+    min-width: 120px;
+  }
+
+  .ptpv-folders-toolbar select {
+    min-width: 120px;
+  }
+}
+
+@media (max-width: 768px) {
+  .ptpv-folders-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .ptpv-folders-toolbar .setting-item,
+  .ptpv-folders-toolbar input[type='text'],
+  .ptpv-folders-toolbar select,
+  .ptpv-folders-toolbar button {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: unset;
+  }
+}
+
+/* Results count and no-results message
+   -------------------------------------------------------------------------- */
+.ptpv-folders-count {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.ptpv-folders-no-results {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+  background: var(--background-secondary);
+  border-radius: 4px;
+}
+
+/* Compact folder list
+   -------------------------------------------------------------------------- */
+.ptpv-folders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Compact folder item
+   -------------------------------------------------------------------------- */
+.ptpv-folder-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.ptpv-folder-item:hover {
+  background: var(--background-secondary-alt);
+  border-color: var(--interactive-accent);
+}
+
+.ptpv-folder-item-label {
+  font-size: 1rem;
+  color: var(--text-normal);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.ptpv-folder-item-label strong {
+  font-weight: 600;
+}
+
+.ptpv-folder-item-subtext {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.ptpv-folder-item-indicators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+  align-items: center;
+}
+
+.ptpv-indicator {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  background: var(--background-modifier-border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.ptpv-folder-item-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ptpv-folder-item-actions button {
+  flex: 1 1 auto;
+  min-width: 80px;
+  max-width: 150px;
+}
+
+/* Folder items responsive */
+@media (max-width: 1024px) {
+  .ptpv-folder-item {
+    padding: 0.65rem;
+  }
+
+  .ptpv-folder-item-label {
+    font-size: 0.95rem;
+  }
+
+  .ptpv-folder-item-subtext {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .ptpv-folder-item {
+    padding: 0.6rem;
+  }
+
+  .ptpv-folder-item-actions {
+    flex-direction: column;
+  }
+
+  .ptpv-folder-item-actions button {
+    max-width: unset;
+    width: 100%;
+  }
+}
+
+/* Detailed editor
+   -------------------------------------------------------------------------- */
+.ptpv-folders-editor {
+  margin-bottom: 1.5rem;
+  border: 2px solid var(--interactive-accent);
+  border-radius: 6px;
+  padding: 1rem;
+  background: var(--background-primary);
+  box-sizing: border-box;
+}
+
+.ptpv-folder-editor legend {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--interactive-accent);
+  padding: 0 0.5rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+/* Editor responsive */
+@media (max-width: 1024px) {
+  .ptpv-folders-editor {
+    padding: 0.85rem;
+  }
+
+  .ptpv-folder-editor legend {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .ptpv-folders-editor {
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .ptpv-folder-editor legend {
+    font-size: 0.95rem;
+    padding: 0 0.35rem;
+  }
+}
+
+/* Warning box (flatten tree)
+   -------------------------------------------------------------------------- */
+.ptpv-warning {
+  padding: 0.75rem;
+  margin: 0.75rem 0;
+  background: var(--background-modifier-error);
+  border: 1px solid var(--background-modifier-error-hover);
+  border-radius: 4px;
+  color: var(--text-error);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.ptpv-warning strong {
+  font-weight: 600;
+}
+
+/* Advanced options (collapsible)
+   -------------------------------------------------------------------------- */
+.ptpv-advanced-options {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.ptpv-advanced-options summary {
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.5rem 0;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.ptpv-advanced-options summary:hover {
+  color: var(--text-normal);
+}
+
+.ptpv-advanced-options[open] summary {
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 0.75rem;
+}
+
+.ptpv-advanced-content {
+  padding-top: 0.5rem;
+}
+
+/* Cleanup ignore list (inside advanced options)
+   -------------------------------------------------------------------------- */
+.ptpv-folder-cleanup-ignore {
+  margin-top: 1rem;
+}
+
+.ptpv-cleanup-ignore-list {
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 0.5rem;
+  background: var(--background-primary);
+  box-sizing: border-box;
+}
+
+.ptpv-cleanup-ignore-list .setting-item {
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding: 0.5rem 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.ptpv-cleanup-ignore-list .setting-item:last-child {
+  border-bottom: none;
+}
+
+/* Advanced options responsive */
+@media (max-width: 1024px) {
+  .ptpv-advanced-options {
+    padding: 0.65rem;
+  }
+
+  .ptpv-cleanup-ignore-list {
+    max-height: 250px;
+  }
+}
+
+@media (max-width: 768px) {
+  .ptpv-advanced-options {
+    padding: 0.6rem;
+  }
+
+  .ptpv-cleanup-ignore-list {
+    max-height: 200px;
+    padding: 0.4rem;
+  }
+}
+
+/* Global responsive adjustments for settings items
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  .obsidian-vps-publish-settings .setting-item-control input[type='text'],
+  .obsidian-vps-publish-settings .setting-item-control textarea {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .obsidian-vps-publish-settings .setting-item {
+    padding: 0.4rem 0;
+  }
+
+  .obsidian-vps-publish-settings .setting-item-info {
+    gap: 0.3rem;
+  }
+
+  .obsidian-vps-publish-settings .setting-item-control input[type='text'],
+  .obsidian-vps-publish-settings .setting-item-control textarea,
+  .obsidian-vps-publish-settings .setting-item-control select {
+    font-size: 14px;
+    padding: 0.4rem;
+  }
+
+  .obsidian-vps-publish-settings .ptpv-button-row {
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .obsidian-vps-publish-settings .ptpv-button-row button {
+    width: 100%;
+  }
+}
+
+/* Dark mode adjustments
+   -------------------------------------------------------------------------- */
+.theme-dark .ptpv-indicator {
+  background: var(--background-modifier-border-hover);
+}
+
+.theme-dark .ptpv-warning {
+  background: rgba(var(--color-red-rgb), 0.1);
+  border-color: rgba(var(--color-red-rgb), 0.3);
 }

@@ -19,6 +19,9 @@ Le plugin Obsidian :
 - **[Chunked Upload](./chunked-upload.md)** - Système d'upload par morceaux pour gros fichiers
 - **[Syntaxes supportées](./syntaxes.md)** - Syntaxes Obsidian supportées (wikilinks, footnotes, callouts, etc.)
 - **[Performance Analysis](./performance-analysis.md)** - Analyse des performances et instrumentation (Phase 1)
+- **[Folders Settings UI](./folders-settings-ui-README.md)** - Vue d'ensemble du refactor de l'interface des dossiers de publication
+  - [Guide utilisateur](./folders-settings-ui.md)
+  - [Détails techniques](./folders-settings-ui-implementation.md)
 
 ## 🚀 Installation
 
