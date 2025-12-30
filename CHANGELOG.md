@@ -1,3 +1,20 @@
+## 4.12.0 (2025-12-30)
+
+* Merge branch 'feat/fix-indexes-and-flattentree' ([e4aac59](https://github.com/JoRouquette/obsidian-vps-publish/commit/e4aac59))
+* style: fix prettier formatting ([158266b](https://github.com/JoRouquette/obsidian-vps-publish/commit/158266b))
+* fix(backend): add flattenTree to DTO and apply H1 removal to all custom indexes ([614098e](https://github.com/JoRouquette/obsidian-vps-publish/commit/614098e))
+* fix(backend): exclude index pages from folder listings ([451019d](https://github.com/JoRouquette/obsidian-vps-publish/commit/451019d))
+* fix(backend): properly build folder hierarchy for custom index folders ([3d31a18](https://github.com/JoRouquette/obsidian-vps-publish/commit/3d31a18))
+* fix(index): hide empty sections in folder indexes ([5ef6e29](https://github.com/JoRouquette/obsidian-vps-publish/commit/5ef6e29))
+* fix(plugin): collect custom index files even if outside vaultFolder ([a451c44](https://github.com/JoRouquette/obsidian-vps-publish/commit/a451c44))
+* refactor(plugin): move flattenTree toggle under delete button ([0624721](https://github.com/JoRouquette/obsidian-vps-publish/commit/0624721))
+* chore(test): remove unused LogLevel import ([4f9cb73](https://github.com/JoRouquette/obsidian-vps-publish/commit/4f9cb73))
+* docs(plugin): mention flattenTree in advanced settings ([aefe971](https://github.com/JoRouquette/obsidian-vps-publish/commit/aefe971))
+* test(site): verify BuildTreeHandler handles flattened routes ([9b367df](https://github.com/JoRouquette/obsidian-vps-publish/commit/9b367df))
+* feat(config): add flattenTree option to FolderConfig ([93d3b2e](https://github.com/JoRouquette/obsidian-vps-publish/commit/93d3b2e))
+* feat(plugin-settings): expose flattenTree option in folder configuration ([47269a2](https://github.com/JoRouquette/obsidian-vps-publish/commit/47269a2))
+* feat(routing): support flattened folder trees with collision detection ([9bbc5bf](https://github.com/JoRouquette/obsidian-vps-publish/commit/9bbc5bf))
+
 ## 4.11.0 (2025-12-26)
 
 * Merge branch 'feat/async-and-performance' ([15b48bf](https://github.com/JoRouquette/obsidian-vps-publish/commit/15b48bf))
