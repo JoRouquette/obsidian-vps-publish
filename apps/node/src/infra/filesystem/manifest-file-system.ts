@@ -163,6 +163,16 @@ export class ManifestFileSystem implements ManifestPort {
     map.set('/', { pages: [], subfolders: new Set() });
 
     for (const p of manifest.pages) {
+      // Skip custom index pages - they are used as custom content, not listed as pages
+      if (p.isCustomIndex) {
+        continue;
+      }
+
+      // Also skip pages with slug 'index' - these are folder index pages
+      if (p.slug.value === 'index') {
+        continue;
+      }
+
       const route = p.route;
       const segs = route.split('/').filter(Boolean);
 
