@@ -3,16 +3,38 @@ import { Notice } from 'obsidian';
 
 import { translate } from '../../i18n';
 import type { Translations } from '../../i18n/locales';
+import { throttle } from '../utils/throttle.util';
+import type { UiPressureMonitorAdapter } from './ui-pressure-monitor.adapter';
 
 /**
  * Progress adapter using HTML progress bar instead of text percentage.
  * Progress is step-weighted, not file-count based, to avoid revealing internal statistics.
+ * Updates are throttled to 100ms to prevent UI spam.
  */
 export class NoticeProgressAdapter implements ProgressPort {
+  private readonly throttledUpdate: ((percent: number, stepMessage: string) => void) & {
+    flush: () => void;
+    cancel: () => void;
+  };
+
   constructor(
     private readonly label = 'Publishing',
-    private readonly translations?: Translations
-  ) {}
+    private readonly translations?: Translations,
+    private readonly uiMonitor?: UiPressureMonitorAdapter,
+    private readonly throttleMs: number = 100 // Throttle updates to max 10/sec
+  ) {
+    // Create throttled version of the actual update function
+    this.throttledUpdate = throttle(
+      (percent: number, stepMessage: string) => {
+        this.performUpdate(percent, stepMessage);
+      },
+      {
+        intervalMs: throttleMs,
+        leading: true, // Update immediately on first call
+        trailing: true, // Update with last value after throttle period
+      }
+    );
+  }
 
   private notice: Notice | null = null;
   private progressBarFillEl: HTMLDivElement | null = null;
@@ -77,21 +99,37 @@ export class NoticeProgressAdapter implements ProgressPort {
   /**
    * Update progress with explicit percentage and step message.
    * This should be called by StepProgressManager, not used directly.
+   * Updates are throttled to prevent UI spam.
    */
   updateProgress(percent: number, stepMessage: string): void {
+    // Record progress update for UI pressure monitoring (before throttling)
+    this.uiMonitor?.recordProgressUpdate();
+
+    // Store current values (for immediate access if needed)
     this.currentPercent = Math.min(100, Math.max(0, percent));
     this.currentStep = stepMessage;
 
+    // Throttled update to DOM
+    this.throttledUpdate(percent, stepMessage);
+  }
+
+  /**
+   * Actual update implementation (called by throttled function)
+   */
+  private performUpdate(percent: number, stepMessage: string): void {
     if (this.progressBarFillEl) {
-      this.progressBarFillEl.style.width = `${this.currentPercent}%`;
+      this.progressBarFillEl.style.width = `${percent}%`;
     }
 
     if (this.stepEl) {
-      this.stepEl.textContent = this.currentStep;
+      this.stepEl.textContent = stepMessage;
     }
   }
 
   finish(): void {
+    // Flush any pending throttled update to show final state
+    this.throttledUpdate.flush();
+
     const duration = this.startTime ? Date.now() - this.startTime : 0;
     const durationText = this.formatDuration(duration);
 

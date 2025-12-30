@@ -1,0 +1,162 @@
+config:
+  target: 'http://localhost:3000'
+  phases:
+    # Phase 1: Warmup - Peu de notes (10-20)
+    - duration: 60
+      arrivalRate: 1
+      name: 'Warmup - Small batches (10-20 notes)'
+
+    # Phase 2: Montée progressive - Notes moyennes (50-100)
+    - duration: 120
+      arrivalRate: 1
+      name: 'Ramp up - Medium batches (50-100 notes)'
+
+    # Phase 3: Charge normale - Beaucoup de notes (200-300)
+    - duration: 180
+      arrivalRate: 1
+      name: 'Sustained load - Large batches (200-300 notes)'
+
+    # Phase 4: Pic de charge - Très grosse session (500-1000 notes)
+    - duration: 120
+      arrivalRate: 1
+      name: 'Peak load - Huge batches (500-1000 notes)'
+
+    # Phase 5: Retour au calme - Retour à moyen (50-100)
+    - duration: 60
+      arrivalRate: 1
+      name: 'Cool down - Back to medium (50-100 notes)'
+
+  # Variables d'environnement
+  variables:
+    apiKey: '{{ $env.API_KEY }}'
+    # Variables de phase pour ajuster la taille des batches
+    phaseMultiplier: 1
+
+  # Configurations HTTP
+  http:
+    timeout: 30
+
+  # Seuils de performance attendus
+  ensure:
+    maxErrorRate: 5 # Max 5% d'erreurs tolérées
+    p95: 2000 # 95% des requêtes < 2s
+    p99: 5000 # 99% des requêtes < 5s
+
+scenarios:
+  - name: 'Single User - Progressive Load'
+    weight: 100 # Seul scénario actif
+    flow:
+      # Calculer la taille du batch selon le temps écoulé
+      - function: 'calculateBatchSize'
+
+      # 1. Démarrer une session de publication
+      - post:
+          url: '/api/session/start'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            notesPlanned: "{{ $notesCount }}"
+            assetsPlanned: "{{ $assetsCount }}"
+            batchConfig:
+              maxBytesPerRequest: 5242880
+            calloutStyles: []
+            customIndexConfigs: []
+            ignoredTags: []
+          capture:
+            - json: '$.sessionId'
+              as: 'sessionId'
+            - json: '$.maxBytesPerRequest'
+              as: 'maxBytes'
+          expect:
+            - statusCode: 200
+            - hasProperty: 'sessionId'
+
+      # Pause réaliste entre opérations
+      - think: 0.5
+
+      # 2. Upload des notes en boucle (simule plusieurs batches)
+      - loop:
+          - post:
+              url: '/api/session/{{ sessionId }}/notes/upload'
+              headers:
+                x-api-key: '{{ apiKey }}'
+                Content-Type: 'application/json'
+              json:
+                chunkedData:
+                  chunkIndex: "{{ $loopCount }}"
+                  totalChunks: "{{ $notesChunks }}"
+                  sessionId: '{{ sessionId }}'
+                  originalSize: 10240
+                  compressedSize: 5120
+                  payload: 'H4sIAAAAAAAAA0tJLElMBQAR9gKvBgAAAA=='
+              expect:
+                - statusCode: [200, 429]
+          - think: 0.2
+        count: '{{ notesChunks }}'
+
+      # 3. Upload des assets en boucle
+      - think: 0.5
+      - loop:
+          - post:
+              url: '/api/session/{{ sessionId }}/assets/upload'
+              headers:
+                x-api-key: '{{ apiKey }}'
+                Content-Type: 'application/json'
+              json:
+                chunkedData:
+                  chunkIndex: "{{ $loopCount }}"
+                  totalChunks: "{{ $assetsChunks }}"
+                  sessionId: '{{ sessionId }}'
+                  originalSize: 20480
+                  compressedSize: 10240
+                  payload: 'H4sIAAAAAAAAA0tJLElMBQAR9gKvBgAAAA=='
+              expect:
+                - statusCode: [200, 429]
+          - think: 0.2
+        count: '{{ assetsChunks }}'
+
+      # 4. Finaliser la session (now async with job queue)
+      - think: 1
+      - post:
+          url: '/api/session/{{ sessionId }}/finish'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            notesProcessed: "{{ $notesCount }}"
+            assetsProcessed: "{{ $assetsCount }}"
+          capture:
+            - json: '$.jobId'
+              as: 'jobId'
+          expect:
+            - statusCode: [202, 429] # 202 Accepted for async processing
+
+      # 5. Poll job status until completion (max 30s)
+      - loop:
+          - think: 0.5
+          - get:
+              url: '/api/session/{{ sessionId }}/status'
+              headers:
+                x-api-key: '{{ apiKey }}'
+              capture:
+                - json: '$.status'
+                  as: 'jobStatus'
+                - json: '$.progress'
+                  as: 'jobProgress'
+              expect:
+                - statusCode: [200, 404]
+          # Break if completed or failed
+          - function: 'checkJobCompletion'
+        count: 60 # Max 30 seconds (60 * 0.5s)
+
+      # Pause avant la prochaine session
+      - think: '{{ $randomNumber(3, 7) }}'
+
+# Plugins pour métriques avancées
+plugins:
+  expect: {}
+  metrics-by-endpoint: {}
+
+# Processor pour logs personnalisés (optionnel)
+processor: './artillery-processor.js'

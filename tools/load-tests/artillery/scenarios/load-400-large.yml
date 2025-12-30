@@ -1,0 +1,70 @@
+config:
+  target: 'http://localhost:3000'
+  phases:
+    - duration: 360
+      arrivalRate: 1
+      maxVusers: 1
+      name: 'Large-focused load - 400 notes (50% large notes)'
+  processor: '../helpers/session-processor.js'
+  variables:
+    apiKey: '{{ $env.API_KEY }}'
+    notesCount: 400
+    assetsCount: 80
+  env:
+    NOTE_SIZE_PROFILE: 'largeFocused'
+  plugins:
+    expect: {}
+
+scenarios:
+  - name: 'Large-Focused Distribution - 400 Notes'
+    flow:
+      - function: 'generateSessionPayloads'
+
+      - post:
+          url: '/api/session/start'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            notesPlanned: 400
+            assetsPlanned: 80
+            batchConfig:
+              maxBytesPerRequest: 10485760
+            ignoredTags: []
+          capture:
+            - json: '$.sessionId'
+              as: 'sessionId'
+          expect:
+            - statusCode: 201
+
+      - post:
+          url: '/api/session/{{ sessionId }}/notes/upload'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            notes: '{{ notes }}'
+            cleanupRules: '{{ cleanupRules }}'
+          expect:
+            - statusCode: 200
+
+      - post:
+          url: '/api/session/{{ sessionId }}/assets/upload'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            assets: '{{ assets }}'
+          expect:
+            - statusCode: 200
+
+      - post:
+          url: '/api/session/{{ sessionId }}/finish'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            notesProcessed: 400
+            assetsProcessed: 80
+          expect:
+            - statusCode: 200

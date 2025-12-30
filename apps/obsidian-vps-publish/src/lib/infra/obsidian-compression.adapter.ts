@@ -1,5 +1,7 @@
 import type { CompressionPort } from '@core-domain/ports/compression-port';
 
+import { YieldScheduler } from '../utils/yield-scheduler.util';
+
 /**
  * Browser-based compression adapter using native CompressionStream API
  * Infrastructure layer - implements CompressionPort
@@ -20,19 +22,23 @@ export class ObsidianCompressionAdapter implements CompressionPort {
     const chunks: Uint8Array[] = [];
 
     const reader = compressedStream.getReader();
+    const scheduler = new YieldScheduler(10, 50); // Yield every 10 ops or 50ms
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       chunks.push(value);
+      await scheduler.maybeYield(); // Yield every 10 chunks or 50ms
     }
 
-    // Concatenate all chunks
+    // Concatenate all chunks with yielding
     const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
     const result = new Uint8Array(totalLength);
     let offset = 0;
     for (const chunk of chunks) {
       result.set(chunk, offset);
       offset += chunk.length;
+      await scheduler.maybeYield(); // Yield during concatenation too
     }
 
     return result;
@@ -50,19 +56,23 @@ export class ObsidianCompressionAdapter implements CompressionPort {
     const chunks: Uint8Array[] = [];
 
     const reader = decompressedStream.getReader();
+    const scheduler = new YieldScheduler(10, 50); // Yield every 10 ops or 50ms
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       chunks.push(value);
+      await scheduler.maybeYield(); // Yield every 10 chunks or 50ms
     }
 
-    // Concatenate and decode
+    // Concatenate and decode with yielding
     const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
     const result = new Uint8Array(totalLength);
     let offset = 0;
     for (const chunk of chunks) {
       result.set(chunk, offset);
       offset += chunk.length;
+      await scheduler.maybeYield(); // Yield during concatenation too
     }
 
     const decoder = new TextDecoder();

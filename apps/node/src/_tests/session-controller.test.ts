@@ -34,6 +34,13 @@ describe('sessionController', () => {
   const buildApp = () => {
     const app = express();
     app.use(express.json());
+
+    const finalizationJobService = {
+      queueFinalization: jest.fn().mockResolvedValue('test-job-id'),
+      getJobBySessionId: jest.fn(),
+      getJobStatus: jest.fn(),
+    } as any;
+
     app.use(
       createSessionController(
         createSessionHandler as any,
@@ -43,7 +50,8 @@ describe('sessionController', () => {
         uploadAssetsHandler as any,
         sessionFinalizer as any,
         stagingManager as any,
-        calloutRenderer as any
+        calloutRenderer as any,
+        finalizationJobService
       )
     );
     return app;
@@ -93,8 +101,9 @@ describe('sessionController', () => {
       notesProcessed: 1,
       assetsProcessed: 1,
     });
-    expect(resOk.status).toBe(200);
-    expect(sessionFinalizer.rebuildFromStored).toHaveBeenCalledWith('abc');
+    expect(resOk.status).toBe(202);
+    expect(resOk.body).toHaveProperty('jobId');
+    expect(resOk.body).toHaveProperty('statusUrl');
   });
 
   it('returns 400 on invalid finish payload', async () => {

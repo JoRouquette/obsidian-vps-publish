@@ -26,6 +26,7 @@ type ApiAsset = {
 export class AssetsUploaderAdapter implements UploaderPort {
   private readonly _logger: LoggerPort;
   private readonly chunkedUploadService: ChunkedUploadService;
+  private readonly concurrencyLimit: number;
 
   constructor(
     private readonly sessionClient: SessionApiClient,
@@ -33,10 +34,12 @@ export class AssetsUploaderAdapter implements UploaderPort {
     private readonly guidGenerator: GuidGeneratorPort,
     logger: LoggerPort,
     private readonly maxBytesPerRequest: number,
-    private readonly progress?: ProgressPort | StepProgressManagerPort
+    private readonly progress?: ProgressPort | StepProgressManagerPort,
+    concurrencyLimit?: number
   ) {
     this._logger = logger.child({ adapter: 'AssetsUploaderAdapter' });
     this._logger.debug('AssetsUploaderAdapter initialized');
+    this.concurrencyLimit = concurrencyLimit || 3; // Default to 3
 
     // Initialize dependencies (infrastructure adapters)
     const compression = new ObsidianCompressionAdapter();
@@ -67,7 +70,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
         assets,
         async (asset) => await this.buildApiAsset(asset),
         {
-          concurrency: 5, // Process 5 assets at a time
+          concurrency: this.concurrencyLimit, // Use same limit as upload batches
           batchSize: 10, // Yield to event loop every 10 assets
           onProgress: (completed, total) => {
             this._logger.debug('Assets preparation progress', {
@@ -132,7 +135,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
         this.advanceProgress(batch.length);
       },
       {
-        concurrency: 3, // 3 batches in parallel
+        concurrency: this.concurrencyLimit, // Configurable batch concurrency
         yieldEveryN: 1, // yield after each batch
         onProgress: (current, total) => {
           this._logger.debug('Batch upload progress', {

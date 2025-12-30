@@ -1,4 +1,5 @@
 import { PerformanceTrackerAdapter } from '@core-application/infra/performance-tracker.adapter';
+import { processWithControlledConcurrency } from '@core-application/utils/concurrency.util';
 import { EvaluateIgnoreRulesHandler } from '@core-application/vault-parsing/handler/evaluate-ignore-rules.handler';
 import { HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
 import { ParseContentHandler } from '@core-application/vault-parsing/handler/parse-content.handler';
@@ -40,14 +41,17 @@ import { processDataviewBlocks } from './lib/dataview/process-dataview-blocks.se
 import { AbortCancellationAdapter } from './lib/infra/abort-cancellation.adapter';
 import { AssetsUploaderAdapter } from './lib/infra/assets-uploader.adapter';
 import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
+import { EventLoopMonitorAdapter } from './lib/infra/event-loop-monitor.adapter';
 import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
 import { NotesUploaderAdapter } from './lib/infra/notes-uploader.adapter';
 import { NoticeNotificationAdapter } from './lib/infra/notice-notification.adapter';
 import { NoticeProgressAdapter } from './lib/infra/notice-progress.adapter';
 import { ObsidianAssetsVaultAdapter } from './lib/infra/obsidian-assets-vault.adapter';
 import { ObsidianVaultAdapter } from './lib/infra/obsidian-vault.adapter';
+import { PublishingTraceService } from './lib/infra/publishing-trace.service';
 import { createStepMessages, getStepLabel } from './lib/infra/step-messages.factory';
 import { StepProgressManagerAdapter } from './lib/infra/step-progress-manager.adapter';
+import { UiPressureMonitorAdapter } from './lib/infra/ui-pressure-monitor.adapter';
 import { testVpsConnection } from './lib/services/http-connection.service';
 import { SessionApiClient } from './lib/services/session-api.client';
 import { ObsidianVpsPublishSettingTab } from './lib/setting-tab.view';
@@ -65,6 +69,12 @@ const defaultSettings: PluginSettings = {
   frontmatterTagsToExclude: [],
   logLevel: DEFAULT_LOGGER_LEVEL,
   calloutStylePaths: [],
+  // Performance defaults (conservative values for stability)
+  maxConcurrentDataviewNotes: 5,
+  maxConcurrentUploads: 3,
+  maxConcurrentFileReads: 5,
+  // Performance debugging
+  enablePerformanceDebug: false,
 };
 
 // -----------------------------------------------------------------------------
@@ -364,6 +374,28 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     const scopedLogger = this.logger.child({ vps: vps.id ?? 'default' });
     const guidGenerator = new GuidGeneratorAdapter();
 
+    // ========================================================================
+    // PHASE 1: PERFORMANCE INSTRUMENTATION
+    // ========================================================================
+    // Generate unique upload run ID for correlation
+    const uploadRunId = guidGenerator.generateGuid();
+
+    // Enable performance debug mode if configured
+    const enablePerfDebug = settings.enablePerformanceDebug ?? false;
+
+    // Initialize publishing trace service
+    const trace = new PublishingTraceService(uploadRunId, scopedLogger);
+    scopedLogger.info('🚀 Publishing started', {
+      uploadRunId,
+      vpsId: vps.id,
+      vpsName: vps.name,
+      perfDebugEnabled: enablePerfDebug,
+    });
+
+    // Start event loop lag monitor
+    const eventLoopMonitor = new EventLoopMonitorAdapter(scopedLogger, 100);
+    eventLoopMonitor.start();
+
     // Initialize performance tracker
     // Debug mode enabled if logLevel is 'debug'
     const debugMode = settings.logLevel === LogLevel.debug;
@@ -373,13 +405,20 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       vpsName: vps.name,
     });
 
+    // Initialize UI pressure monitor
+    const uiMonitor = new UiPressureMonitorAdapter(scopedLogger);
+
     // Initialiser les statistiques de publication
     const stats: PublishingStats = createPublishingStats();
     stats.startedAt = new Date();
 
     // Initialiser le système de progress et notifications
-    const totalProgressAdapter = new NoticeProgressAdapter(translate(t, 'notice.publishing'), t);
-    const notificationAdapter = new NoticeNotificationAdapter();
+    const totalProgressAdapter = new NoticeProgressAdapter(
+      translate(t, 'notice.publishing'),
+      t,
+      uiMonitor
+    );
+    const notificationAdapter = new NoticeNotificationAdapter(uiMonitor);
     const stepMessages = createStepMessages(t.plugin);
     const stepProgressManager = new StepProgressManagerAdapter(
       totalProgressAdapter,
@@ -397,9 +436,13 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ====================================================================
       // ÉTAPE 1: PARSE_VAULT - Parsing du vault
       // ====================================================================
+      trace.startStep('1-parse-vault-init');
+
       const parseVaultSpan = perfTracker.startSpan('parse-vault');
 
       notificationAdapter.info(translate(t, 'notice.analyzingVault'));
+
+      trace.checkpoint('1-parse-vault-init', 'creating-vault-adapter');
 
       const vault = new ObsidianVaultAdapter(
         this.app,
@@ -407,12 +450,20 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         scopedLogger,
         vps.customRootIndexFile
       );
+
+      trace.checkpoint('1-parse-vault-init', 'calling-collectFromFolder');
+      trace.endStep('1-parse-vault-init');
+
+      trace.startStep('2-collect-notes');
+
       const notes: CollectedNote[] = await vault.collectFromFolder(
         {
           folderConfig: vps.folders,
         },
         cancellation
       );
+
+      trace.endStep('2-collect-notes', { notesCount: notes.length });
 
       stats.totalNotesAnalyzed = notes.length;
 
@@ -421,6 +472,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const dataviewApi = (this.app as any).plugins?.plugins?.dataview?.api as
         | DataviewApi
         | undefined;
+
+      trace.startStep('3-check-dataview');
+
       scopedLogger.debug('🔌 Dataview plugin status check', {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         hasPluginsManager: !!(this.app as any).plugins,
@@ -439,6 +493,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         scopedLogger.debug('Dataview plugin detected and ready');
       }
 
+      trace.endStep('3-check-dataview');
+
+      trace.startStep('4-build-parse-handler');
+
       const parseContentHandler = this.buildParseContentHandler(
         vps,
         settings,
@@ -448,11 +506,17 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         cancellation
       );
 
+      trace.endStep('4-build-parse-handler');
+
       scopedLogger.debug('Parsing content', {
         notesCount: notes.length,
       });
 
+      trace.startStep('5-parse-content');
+
       const publishables = await parseContentHandler.handle(notes);
+
+      trace.endStep('5-parse-content', { publishablesCount: publishables.length });
 
       perfTracker.endSpan(parseVaultSpan, {
         notesCollected: notes.length,
@@ -494,6 +558,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ====================================================================
       // SESSION START - Démarrage de la session
       // ====================================================================
+      trace.startStep('6-session-start');
+
       sessionClient = new SessionApiClient(
         vps.baseUrl,
         vps.apiKey,
@@ -501,7 +567,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         this.logger,
         t
       );
+
+      trace.checkpoint('6-session-start', 'loading-callout-styles');
+
       const calloutStyles = await this.loadCalloutStyles(settings.calloutStylePaths ?? []);
+
+      trace.checkpoint('6-session-start', 'building-custom-index-configs');
 
       // Build custom index configs from VPS and folder settings
       const customIndexConfigs: CustomIndexConfig[] = [];
@@ -533,6 +604,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         configs: customIndexConfigs,
       });
 
+      trace.checkpoint('6-session-start', 'calling-startSession-api');
+
       const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
       const started = await sessionClient.startSession({
         notesPlanned: publishableCount,
@@ -545,11 +618,19 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
       sessionId = started.sessionId;
       const serverRequestLimit = started.maxBytesPerRequest;
+
+      trace.endStep('6-session-start', {
+        sessionId,
+        maxBytesPerRequest: serverRequestLimit,
+      });
+
       this.logger.debug('Session started', { sessionId, maxBytesPerRequest: serverRequestLimit });
 
       // ====================================================================
       // ÉTAPE 2: UPLOAD_NOTES - Upload des notes
       // ====================================================================
+      trace.startStep('7-upload-notes');
+
       const uploadNotesSpan = perfTracker.startSpan('upload-notes');
 
       // Filtrer les règles de nettoyage : ne garder que celles activées avec regex valide
@@ -575,7 +656,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         this.logger,
         serverRequestLimit,
         stepProgressManager,
-        validCleanupRules
+        validCleanupRules,
+        settings.maxConcurrentUploads || 3
       );
 
       // Calculer le nombre de batchs
@@ -604,12 +686,19 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         batchCount: stats.notesBatchCount,
       });
 
+      trace.endStep('7-upload-notes', {
+        notesUploaded: stats.notesUploaded,
+        batchCount: stats.notesBatchCount,
+      });
+
       stepProgressManager.completeStep(ProgressStepId.UPLOAD_NOTES);
 
       // ====================================================================
       // ÉTAPE 3: UPLOAD_ASSETS - Upload des assets
       // ====================================================================
       if (notesWithAssets.length > 0 && assetsPlanned > 0) {
+        trace.startStep('8-upload-assets');
+
         const uploadAssetsSpan = perfTracker.startSpan('upload-assets');
 
         const assetsVault = new ObsidianAssetsVaultAdapter(this.app, this.logger);
@@ -619,7 +708,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           new GuidGeneratorAdapter(),
           this.logger,
           serverRequestLimit,
-          stepProgressManager
+          stepProgressManager,
+          settings.maxConcurrentUploads || 3
         );
 
         const resolvedAssets = await assetsVault.resolveAssetsFromNotes(
@@ -654,6 +744,11 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           batchCount: stats.assetsBatchCount,
         });
 
+        trace.endStep('8-upload-assets', {
+          assetsUploaded: stats.assetsUploaded,
+          batchCount: stats.assetsBatchCount,
+        });
+
         stepProgressManager.completeStep(ProgressStepId.UPLOAD_ASSETS);
         this.logger.debug('Assets uploaded', { assetsUploaded: stats.assetsUploaded });
       } else {
@@ -667,6 +762,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ====================================================================
       // ÉTAPE 4: FINALIZE_SESSION - Finalisation
       // ====================================================================
+      trace.startStep('9-finalize-session');
+
       const finalizeSpan = perfTracker.startSpan('finalize-session');
 
       stepProgressManager.startStep(
@@ -685,11 +782,19 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
       perfTracker.endSpan(finalizeSpan);
 
+      trace.endStep('9-finalize-session');
+
       // Terminer le progress global
       totalProgressAdapter.finish();
 
       // Finaliser les stats
       stats.completedAt = new Date();
+
+      // ========================================================================
+      // PHASE 1: STOP PERFORMANCE INSTRUMENTATION AND GENERATE REPORTS
+      // ========================================================================
+      // Stop event loop monitor
+      const eventLoopStats = eventLoopMonitor.stop();
 
       // End performance tracking
       perfTracker.endSpan(sessionPerfSpan, {
@@ -702,16 +807,49 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const perfSummary = perfTracker.generateSummary();
       scopedLogger.info('📊 Performance Summary:\n' + perfSummary);
 
+      // Generate and log publishing trace summary
+      const traceSummary = trace.getSummary();
+      scopedLogger.info(traceSummary);
+
+      // Log event loop statistics
+      scopedLogger.info('⏱️ Event Loop Lag Statistics', {
+        uploadRunId,
+        samples: eventLoopStats.samples,
+        minLagMs: eventLoopStats.minLagMs.toFixed(2),
+        maxLagMs: eventLoopStats.maxLagMs.toFixed(2),
+        avgLagMs: eventLoopStats.avgLagMs.toFixed(2),
+        p50LagMs: eventLoopStats.p50LagMs.toFixed(2),
+        p95LagMs: eventLoopStats.p95LagMs.toFixed(2),
+        p99LagMs: eventLoopStats.p99LagMs.toFixed(2),
+      });
+
+      // Generate and log UI pressure summary
+      const uiPressureSummary = uiMonitor.generateSummary();
+      scopedLogger.info('🎯 ' + uiPressureSummary);
+
       // Afficher les stats finales
       const summary = formatPublishingStats(stats, t.publishingStats);
 
+      // Add performance debug summary if enabled
+      let perfDebugInfo = '';
+      if (enablePerfDebug) {
+        const traceData = trace.getStructuredData();
+        const topSteps = traceData.steps
+          .sort((a, b) => b.durationSec - a.durationSec)
+          .slice(0, 3)
+          .map((step) => `${step.name}: ${step.durationSec.toFixed(2)}s`)
+          .join(', ');
+
+        perfDebugInfo = `\n\n🔍 Performance Debug:\nTotal: ${traceData.totalDurationSec.toFixed(2)}s\nTop steps: ${topSteps}\nEvent loop p95 lag: ${eventLoopStats.p95LagMs.toFixed(0)}ms`;
+      }
+
       // Add performance hint if debug mode is off
       let perfHint = '';
-      if (!debugMode) {
+      if (!debugMode && !enablePerfDebug) {
         perfHint = t.notice.debugModeHint;
       }
 
-      new Notice(summary + perfHint, 10000); // Afficher pendant 10 secondes
+      new Notice(summary + perfDebugInfo + perfHint, 10000); // Afficher pendant 10 secondes
 
       this.logger.debug('Publishing completed successfully', { stats });
     } catch (err) {
@@ -881,8 +1019,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // Create executor if Dataview API is available
       const executor = dataviewApi ? new DataviewExecutor(dataviewApi, this.app) : undefined;
 
-      return Promise.all(
-        notes.map(async (note) => {
+      // Process notes with controlled concurrency to avoid UI freeze
+      const results: PublishableNote[] = [];
+
+      await processWithControlledConcurrency(
+        notes,
+        async (note) => {
           cancel?.throwIfCancelled();
 
           try {
@@ -896,20 +1038,33 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
             // CRITICAL: Replace content with native Markdown
             // This ensures fenced code blocks are NEVER uploaded
             // Content now has Markdown wikilinks/tables instead of ```dataview blocks
-            return {
+            results.push({
               ...note,
               content: result.content, // Content now has Markdown instead of ```dataview blocks
-            };
+            });
           } catch (error) {
             logger.error('Failed to process Dataview blocks', {
               noteId: note.noteId,
               error: error instanceof Error ? error.message : String(error),
             });
             // Return note unchanged on catastrophic error
-            return note;
+            results.push(note);
           }
-        })
+        },
+        {
+          concurrency: settings.maxConcurrentDataviewNotes || 5, // Configurable
+          yieldEveryN: 5, // Yield to UI every 5 notes
+          onProgress: (current, total) => {
+            logger.debug('Dataview processing progress', {
+              current,
+              total,
+              percentComplete: ((current / total) * 100).toFixed(1),
+            });
+          },
+        }
       );
+
+      return results;
     };
 
     const leafletBlocksDetector = new DetectLeafletBlocksService(logger);

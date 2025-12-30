@@ -1,0 +1,70 @@
+config:
+  target: 'http://localhost:3000'
+  phases:
+    - duration: 240
+      arrivalRate: 1
+      maxVusers: 1
+      name: 'Balanced load - 300 notes (equal distribution)'
+  processor: '../helpers/session-processor.js'
+  variables:
+    apiKey: '{{ $env.API_KEY }}'
+    notesCount: 300
+    assetsCount: 60
+  env:
+    NOTE_SIZE_PROFILE: 'balanced'
+  plugins:
+    expect: {}
+
+scenarios:
+  - name: 'Balanced Distribution - 300 Notes'
+    flow:
+      - function: 'generateSessionPayloads'
+
+      - post:
+          url: '/api/session/start'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            notesPlanned: 300
+            assetsPlanned: 60
+            batchConfig:
+              maxBytesPerRequest: 10485760
+            ignoredTags: []
+          capture:
+            - json: '$.sessionId'
+              as: 'sessionId'
+          expect:
+            - statusCode: 201
+
+      - post:
+          url: '/api/session/{{ sessionId }}/notes/upload'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            notes: '{{ notes }}'
+            cleanupRules: '{{ cleanupRules }}'
+          expect:
+            - statusCode: 200
+
+      - post:
+          url: '/api/session/{{ sessionId }}/assets/upload'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            assets: '{{ assets }}'
+          expect:
+            - statusCode: 200
+
+      - post:
+          url: '/api/session/{{ sessionId }}/finish'
+          headers:
+            x-api-key: '{{ apiKey }}'
+            Content-Type: 'application/json'
+          json:
+            notesProcessed: 300
+            assetsProcessed: 60
+          expect:
+            - statusCode: 200

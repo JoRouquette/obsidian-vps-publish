@@ -15,6 +15,7 @@ import { type Request, type Response, Router } from 'express';
 
 import { type StagingManager } from '../../../filesystem/staging-manager';
 import { type CalloutRendererService } from '../../../markdown/callout-renderer.service';
+import { type SessionFinalizationJobService } from '../../../sessions/session-finalization-job.service';
 import { type SessionFinalizerService } from '../../../sessions/session-finalizer.service';
 import { BYTES_LIMIT } from '../app';
 import { CreateSessionBodyDto } from '../dto/create-session-body.dto';
@@ -31,6 +32,7 @@ export function createSessionController(
   sessionFinalizer: SessionFinalizerService,
   stagingManager: StagingManager,
   calloutRenderer: CalloutRendererService,
+  finalizationJobService: SessionFinalizationJobService,
   logger?: LoggerPort
 ): Router {
   const router = Router();
@@ -180,7 +182,7 @@ export function createSessionController(
     }
   });
 
-  // Fin de session
+  // Fin de session (async with job queue)
   router.post('/session/:sessionId/finish', async (req: Request, res: Response) => {
     const routeLogger = log?.child({
       route: '/session/:sessionId/finish',
@@ -200,18 +202,26 @@ export function createSessionController(
     };
 
     try {
+      // Update session status (fast)
       const result = await finishSessionHandler.handle(command);
       routeLogger?.debug('Session finished', { sessionId: result.sessionId });
 
-      await sessionFinalizer.rebuildFromStored(req.params.sessionId);
-      routeLogger?.debug('Session content rebuilt from full batch', {
+      // Queue heavy finalization work (returns immediately)
+      const jobId = await finalizationJobService.queueFinalization(req.params.sessionId);
+
+      routeLogger?.info('Session finalization queued', {
         sessionId: req.params.sessionId,
+        jobId,
       });
 
-      await stagingManager.promoteSession(req.params.sessionId);
-      routeLogger?.debug('Staging promoted to production', { sessionId: req.params.sessionId });
-
-      return res.status(200).json(result);
+      // Return 202 Accepted with job ID for status polling
+      return res.status(202).json({
+        sessionId: result.sessionId,
+        success: true,
+        jobId,
+        message: 'Session finalization in progress',
+        statusUrl: `/api/session/${req.params.sessionId}/status`,
+      });
     } catch (err) {
       if (err instanceof SessionNotFoundError) {
         routeLogger?.warn('Session not found', { error: err.message });
@@ -226,6 +236,46 @@ export function createSessionController(
       routeLogger?.error('Error while finishing session', { err });
       return res.status(500).json({ status: 'error' });
     }
+  });
+
+  // Get session/job status
+  router.get('/session/:sessionId/status', async (req: Request, res: Response) => {
+    const routeLogger = log?.child({
+      route: '/session/:sessionId/status',
+      method: 'GET',
+      sessionId: req.params.sessionId,
+    });
+
+    const job = finalizationJobService.getJobBySessionId(req.params.sessionId);
+
+    if (!job) {
+      routeLogger?.warn('No finalization job found for session', {
+        sessionId: req.params.sessionId,
+      });
+      return res.status(404).json({
+        status: 'not_found',
+        message: 'No finalization job found for this session',
+      });
+    }
+
+    routeLogger?.debug('Finalization job status retrieved', {
+      sessionId: req.params.sessionId,
+      jobId: job.jobId,
+      status: job.status,
+      progress: job.progress,
+    });
+
+    return res.status(200).json({
+      jobId: job.jobId,
+      sessionId: job.sessionId,
+      status: job.status,
+      progress: job.progress,
+      createdAt: job.createdAt,
+      startedAt: job.startedAt,
+      completedAt: job.completedAt,
+      error: job.error,
+      result: job.result,
+    });
   });
 
   // Abandon de session

@@ -18,6 +18,7 @@ import { ObsidianCompressionAdapter } from './obsidian-compression.adapter';
 export class NotesUploaderAdapter implements UploaderPort {
   private readonly _logger: LoggerPort;
   private readonly chunkedUploadService: ChunkedUploadService;
+  private readonly concurrencyLimit: number;
 
   constructor(
     private readonly sessionClient: SessionApiClient,
@@ -26,9 +27,11 @@ export class NotesUploaderAdapter implements UploaderPort {
     logger: LoggerPort,
     private readonly maxBytesPerRequest: number,
     private readonly progress?: ProgressPort | StepProgressManagerPort,
-    private readonly cleanupRules?: SanitizationRules[]
+    private readonly cleanupRules?: SanitizationRules[],
+    concurrencyLimit?: number
   ) {
     this._logger = logger.child({ component: 'NotesUploaderAdapter' });
+    this.concurrencyLimit = concurrencyLimit || 3; // Default to 3
 
     // Initialize dependencies (infrastructure adapters)
     const compression = new ObsidianCompressionAdapter();
@@ -108,7 +111,7 @@ export class NotesUploaderAdapter implements UploaderPort {
         this.advanceProgress(batch.length);
       },
       {
-        concurrency: 3, // 3 batches in parallel
+        concurrency: this.concurrencyLimit, // Configurable batch concurrency
         yieldEveryN: 1, // yield after each batch
         onProgress: (current, total) => {
           this._logger.debug('Batch upload progress', {

@@ -66,4 +66,14 @@ export class EnvConfig {
   static homeWelcomeTitle(): string {
     return this.norm(process.env.HOME_WELCOME_TITLE) || 'Bienvenue sur votre site de lore.';
   }
+
+  static maxActiveRequests(): number {
+    const val = Number(this.norm(process.env.MAX_ACTIVE_REQUESTS));
+    return Number.isFinite(val) && val > 0 ? val : 200;
+  }
+
+  static maxConcurrentFinalizationJobs(): number {
+    const val = Number(this.norm(process.env.MAX_CONCURRENT_FINALIZATION_JOBS));
+    return Number.isFinite(val) && val > 0 ? val : 8;
+  }
 }
