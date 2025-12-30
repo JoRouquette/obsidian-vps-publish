@@ -167,6 +167,55 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
       this.logger.debug('Finished note collection for folder', {
         rootPath,
       });
+
+      // Collect custom index file for this folder (if configured and not already collected)
+      if (cfg.customIndexFile) {
+        cancellation?.throwIfCancelled();
+
+        const customIndexPath = this.normalizePath(cfg.customIndexFile);
+        const alreadyCollected = result.some((note) => note.vaultPath === customIndexPath);
+
+        if (!alreadyCollected) {
+          const customIndexFile = this.app.vault.getAbstractFileByPath(customIndexPath);
+          if (customIndexFile && customIndexFile instanceof TFile) {
+            this.logger.debug('Collecting custom index file for folder (outside vaultFolder)', {
+              folderPath: rootPath,
+              customIndexPath,
+            });
+            const rawContent = await this.app.vault.read(customIndexFile);
+            const cache = this.app.metadataCache.getFileCache(customIndexFile);
+            const frontmatter: Record<string, unknown> =
+              (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+
+            const content = this.stripFrontmatter(rawContent);
+
+            result.push({
+              noteId: this.guidGenerator.generateGuid(),
+              title: customIndexFile.basename,
+              vaultPath: customIndexFile.path,
+              relativePath: this.computeRelative(customIndexFile.path, rootPath),
+              content,
+              frontmatter: { flat: frontmatter, nested: {}, tags: [] },
+              folderConfig: cfg,
+            });
+
+            this.logger.debug('Collected custom index file', {
+              path: customIndexFile.path,
+              originalLength: rawContent.length,
+              strippedLength: content.length,
+            });
+          } else {
+            this.logger.warn('Custom index file not found in vault', {
+              folderPath: rootPath,
+              customIndexFile: cfg.customIndexFile,
+            });
+          }
+        } else {
+          this.logger.debug('Custom index file already collected from vaultFolder', {
+            customIndexPath,
+          });
+        }
+      }
     }
 
     this.logger.debug('Total notes collected', { count: result.length });
