@@ -100,6 +100,8 @@ export const FolderConfigDto = z.object({
   routeBase: z.string(),
   vpsId: z.string(),
   ignoredCleanupRuleIds: z.array(z.string()).default([]),
+  customIndexFile: z.string().optional(),
+  flattenTree: z.boolean().optional().default(false),
 });
 
 // DomainFrontmatter
