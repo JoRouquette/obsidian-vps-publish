@@ -133,6 +133,18 @@ function renderFolderConfig(
     });
   });
 
+  // Flatten tree option
+  new Setting(singleFolderFieldset)
+    .setName(t.settings.folders.flattenTreeLabel)
+    .setDesc(t.settings.folders.flattenTreeDescription)
+    .addToggle((toggle) =>
+      toggle.setValue(folderCfg.flattenTree ?? false).onChange((value) => {
+        logger.debug('Folder flattenTree changed', { folderId: folderCfg.id, value });
+        folderCfg.flattenTree = value;
+        void ctx.save();
+      })
+    );
+
   // Vault folder path
   const vaultSetting = new Setting(singleFolderFieldset)
     .setName(t.settings.folders.vaultLabel)
@@ -192,18 +204,6 @@ function renderFolderConfig(
 
     new FileSuggest(ctx.app, text.inputEl);
   });
-
-  // Flatten tree option
-  new Setting(singleFolderFieldset)
-    .setName(t.settings.folders.flattenTreeLabel)
-    .setDesc(t.settings.folders.flattenTreeDescription)
-    .addToggle((toggle) =>
-      toggle.setValue(folderCfg.flattenTree ?? false).onChange((value) => {
-        logger.debug('Folder flattenTree changed', { folderId: folderCfg.id, value });
-        folderCfg.flattenTree = value;
-        void ctx.save();
-      })
-    );
 
   // Cleanup rules ignore section
   renderCleanupRulesIgnoreSection(singleFolderFieldset, vps, folderCfg, ctx);
