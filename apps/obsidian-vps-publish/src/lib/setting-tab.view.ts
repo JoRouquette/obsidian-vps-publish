@@ -5,9 +5,9 @@ import type ObsidianVpsPublishPlugin from '../main';
 import { buildSettingsContext } from './settings/context';
 import { normalizeSettings } from './settings/normalize-settings';
 import { renderAdvancedSection } from './settings/sections/advanced-section';
-import { renderFoldersSection } from './settings/sections/folders-section';
 import { renderIgnoreRulesSection } from './settings/sections/ignore-rules-section';
 import { renderLanguageSection } from './settings/sections/language-section';
+import { renderRoutesSection } from './settings/sections/routes-section';
 import { renderVaultSection } from './settings/sections/vault-section';
 import { renderVpsSection } from './settings/sections/vps-section';
 
@@ -52,7 +52,7 @@ export class ObsidianVpsPublishSettingTab extends PluginSettingTab {
 
     renderLanguageSection(root, ctx);
     renderVaultSection(root, ctx);
-    renderFoldersSection(root, ctx);
+    renderRoutesSection(root, ctx);
     renderIgnoreRulesSection(root, ctx);
     renderVpsSection(root, ctx);
     renderAdvancedSection(root, ctx);

@@ -9,6 +9,13 @@ export interface ManifestPage {
   description?: string;
   publishedAt: Date;
 
+  /**
+   * Optional display name for the folder/route this page belongs to
+   * Used in navigation breadcrumbs and folder indexes
+   * Falls back to humanized route segment if not set
+   */
+  folderDisplayName?: string;
+
   vaultPath?: string;
   relativePath?: string;
   tags?: string[];

@@ -99,6 +99,7 @@ export const FolderConfigDto = z.object({
   vaultFolder: z.string(),
   routeBase: z.string(),
   vpsId: z.string(),
+  displayName: z.string().optional(),
   ignoredCleanupRuleIds: z.array(z.string()).default([]),
   customIndexFile: z.string().optional(),
   flattenTree: z.boolean().optional().default(false),
@@ -129,6 +130,7 @@ export const NoteRoutingInfoDto = z.object({
   path: z.string(),
   routeBase: z.string(),
   fullPath: z.string(),
+  folderDisplayName: z.string().optional(),
 });
 
 // NoteEligibility

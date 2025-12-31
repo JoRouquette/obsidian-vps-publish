@@ -1,6 +1,7 @@
 import type { CustomIndexConfig } from './custom-index-config';
 import type { FolderConfig } from './folder-config';
 import type { IgnoreRule } from './ignore-rule';
+import type { RouteTreeConfig } from './route-node';
 import type { SanitizationRules, SanitizationRulesDefaults } from './sanitization-rules';
 
 export interface VpsConfig {
@@ -25,8 +26,24 @@ export interface VpsConfig {
    */
   cleanupRules: (SanitizationRules | SanitizationRulesDefaults)[];
 
-  /** Folders associated with this VPS (minimum 1 required) */
-  folders: FolderConfig[];
+  /**
+   * BREAKING CHANGE: Route tree configuration (new route-first model)
+   * Replaces the old `folders` array
+   *
+   * If present, this takes precedence over `folders`
+   * During migration, `folders` will be converted to `routeTree`
+   */
+  routeTree?: RouteTreeConfig;
+
+  /**
+   * @deprecated Legacy folder configuration (folder-first model)
+   * Kept for backward compatibility during migration
+   * Will be removed in a future version
+   *
+   * If `routeTree` is present, this field is ignored
+   * On plugin load, this will be auto-migrated to `routeTree`
+   */
+  folders?: FolderConfig[];
 
   /**
    * Custom index configurations for folders.
@@ -64,8 +81,12 @@ export class VpsConfigInvariants {
   }
 
   static validateMinimumFolders(vps: VpsConfig): void {
-    if (!vps.folders || vps.folders.length === 0) {
-      throw new Error(`VPS "${vps.name}" must have at least one folder`);
+    // Check new routeTree first, fallback to legacy folders
+    const hasRoutes = vps.routeTree && vps.routeTree.roots && vps.routeTree.roots.length > 0;
+    const hasFolders = vps.folders && vps.folders.length > 0;
+
+    if (!hasRoutes && !hasFolders) {
+      throw new Error(`VPS "${vps.name}" must have at least one route or folder`);
     }
   }
 

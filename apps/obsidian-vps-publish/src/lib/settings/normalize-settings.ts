@@ -1,3 +1,4 @@
+import type { FolderConfig } from '@core-domain/entities/folder-config';
 import { VpsConfigInvariants } from '@core-domain/entities/vps-config';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 
@@ -89,11 +90,19 @@ function createDefaultVps(): PluginSettings['vpsConfigs'][0] {
     apiKey: '',
     ignoreRules: [],
     cleanupRules: [],
-    folders: [createDefaultFolder(vpsId)],
+    routeTree: {
+      roots: [
+        {
+          id: `folder-${Date.now()}`,
+          segment: '',
+          ignoredCleanupRuleIds: [],
+        },
+      ],
+    },
   };
 }
 
-function createDefaultFolder(vpsId: string): PluginSettings['vpsConfigs'][0]['folders'][0] {
+function createDefaultFolder(vpsId: string): FolderConfig {
   return {
     id: `folder-${Date.now()}`,
     vpsId,

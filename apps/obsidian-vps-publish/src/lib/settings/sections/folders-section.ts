@@ -7,6 +7,7 @@ import type { Translations } from '../../../i18n';
 import { translate } from '../../../i18n';
 import { FileSuggest } from '../../suggesters/file-suggester';
 import { FolderSuggest } from '../../suggesters/folder-suggester';
+import { getEffectiveFolders } from '../../utils/get-effective-folders.util';
 import type { SettingsViewContext } from '../context';
 
 /**
@@ -69,7 +70,8 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
       )
       .setHeading();
 
-    const vpsFolders = vps.folders || [];
+    // Get effective folders (from routeTree or legacy folders)
+    const vpsFolders = getEffectiveFolders(vps);
 
     // Ensure at least one folder per VPS
     if (vpsFolders.length === 0) {
@@ -81,7 +83,9 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
         routeBase: '/',
         ignoredCleanupRuleIds: [],
       };
-      vps.folders = [defaultFolder];
+      // TODO: Will be refactored in Step 3 to use routeTree directly
+      if (!vps.folders) vps.folders = [];
+      vps.folders.push(defaultFolder);
     }
 
     // Render toolbar (search + sort + reset)
@@ -93,7 +97,8 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
     // Function to update list without re-rendering toolbar
     const updateList = () => {
       listContainer.empty();
-      const filteredFolders = filterFolders(vps.folders, uiState.searchQuery, vps, ctx);
+      const currentFolders = getEffectiveFolders(vps);
+      const filteredFolders = filterFolders(currentFolders, uiState.searchQuery, vps, ctx);
       const sortedFolders = sortFolders(filteredFolders, uiState.sortCriteria);
 
       if (sortedFolders.length === 0) {
@@ -143,6 +148,8 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
         routeBase: '/',
         ignoredCleanupRuleIds: [],
       };
+      // TODO: Will be refactored in Step 3 to use routeTree directly
+      if (!vps.folders) vps.folders = [];
       vps.folders.push(newFolder);
       uiState.editingFolderId = newFolder.id; // Auto-open editor
       void ctx.save().then(() => ctx.refresh());
@@ -300,7 +307,8 @@ function renderCompactFolderItem(
 
   // Main label (vault folder or fallback)
   const label = item.createDiv({ cls: 'ptpv-folder-item-label' });
-  const folderIndex = vps.folders.indexOf(folderCfg) + 1;
+  const currentFolders = getEffectiveFolders(vps);
+  const folderIndex = currentFolders.indexOf(folderCfg) + 1;
   const displayName =
     folderCfg.vaultFolder ||
     translate(t, 'settings.folders.emptyFolderLabel', { index: folderIndex.toString() });
@@ -353,12 +361,15 @@ function renderCompactFolderItem(
 
   const btnDelete = actions.createEl('button', { text: t.settings.folders.deleteButton });
   btnDelete.onclick = () => {
-    if (vps.folders.length <= 1) {
+    const currentFolders = getEffectiveFolders(vps);
+    if (currentFolders.length <= 1) {
       logger.warn('Attempted to delete last folder from VPS, forbidden.', { vpsId: vps.id });
       new Notice(t.settings.folders.deleteLastForbidden);
       return;
     }
     logger.debug('Folder deleted', { vpsId: vps.id, folderId: folderCfg.id });
+    // TODO: Will be refactored in Step 3 to use routeTree directly
+    if (!vps.folders) vps.folders = [];
     const folderIdx = vps.folders.findIndex((f) => f.id === folderCfg.id);
     if (folderIdx !== -1) {
       vps.folders.splice(folderIdx, 1);

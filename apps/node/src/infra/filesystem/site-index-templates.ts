@@ -37,7 +37,14 @@ export function renderFolderIndex(
   customContent?: string
 ) {
   const folderName = folderPath === '/' ? '/' : folderPath.split('/').filter(Boolean).pop()!;
-  const folderTitle = humanizePropertyKey(folderName) || 'Home';
+
+  // Use folderDisplayName from first page if available, otherwise humanize folder name
+  const displayName =
+    pages.length > 0 && pages[0].folderDisplayName
+      ? pages[0].folderDisplayName
+      : humanizePropertyKey(folderName) || 'Home';
+
+  const folderTitle = displayName;
 
   const subfoldList = subfolders
     .sort((a, b) => a.name.localeCompare(b.name))

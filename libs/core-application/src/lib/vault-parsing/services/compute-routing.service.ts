@@ -45,6 +45,7 @@ export class ComputeRoutingService implements BaseService {
           path: '',
           routeBase,
           fullPath: routeBase ? `${routeBase}/${slug}` : `/${slug}`,
+          folderDisplayName: note.folderConfig.displayName,
         };
         this._logger.debug('Computed routing for root note', { routing });
       } else {
@@ -87,6 +88,7 @@ export class ComputeRoutingService implements BaseService {
           path,
           routeBase,
           fullPath,
+          folderDisplayName: note.folderConfig.displayName,
         };
         this._logger.debug('Computed routing for note', {
           routing,

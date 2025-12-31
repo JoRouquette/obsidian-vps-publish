@@ -13,6 +13,11 @@ export interface TreeNode {
   route?: string;
   tags?: string[];
   children?: TreeNode[];
+  /**
+   * Optional display name from route configuration
+   * Takes precedence over label for folder names
+   */
+  displayName?: string;
 }
 
 export const defaultTreeNode: TreeNode = {
@@ -66,24 +71,28 @@ export class BuildTreeHandler implements QueryHandler<Manifest, TreeNode> {
         }
         current.count++;
       } else {
-        current = this.ensureFolderChild(current, segment);
+        // Pass folderDisplayName from page if available for this segment
+        current = this.ensureFolderChild(current, segment, page.folderDisplayName);
         current.count++;
       }
     }
   }
 
-  private folder(name: string, label: string, path: string): TreeNode {
-    return { kind: 'folder', name, label, path, children: [], count: 0 };
+  private folder(name: string, label: string, path: string, displayName?: string): TreeNode {
+    return { kind: 'folder', name, label, path, children: [], count: 0, displayName };
   }
 
-  private ensureFolderChild(parent: TreeNode, segment: string): TreeNode {
+  private ensureFolderChild(parent: TreeNode, segment: string, displayName?: string): TreeNode {
     parent.children = parent.children ?? [];
     let next = parent.children.find((child) => child.kind === 'folder' && child.name === segment);
 
     if (!next) {
       const path = parent.path ? parent.path + '/' + segment : segment;
-      next = this.folder(segment, this.pretty(segment), path);
+      next = this.folder(segment, this.pretty(segment), path, displayName);
       parent.children.push(next);
+    } else if (displayName && !next.displayName) {
+      // Update displayName if provided and not already set
+      next.displayName = displayName;
     }
 
     return next;
