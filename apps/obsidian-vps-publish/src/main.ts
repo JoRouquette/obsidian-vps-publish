@@ -5,6 +5,7 @@ import { HttpResponseHandler } from '@core-application/vault-parsing/handler/htt
 import { ParseContentHandler } from '@core-application/vault-parsing/handler/parse-content.handler';
 import { NotesMapper } from '@core-application/vault-parsing/mappers/notes.mapper';
 import { ComputeRoutingService } from '@core-application/vault-parsing/services/compute-routing.service';
+import { DeduplicateNotesService } from '@core-application/vault-parsing/services/deduplicate-notes.service';
 import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
 import { DetectLeafletBlocksService } from '@core-application/vault-parsing/services/detect-leaflet-blocks.service';
 import { DetectWikilinksService } from '@core-application/vault-parsing/services/detect-wikilinks.service';
@@ -527,11 +528,38 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         publishablesCount: publishables.length,
       });
 
-      const publishableCount = publishables.length;
+      // ====================================================================
+      // ÉTAPE 5b: DEDUPLICATE_NOTES - Déduplication par dossier
+      // ====================================================================
+      trace.startStep('5b-deduplicate-notes');
+
+      const deduplicateSpan = perfTracker.startSpan('deduplicate-notes');
+
+      const deduplicateService = new DeduplicateNotesService(scopedLogger);
+      const deduplicated = deduplicateService.process(publishables);
+
+      perfTracker.endSpan(deduplicateSpan, {
+        inputCount: publishables.length,
+        outputCount: deduplicated.length,
+        duplicatesRemoved: publishables.length - deduplicated.length,
+      });
+
+      trace.endStep('5b-deduplicate-notes', {
+        inputCount: publishables.length,
+        outputCount: deduplicated.length,
+      });
+
+      scopedLogger.debug('Notes deduplicated', {
+        inputCount: publishables.length,
+        outputCount: deduplicated.length,
+        removed: publishables.length - deduplicated.length,
+      });
+
+      const publishableCount = deduplicated.length;
       stats.notesEligible = publishableCount;
       stats.notesIgnored = notes.length - publishableCount;
 
-      const notesWithAssets = publishables.filter((n) => n.assets && n.assets.length > 0);
+      const notesWithAssets = deduplicated.filter((n) => n.assets && n.assets.length > 0);
       const assetsPlanned = notesWithAssets.reduce(
         (sum, n) => sum + (Array.isArray(n.assets) ? n.assets.length : 0),
         0
@@ -661,7 +689,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       );
 
       // Calculer le nombre de batchs
-      const notesBatchInfo = notesUploader.getBatchInfo(publishables);
+      const notesBatchInfo = notesUploader.getBatchInfo(deduplicated);
       stats.notesBatchCount = notesBatchInfo.batchCount;
 
       stepProgressManager.startStep(
@@ -677,7 +705,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         })
       );
 
-      await notesUploader.upload(publishables);
+      await notesUploader.upload(deduplicated);
 
       stats.notesUploaded = publishableCount;
 
