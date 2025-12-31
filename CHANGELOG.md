@@ -1,3 +1,9 @@
+## 5.2.0 (2025-12-31)
+
+* Merge branch 'feat/additionnal-files' ([0fe7876](https://github.com/JoRouquette/obsidian-vps-publish/commit/0fe7876))
+* feat: add note deduplication service to prevent slug collisions ([e7862b5](https://github.com/JoRouquette/obsidian-vps-publish/commit/e7862b5))
+* feat(plugin): add additional files support for folder publishing ([7e1d560](https://github.com/JoRouquette/obsidian-vps-publish/commit/7e1d560))
+
 ## 5.1.0 (2025-12-30)
 
 * Merge branch 'fix/improve-setting-ui' ([785e5e5](https://github.com/JoRouquette/obsidian-vps-publish/commit/785e5e5))
