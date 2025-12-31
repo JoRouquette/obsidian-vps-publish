@@ -3,6 +3,7 @@ export * from './handler/http-response.handler';
 export * from './requests/http-request.request';
 export * from './services/compute-routing.service';
 export * from './services/content-sanitizer.service';
+export * from './services/deduplicate-notes.service';
 export * from './services/detect-assets.service';
 export * from './services/detect-leaflet-blocks.service';
 export * from './services/detect-wikilinks.service';

@@ -503,8 +503,126 @@ function renderAdvancedOptions(
     new FileSuggest(ctx.app, text.inputEl);
   });
 
+  // Additional files section
+  renderAdditionalFilesSection(advancedContent, folderCfg, ctx);
+
   // Cleanup rules ignore section
   renderCleanupRulesIgnoreSection(advancedContent, vps, folderCfg, ctx);
+}
+
+/**
+ * Render section to manage additional files to include in this folder
+ * Files are published at the root of the folder's routeBase
+ */
+function renderAdditionalFilesSection(
+  container: HTMLElement,
+  folderCfg: FolderConfig,
+  ctx: SettingsViewContext
+): void {
+  const { t, logger, app } = ctx;
+
+  // Ensure additionalFiles exists
+  if (!Array.isArray(folderCfg.additionalFiles)) {
+    folderCfg.additionalFiles = [];
+  }
+
+  const filesSection = container.createDiv({ cls: 'ptpv-folder-additional-files' });
+
+  new Setting(filesSection)
+    .setName(t.settings.folders.additionalFilesLabel ?? 'Additional Files')
+    .setDesc(
+      t.settings.folders.additionalFilesDescription ??
+        'Files published at the root of this folder route, regardless of their vault location'
+    );
+
+  // Render current list as chips
+  const listContainer = filesSection.createDiv({ cls: 'ptpv-additional-files-list' });
+
+  const renderFilesList = () => {
+    listContainer.empty();
+
+    if (folderCfg.additionalFiles!.length === 0) {
+      listContainer.createEl('em', {
+        text: t.settings.folders.additionalFilesEmpty ?? 'No additional files',
+        cls: 'ptpv-empty-list',
+      });
+    } else {
+      folderCfg.additionalFiles!.forEach((filePath) => {
+        const chip = listContainer.createDiv({ cls: 'ptpv-file-chip' });
+        chip.createSpan({ text: filePath, cls: 'ptpv-file-chip-label' });
+
+        const removeBtn = chip.createEl('button', {
+          text: '×',
+          cls: 'ptpv-file-chip-remove',
+          attr: { 'aria-label': 'Remove file' },
+        });
+
+        removeBtn.addEventListener('click', () => {
+          logger.debug('Removing additional file', { folderId: folderCfg.id, filePath });
+          folderCfg.additionalFiles = folderCfg.additionalFiles!.filter((f) => f !== filePath);
+          void ctx.save();
+          renderFilesList();
+        });
+      });
+    }
+  };
+
+  renderFilesList();
+
+  // Add file button with suggester
+  new Setting(filesSection)
+    .setName(t.settings.folders.addAdditionalFileLabel ?? 'Add file')
+    .addButton((btn) =>
+      btn.setButtonText(t.settings.folders.addAdditionalFileButton ?? '+ Add file').onClick(() => {
+        // Create a temporary modal-like input with suggester
+        const modal = filesSection.createDiv({ cls: 'ptpv-file-suggester-modal' });
+        const inputWrapper = modal.createDiv({ cls: 'ptpv-file-suggester-input-wrapper' });
+
+        const input = inputWrapper.createEl('input', {
+          type: 'text',
+          placeholder: t.settings.folders.addAdditionalFilePlaceholder ?? 'Select a file...',
+          cls: 'ptpv-file-suggester-input',
+        });
+
+        const suggester = new FileSuggest(app, input);
+
+        // Override selectSuggestion to add file to list
+        const originalSelect = suggester.selectSuggestion.bind(suggester);
+        suggester.selectSuggestion = (file) => {
+          const filePath = file.path;
+
+          // Check for duplicates
+          if (folderCfg.additionalFiles!.includes(filePath)) {
+            logger.warn('File already in additional files list', { filePath });
+            new Notice(
+              t.settings.folders.additionalFileDuplicate ?? 'This file is already in the list'
+            );
+            modal.remove();
+            return;
+          }
+
+          logger.debug('Adding additional file', { folderId: folderCfg.id, filePath });
+          folderCfg.additionalFiles!.push(filePath);
+          void ctx.save();
+          renderFilesList();
+          modal.remove();
+          originalSelect(file); // Call original to close suggester properly
+        };
+
+        // Close modal on Escape or click outside
+        const closeModal = () => modal.remove();
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') closeModal();
+        });
+
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) closeModal();
+        });
+
+        // Focus input to open suggester
+        input.focus();
+      })
+    );
 }
 
 /**
