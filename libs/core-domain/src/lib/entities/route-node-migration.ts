@@ -155,3 +155,60 @@ function normalizeRoutePath(routePath: string): string {
   }
   return normalized;
 }
+
+/**
+ * Apply custom indexes from VpsConfig.customIndexes to route tree
+ * Migrates legacy customIndexes array to per-node customIndexFile
+ *
+ * @param routeTree - Route tree to update
+ * @param customIndexes - Legacy custom indexes array from VpsConfig
+ */
+export function applyCustomIndexesToRouteTree(
+  routeTree: RouteTreeConfig,
+  customIndexes: { folderPath: string; indexFilePath: string }[]
+): void {
+  if (!customIndexes || customIndexes.length === 0) return;
+
+  // Build a map of folderPath (normalized) -> indexFilePath
+  const indexMap = new Map<string, string>();
+  for (const config of customIndexes) {
+    const normalizedPath = normalizeRoutePath(config.folderPath);
+    indexMap.set(normalizedPath, config.indexFilePath);
+  }
+
+  // Traverse tree and apply customIndexFile to matching nodes
+  const applyToNode = (node: RouteNode, currentPath: string) => {
+    const nodePath = currentPath ? `${currentPath}/${node.segment}` : `/${node.segment}`;
+    const normalizedNodePath = normalizeRoutePath(nodePath);
+
+    // Check if this node matches a custom index config
+    if (indexMap.has(normalizedNodePath)) {
+      node.customIndexFile = indexMap.get(normalizedNodePath);
+    }
+
+    // Recursively apply to children
+    if (node.children) {
+      for (const child of node.children) {
+        applyToNode(child, normalizedNodePath);
+      }
+    }
+  };
+
+  // Apply to all roots
+  for (const root of routeTree.roots) {
+    // Root node check (empty segment = "/")
+    const rootPath = root.segment === '' ? '/' : `/${root.segment}`;
+    const normalizedRootPath = normalizeRoutePath(rootPath);
+
+    if (indexMap.has(normalizedRootPath)) {
+      root.customIndexFile = indexMap.get(normalizedRootPath);
+    }
+
+    // Process children
+    if (root.children) {
+      for (const child of root.children) {
+        applyToNode(child, normalizedRootPath);
+      }
+    }
+  }
+}

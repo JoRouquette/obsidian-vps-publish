@@ -540,12 +540,6 @@
   border: 2px solid var(--background-modifier-border);
   background-color: var(--background-primary);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  transition: all 0.2s ease;
-}
-
-.obsidian-vps-publish-settings .ptpv-cleanup-rule:hover {
-  border-color: var(--interactive-accent);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 /* Règles par défaut - Style distinctif */
@@ -740,12 +734,6 @@
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.ptpv-folder-item:hover {
-  background: var(--background-secondary-alt);
-  border-color: var(--interactive-accent);
 }
 
 .ptpv-folder-item-label {
@@ -1159,28 +1147,42 @@
   border-radius: 4px;
   background: var(--background-primary);
   margin-bottom: 2px;
-  transition: background 0.2s;
-}
-
-.ptpv-route-item:hover {
-  background: var(--background-primary-alt);
 }
 
 /* Expand/collapse button */
 .ptpv-route-expand-btn {
   width: 20px;
   height: 20px;
-  padding: 0;
-  font-size: 10px;
+  padding: 2px;
   background: transparent;
   border: none;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
   cursor: pointer;
   color: var(--text-muted);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .ptpv-route-expand-btn:hover {
+  background: transparent;
   color: var(--text-normal);
+  box-shadow: none;
+}
+
+.ptpv-route-expand-btn:focus,
+.ptpv-route-expand-btn:active {
+  box-shadow: none;
+  outline: none;
+  border: none;
+}
+
+.ptpv-route-expand-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .ptpv-route-expand-spacer {
@@ -1270,13 +1272,28 @@
 
 .ptpv-route-editor .setting-item {
   border-top: 1px solid var(--background-modifier-border);
-  padding-top: 0.75rem;
-  margin-bottom: 0.75rem;
+  padding-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .ptpv-route-editor .setting-item:first-child {
   border-top: none;
   padding-top: 0;
+}
+
+.ptpv-route-editor .setting-item-info {
+  margin-bottom: 0.75rem;
+}
+
+.ptpv-route-editor .setting-item-control {
+  width: 100%;
+}
+
+.ptpv-route-editor .setting-item-control input[type='text'],
+.ptpv-route-editor .setting-item-control .search-input-container {
+  width: 100%;
 }
 
 /* Children container */

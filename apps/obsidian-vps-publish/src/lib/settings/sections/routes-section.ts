@@ -1,7 +1,7 @@
 import type { RouteNode } from '@core-domain/entities/route-node';
 import { getNodeConflicts, validateRouteTree } from '@core-domain/entities/route-node-validation';
 import type { VpsConfig } from '@core-domain/entities/vps-config';
-import { Notice, Setting } from 'obsidian';
+import { Notice, setIcon, Setting } from 'obsidian';
 
 import { translate } from '../../../i18n';
 import { FileSuggest } from '../../suggesters/file-suggester';
@@ -31,8 +31,6 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
   const { t, settings, logger } = ctx;
 
   const routesBlock = root.createDiv({ cls: 'ptpv-block' });
-
-  new Setting(routesBlock).setName(t.settings.folders.title).setHeading();
 
   // Render routes organized by VPS
   settings.vpsConfigs.forEach((vps, vpsIndex) => {
@@ -150,10 +148,11 @@ function renderRouteNode(
   const hasChildren = node.children && node.children.length > 0;
   if (hasChildren) {
     const isExpanded = uiState.expandedNodes.has(node.id);
-    const btnExpand = item.createEl('button', {
+    const btnExpand = item.createEl('span', {
       cls: 'ptpv-route-expand-btn',
-      text: isExpanded ? '▼' : '▶',
+      attr: { 'aria-label': isExpanded ? 'Collapse' : 'Expand' },
     });
+    setIcon(btnExpand, isExpanded ? 'chevron-down' : 'chevron-right');
     btnExpand.onclick = () => {
       if (uiState.expandedNodes.has(node.id)) {
         uiState.expandedNodes.delete(node.id);

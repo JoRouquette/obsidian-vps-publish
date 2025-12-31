@@ -15,6 +15,7 @@ import { RemoveNoPublishingMarkerService } from '@core-application/vault-parsing
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
 import {
+  applyCustomIndexesToRouteTree,
   CancellationError,
   type CancellationPort,
   type CollectedNote,
@@ -311,9 +312,19 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           this.logger.info(`Migrating VPS "${vps.name}" from legacy folders to route tree`, {
             vpsId: vps.id,
             foldersCount: vps.folders.length,
+            customIndexesCount: vps.customIndexes?.length || 0,
           });
 
           const routeTree = migrateLegacyFoldersToRouteTree(vps.folders);
+
+          // Apply custom indexes to route tree
+          if (vps.customIndexes && vps.customIndexes.length > 0) {
+            this.logger.debug('Applying custom indexes to route tree', {
+              vpsId: vps.id,
+              customIndexesCount: vps.customIndexes.length,
+            });
+            applyCustomIndexesToRouteTree(routeTree, vps.customIndexes);
+          }
 
           this.logger.debug('Migration completed', {
             vpsId: vps.id,
@@ -322,12 +333,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
           needsSave = true;
 
-          // Return migrated VPS with routeTree and folders marked as deprecated
+          // Return migrated VPS with routeTree and cleaned up legacy fields
           return {
             ...vps,
             routeTree,
             // Keep folders for backward compatibility (one-time, will be removed on next save)
             folders: vps.folders,
+            // Remove customIndexes after migration (now in route nodes)
+            customIndexes: undefined,
           };
         }
 
