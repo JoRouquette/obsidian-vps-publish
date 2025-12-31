@@ -167,6 +167,13 @@ type FoldersTranslations = {
   customIndexDescription: string;
   flattenTreeLabel: string;
   flattenTreeDescription: string;
+  additionalFilesLabel: string;
+  additionalFilesDescription: string;
+  additionalFilesEmpty: string;
+  addAdditionalFileLabel: string;
+  addAdditionalFileButton: string;
+  addAdditionalFilePlaceholder: string;
+  additionalFileDuplicate: string;
   // Enhanced UI translations
   searchPlaceholder: string;
   sortLabel: string;
@@ -498,6 +505,14 @@ export const en: Translations = {
       flattenTreeLabel: 'Flatten Tree',
       flattenTreeDescription:
         'If enabled, all notes in subfolders are published as direct children of this folder, and subfolders are hidden in navigation. URLs: routeBase/<slug> (no subfolder segments). Warning: notes with the same filename in different subfolders will conflict.',
+      additionalFilesLabel: 'Additional Files',
+      additionalFilesDescription:
+        'Files published at the root of this folder route, regardless of their actual location in the vault',
+      additionalFilesEmpty: 'No additional files',
+      addAdditionalFileLabel: 'Add file to this folder',
+      addAdditionalFileButton: '+ Add file',
+      addAdditionalFilePlaceholder: 'Select a file...',
+      additionalFileDuplicate: 'This file is already in the list',
       // Enhanced UI translations
       searchPlaceholder: 'Search folders...',
       sortLabel: 'Sort by',
@@ -956,6 +971,14 @@ export const fr: Translations = {
       flattenTreeLabel: "Aplatir l'arborescence",
       flattenTreeDescription:
         'Si activé, toutes les notes dans les sous-dossiers sont publiées comme enfants directs de ce dossier, et les sous-dossiers sont cachés dans la navigation. URLs : routeBase/<slug> (pas de segments de sous-dossier). Attention : les notes avec le même nom dans différents sous-dossiers entreront en conflit.',
+      additionalFilesLabel: 'Fichiers additionnels',
+      additionalFilesDescription:
+        'Fichiers publiés à la racine de la route de ce dossier, quelle que soit leur localisation réelle dans le coffre',
+      additionalFilesEmpty: 'Aucun fichier additionnel',
+      addAdditionalFileLabel: 'Ajouter un fichier à ce dossier',
+      addAdditionalFileButton: '+ Ajouter un fichier',
+      addAdditionalFilePlaceholder: 'Sélectionnez un fichier...',
+      additionalFileDuplicate: 'Ce fichier est déjà dans la liste',
       // Enhanced UI translations
       searchPlaceholder: 'Rechercher des dossiers...',
       sortLabel: 'Tri',

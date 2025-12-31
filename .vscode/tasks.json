@@ -122,8 +122,14 @@
       "label": "Complete workflow",
       "type": "shell",
       "command": "bash",
-      "args": ["-c", "npm run docs:check && npm run lint && npm run test && npm run build"],
+      "args": ["-c", "npm run docs:check && npm run lint && npm run build && npm run test"],
       "problemMatcher": []
+    },
+    {
+      "label": "Run Complete Workflow",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "npm run docs:check && npm run lint && npm run build && npm run test"]
     }
   ]
 }

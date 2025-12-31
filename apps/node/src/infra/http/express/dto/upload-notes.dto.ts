@@ -102,6 +102,7 @@ export const FolderConfigDto = z.object({
   ignoredCleanupRuleIds: z.array(z.string()).default([]),
   customIndexFile: z.string().optional(),
   flattenTree: z.boolean().optional().default(false),
+  additionalFiles: z.array(z.string()).optional().default([]),
 });
 
 // DomainFrontmatter

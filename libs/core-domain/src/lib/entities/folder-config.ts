@@ -34,4 +34,17 @@ export interface FolderConfig {
    *   will conflict and require explicit handling
    */
   flattenTree?: boolean;
+
+  /**
+   * Optional list of additional file paths (relative to vault root) to include
+   * in this folder's published content.
+   * These files are published at the root of this folder's routeBase,
+   * regardless of their actual location in the vault.
+   *
+   * @remarks
+   * - Files are deduplicated: if a file is already included via vaultFolder, it won't be added again
+   * - Each file is treated as a note and processed through the same pipeline
+   * - Final route: routeBase/<slug> (no subfolder segments, even if file is nested in vault)
+   */
+  additionalFiles?: string[];
 }

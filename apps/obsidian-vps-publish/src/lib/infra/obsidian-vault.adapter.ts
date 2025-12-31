@@ -216,6 +216,64 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
           });
         }
       }
+
+      // Collect additional files for this folder (if configured and not already collected)
+      // These files are marked for "root-of-route" treatment via a special marker in relativePath
+      if (cfg.additionalFiles && cfg.additionalFiles.length > 0) {
+        cancellation?.throwIfCancelled();
+
+        for (const additionalFilePath of cfg.additionalFiles) {
+          const normalizedPath = this.normalizePath(additionalFilePath);
+          const alreadyCollected = result.some((note) => note.vaultPath === normalizedPath);
+
+          if (alreadyCollected) {
+            this.logger.debug('Additional file already collected (skipping duplicate)', {
+              folderId: cfg.id,
+              filePath: normalizedPath,
+            });
+            continue;
+          }
+
+          const additionalFile = this.app.vault.getAbstractFileByPath(normalizedPath);
+          if (additionalFile && additionalFile instanceof TFile) {
+            this.logger.debug('Collecting additional file for folder', {
+              folderId: cfg.id,
+              filePath: normalizedPath,
+            });
+
+            const rawContent = await this.app.vault.read(additionalFile);
+            const cache = this.app.metadataCache.getFileCache(additionalFile);
+            const frontmatter: Record<string, unknown> =
+              (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+
+            const content = this.stripFrontmatter(rawContent);
+
+            // Mark this note as an "additional file" by using a special relativePath
+            // This will be detected by routing service to force root-of-route treatment
+            result.push({
+              noteId: this.guidGenerator.generateGuid(),
+              title: additionalFile.basename,
+              vaultPath: additionalFile.path,
+              // Special marker: prefix with __additional__ to signal root-of-route treatment
+              relativePath: `__additional__/${additionalFile.basename}`,
+              content,
+              frontmatter: { flat: frontmatter, nested: {}, tags: [] },
+              folderConfig: cfg,
+            });
+
+            this.logger.debug('Collected additional file', {
+              path: additionalFile.path,
+              originalLength: rawContent.length,
+              strippedLength: content.length,
+            });
+          } else {
+            this.logger.warn('Additional file not found in vault (ignoring)', {
+              folderId: cfg.id,
+              filePath: normalizedPath,
+            });
+          }
+        }
+      }
     }
 
     this.logger.debug('Total notes collected', { count: result.length });

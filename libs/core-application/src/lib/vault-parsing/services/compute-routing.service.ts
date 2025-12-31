@@ -30,8 +30,11 @@ export class ComputeRoutingService implements BaseService {
         normalized: normalizedRel,
       });
 
+      // Check if this is an additional file (marked with special prefix by vault adapter)
+      const isAdditionalFile = normalizedRel.startsWith('__additional__/');
+
       const segments = normalizedRel.split('/').filter(Boolean);
-      this._logger.debug('Path segments', { segments });
+      this._logger.debug('Path segments', { segments, isAdditionalFile });
 
       let routing: NoteRoutingInfo;
 
@@ -46,15 +49,24 @@ export class ComputeRoutingService implements BaseService {
         this._logger.debug('Computed routing for root note', { routing });
       } else {
         const fileSegment = segments[segments.length - 1];
-        const dirSegments = segments.slice(0, -1);
+        let dirSegments = segments.slice(0, -1);
+
+        // If this is an additional file, strip the __additional__ marker and treat as root
+        if (isAdditionalFile) {
+          dirSegments = []; // Force root-of-route treatment
+          this._logger.debug('Additional file detected, forcing root-of-route treatment', {
+            originalPath: note.relativePath,
+          });
+        }
 
         const fileBase = fileSegment.replace(/\.[^/.]+$/, '');
         const slug = this.slugifySegment(fileBase);
 
-        // If flattenTree is enabled, ignore directory segments
-        const sluggedDirs = note.folderConfig.flattenTree
-          ? []
-          : dirSegments.map(this.slugifySegment).filter(Boolean);
+        // If flattenTree is enabled, ignore directory segments (unless already stripped)
+        const sluggedDirs =
+          note.folderConfig.flattenTree || isAdditionalFile
+            ? []
+            : dirSegments.map(this.slugifySegment).filter(Boolean);
 
         const path = sluggedDirs.join('/');
 
@@ -79,6 +91,7 @@ export class ComputeRoutingService implements BaseService {
         this._logger.debug('Computed routing for note', {
           routing,
           flattenTree: note.folderConfig.flattenTree,
+          isAdditionalFile,
         });
       }
 
