@@ -4,6 +4,7 @@ export interface UploadNotesCommand {
   sessionId: string;
   notes: PublishableNote[];
   cleanupRules?: SanitizationRules[];
+  folderDisplayNames?: Record<string, string>;
 }
 
 export interface UploadNotesResult {

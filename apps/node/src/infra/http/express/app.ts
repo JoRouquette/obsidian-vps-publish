@@ -218,6 +218,7 @@ export function createApp(rootLogger?: LoggerPort) {
       stagingManager,
       calloutRenderer,
       finalizationJobService,
+      sessionRepository,
       rootLogger
     )
   );

@@ -18,6 +18,7 @@ import {
   applyCustomIndexesToRouteTree,
   CancellationError,
   type CancellationPort,
+  collectDisplayNamesFromRouteTree,
   type CollectedNote,
   type CustomIndexConfig,
   migrateLegacyFoldersToRouteTree,
@@ -703,6 +704,16 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         configs: customIndexConfigs,
       });
 
+      // Collect all displayNames from route tree
+      const folderDisplayNames = vps.routeTree
+        ? collectDisplayNamesFromRouteTree(vps.routeTree)
+        : {};
+
+      this.logger.debug('Folder display names collected', {
+        count: Object.keys(folderDisplayNames).length,
+        displayNames: folderDisplayNames,
+      });
+
       trace.checkpoint('6-session-start', 'calling-startSession-api');
 
       const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
@@ -713,6 +724,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         calloutStyles,
         customIndexConfigs,
         ignoredTags: settings.frontmatterTagsToExclude || [],
+        folderDisplayNames, // Send displayNames upfront
       });
 
       sessionId = started.sessionId;

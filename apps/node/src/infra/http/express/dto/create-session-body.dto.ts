@@ -23,4 +23,5 @@ export const CreateSessionBodyDto = z.object({
     .optional(),
   customIndexConfigs: z.array(CustomIndexConfigDto).optional(),
   ignoredTags: z.array(z.string()).optional(),
+  folderDisplayNames: z.record(z.string(), z.string()).optional(),
 });

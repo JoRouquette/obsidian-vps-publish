@@ -8,4 +8,5 @@ export interface CreateSessionCommand {
   };
   customIndexConfigs?: CustomIndexConfig[];
   ignoredTags?: string[];
+  folderDisplayNames?: Record<string, string>;
 }

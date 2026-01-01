@@ -39,7 +39,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
   }
 
   async handle(command: UploadNotesCommand): Promise<UploadNotesResult> {
-    const { sessionId, notes, cleanupRules } = command;
+    const { sessionId, notes, cleanupRules, folderDisplayNames } = command;
     const contentStorage = this.resolveContentStorage(sessionId);
     const manifestStorage = this.resolveManifestStorage(sessionId);
     const logger = this.logger?.child({ method: 'handle', sessionId });
@@ -164,7 +164,14 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
         manifestPages: pages.map((p) => ({ id: p.id, route: p.route })),
       });
 
-      await this.updateManifestForSession(sessionId, pages, succeeded, manifestStorage, logger);
+      await this.updateManifestForSession(
+        sessionId,
+        pages,
+        succeeded,
+        manifestStorage,
+        logger,
+        folderDisplayNames
+      );
     }
 
     logger?.debug(`Publishing complete: ${published} notes published, ${errors.length} errors`);
@@ -180,7 +187,8 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     newPages: ManifestPage[],
     notes: PublishableNote[],
     manifestStorage: ManifestPort,
-    logger?: LoggerPort
+    logger?: LoggerPort,
+    providedDisplayNames?: Record<string, string>
   ): Promise<void> {
     const existing = await manifestStorage.load();
     const now = new Date();
@@ -195,7 +203,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
         createdAt: now,
         lastUpdatedAt: now,
         pages: [],
-        folderDisplayNames: {},
+        folderDisplayNames: providedDisplayNames || {},
       };
     } else {
       manifest = {
