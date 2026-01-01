@@ -74,6 +74,12 @@
       "problemMatcher": []
     },
     {
+      "label": "Dev refresh",
+      "dependsOn": ["Docker: dev up", "Plugin: package"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
       "label": "Build all",
       "type": "shell",
       "command": "npm",
@@ -124,12 +130,6 @@
       "command": "bash",
       "args": ["-c", "npm run docs:check && npm run lint && npm run build && npm run test"],
       "problemMatcher": []
-    },
-    {
-      "label": "Run Complete Workflow",
-      "type": "shell",
-      "command": "bash",
-      "args": ["-c", "npm run docs:check && npm run lint && npm run build && npm run test"]
     }
   ]
 }

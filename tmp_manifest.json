@@ -1,0 +1,1284 @@
+{
+  "sessionId": "4cca05a5-bfc8-4585-a255-e8fc79a975ec",
+  "createdAt": "2025-12-31T21:25:07.342Z",
+  "lastUpdatedAt": "2025-12-31T21:25:07.342Z",
+  "pages": [
+    {
+      "id": "078a05eb-baee-45a2-944e-baa0f672e317",
+      "title": "Ignaro",
+      "route": "/pantheon/ignaro",
+      "slug": {
+        "value": "ignaro"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Ignaro.md",
+      "relativePath": "Ignaro.md",
+      "tags": []
+    },
+    {
+      "id": "09175156-d27f-4087-8813-70375921c697",
+      "title": "Selmak",
+      "route": "/mundis/langues/selmak",
+      "slug": {
+        "value": "selmak"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Langues/Selmak.md",
+      "relativePath": "Langues/Selmak.md",
+      "tags": []
+    },
+    {
+      "id": "095ab76c-cbbd-4d38-b655-a3118b289791",
+      "title": "Reliquaire des larmes",
+      "route": "/tresors/reliquaire-des-larmes",
+      "slug": {
+        "value": "reliquaire-des-larmes"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Reliquaire des larmes.md",
+      "relativePath": "Objet merveilleux/Reliquaire des larmes.md",
+      "tags": []
+    },
+    {
+      "id": "0cf58311-5afb-4af1-8611-602ce25ee529",
+      "title": "Monairie",
+      "route": "/mundis/factions/monairie/monairie",
+      "slug": {
+        "value": "monairie"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Factions/Monairie/Monairie.md",
+      "relativePath": "Factions/Monairie/Monairie.md",
+      "tags": []
+    },
+    {
+      "id": "0fc61be2-529d-42ed-bf5b-009b7b89aebd",
+      "title": "Première Guerre",
+      "route": "/mundis/evenements/premiere-guerre",
+      "slug": {
+        "value": "premiere-guerre"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Évènements/Première Guerre.md",
+      "relativePath": "Évènements/Première Guerre.md",
+      "tags": []
+    },
+    {
+      "id": "1213b271-b4a3-474b-bc38-1f310b742131",
+      "title": "Sérum de Salut",
+      "route": "/tresors/serum-de-salut",
+      "slug": {
+        "value": "serum-de-salut"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Sérum de Salut.md",
+      "relativePath": "Potion/Sérum de Salut.md",
+      "tags": []
+    },
+    {
+      "id": "157d3a62-9041-4b0a-add3-89ca54fea4b2",
+      "title": "Selmakua",
+      "route": "/mundis/cultures/selmakua",
+      "slug": {
+        "value": "selmakua"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Cultures/Selmakua.md",
+      "relativePath": "Cultures/Selmakua.md",
+      "tags": []
+    },
+    {
+      "id": "160499d0-6fef-4203-87bb-c31baf83cddb",
+      "title": "Talisman psychométrique",
+      "route": "/tresors/talisman-psychometrique",
+      "slug": {
+        "value": "talisman-psychometrique"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Talisman psychométrique.md",
+      "relativePath": "Objet merveilleux/Talisman psychométrique.md",
+      "tags": ["divine", "outil", "exploration", "social", "magie"]
+    },
+    {
+      "id": "173cbf57-3497-4d75-b7f6-9cb9e2c40328",
+      "title": "Cataplasme de régénération",
+      "route": "/tresors/cataplasme-de-regeneration",
+      "slug": {
+        "value": "cataplasme-de-regeneration"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Cataplasme de régénération.md",
+      "relativePath": "Potion/Cataplasme de régénération.md",
+      "tags": [
+        "alchimique",
+        "divine",
+        "naturelle",
+        "consommable",
+        "outil",
+        "social",
+        "soin",
+        "à-découvrir"
+      ]
+    },
+    {
+      "id": "1d49cbeb-afe9-4c54-83ad-63ad8681790e",
+      "title": "Flamme de l'Ovide",
+      "route": "/tresors/flamme-de-lovide",
+      "slug": {
+        "value": "flamme-de-lovide"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Explosif/Flamme de l'Ovide.md",
+      "relativePath": "Explosif/Flamme de l'Ovide.md",
+      "tags": ["consommable", "malédiction", "arcanique"]
+    },
+    {
+      "id": "1f34f186-79c9-4d2d-ae6a-f3503526c990",
+      "title": "Maltharius",
+      "route": "/pantheon/maltharius",
+      "slug": {
+        "value": "maltharius"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Maltharius.md",
+      "relativePath": "Maltharius.md",
+      "tags": []
+    },
+    {
+      "id": "1f4ebd45-e0e5-46cc-8784-d9314091c69f",
+      "title": "Cape de brouillage olfactif",
+      "route": "/tresors/cape-de-brouillage-olfactif",
+      "slug": {
+        "value": "cape-de-brouillage-olfactif"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Cape de brouillage olfactif.md",
+      "relativePath": "Objet merveilleux/Cape de brouillage olfactif.md",
+      "tags": ["arcanique", "équipement", "social", "infiltration"]
+    },
+    {
+      "id": "24b46de1-2b01-4876-a37c-4808f7e3b3e1",
+      "title": "Gathraknor",
+      "route": "/mundis/yalgranthir/gathraknor/gathraknor",
+      "slug": {
+        "value": "gathraknor"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Yalgranthir/Gathraknor/Gathraknor.md",
+      "relativePath": "Gathraknor/Gathraknor.md",
+      "tags": ["Gathraknor"]
+    },
+    {
+      "id": "272b3b9f-1610-4e67-83e8-9d29841e48cc",
+      "title": "Décoction de vraie vue",
+      "route": "/tresors/decoction-de-vraie-vue",
+      "slug": {
+        "value": "decoction-de-vraie-vue"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Décoction de vraie vue.md",
+      "relativePath": "Potion/Décoction de vraie vue.md",
+      "tags": ["divine", "naturelle", "alchimique", "consommable", "exploration", "à-découvrir"]
+    },
+    {
+      "id": "29ad2ecf-94e3-4995-b7ca-f734f8c6e0f5",
+      "title": "Thériomorphe",
+      "route": "/lore/classes/lignages/theriomorphe",
+      "slug": {
+        "value": "theriomorphe"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Lignages/Thériomorphe.md",
+      "relativePath": "Thériomorphe.md",
+      "tags": []
+    },
+    {
+      "id": "37109c2d-75ce-4b20-a334-60a6c2a8b49f",
+      "title": "Artalos",
+      "route": "/pantheon/artalos",
+      "slug": {
+        "value": "artalos"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Artalos.md",
+      "relativePath": "Artalos.md",
+      "tags": []
+    },
+    {
+      "id": "373621af-007d-4193-8118-b7dd3fd2565c",
+      "title": "Conclave Saphir",
+      "route": "/mundis/factions/conclave-saphir/conclave-saphir",
+      "slug": {
+        "value": "conclave-saphir"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Factions/Conclave Saphir/Conclave Saphir.md",
+      "relativePath": "Factions/Conclave Saphir/Conclave Saphir.md",
+      "tags": ["ConclaveSaphir"]
+    },
+    {
+      "id": "389c0b53-f931-4759-b429-c410603962e9",
+      "title": "Paxos",
+      "route": "/pantheon/paxos",
+      "slug": {
+        "value": "paxos"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Paxos.md",
+      "relativePath": "Paxos.md",
+      "tags": []
+    },
+    {
+      "id": "39e49d51-39ca-43ba-add6-07c2dba69e3c",
+      "title": "Argot des voleurs",
+      "route": "/mundis/langues/argot-des-voleurs",
+      "slug": {
+        "value": "argot-des-voleurs"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Langues/Argot des voleurs.md",
+      "relativePath": "Langues/Argot des voleurs.md",
+      "tags": []
+    },
+    {
+      "id": "3a353904-a728-4a84-84c1-e3cf6b766e64",
+      "title": "Hélianéa",
+      "route": "/pantheon/helianea",
+      "slug": {
+        "value": "helianea"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Hélianéa.md",
+      "relativePath": "Hélianéa.md",
+      "tags": []
+    },
+    {
+      "id": "3c7482a9-a079-44e4-8433-0335fb17df90",
+      "title": "Voracor",
+      "route": "/pantheon/voracor",
+      "slug": {
+        "value": "voracor"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Voracor.md",
+      "relativePath": "Voracor.md",
+      "tags": []
+    },
+    {
+      "id": "3c902940-bd3d-46d3-a6bf-d530727bfe4d",
+      "title": "Teinture d'argent",
+      "route": "/tresors/teinture-dargent",
+      "slug": {
+        "value": "teinture-dargent"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Teinture d'argent.md",
+      "relativePath": "Potion/Teinture d'argent.md",
+      "tags": ["ingrédient", "lycanthrope"]
+    },
+    {
+      "id": "404b7bb8-b90b-45f1-9c51-2e4f1bdc2183",
+      "title": "Philtre d'Ovide",
+      "route": "/tresors/philtre-dovide",
+      "slug": {
+        "value": "philtre-dovide"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Philtre d'Ovide.md",
+      "relativePath": "Potion/Philtre d'Ovide.md",
+      "tags": []
+    },
+    {
+      "id": "405b6f5b-e7c2-4d52-b5bb-095ed6852686",
+      "title": "Croissant de Lune",
+      "route": "/tresors/croissant-de-lune",
+      "slug": {
+        "value": "croissant-de-lune"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Arme/Croissant de Lune.md",
+      "relativePath": "Arme/Croissant de Lune.md",
+      "tags": ["divine", "arcanique", "arme", "outil", "combat", "magie"]
+    },
+    {
+      "id": "47b590a1-1ced-4de4-8a64-530f6d6ef6e3",
+      "title": "Horritha",
+      "route": "/pantheon/horritha",
+      "slug": {
+        "value": "horritha"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Horritha.md",
+      "relativePath": "Horritha.md",
+      "tags": []
+    },
+    {
+      "id": "490f879a-0602-41f3-bad4-af6316bc1863",
+      "title": "Les pogroms bénis",
+      "route": "/mundis/yalgranthir/evenements/les-pogroms-benis",
+      "slug": {
+        "value": "les-pogroms-benis"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Yalgranthir/Évènements/Les pogroms bénis.md",
+      "relativePath": "Évènements/Les pogroms bénis.md",
+      "tags": []
+    },
+    {
+      "id": "49ab0350-378e-4369-a444-2bb9b8ac6ec2",
+      "title": "Main de gloire",
+      "route": "/tresors/main-de-gloire",
+      "slug": {
+        "value": "main-de-gloire"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Main de gloire.md",
+      "relativePath": "Objet merveilleux/Main de gloire.md",
+      "tags": ["consommable", "outil", "exploration", "combat", "infiltration"]
+    },
+    {
+      "id": "4a804e12-dbe8-4ac9-90e4-61cc4c23c66d",
+      "title": "Philtre de contrôle lycanthropique",
+      "route": "/tresors/philtre-de-controle-lycanthropique",
+      "slug": {
+        "value": "philtre-de-controle-lycanthropique"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Philtre de contrôle lycanthropique.md",
+      "relativePath": "Potion/Philtre de contrôle lycanthropique.md",
+      "tags": []
+    },
+    {
+      "id": "4c1601b8-163b-497c-8858-9dfa10d5746e",
+      "title": "Grimoire d'Hiroko",
+      "route": "/tresors/grimoire-dhiroko",
+      "slug": {
+        "value": "grimoire-dhiroko"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Grimoire d'Hiroko.md",
+      "relativePath": "Objet merveilleux/Grimoire d'Hiroko.md",
+      "tags": []
+    },
+    {
+      "id": "4c353ea7-24e0-4219-9964-52dee0649f00",
+      "title": "Brudhlamnir, le Cachot des Vents - Prison Internationale",
+      "route": "/mundis/poi/brudhlamnir-le-cachot-des-vents-prison-internationale",
+      "slug": {
+        "value": "brudhlamnir-le-cachot-des-vents-prison-internationale"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/POI/Brudhlamnir, le Cachot des Vents - Prison Internationale.md",
+      "relativePath": "POI/Brudhlamnir, le Cachot des Vents - Prison Internationale.md",
+      "tags": ["Prison", "Brudhlamnir"]
+    },
+    {
+      "id": "54ba3300-c2bc-4f9b-9201-21c4431c2a4f",
+      "title": "Encens du Voile Gris",
+      "route": "/tresors/encens-du-voile-gris",
+      "slug": {
+        "value": "encens-du-voile-gris"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Encens du Voile Gris.md",
+      "relativePath": "Objet merveilleux/Encens du Voile Gris.md",
+      "tags": ["consommable", "magie"]
+    },
+    {
+      "id": "5739c3fa-9bef-4fb0-84db-228816ebb711",
+      "title": "Édénis",
+      "route": "/pantheon/edenis",
+      "slug": {
+        "value": "edenis"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Édénis.md",
+      "relativePath": "Édénis.md",
+      "tags": []
+    },
+    {
+      "id": "57631030-5094-4951-83af-2b0d896438a7",
+      "title": "Vor'thul",
+      "route": "/pantheon/vorthul",
+      "slug": {
+        "value": "vorthul"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Vor'thul.md",
+      "relativePath": "Vor'thul.md",
+      "tags": []
+    },
+    {
+      "id": "5826a6e8-a85d-422f-b464-bfd1ec00d6fb",
+      "title": "Rune de suspension temporelle",
+      "route": "/tresors/rune-de-suspension-temporelle",
+      "slug": {
+        "value": "rune-de-suspension-temporelle"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Rune de suspension temporelle.md",
+      "relativePath": "Objet merveilleux/Rune de suspension temporelle.md",
+      "tags": ["consommable", "arcanique", "technomagique", "outil"]
+    },
+    {
+      "id": "595c1911-7293-407c-8a0f-622c70c5ffb5",
+      "title": "Bâton d'encre pour enchantement",
+      "route": "/tresors/baton-dencre-pour-enchantement",
+      "slug": {
+        "value": "baton-dencre-pour-enchantement"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Bâton d'encre pour enchantement.md",
+      "relativePath": "Objet merveilleux/Bâton d'encre pour enchantement.md",
+      "tags": ["consommable"]
+    },
+    {
+      "id": "59b7d7d9-2cf2-4e56-9103-17485096133e",
+      "title": "Treillis Divin",
+      "route": "/mundis/treillis-divin",
+      "slug": {
+        "value": "treillis-divin"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Treillis Divin.md",
+      "relativePath": "Treillis Divin.md",
+      "tags": []
+    },
+    {
+      "id": "5a3d8a5f-f324-4ee2-9c93-04ac5dcb9fea",
+      "title": "Sarbacane d'écoute à distance",
+      "route": "/tresors/sarbacane-decoute-a-distance",
+      "slug": {
+        "value": "sarbacane-decoute-a-distance"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Arme/Sarbacane d'écoute à distance.md",
+      "relativePath": "Arme/Sarbacane d'écoute à distance.md",
+      "tags": ["arcanique", "arme", "outil", "infiltration", "social"]
+    },
+    {
+      "id": "5a5c74d6-ed82-4dd9-8bed-30d54aed7ca7",
+      "title": "Broche du caméléon",
+      "route": "/tresors/broche-du-cameleon",
+      "slug": {
+        "value": "broche-du-cameleon"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Broche du caméléon.md",
+      "relativePath": "Objet merveilleux/Broche du caméléon.md",
+      "tags": ["arcanique", "accessoire", "infiltration", "exploration"]
+    },
+    {
+      "id": "5bed37b3-92f6-4db5-92c7-c199e5fbbeef",
+      "title": "Lentille d'incursion",
+      "route": "/tresors/lentille-dincursion",
+      "slug": {
+        "value": "lentille-dincursion"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Lentille d'incursion.md",
+      "relativePath": "Objet merveilleux/Lentille d'incursion.md",
+      "tags": []
+    },
+    {
+      "id": "5d6cfd93-f858-4c6a-aa42-1c2f2a47f281",
+      "title": "Elixir d'affaiblissement lycanthropique",
+      "route": "/tresors/elixir-daffaiblissement-lycanthropique",
+      "slug": {
+        "value": "elixir-daffaiblissement-lycanthropique"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Elixir d'affaiblissement lycanthropique.md",
+      "relativePath": "Potion/Elixir d'affaiblissement lycanthropique.md",
+      "tags": []
+    },
+    {
+      "id": "61d23001-c82c-4ebd-a8de-6f0f2e7f1714",
+      "title": "Philtre énergétique",
+      "route": "/tresors/philtre-energetique",
+      "slug": {
+        "value": "philtre-energetique"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Philtre énergétique.md",
+      "relativePath": "Potion/Philtre énergétique.md",
+      "tags": [
+        "alchimique",
+        "naturelle",
+        "divine",
+        "consommable",
+        "social",
+        "exploration",
+        "à-découvrir"
+      ]
+    },
+    {
+      "id": "620cb12d-109c-4e1d-9561-33d44e81934e",
+      "title": "Océana",
+      "route": "/pantheon/oceana",
+      "slug": {
+        "value": "oceana"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Océana.md",
+      "relativePath": "Océana.md",
+      "tags": []
+    },
+    {
+      "id": "625f1d65-b205-4aea-b6b6-a4092f616165",
+      "title": "Thormak",
+      "route": "/pantheon/thormak",
+      "slug": {
+        "value": "thormak"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Thormak.md",
+      "relativePath": "Thormak.md",
+      "tags": []
+    },
+    {
+      "id": "62999121-d3e8-49b5-8447-563f692e083f",
+      "title": "Yalgranthir",
+      "route": "/mundis/yalgranthir/yalgranthir",
+      "slug": {
+        "value": "yalgranthir"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Yalgranthir/Yalgranthir.md",
+      "relativePath": "Yalgranthir.md",
+      "tags": ["Yalgranthir"]
+    },
+    {
+      "id": "647b9b0f-4624-4f4f-b95e-b60e17e1a661",
+      "title": "Sceptre des Maux",
+      "route": "/tresors/sceptre-des-maux",
+      "slug": {
+        "value": "sceptre-des-maux"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Baton/Sceptre des Maux.md",
+      "relativePath": "Baton/Sceptre des Maux.md",
+      "tags": []
+    },
+    {
+      "id": "64934099-8ef2-476f-9d2f-72071a7dff61",
+      "title": "Munition sourde",
+      "route": "/tresors/munition-sourde",
+      "slug": {
+        "value": "munition-sourde"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Arme/Munition sourde.md",
+      "relativePath": "Arme/Munition sourde.md",
+      "tags": ["technomagique", "arme", "consommable", "outil", "combat", "infiltration", "social"]
+    },
+    {
+      "id": "692fbacb-2fc6-47bf-b567-35a2159d92a9",
+      "title": "Poison drow concentré",
+      "route": "/tresors/poison-drow-concentre",
+      "slug": {
+        "value": "poison-drow-concentre"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Poison drow concentré.md",
+      "relativePath": "Potion/Poison drow concentré.md",
+      "tags": ["alchimique", "consommable", "combat", "infiltration", "soin"]
+    },
+    {
+      "id": "6fe911ad-3c9c-4298-b267-7a359ba34971",
+      "title": "Lame sourde",
+      "route": "/tresors/lame-sourde",
+      "slug": {
+        "value": "lame-sourde"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Arme/Lame sourde.md",
+      "relativePath": "Arme/Lame sourde.md",
+      "tags": ["arcanique", "technomagique", "arme", "combat", "infiltration", "social"]
+    },
+    {
+      "id": "734c3387-def3-4a56-b5e2-723e2e82ca03",
+      "title": "Ténébra",
+      "route": "/pantheon/tenebra",
+      "slug": {
+        "value": "tenebra"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Ténébra.md",
+      "relativePath": "Ténébra.md",
+      "tags": []
+    },
+    {
+      "id": "76cc8d1e-667f-4a19-b20b-dc1f283e1e0a",
+      "title": "Fiole de dissipation des ténèbres",
+      "route": "/tresors/fiole-de-dissipation-des-tenebres",
+      "slug": {
+        "value": "fiole-de-dissipation-des-tenebres"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Fiole de dissipation des ténèbres.md",
+      "relativePath": "Potion/Fiole de dissipation des ténèbres.md",
+      "tags": []
+    },
+    {
+      "id": "788a1a35-1b25-47b9-a83b-61bdb078f34d",
+      "title": "Collier et bandeau d'éveil",
+      "route": "/tresors/collier-et-bandeau-deveil",
+      "slug": {
+        "value": "collier-et-bandeau-deveil"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Collier et bandeau d'éveil.md",
+      "relativePath": "Objet merveilleux/Collier et bandeau d'éveil.md",
+      "tags": ["naturelle", "divine", "accessoire", "outil", "social", "magie"]
+    },
+    {
+      "id": "7a7aa9ea-55f9-4d1d-8a58-261f49038c61",
+      "title": "Kamara",
+      "route": "/pantheon/kamara",
+      "slug": {
+        "value": "kamara"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Kamara.md",
+      "relativePath": "Kamara.md",
+      "tags": []
+    },
+    {
+      "id": "82c6456c-0329-4009-af78-efe76bd8448b",
+      "title": "Philtre étérant",
+      "route": "/tresors/philtre-eterant",
+      "slug": {
+        "value": "philtre-eterant"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Philtre étérant.md",
+      "relativePath": "Potion/Philtre étérant.md",
+      "tags": []
+    },
+    {
+      "id": "84da4882-4143-4ca6-bafc-5b330e01f79d",
+      "title": "Lune noire",
+      "route": "/tresors/lune-noire",
+      "slug": {
+        "value": "lune-noire"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Lune noire.md",
+      "relativePath": "Potion/Lune noire.md",
+      "tags": ["consommable", "enduit", "combat", "social", "infiltration", "contrôle"]
+    },
+    {
+      "id": "89900eee-b158-4cc2-b40b-95064066965b",
+      "title": "Fiole de Sang de vampire",
+      "route": "/tresors/fiole-de-sang-de-vampire",
+      "slug": {
+        "value": "fiole-de-sang-de-vampire"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Fiole de Sang de vampire.md",
+      "relativePath": "Potion/Fiole de Sang de vampire.md",
+      "tags": ["ingrédient"]
+    },
+    {
+      "id": "8b89abe5-cd78-467b-ae61-cc11640a61b3",
+      "title": "Fiole de fumée",
+      "route": "/tresors/fiole-de-fumee",
+      "slug": {
+        "value": "fiole-de-fumee"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Fiole de fumée.md",
+      "relativePath": "Objet merveilleux/Fiole de fumée.md",
+      "tags": []
+    },
+    {
+      "id": "8bd86617-3819-4cad-8f52-a1a2a688fc7f",
+      "title": "Boom-éclair",
+      "route": "/tresors/boomeclair",
+      "slug": {
+        "value": "boomeclair"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Boom-éclair.md",
+      "relativePath": "Objet merveilleux/Boom-éclair.md",
+      "tags": [
+        "technomagique",
+        "alchimique",
+        "outil",
+        "consommable",
+        "combat",
+        "social",
+        "contrôle"
+      ]
+    },
+    {
+      "id": "8bdaa901-0b9e-4f42-859b-46548d79ddb7",
+      "title": "Grande Révélation",
+      "route": "/mundis/evenements/grande-revelation",
+      "slug": {
+        "value": "grande-revelation"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Évènements/Grande Révélation.md",
+      "relativePath": "Évènements/Grande Révélation.md",
+      "tags": []
+    },
+    {
+      "id": "8c117c94-c6ad-43e1-b87f-ca831a583af0",
+      "title": "Fibule de sort subtil",
+      "route": "/tresors/fibule-de-sort-subtil",
+      "slug": {
+        "value": "fibule-de-sort-subtil"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Fibule de sort subtil.md",
+      "relativePath": "Objet merveilleux/Fibule de sort subtil.md",
+      "tags": ["arcanique", "équipement", "arali", "social"]
+    },
+    {
+      "id": "8c27f09a-8596-4297-bf6b-2ea335a4ec1a",
+      "title": "Poison drow",
+      "route": "/tresors/poison-drow",
+      "slug": {
+        "value": "poison-drow"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Poison drow.md",
+      "relativePath": "Potion/Poison drow.md",
+      "tags": ["arcanique", "consommable", "combat", "infiltration", "social"]
+    },
+    {
+      "id": "8e1429c6-cc96-43b0-9510-eb0b47cb5d76",
+      "title": "Chaerina",
+      "route": "/pantheon/chaerina",
+      "slug": {
+        "value": "chaerina"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Chaerina.md",
+      "relativePath": "Chaerina.md",
+      "tags": []
+    },
+    {
+      "id": "94902210-9f6a-4c2e-974c-7211a03dc350",
+      "title": "Raviveur arcanique",
+      "route": "/tresors/raviveur-arcanique",
+      "slug": {
+        "value": "raviveur-arcanique"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Raviveur arcanique.md",
+      "relativePath": "Objet merveilleux/Raviveur arcanique.md",
+      "tags": ["consommable", "arali"]
+    },
+    {
+      "id": "95085262-24c0-4298-8d26-21f3d4e4660e",
+      "title": "Illusara",
+      "route": "/pantheon/illusara",
+      "slug": {
+        "value": "illusara"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Illusara.md",
+      "relativePath": "Illusara.md",
+      "tags": []
+    },
+    {
+      "id": "96b9692f-90fe-4fcc-b3b3-643a80609645",
+      "title": "Poudre d'oubli",
+      "route": "/tresors/poudre-doubli",
+      "slug": {
+        "value": "poudre-doubli"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Poudre d'oubli.md",
+      "relativePath": "Objet merveilleux/Poudre d'oubli.md",
+      "tags": []
+    },
+    {
+      "id": "9a022fcd-1b5b-42f3-b898-acc16664230d",
+      "title": "Serenara",
+      "route": "/pantheon/serenara",
+      "slug": {
+        "value": "serenara"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Serenara.md",
+      "relativePath": "Serenara.md",
+      "tags": []
+    },
+    {
+      "id": "9bb2be04-fabb-4293-93a5-f95accc76f5c",
+      "title": "Astraea",
+      "route": "/pantheon/astraea",
+      "slug": {
+        "value": "astraea"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Astraea.md",
+      "relativePath": "Astraea.md",
+      "tags": []
+    },
+    {
+      "id": "9d271cc5-cde8-4ff1-96a8-b257e3af95b1",
+      "title": "Ouverture de la Toile",
+      "route": "/mundis/evenements/ouverture-de-la-toile",
+      "slug": {
+        "value": "ouverture-de-la-toile"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Évènements/Ouverture de la Toile.md",
+      "relativePath": "Évènements/Ouverture de la Toile.md",
+      "tags": []
+    },
+    {
+      "id": "9e11fbf6-aa53-4797-a077-3d755a56e64b",
+      "title": "Xalthranth",
+      "route": "/mundis/yalgranthir/xalthranth/xalthranth",
+      "slug": {
+        "value": "xalthranth"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Yalgranthir/Xalthranth/Xalthranth.md",
+      "relativePath": "Xalthranth/Xalthranth.md",
+      "tags": ["Xalthranth"]
+    },
+    {
+      "id": "a2f0b396-2423-4342-b542-3dc76161a135",
+      "title": "Luminaris",
+      "route": "/tresors/luminaris",
+      "slug": {
+        "value": "luminaris"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Arme/Luminaris.md",
+      "relativePath": "Arme/Luminaris.md",
+      "tags": ["arcanique", "arme", "combat", "social"]
+    },
+    {
+      "id": "a413b976-5446-4a73-9d06-6f96afbd669b",
+      "title": "Kaltoris",
+      "route": "/mundis/yalgranthir/kaltoris/kaltoris",
+      "slug": {
+        "value": "kaltoris"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Yalgranthir/Kaltoris/Kaltoris.md",
+      "relativePath": "Kaltoris/Kaltoris.md",
+      "tags": ["Kaltoris"]
+    },
+    {
+      "id": "a4e01962-a53f-42a5-9a15-ca0080fbf2bc",
+      "title": "Massacre d'Andhelion",
+      "route": "/mundis/nordrikio/keldarun/andhelion/evenements/massacre-dandhelion",
+      "slug": {
+        "value": "massacre-dandhelion"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Norðríkið/Këldarûn/Andhelion/Événements/Massacre d'Andhelion.md",
+      "relativePath": "Këldarûn/Andhelion/Événements/Massacre d'Andhelion.md",
+      "tags": ["ConclaveSaphir", "LeCode"]
+    },
+    {
+      "id": "a6f1899e-4b09-4259-b806-109977e0be41",
+      "title": "Voluptia",
+      "route": "/pantheon/voluptia",
+      "slug": {
+        "value": "voluptia"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Voluptia.md",
+      "relativePath": "Voluptia.md",
+      "tags": []
+    },
+    {
+      "id": "a9bdd510-7363-4db5-92b2-ed3ee37fcb8a",
+      "title": "Cartouche de brouillage",
+      "route": "/tresors/cartouche-de-brouillage",
+      "slug": {
+        "value": "cartouche-de-brouillage"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Cartouche de brouillage.md",
+      "relativePath": "Objet merveilleux/Cartouche de brouillage.md",
+      "tags": []
+    },
+    {
+      "id": "b75e2367-b817-4ea6-85d4-4caeaaeb28da",
+      "title": "Cataclysme",
+      "route": "/mundis/evenements/cataclysme",
+      "slug": {
+        "value": "cataclysme"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Évènements/Cataclysme.md",
+      "relativePath": "Évènements/Cataclysme.md",
+      "tags": []
+    },
+    {
+      "id": "bce792cf-86d3-492d-8294-49523718be8a",
+      "title": "Grenade mirage",
+      "route": "/tresors/grenade-mirage",
+      "slug": {
+        "value": "grenade-mirage"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Grenade mirage.md",
+      "relativePath": "Objet merveilleux/Grenade mirage.md",
+      "tags": []
+    },
+    {
+      "id": "c21ef854-3828-456a-b62b-245083beeab9",
+      "title": "Ligue d'Émeraude",
+      "route": "/mundis/factions/ligue-demeraude",
+      "slug": {
+        "value": "ligue-demeraude"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Factions/Ligue d'Émeraude.md",
+      "relativePath": "Factions/Ligue d'Émeraude.md",
+      "tags": []
+    },
+    {
+      "id": "cb15d36b-32fc-468f-8f22-2fcbf61e661a",
+      "title": "Kaela",
+      "route": "/pantheon/kaela",
+      "slug": {
+        "value": "kaela"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Kaela.md",
+      "relativePath": "Kaela.md",
+      "tags": []
+    },
+    {
+      "id": "ccb44219-2448-491a-9e4a-74aae22f8748",
+      "title": "Électuaire de Brume Latente",
+      "route": "/tresors/electuaire-de-brume-latente",
+      "slug": {
+        "value": "electuaire-de-brume-latente"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Électuaire de Brume Latente.md",
+      "relativePath": "Potion/Électuaire de Brume Latente.md",
+      "tags": ["seidra", "visualisation-aralique", "consommable", "magie"]
+    },
+    {
+      "id": "cfe45c76-1267-4439-8463-08d3582309a7",
+      "title": "Génèse",
+      "route": "/mundis/evenements/genese",
+      "slug": {
+        "value": "genese"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Évènements/Génèse.md",
+      "relativePath": "Évènements/Génèse.md",
+      "tags": []
+    },
+    {
+      "id": "d0e3d7ee-f3af-4d90-a745-dc4c30dfe5e0",
+      "title": "Alira",
+      "route": "/pantheon/alira",
+      "slug": {
+        "value": "alira"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Alira.md",
+      "relativePath": "Alira.md",
+      "tags": []
+    },
+    {
+      "id": "d4feda62-992e-473d-b8b1-f23fa754fa06",
+      "title": "Chtonbris",
+      "route": "/pantheon/chtonbris",
+      "slug": {
+        "value": "chtonbris"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Chtonbris.md",
+      "relativePath": "Chtonbris.md",
+      "tags": []
+    },
+    {
+      "id": "d68c0ae4-5fda-4a20-a858-8d7bad299e35",
+      "title": "Munition paralysante",
+      "route": "/tresors/munition-paralysante",
+      "slug": {
+        "value": "munition-paralysante"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Arme/Munition paralysante.md",
+      "relativePath": "Arme/Munition paralysante.md",
+      "tags": ["consommable", "contrôle", "arcanique", "combat", "infiltration"]
+    },
+    {
+      "id": "d7b08a52-8051-403a-928f-b242f7051bec",
+      "title": "Lupara",
+      "route": "/pantheon/lupara",
+      "slug": {
+        "value": "lupara"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Lupara.md",
+      "relativePath": "Lupara.md",
+      "tags": []
+    },
+    {
+      "id": "e220a127-fbf6-4294-9d23-d2f82ddeb021",
+      "title": "Le Code",
+      "route": "/mundis/cultures/le-code",
+      "slug": {
+        "value": "le-code"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Cultures/Le Code.md",
+      "relativePath": "Cultures/Le Code.md",
+      "tags": ["LeCode", "Criminel", "Contre-Culture"]
+    },
+    {
+      "id": "e28339bc-789e-43c0-a569-2d115775e0b2",
+      "title": "Sermofur",
+      "route": "/mundis/langues/sermofur",
+      "slug": {
+        "value": "sermofur"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Langues/Sermofur.md",
+      "relativePath": "Langues/Sermofur.md",
+      "tags": []
+    },
+    {
+      "id": "e299eb12-95a3-4100-af1a-37f0ec5fe4ba",
+      "title": "Ektaron",
+      "route": "/mundis/ektaron",
+      "slug": {
+        "value": "ektaron"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Ektaron.md",
+      "relativePath": "Ektaron.md",
+      "tags": ["Ektaron"],
+      "leafletBlocks": [
+        {
+          "id": "Ektaron-map",
+          "height": "700px",
+          "lat": 0,
+          "long": 0,
+          "defaultZoom": 7,
+          "unit": "km",
+          "scale": 1365,
+          "imageOverlays": [
+            {
+              "path": "Ektaron.png",
+              "topLeft": [511.875, -682.5],
+              "bottomRight": [-511.875, 682.5]
+            }
+          ],
+          "rawContent": "id: Ektaron-map\nimage: [[Ektaron.png]]\ndefaultZoom: 7\nscale: 1365\nunit: km\nheight: 700px"
+        }
+      ]
+    },
+    {
+      "id": "e3122e42-c2ea-4127-8b9f-584eaa97cce8",
+      "title": "Norðríkið",
+      "route": "/mundis/nordrikio/norriki",
+      "slug": {
+        "value": "norriki"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Norðríkið/Norðríkið.md",
+      "relativePath": "Norðríkið.md",
+      "tags": ["Norðríkið"],
+      "leafletBlocks": [
+        {
+          "id": "Norðríkið-map",
+          "height": "700px",
+          "lat": 0,
+          "long": 0,
+          "defaultZoom": 7,
+          "unit": "days",
+          "scale": 10,
+          "imageOverlays": [
+            {
+              "path": "Norðríkið.png",
+              "topLeft": [3.75, -5],
+              "bottomRight": [-3.75, 5]
+            }
+          ],
+          "rawContent": "id: Norðríkið-map\nimage: [[Norðríkið.png]]\ndefaultZoom: 7\nscale: 10\nunit: days\nheight: 700px"
+        }
+      ]
+    },
+    {
+      "id": "e3f156f2-330e-499b-97ff-e289120be2ee",
+      "title": "Géomir",
+      "route": "/pantheon/geomir",
+      "slug": {
+        "value": "geomir"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Géomir.md",
+      "relativePath": "Géomir.md",
+      "tags": []
+    },
+    {
+      "id": "e59173f7-c7a7-4fe6-91ff-e2f52c063b1c",
+      "title": "Bague du crépuscule",
+      "route": "/tresors/bague-du-crepuscule",
+      "slug": {
+        "value": "bague-du-crepuscule"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Anneau/Bague du crépuscule.md",
+      "relativePath": "Anneau/Bague du crépuscule.md",
+      "tags": ["arcanique", "divine", "malédiction", "accessoire"]
+    },
+    {
+      "id": "e6c95edc-97d9-429e-9cb7-73a94968c84f",
+      "title": "Amnistra",
+      "route": "/pantheon/amnistra",
+      "slug": {
+        "value": "amnistra"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Amnistra.md",
+      "relativePath": "Amnistra.md",
+      "tags": []
+    },
+    {
+      "id": "ea8769ca-75ec-4e4a-a34d-b578c0c37ca7",
+      "title": "Quartz de percée",
+      "route": "/tresors/quartz-de-percee",
+      "slug": {
+        "value": "quartz-de-percee"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Quartz de percée.md",
+      "relativePath": "Objet merveilleux/Quartz de percée.md",
+      "tags": []
+    },
+    {
+      "id": "ec230d16-7107-40ea-a6ad-d053de0cfce3",
+      "title": "Luminara",
+      "route": "/pantheon/luminara",
+      "slug": {
+        "value": "luminara"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/Luminara.md",
+      "relativePath": "Luminara.md",
+      "tags": []
+    },
+    {
+      "id": "ef74cef0-7b09-4124-aeb6-997f373047c1",
+      "title": "Classificatio Potentiae",
+      "route": "/pantheon/index",
+      "slug": {
+        "value": "index"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Classificatio Potentiae.md",
+      "relativePath": "_Codex/Puissances/Classificatio Potentiae.md",
+      "tags": [],
+      "isCustomIndex": true
+    },
+    {
+      "id": "efe348c2-9a8b-4482-8677-1ab00b65af9d",
+      "title": "Catacide",
+      "route": "/tresors/catacide",
+      "slug": {
+        "value": "catacide"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Potion/Catacide.md",
+      "relativePath": "Potion/Catacide.md",
+      "tags": ["alchimique", "naturelle", "ingrédient", "alchimie"]
+    },
+    {
+      "id": "f362be12-4316-4aab-9482-9332cf87fa89",
+      "title": "Larmes de Miséricorde",
+      "route": "/mundis/factions/larmes-de-misericorde",
+      "slug": {
+        "value": "larmes-de-misericorde"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "Ektaron/Factions/Larmes de Miséricorde.md",
+      "relativePath": "Factions/Larmes de Miséricorde.md",
+      "tags": []
+    },
+    {
+      "id": "f8a9f1a1-3ba9-4c87-a938-df79f0413f69",
+      "title": "L'Inquisiteur Sombre",
+      "route": "/pantheon/linquisiteur-sombre",
+      "slug": {
+        "value": "linquisiteur-sombre"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Codex/Puissances/Divinités/L'Inquisiteur Sombre.md",
+      "relativePath": "L'Inquisiteur Sombre.md",
+      "tags": []
+    },
+    {
+      "id": "f9d49b74-1dd5-4615-8290-6d7bfb1fcbe2",
+      "title": "Drap de dérobade",
+      "route": "/tresors/drap-de-derobade",
+      "slug": {
+        "value": "drap-de-derobade"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Drap de dérobade.md",
+      "relativePath": "Objet merveilleux/Drap de dérobade.md",
+      "tags": ["arcanique", "outil", "infiltration", "social", "évasion"]
+    },
+    {
+      "id": "fdd077dc-8119-48f0-90db-ef063d81d668",
+      "title": "Monocle à serrures",
+      "route": "/tresors/monocle-a-serrures",
+      "slug": {
+        "value": "monocle-a-serrures"
+      },
+      "publishedAt": "2025-12-31T21:24:36.086Z",
+      "vaultPath": "_Trésors/Objets Magiques/Objet merveilleux/Monocle à serrures.md",
+      "relativePath": "Objet merveilleux/Monocle à serrures.md",
+      "tags": ["technomagique", "outil", "exploration", "infiltration"]
+    },
+    {
+      "id": "1c08ca85-a71f-4795-9956-0a345c6672ad",
+      "title": "Index principal",
+      "route": "/index",
+      "slug": {
+        "value": "index"
+      },
+      "publishedAt": "2025-12-31T21:24:36.085Z",
+      "vaultPath": "Index principal.md",
+      "relativePath": "Index principal.md",
+      "tags": [],
+      "isCustomIndex": true
+    },
+    {
+      "id": "875beff5-842e-4196-9878-0bddff9f4c5b",
+      "title": "Lycanthrope",
+      "route": "/lore/classes/lignages/lycanthrope",
+      "slug": {
+        "value": "lycanthrope"
+      },
+      "publishedAt": "2025-12-31T21:24:36.085Z",
+      "vaultPath": "_Codex/Lignages/Lycanthrope.md",
+      "relativePath": "Lycanthrope.md",
+      "tags": []
+    },
+    {
+      "id": "d4357c6a-ce9e-4b86-bd47-b61e23bc1a03",
+      "title": "Lycanthropie",
+      "route": "/lore/classes/lycanthropie",
+      "slug": {
+        "value": "lycanthropie"
+      },
+      "publishedAt": "2025-12-31T21:24:36.085Z",
+      "vaultPath": "_Codex/Classes/Lycanthropie.md",
+      "relativePath": "Lycanthropie.md",
+      "tags": ["worldbuilding", "histoire", "mécanique"]
+    }
+  ]
+}

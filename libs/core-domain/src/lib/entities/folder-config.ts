@@ -11,6 +11,14 @@ export interface FolderConfig {
   routeBase: string;
 
   /**
+   * Optional display name for this folder/route in navigation
+   * Propagated from RouteNode.displayName
+   * Used in breadcrumbs, folder indexes, and site navigation
+   * Falls back to humanized routeBase segment if not set
+   */
+  displayName?: string;
+
+  /**
    * IDs of cleanup rules (from parent VPS) to ignore for this folder
    * These are opt-out from VPS-level cleanup rules
    */

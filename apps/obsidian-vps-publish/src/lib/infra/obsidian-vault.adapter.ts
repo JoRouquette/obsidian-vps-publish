@@ -1,5 +1,6 @@
 import type { CollectedNote } from '@core-domain/entities/collected-note';
 import type { FolderConfig } from '@core-domain/entities/folder-config';
+import type { RouteNode, RouteTreeConfig } from '@core-domain/entities/route-node';
 import type { CancellationPort } from '@core-domain/ports/cancellation-port';
 import { type GuidGeneratorPort } from '@core-domain/ports/guid-generator-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
@@ -278,6 +279,316 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
 
     this.logger.debug('Total notes collected', { count: result.length });
     return result;
+  }
+
+  /**
+   * Collects notes from a route tree configuration (new route-first approach).
+   * Supports both folder-based nodes and pure route nodes (without vaultFolder).
+   */
+  async collectFromRouteTree(
+    params: { routeTree: RouteTreeConfig; vpsId: string },
+    cancellation?: CancellationPort
+  ): Promise<CollectedNote[]> {
+    const { routeTree, vpsId } = params;
+    const result: CollectedNote[] = [];
+
+    cancellation?.throwIfCancelled();
+
+    this.logger.debug('Starting route tree collection', {
+      rootCount: routeTree.roots.length,
+      vpsId,
+    });
+
+    // Collect custom root index file first (if configured)
+    if (this.customRootIndexFile) {
+      cancellation?.throwIfCancelled();
+
+      const rootIndexFile = this.app.vault.getAbstractFileByPath(this.customRootIndexFile);
+      if (rootIndexFile && rootIndexFile instanceof TFile) {
+        this.logger.debug('Collecting custom root index file', { path: this.customRootIndexFile });
+        const rawContent = await this.app.vault.read(rootIndexFile);
+        const cache = this.app.metadataCache.getFileCache(rootIndexFile);
+        const frontmatter: Record<string, unknown> =
+          (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+
+        const content = this.stripFrontmatter(rawContent);
+
+        result.push({
+          noteId: this.guidGenerator.generateGuid(),
+          title: rootIndexFile.basename,
+          vaultPath: rootIndexFile.path,
+          relativePath: rootIndexFile.path,
+          content,
+          frontmatter: { flat: frontmatter, nested: {}, tags: [] },
+          folderConfig: {
+            id: 'root-index',
+            vpsId,
+            vaultFolder: '',
+            routeBase: '/',
+            ignoredCleanupRuleIds: [],
+          },
+        });
+
+        this.logger.debug('Collected custom root index file', {
+          path: rootIndexFile.path,
+        });
+      }
+    }
+
+    // Traverse each root node recursively
+    for (const rootNode of routeTree.roots) {
+      await this.traverseRouteNode(rootNode, '', vpsId, result, cancellation);
+    }
+
+    this.logger.debug('Total notes collected from route tree', { count: result.length });
+    return result;
+  }
+
+  /**
+   * Recursively traverses a route node and its children.
+   * @param node Current route node
+   * @param parentRoutePath Accumulated route path from parent nodes
+   * @param vpsId VPS identifier
+   * @param result Array to accumulate collected notes
+   * @param cancellation Cancellation token
+   */
+  private async traverseRouteNode(
+    node: RouteNode,
+    parentRoutePath: string,
+    vpsId: string,
+    result: CollectedNote[],
+    cancellation?: CancellationPort
+  ): Promise<void> {
+    cancellation?.throwIfCancelled();
+
+    // Build current route path
+    const currentRoutePath = parentRoutePath
+      ? `${parentRoutePath}/${node.segment}`
+      : `/${node.segment}`;
+
+    this.logger.debug('Traversing route node', {
+      segment: node.segment,
+      routePath: currentRoutePath,
+      hasFolder: !!node.vaultFolder,
+      hasFlattenTree: node.flattenTree,
+    });
+
+    // Create a FolderConfig-like object for compatibility with existing code
+    const folderConfig: FolderConfig = {
+      id: node.id,
+      vpsId,
+      vaultFolder: node.vaultFolder || '',
+      routeBase: currentRoutePath,
+      displayName: node.displayName, // Propagate displayName from RouteNode
+      customIndexFile: node.customIndexFile,
+      additionalFiles: node.additionalFiles,
+      flattenTree: node.flattenTree,
+      ignoredCleanupRuleIds: node.ignoredCleanupRuleIds || [],
+    };
+
+    // If node has a vaultFolder, collect notes from it
+    if (node.vaultFolder) {
+      const rootPath = node.vaultFolder.trim();
+      const root = this.app.vault.getAbstractFileByPath(rootPath);
+
+      if (!root) {
+        this.logger.warn('Vault folder not found for route node', {
+          routePath: currentRoutePath,
+          vaultFolder: rootPath,
+        });
+      } else {
+        // Collect notes from this folder
+        let fileCount = 0;
+        const walk = async (fileNode: TAbstractFile) => {
+          cancellation?.throwIfCancelled();
+
+          if (fileNode instanceof TFolder) {
+            for (const child of fileNode.children) {
+              await walk(child);
+            }
+          } else if (fileNode instanceof TFile) {
+            if ((fileNode.extension || '').toLowerCase() !== 'md') {
+              return;
+            }
+
+            const rawContent = await this.app.vault.read(fileNode);
+            const cache = this.app.metadataCache.getFileCache(fileNode);
+            const frontmatter: Record<string, unknown> =
+              (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+
+            const content = this.stripFrontmatter(rawContent);
+
+            result.push({
+              noteId: this.guidGenerator.generateGuid(),
+              title: fileNode.basename,
+              vaultPath: fileNode.path,
+              relativePath: this.computeRelative(fileNode.path, rootPath),
+              content,
+              frontmatter: { flat: frontmatter, nested: {}, tags: [] },
+              folderConfig,
+            });
+
+            fileCount++;
+            if (fileCount % 10 === 0) {
+              await yieldToEventLoop();
+            }
+          }
+        };
+
+        await walk(root);
+        this.logger.debug('Collected notes from route node folder', {
+          routePath: currentRoutePath,
+          fileCount,
+        });
+      }
+
+      // Collect custom index file if configured and not already collected
+      if (node.customIndexFile) {
+        const customIndexPath = this.normalizePath(node.customIndexFile);
+        const alreadyCollected = result.some((note) => note.vaultPath === customIndexPath);
+
+        if (!alreadyCollected) {
+          const customIndexFile = this.app.vault.getAbstractFileByPath(customIndexPath);
+          if (customIndexFile && customIndexFile instanceof TFile) {
+            const rawContent = await this.app.vault.read(customIndexFile);
+            const cache = this.app.metadataCache.getFileCache(customIndexFile);
+            const frontmatter: Record<string, unknown> =
+              (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+
+            const content = this.stripFrontmatter(rawContent);
+
+            result.push({
+              noteId: this.guidGenerator.generateGuid(),
+              title: customIndexFile.basename,
+              vaultPath: customIndexFile.path,
+              relativePath: this.computeRelative(customIndexFile.path, rootPath),
+              content,
+              frontmatter: { flat: frontmatter, nested: {}, tags: [] },
+              folderConfig,
+            });
+
+            this.logger.debug('Collected custom index file for route node', {
+              routePath: currentRoutePath,
+              customIndexPath,
+            });
+          }
+        }
+      }
+
+      // Collect additional files if configured
+      if (node.additionalFiles && node.additionalFiles.length > 0) {
+        for (const additionalFilePath of node.additionalFiles) {
+          const normalizedPath = this.normalizePath(additionalFilePath);
+          const alreadyCollected = result.some((note) => note.vaultPath === normalizedPath);
+
+          if (alreadyCollected) {
+            continue;
+          }
+
+          const additionalFile = this.app.vault.getAbstractFileByPath(normalizedPath);
+          if (additionalFile && additionalFile instanceof TFile) {
+            const rawContent = await this.app.vault.read(additionalFile);
+            const cache = this.app.metadataCache.getFileCache(additionalFile);
+            const frontmatter: Record<string, unknown> =
+              (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+
+            const content = this.stripFrontmatter(rawContent);
+
+            result.push({
+              noteId: this.guidGenerator.generateGuid(),
+              title: additionalFile.basename,
+              vaultPath: additionalFile.path,
+              relativePath: `__additional__/${additionalFile.basename}`,
+              content,
+              frontmatter: { flat: frontmatter, nested: {}, tags: [] },
+              folderConfig,
+            });
+
+            this.logger.debug('Collected additional file for route node', {
+              routePath: currentRoutePath,
+              filePath: normalizedPath,
+            });
+          }
+        }
+      }
+    } else {
+      // Pure route node (no vaultFolder)
+      // Still collect customIndexFile and additionalFiles if present
+      this.logger.debug('Processing pure route node (no vaultFolder)', {
+        routePath: currentRoutePath,
+        hasCustomIndex: !!node.customIndexFile,
+        hasAdditionalFiles: (node.additionalFiles?.length || 0) > 0,
+      });
+
+      // Collect custom index file
+      if (node.customIndexFile) {
+        const customIndexPath = this.normalizePath(node.customIndexFile);
+        const customIndexFile = this.app.vault.getAbstractFileByPath(customIndexPath);
+
+        if (customIndexFile && customIndexFile instanceof TFile) {
+          const rawContent = await this.app.vault.read(customIndexFile);
+          const cache = this.app.metadataCache.getFileCache(customIndexFile);
+          const frontmatter: Record<string, unknown> =
+            (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+
+          const content = this.stripFrontmatter(rawContent);
+
+          result.push({
+            noteId: this.guidGenerator.generateGuid(),
+            title: customIndexFile.basename,
+            vaultPath: customIndexFile.path,
+            relativePath: customIndexFile.path, // Pure route uses absolute path
+            content,
+            frontmatter: { flat: frontmatter, nested: {}, tags: [] },
+            folderConfig,
+          });
+
+          this.logger.debug('Collected custom index for pure route node', {
+            routePath: currentRoutePath,
+            customIndexPath,
+          });
+        }
+      }
+
+      // Collect additional files
+      if (node.additionalFiles && node.additionalFiles.length > 0) {
+        for (const additionalFilePath of node.additionalFiles) {
+          const normalizedPath = this.normalizePath(additionalFilePath);
+          const additionalFile = this.app.vault.getAbstractFileByPath(normalizedPath);
+
+          if (additionalFile && additionalFile instanceof TFile) {
+            const rawContent = await this.app.vault.read(additionalFile);
+            const cache = this.app.metadataCache.getFileCache(additionalFile);
+            const frontmatter: Record<string, unknown> =
+              (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+
+            const content = this.stripFrontmatter(rawContent);
+
+            result.push({
+              noteId: this.guidGenerator.generateGuid(),
+              title: additionalFile.basename,
+              vaultPath: additionalFile.path,
+              relativePath: `__additional__/${additionalFile.basename}`,
+              content,
+              frontmatter: { flat: frontmatter, nested: {}, tags: [] },
+              folderConfig,
+            });
+
+            this.logger.debug('Collected additional file for pure route node', {
+              routePath: currentRoutePath,
+              filePath: normalizedPath,
+            });
+          }
+        }
+      }
+    }
+
+    // Recursively traverse children
+    if (node.children && node.children.length > 0) {
+      for (const childNode of node.children) {
+        await this.traverseRouteNode(childNode, currentRoutePath, vpsId, result, cancellation);
+      }
+    }
   }
 
   private computeRelative(filePath: string, folderPath: string): string {

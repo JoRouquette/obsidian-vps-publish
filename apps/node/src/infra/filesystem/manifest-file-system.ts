@@ -23,6 +23,7 @@ export class ManifestFileSystem implements ManifestPort {
         sessionId?: string;
         createdAt?: string;
         lastUpdatedAt?: string;
+        folderDisplayNames?: Record<string, string>;
       };
 
       const pages: ManifestPage[] = Array.isArray(parsed.pages)
@@ -40,11 +41,13 @@ export class ManifestFileSystem implements ManifestPort {
         createdAt: new Date(parsed.createdAt ?? 0),
         lastUpdatedAt: new Date(parsed.lastUpdatedAt ?? 0),
         pages,
+        folderDisplayNames: parsed.folderDisplayNames || undefined,
       };
 
       this._logger?.debug('Manifest loaded', {
         path: this.manifestPath(),
         pages: manifest.pages.length,
+        folderDisplayNames: manifest.folderDisplayNames,
       });
 
       return manifest;
@@ -104,6 +107,7 @@ export class ManifestFileSystem implements ManifestPort {
       hasCustomContent: customIndexesHtml ? customIndexesHtml.size : 0,
     });
     const folders = this.buildFolderMap(manifest);
+    const folderDisplayNames = this.buildFolderDisplayNameMap(manifest);
 
     const topDirs = [...folders.keys()]
       .filter((f) => f !== '/')
@@ -111,7 +115,8 @@ export class ManifestFileSystem implements ManifestPort {
       .map((dir) => {
         const node = folders.get(dir)!;
         const count = (node.pages.length || 0) + (node.subfolders.size || 0);
-        return { name: dir.replace('/', ''), link: dir, count };
+        const displayName = folderDisplayNames.get(dir);
+        return { name: dir.replace('/', ''), link: dir, count, displayName };
       });
 
     const rootCustomContent = customIndexesHtml?.get('/');
@@ -134,7 +139,8 @@ export class ManifestFileSystem implements ManifestPort {
         const sfPath = folder === '/' ? `/${sf}` : `${folder}/${sf}`;
         const node = folders.get(sfPath);
         const count = (node?.pages.length || 0) + (node?.subfolders.size || 0);
-        return { name: sf, link: sfPath, count };
+        const displayName = folderDisplayNames.get(sfPath);
+        return { name: sf, link: sfPath, count, displayName };
       });
 
       // Get custom content only for this exact folder (no inheritance)
@@ -193,6 +199,39 @@ export class ManifestFileSystem implements ManifestPort {
 
     this._logger?.debug('Folder map built', { folderCount: map.size });
     return map;
+  }
+
+  private buildFolderDisplayNameMap(manifest: Manifest): Map<string, string> {
+    const displayNames = new Map<string, string>();
+
+    // First, load displayNames from manifest.folderDisplayNames if present
+    if (manifest.folderDisplayNames) {
+      for (const [route, displayName] of Object.entries(manifest.folderDisplayNames)) {
+        displayNames.set(route, displayName);
+      }
+    }
+
+    // Then, extract from pages (for backward compatibility and additional inference)
+    for (const p of manifest.pages) {
+      if (!p.folderDisplayName) continue;
+
+      const route = p.route;
+      const segs = route.split('/').filter(Boolean);
+
+      // The folderDisplayName corresponds to the parent folder (all segments except last)
+      if (segs.length > 0) {
+        const folderPath = '/' + segs.slice(0, -1).join('/');
+        if (folderPath !== '/') {
+          // Only set if not already set (manifest.folderDisplayNames takes precedence)
+          if (!displayNames.has(folderPath)) {
+            displayNames.set(folderPath, p.folderDisplayName);
+          }
+        }
+      }
+    }
+
+    this._logger?.debug('Folder displayName map built', { count: displayNames.size });
+    return displayNames;
   }
 
   private async writeHtml(filePath: string, html: string) {

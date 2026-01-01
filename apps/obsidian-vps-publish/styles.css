@@ -540,12 +540,6 @@
   border: 2px solid var(--background-modifier-border);
   background-color: var(--background-primary);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  transition: all 0.2s ease;
-}
-
-.obsidian-vps-publish-settings .ptpv-cleanup-rule:hover {
-  border-color: var(--interactive-accent);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 /* Règles par défaut - Style distinctif */
@@ -740,12 +734,6 @@
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.ptpv-folder-item:hover {
-  background: var(--background-secondary-alt);
-  border-color: var(--interactive-accent);
 }
 
 .ptpv-folder-item-label {
@@ -1119,4 +1107,227 @@
 .theme-dark .ptpv-warning {
   background: rgba(var(--color-red-rgb), 0.1);
   border-color: rgba(var(--color-red-rgb), 0.3);
+}
+
+/* ========================================================================
+   NEW ROUTE TREE UI STYLES (Route-First Model)
+   ======================================================================== */
+
+/* Routes VPS section container */
+.ptpv-routes-vps-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+}
+
+/* Route tree container */
+.ptpv-routes-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 1rem;
+}
+
+/* Single route node container */
+.ptpv-route-node {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Compact route item (always visible) */
+.ptpv-route-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  margin-bottom: 2px;
+}
+
+/* Expand/collapse button */
+.ptpv-route-expand-btn {
+  width: 20px;
+  height: 20px;
+  padding: 2px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ptpv-route-expand-btn:hover {
+  background: transparent;
+  color: var(--text-normal);
+  box-shadow: none;
+}
+
+.ptpv-route-expand-btn:focus,
+.ptpv-route-expand-btn:active {
+  box-shadow: none;
+  outline: none;
+  border: none;
+}
+
+.ptpv-route-expand-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ptpv-route-expand-spacer {
+  width: 20px;
+  flex-shrink: 0;
+}
+
+/* Route label */
+.ptpv-route-label {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Route label with conflicts */
+.ptpv-route-label.ptpv-route-has-conflicts {
+  color: var(--text-error);
+  font-weight: 600;
+}
+
+.ptpv-route-label.ptpv-route-has-conflicts:hover {
+  cursor: help;
+}
+
+/* Validation warning banner */
+.ptpv-validation-warning {
+  padding: 1rem;
+  margin: 0.5rem 0 1rem 0;
+  background: var(--background-secondary);
+  border: 2px solid var(--text-error);
+  border-radius: 6px;
+}
+
+.ptpv-validation-warning strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-error);
+  font-size: 1rem;
+}
+
+.ptpv-validation-warning ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style-type: disc;
+}
+
+.ptpv-validation-warning li {
+  margin: 0.25rem 0;
+}
+
+.ptpv-validation-warning .setting-item-description {
+  margin-top: 0.75rem;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+/* Route actions */
+.ptpv-route-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.ptpv-route-actions button {
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+}
+
+/* Route editor (expanded) */
+.ptpv-route-editor {
+  padding: 1rem;
+  margin: 0.5rem 0 0.5rem 40px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+}
+
+.ptpv-route-editor h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-accent);
+}
+
+.ptpv-route-editor .setting-item {
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.ptpv-route-editor .setting-item:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.ptpv-route-editor .setting-item-info {
+  margin-bottom: 0.75rem;
+}
+
+.ptpv-route-editor .setting-item-control {
+  width: 100%;
+}
+
+.ptpv-route-editor .setting-item-control input[type='text'],
+.ptpv-route-editor .setting-item-control .search-input-container {
+  width: 100%;
+}
+
+/* Children container */
+.ptpv-route-children {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-left: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ptpv-route-item {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .ptpv-route-label {
+    flex-basis: 100%;
+    margin-bottom: 0.25rem;
+  }
+
+  .ptpv-route-actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .ptpv-route-actions button {
+    flex: 1;
+    min-width: 60px;
+  }
+
+  .ptpv-route-editor {
+    margin-left: 10px;
+    padding: 0.75rem;
+  }
 }

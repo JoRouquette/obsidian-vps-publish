@@ -125,6 +125,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
         relativePath: n.relativePath,
         tags: n.frontmatter.tags ?? [],
         leafletBlocks: n.leafletBlocks,
+        folderDisplayName: n.routing.folderDisplayName,
       }));
 
       pages.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
@@ -148,7 +149,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
         manifestPages: pages.map((p) => ({ id: p.id, route: p.route })),
       });
 
-      await this.updateManifestForSession(sessionId, pages, manifestStorage, logger);
+      await this.updateManifestForSession(sessionId, pages, succeeded, manifestStorage, logger);
     }
 
     logger?.debug(`Publishing complete: ${published} notes published, ${errors.length} errors`);
@@ -162,6 +163,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
   private async updateManifestForSession(
     sessionId: string,
     newPages: ManifestPage[],
+    notes: PublishableNote[],
     manifestStorage: ManifestPort,
     logger?: LoggerPort
   ): Promise<void> {
@@ -178,13 +180,31 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
         createdAt: now,
         lastUpdatedAt: now,
         pages: [],
+        folderDisplayNames: {},
       };
     } else {
       manifest = {
         ...existing,
         lastUpdatedAt: now,
+        folderDisplayNames: existing.folderDisplayNames || {},
       };
     }
+
+    // Extract folderDisplayNames from notes' folderConfig
+    for (const note of notes) {
+      if (note.folderConfig.displayName && note.routing?.routeBase) {
+        const routeBase = note.routing.routeBase;
+        // Only set if not already present (first note wins for same route)
+        if (!manifest.folderDisplayNames![routeBase]) {
+          manifest.folderDisplayNames![routeBase] = note.folderConfig.displayName;
+        }
+      }
+    }
+
+    logger?.debug('Extracted folderDisplayNames from notes', {
+      count: Object.keys(manifest.folderDisplayNames || {}).length,
+      displayNames: manifest.folderDisplayNames,
+    });
 
     // Merge: most recent version of a note wins
     const byId = new Map<string, ManifestPage>();
@@ -198,6 +218,11 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     manifest.pages = Array.from(byId.values()).sort(
       (a, b) => b.publishedAt.getTime() - a.publishedAt.getTime()
     );
+
+    // Clean up empty folderDisplayNames object (don't save if empty)
+    if (manifest.folderDisplayNames && Object.keys(manifest.folderDisplayNames).length === 0) {
+      manifest.folderDisplayNames = undefined;
+    }
 
     await manifestStorage.save(manifest);
     await manifestStorage.rebuildIndex(manifest);

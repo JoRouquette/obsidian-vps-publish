@@ -15,10 +15,12 @@ import { RemoveNoPublishingMarkerService } from '@core-application/vault-parsing
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
 import {
+  applyCustomIndexesToRouteTree,
   CancellationError,
   type CancellationPort,
   type CollectedNote,
   type CustomIndexConfig,
+  migrateLegacyFoldersToRouteTree,
   type VpsConfig,
 } from '@core-domain';
 import { type HttpResponse } from '@core-domain/entities/http-response';
@@ -58,6 +60,7 @@ import { SessionApiClient } from './lib/services/session-api.client';
 import { ObsidianVpsPublishSettingTab } from './lib/setting-tab.view';
 import type { PluginSettings } from './lib/settings/plugin-settings.type';
 import { enrichCleanupRules } from './lib/utils/create-default-folder-config.util';
+import { getEffectiveFolders } from './lib/utils/get-effective-folders.util';
 import { RequestUrlResponseMapper } from './lib/utils/http-response-status.mapper';
 import { selectVpsOrAuto } from './lib/utils/vps-selector';
 
@@ -300,8 +303,48 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       ...(snapshotRaw as Partial<PluginSettings>),
     };
 
-    // Enrich cleanup rules with default metadata (translation keys, isDefault flag)
+    // BREAKING CHANGE: Auto-migrate legacy folders to route tree
+    let needsSave = false;
     if (merged.vpsConfigs && Array.isArray(merged.vpsConfigs)) {
+      merged.vpsConfigs = merged.vpsConfigs.map((vps) => {
+        // Check if migration is needed (has folders but no routeTree)
+        if (vps.folders && vps.folders.length > 0 && !vps.routeTree) {
+          this.logger.info(`Migrating VPS "${vps.name}" from legacy folders to route tree`, {
+            vpsId: vps.id,
+            foldersCount: vps.folders.length,
+            customIndexesCount: vps.customIndexes?.length || 0,
+          });
+
+          const routeTree = migrateLegacyFoldersToRouteTree(vps.folders);
+
+          // Apply custom indexes to route tree
+          if (vps.customIndexes && vps.customIndexes.length > 0) {
+            this.logger.debug('Applying custom indexes to route tree', {
+              vpsId: vps.id,
+              customIndexesCount: vps.customIndexes.length,
+            });
+            applyCustomIndexesToRouteTree(routeTree, vps.customIndexes);
+          }
+
+          this.logger.debug('Migration completed', {
+            vpsId: vps.id,
+            routeTreeRoots: routeTree.roots.length,
+          });
+
+          needsSave = true;
+
+          // Return migrated VPS with routeTree and cleaned up legacy fields
+          const { folders: _folders, customIndexes: _customIndexes, ...cleanVps } = vps;
+          return {
+            ...cleanVps,
+            routeTree,
+          };
+        }
+
+        return vps;
+      });
+
+      // Enrich cleanup rules with default metadata (translation keys, isDefault flag)
       merged.vpsConfigs = merged.vpsConfigs.map((vps) => ({
         ...vps,
         cleanupRules: enrichCleanupRules(vps.cleanupRules || []),
@@ -309,6 +352,13 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     }
 
     this.settings = withDecryptedApiKeys(merged);
+
+    // Save immediately if migration occurred
+    if (needsSave) {
+      this.logger.info('Auto-saving migrated settings');
+      await this.saveSettings();
+      new Notice('VPS configuration migrated to new route-based model (BREAKING CHANGE)', 5000);
+    }
   }
 
   async saveSettings() {
@@ -452,17 +502,37 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         vps.customRootIndexFile
       );
 
-      trace.checkpoint('1-parse-vault-init', 'calling-collectFromFolder');
+      trace.checkpoint('1-parse-vault-init', 'collection-method-decision');
       trace.endStep('1-parse-vault-init');
 
       trace.startStep('2-collect-notes');
 
-      const notes: CollectedNote[] = await vault.collectFromFolder(
-        {
-          folderConfig: vps.folders,
-        },
-        cancellation
-      );
+      // Use route tree if available, otherwise fallback to legacy folders
+      let notes: CollectedNote[];
+      if (vps.routeTree && vps.routeTree.roots.length > 0) {
+        scopedLogger.debug('Using route tree collection (new method)', {
+          rootCount: vps.routeTree.roots.length,
+        });
+        notes = await vault.collectFromRouteTree(
+          {
+            routeTree: vps.routeTree,
+            vpsId: vps.id,
+          },
+          cancellation
+        );
+      } else {
+        scopedLogger.debug('Using legacy folder collection (fallback)', {
+          folderCount: vps.folders?.length || 0,
+        });
+        // Extract effective folders from route tree (or legacy folders)
+        const effectiveFolders = getEffectiveFolders(vps);
+        notes = await vault.collectFromFolder(
+          {
+            folderConfig: effectiveFolders,
+          },
+          cancellation
+        );
+      }
 
       trace.endStep('2-collect-notes', { notesCount: notes.length });
 
@@ -616,8 +686,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         });
       }
 
-      // Add folder indexes if configured
-      for (const folder of vps.folders) {
+      // Add folder indexes if configured (use getEffectiveFolders for route tree compatibility)
+      const effectiveFolders = getEffectiveFolders(vps);
+      for (const folder of effectiveFolders) {
         if (folder.customIndexFile) {
           customIndexConfigs.push({
             id: guidGen.generateGuid(),

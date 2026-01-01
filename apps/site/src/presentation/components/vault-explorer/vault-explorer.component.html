@@ -65,7 +65,7 @@
             {{ node.isExpanded || shouldAutoExpand(n) ? 'folder_open' : 'folder' }}
           </mat-icon>
           <span class="label">
-            {{ n.label || n.name || 'root' }}
+            {{ n.displayName || n.label || n.name || 'root' }}
           </span>
         </button>
 

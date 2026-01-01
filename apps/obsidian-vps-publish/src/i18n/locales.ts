@@ -200,6 +200,20 @@ type FoldersTranslations = {
   sortExceptionsDesc: string;
 };
 
+type RoutesTranslations = {
+  addRootRoute: string;
+  addChildRoute: string;
+  editRoute: string;
+  deleteRoute: string;
+  deleteLastForbidden: string;
+  routeConfiguration: string;
+  segmentLabel: string;
+  segmentDescription: string;
+  displayNameLabel: string;
+  displayNameDescription: string;
+  displayNamePlaceholder: string;
+};
+
 type IgnoreRulesTranslations = {
   title: string;
   description?: string;
@@ -328,6 +342,7 @@ export type SettingsTranslations = {
   language: LanguageTranslations;
   vps: VpsTranslations;
   folders: FoldersTranslations;
+  routes: RoutesTranslations;
   cleanupRules: CleanupRulesTranslations;
   ignoreRules: IgnoreRulesTranslations;
   testConnection: TestConnectionTranslations;
@@ -538,6 +553,21 @@ export const en: Translations = {
       sortCustomIndexDesc: 'Sort: Custom Index (Yes first)',
       sortFlattenedDesc: 'Sort: Flattened (Yes first)',
       sortExceptionsDesc: 'Sort: Exceptions (Most first)',
+    },
+    routes: {
+      addRootRoute: 'Add root route',
+      addChildRoute: '+ Child',
+      editRoute: 'Edit',
+      deleteRoute: 'Delete',
+      deleteLastForbidden: 'Cannot delete last root route',
+      routeConfiguration: 'Route Configuration',
+      segmentLabel: 'Segment',
+      segmentDescription:
+        'URL segment for this route (e.g., "blog", "docs"). Leave empty for root.',
+      displayNameLabel: 'Display Name',
+      displayNameDescription:
+        'Optional: Custom name for navigation and breadcrumbs. If not set, the segment will be humanized (e.g., "api-docs" → "Api Docs").',
+      displayNamePlaceholder: 'Inferred from segment if empty',
     },
     cleanupRules: {
       removeCodeBlocks: {
@@ -1004,6 +1034,21 @@ export const fr: Translations = {
       sortCustomIndexDesc: 'Tri : Index personnalisé (Oui en premier)',
       sortFlattenedDesc: 'Tri : Aplati (Oui en premier)',
       sortExceptionsDesc: 'Tri : Exceptions (Plus en premier)',
+    },
+    routes: {
+      addRootRoute: 'Ajouter une route racine',
+      addChildRoute: '+ Enfant',
+      editRoute: 'Éditer',
+      deleteRoute: 'Supprimer',
+      deleteLastForbidden: 'Impossible de supprimer la dernière route racine',
+      routeConfiguration: 'Configuration de la route',
+      segmentLabel: 'Segment',
+      segmentDescription:
+        'Segment d\'URL pour cette route (ex: "blog", "docs"). Laisser vide pour la racine.',
+      displayNameLabel: "Nom d'affichage",
+      displayNameDescription:
+        'Optionnel : Nom personnalisé pour la navigation et le fil d\'Ariane. Si non défini, le segment sera humanisé (ex: "api-docs" → "Api Docs").',
+      displayNamePlaceholder: 'Déduit du segment si vide',
     },
     cleanupRules: {
       removeCodeBlocks: {
