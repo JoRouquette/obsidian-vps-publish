@@ -66,7 +66,7 @@ export class ConsoleLogger implements LoggerPort {
       level: normalized,
       message,
       ...this.context,
-      ...(meta ?? {}),
+      ...(meta ? this.serializeMeta(meta) : {}),
       timestamp: new Date().toISOString(),
     };
 
@@ -117,5 +117,29 @@ export class ConsoleLogger implements LoggerPort {
       default:
         return 'info';
     }
+  }
+
+  private serializeMeta(meta: LogMeta): Record<string, unknown> {
+    const serialized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(meta)) {
+      if (value instanceof Error) {
+        const errorObj: Record<string, unknown> = {
+          name: value.name,
+          message: value.message,
+          stack: value.stack,
+        };
+        // Check for cause property (ES2022+)
+        if ('cause' in value && value.cause !== undefined) {
+          errorObj.cause = value.cause;
+        }
+        serialized[key] = errorObj;
+      } else if (value && typeof value === 'object' && 'err' in value) {
+        // Handle nested err property
+        serialized[key] = this.serializeMeta(value as LogMeta);
+      } else {
+        serialized[key] = value;
+      }
+    }
+    return serialized;
   }
 }

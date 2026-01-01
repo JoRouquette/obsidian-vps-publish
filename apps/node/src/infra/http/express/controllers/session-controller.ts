@@ -94,7 +94,9 @@ export function createSessionController(
         maxBytesPerRequest: BYTES_LIMIT,
       });
     } catch (err) {
-      routeLogger?.error('Error while creating session', { err });
+      routeLogger?.error('Error while creating session', {
+        error: err instanceof Error ? err : new Error(String(err)),
+      });
       return res.status(500).json({ status: 'error' });
     }
   });
@@ -139,7 +141,9 @@ export function createSessionController(
         errors: result.errors ?? [],
       });
     } catch (err) {
-      routeLogger?.error('Error while publishing notes', { err });
+      routeLogger?.error('Error while publishing notes', {
+        error: err instanceof Error ? err : new Error(String(err)),
+      });
       return res.status(500).json({ status: 'error' });
     }
   });
@@ -177,7 +181,9 @@ export function createSessionController(
         errors: result.errors ?? [],
       });
     } catch (err) {
-      routeLogger?.error('Error while publishing assets', { err });
+      routeLogger?.error('Error while publishing assets', {
+        error: err instanceof Error ? err : new Error(String(err)),
+      });
       return res.status(500).json({ status: 'error' });
     }
   });
@@ -233,7 +239,9 @@ export function createSessionController(
         return res.status(409).json({ status: 'invalid_session_state' });
       }
 
-      routeLogger?.error('Error while finishing session', { err });
+      routeLogger?.error('Error while finishing session', {
+        error: err instanceof Error ? err : new Error(String(err)),
+      });
       return res.status(500).json({ status: 'error' });
     }
   });
@@ -306,7 +314,9 @@ export function createSessionController(
         return res.status(409).json({ status: 'invalid_session_state' });
       }
 
-      routeLogger?.error('Error while aborting session', { err });
+      routeLogger?.error('Error while aborting session', {
+        error: err instanceof Error ? err : new Error(String(err)),
+      });
       return res.status(500).json({ status: 'error' });
     }
   });

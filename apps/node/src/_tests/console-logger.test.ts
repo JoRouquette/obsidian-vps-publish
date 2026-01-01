@@ -31,4 +31,36 @@ describe('ConsoleLogger', () => {
     expect(payload.extra).toBe(true);
     expect(payload.message).toBe('hello');
   });
+
+  it('serializes Error objects correctly', () => {
+    const logger = new ConsoleLogger({ level: 'error' });
+    const error = new Error('Test error message');
+    error.stack = 'Error: Test error message\n    at test.ts:10:5';
+
+    logger.error('An error occurred', { error });
+
+    const payload = JSON.parse(logs[0]);
+    expect(payload.level).toBe('error');
+    expect(payload.message).toBe('An error occurred');
+    expect(payload.error).toBeDefined();
+    expect(payload.error.name).toBe('Error');
+    expect(payload.error.message).toBe('Test error message');
+    expect(payload.error.stack).toContain('Error: Test error message');
+  });
+
+  it('serializes nested error objects', () => {
+    const logger = new ConsoleLogger({ level: 'warn' });
+    const innerError = new Error('Inner error');
+    const outerError = new Error('Outer error');
+
+    logger.warn('Nested errors', {
+      error: outerError,
+      details: { innerError },
+    });
+
+    const payload = JSON.parse(logs[0]);
+    expect(payload.error.name).toBe('Error');
+    expect(payload.error.message).toBe('Outer error');
+    expect(payload.details).toBeDefined();
+  });
 });
