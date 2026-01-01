@@ -59,20 +59,6 @@ export class BuildTreeHandler implements QueryHandler<Manifest, TreeNode> {
       }
     }
 
-    // Also extract from pages for backward compatibility (when pages have folderDisplayName)
-    for (const page of manifest.pages) {
-      if (!page.folderDisplayName || !page.route) continue;
-
-      const segments = page.route.split('/').filter(Boolean);
-      if (segments.length === 0) continue;
-
-      // The folderDisplayName corresponds to the parent folder (all segments except last)
-      const folderPath = segments.slice(0, -1).join('/');
-      if (folderPath && !map.has(folderPath)) {
-        map.set(folderPath, page.folderDisplayName);
-      }
-    }
-
     return map;
   }
 

@@ -127,7 +127,6 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
             relativePath: n.relativePath,
             tags: n.frontmatter.tags ?? [],
             leafletBlocks: n.leafletBlocks,
-            folderDisplayName: n.routing.folderDisplayName,
           };
         } catch (err) {
           logger?.error('Invalid slug for note', {

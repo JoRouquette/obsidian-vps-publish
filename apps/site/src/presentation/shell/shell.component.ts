@@ -180,21 +180,6 @@ export class ShellComponent implements OnInit {
       const key = this.normalizeRoute(p.route);
       this.pageTitleCache.set(key, p.title);
       this.pageByRoute.set(key, { ...p, route: key });
-
-      // Also populate from page folderDisplayName for backward compatibility
-      if (p.folderDisplayName && p.route) {
-        const routeParts = p.route.split('/').filter(Boolean);
-        if (routeParts.length > 0) {
-          // The folderDisplayName corresponds to the parent folder (all segments except last)
-          const folderPath = '/' + routeParts.slice(0, -1).join('/');
-          if (
-            folderPath !== '/' &&
-            !this.folderDisplayNameCache.has(this.normalizeRoute(folderPath))
-          ) {
-            this.folderDisplayNameCache.set(this.normalizeRoute(folderPath), p.folderDisplayName);
-          }
-        }
-      }
     });
   }
 

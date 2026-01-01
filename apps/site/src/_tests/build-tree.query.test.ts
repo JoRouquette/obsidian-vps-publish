@@ -109,4 +109,68 @@ describe('BuildTreeHandler', () => {
     const rose = floreChildren.find((c) => c.name === 'rose');
     expect(rose?.label).toBe('Rose');
   });
+
+  it('uses folderDisplayNames from manifest for folder labels', async () => {
+    // Manifest with folderDisplayNames dictionary
+    const displayManifest: Manifest = {
+      sessionId: 's',
+      createdAt: new Date(),
+      lastUpdatedAt: new Date(),
+      pages: [
+        {
+          id: '1',
+          route: '/pantheon/thormak',
+          title: 'Thormak',
+          publishedAt: new Date(),
+          slug: Slug.from('thormak'),
+        },
+        {
+          id: '2',
+          route: '/ektaron/anorin-sirdalea/eldalonde',
+          title: 'Eldalondë',
+          publishedAt: new Date(),
+          slug: Slug.from('eldalonde'),
+        },
+        {
+          id: '3',
+          route: '/arali/arakishib/sceau-mineur',
+          title: 'Sceau mineur',
+          publishedAt: new Date(),
+          slug: Slug.from('sceau-mineur'),
+        },
+      ],
+      folderDisplayNames: {
+        '/pantheon': 'Panthéon',
+        '/ektaron/anorin-sirdalea': 'Anorin Sírdalëa',
+        '/arali/arakishib': 'Arakišib',
+      },
+    };
+
+    const q = new BuildTreeHandler();
+    const tree = await q.handle(displayManifest);
+
+    // Check that displayName is used for folders
+    const pantheon = tree.children?.find((c) => c.name === 'pantheon');
+    expect(pantheon?.displayName).toBe('Panthéon');
+    expect(pantheon?.label).toBe('Pantheon'); // label is prettified from slug
+
+    const ektaron = tree.children?.find((c) => c.name === 'ektaron');
+    expect(ektaron).toBeDefined();
+
+    const anorin = ektaron?.children?.find((c) => c.name === 'anorin-sirdalea');
+    expect(anorin?.displayName).toBe('Anorin Sírdalëa');
+
+    const arali = tree.children?.find((c) => c.name === 'arali');
+    expect(arali).toBeDefined();
+
+    const arakishib = arali?.children?.find((c) => c.name === 'arakishib');
+    expect(arakishib?.displayName).toBe('Arakišib');
+
+    // Verify that folders without displayName still have label
+    expect(ektaron?.displayName).toBeUndefined();
+    expect(ektaron?.label).toBe('Ektaron');
+
+    expect(arali?.displayName).toBeUndefined();
+    expect(arali?.label).toBe('Arali');
+  });
 });

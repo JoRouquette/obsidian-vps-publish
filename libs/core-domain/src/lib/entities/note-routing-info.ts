@@ -27,11 +27,4 @@ export interface NoteRoutingInfo {
    * ex: "/codex/puissances/divinites/thormak"
    */
   fullPath: string;
-
-  /**
-   * Optional display name for the folder this note belongs to
-   * Propagated from RouteNode.displayName
-   * Used in breadcrumbs and folder indexes
-   */
-  folderDisplayName?: string;
 }

@@ -146,9 +146,18 @@ export class ManifestFileSystem implements ManifestPort {
       // Get custom content only for this exact folder (no inheritance)
       const folderCustomContent = customIndexesHtml?.get(folder);
 
+      // Get displayName for current folder
+      const currentFolderDisplayName = folderDisplayNames.get(folder);
+
       await this.writeHtml(
         path.join(folderDir, 'index.html'),
-        renderFolderIndex(folder, data.pages, subfolders, folderCustomContent)
+        renderFolderIndex(
+          folder,
+          data.pages,
+          subfolders,
+          folderCustomContent,
+          currentFolderDisplayName
+        )
       );
       this._logger?.debug('Folder index.html written', {
         folder,
@@ -204,29 +213,10 @@ export class ManifestFileSystem implements ManifestPort {
   private buildFolderDisplayNameMap(manifest: Manifest): Map<string, string> {
     const displayNames = new Map<string, string>();
 
-    // First, load displayNames from manifest.folderDisplayNames if present
+    // Load displayNames from manifest.folderDisplayNames
     if (manifest.folderDisplayNames) {
       for (const [route, displayName] of Object.entries(manifest.folderDisplayNames)) {
         displayNames.set(route, displayName);
-      }
-    }
-
-    // Then, extract from pages (for backward compatibility and additional inference)
-    for (const p of manifest.pages) {
-      if (!p.folderDisplayName) continue;
-
-      const route = p.route;
-      const segs = route.split('/').filter(Boolean);
-
-      // The folderDisplayName corresponds to the parent folder (all segments except last)
-      if (segs.length > 0) {
-        const folderPath = '/' + segs.slice(0, -1).join('/');
-        if (folderPath !== '/') {
-          // Only set if not already set (manifest.folderDisplayNames takes precedence)
-          if (!displayNames.has(folderPath)) {
-            displayNames.set(folderPath, p.folderDisplayName);
-          }
-        }
       }
     }
 

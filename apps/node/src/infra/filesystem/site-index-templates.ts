@@ -34,15 +34,13 @@ export function renderFolderIndex(
   folderPath: string,
   pages: ManifestPage[],
   subfolders: { name: string; link: string; count: number; displayName?: string }[],
-  customContent?: string
+  customContent?: string,
+  folderDisplayName?: string
 ) {
   const folderName = folderPath === '/' ? '/' : folderPath.split('/').filter(Boolean).pop()!;
 
-  // Use folderDisplayName from first page if available, otherwise humanize folder name
-  const displayName =
-    pages.length > 0 && pages[0].folderDisplayName
-      ? pages[0].folderDisplayName
-      : humanizePropertyKey(folderName) || 'Home';
+  // Use provided folderDisplayName, otherwise humanize folder name
+  const displayName = folderDisplayName ?? (humanizePropertyKey(folderName) || 'Home');
 
   const folderTitle = displayName;
 

@@ -85,4 +85,10 @@ describe('site-index-templates', () => {
     expect(html).toContain('Custom intro text');
     expect(html).toContain('Guide');
   });
+
+  it('should use displayName when provided', () => {
+    const html = renderFolderIndex('/pantheon', [], [], undefined, 'Panthéon');
+    expect(html).toContain('Panthéon');
+    expect(html).not.toContain('Pantheon');
+  });
 });

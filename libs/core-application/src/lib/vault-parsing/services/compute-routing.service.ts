@@ -45,7 +45,6 @@ export class ComputeRoutingService implements BaseService {
           path: '',
           routeBase,
           fullPath: routeBase ? `${routeBase}/${slug}` : `/${slug}`,
-          folderDisplayName: note.folderConfig.displayName,
         };
         this._logger.debug('Computed routing for root note', { routing });
       } else {
@@ -83,17 +82,11 @@ export class ComputeRoutingService implements BaseService {
           .join('/')
           .replace(/\/{2,}/g, '/');
 
-        // Only apply displayName to notes directly in vaultFolder (no intermediate folders)
-        // OR if flattenTree/additionalFile (hierarchy is flattened, so displayName always applies)
-        const shouldInheritDisplayName =
-          dirSegments.length === 0 || note.folderConfig.flattenTree || isAdditionalFile;
-
         routing = {
           slug,
           path,
           routeBase,
           fullPath,
-          folderDisplayName: shouldInheritDisplayName ? note.folderConfig.displayName : undefined,
         };
         this._logger.debug('Computed routing for note', {
           routing,
