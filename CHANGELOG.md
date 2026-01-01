@@ -1,3 +1,7 @@
+## <small>6.0.3 (2026-01-01)</small>
+
+* fix(core): remove folderDisplayName from pages, use manifest-level folderDisplayNames ([88a02b6](https://github.com/JoRouquette/obsidian-vps-publish/commit/88a02b6))
+
 ## <small>6.0.2 (2026-01-01)</small>
 
 * fix(routing): improve slug deduplication and validation ([07941ea](https://github.com/JoRouquette/obsidian-vps-publish/commit/07941ea))
