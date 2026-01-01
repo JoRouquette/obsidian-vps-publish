@@ -4,7 +4,7 @@ import type { RouteNode, RouteTreeConfig } from './route-node';
  * Route validation error with conflict details
  */
 export interface RouteConflict {
-  type: 'duplicate-segment' | 'duplicate-path' | 'empty-segment';
+  type: 'duplicate-segment' | 'duplicate-path' | 'empty-segment' | 'multiple-root-routes';
   message: string;
   conflictingNodes: {
     id: string;
@@ -30,6 +30,29 @@ export function validateRouteTree(routeTree: RouteTreeConfig): RouteValidationRe
   const pathRegistry = new Map<string, RouteNode[]>(); // Track all full paths
   const processedDuplicates = new Set<string>(); // Track already reported duplicate segments
 
+  // Guard against undefined/null roots
+  if (!routeTree.roots || routeTree.roots.length === 0) {
+    return { valid: true, conflicts: [] };
+  }
+
+  // Check for multiple root routes (empty segment at root level)
+  const rootRoutesWithEmptySegment = routeTree.roots.filter(
+    (root) => !root.segment || root.segment === '' || root.segment === '/'
+  );
+
+  if (rootRoutesWithEmptySegment.length > 1) {
+    conflicts.push({
+      type: 'multiple-root-routes',
+      message: `Only one root route (empty segment for "/") is allowed, found ${rootRoutesWithEmptySegment.length}`,
+      conflictingNodes: rootRoutesWithEmptySegment.map((n) => ({
+        id: n.id,
+        segment: n.segment || '',
+        fullPath: '/',
+      })),
+      path: '/',
+    });
+  }
+
   // Normalize segment (remove leading/trailing slashes, trim)
   function normalizeSegment(segment: string | undefined): string {
     if (!segment) return '';
@@ -40,11 +63,11 @@ export function validateRouteTree(routeTree: RouteTreeConfig): RouteValidationRe
   function validateNode(node: RouteNode, parentPath: string, siblings: RouteNode[]): void {
     const normalizedSegment = normalizeSegment(node.segment);
 
-    // 1. Check for empty segments (root nodes with empty segment are allowed)
+    // 1. Check for empty segments (only allowed at root level, enforced above)
     if (parentPath !== '' && normalizedSegment === '') {
       conflicts.push({
         type: 'empty-segment',
-        message: 'Route segment cannot be empty',
+        message: 'Route segment cannot be empty (only root route "/" can have empty segment)',
         conflictingNodes: [
           {
             id: node.id,

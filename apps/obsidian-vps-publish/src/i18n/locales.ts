@@ -335,6 +335,7 @@ export type SettingsTranslations = {
   tabTitle: string;
   errors: {
     missingVpsConfig: string;
+    validationFailed: string;
   };
   defaults: {
     ignoreRules: IgnoreRulesDefaults;
@@ -437,6 +438,7 @@ export const en: Translations = {
     tabTitle: 'Publish to VPS',
     errors: {
       missingVpsConfig: 'VPS configuration not found for folder: ',
+      validationFailed: 'Route tree validation failed:',
     },
     defaults: {
       ignoreRules: {
@@ -917,6 +919,7 @@ export const fr: Translations = {
     tabTitle: 'Publier vers mon VPS personnel',
     errors: {
       missingVpsConfig: 'Configuration VPS introuvable pour le dossier : ',
+      validationFailed: "Échec de validation de l'arbre de routes :",
     },
     defaults: {
       ignoreRules: {

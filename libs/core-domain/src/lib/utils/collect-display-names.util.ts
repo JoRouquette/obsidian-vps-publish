@@ -13,10 +13,21 @@ export function collectDisplayNamesFromRouteTree(
   const displayNames: Record<string, string> = {};
 
   function traverse(node: RouteNode, parentPath: string): void {
-    // Build current route path
-    const currentPath = parentPath ? `${parentPath}/${node.segment}` : `/${node.segment}`;
+    // Build current route path, handling empty segments properly
+    let currentPath: string;
 
-    // Add displayName if present
+    if (!node.segment) {
+      // Empty segment: this is the root route "/"
+      currentPath = '/';
+    } else if (!parentPath || parentPath === '/') {
+      // Root level node with non-empty segment
+      currentPath = `/${node.segment}`;
+    } else {
+      // Nested node
+      currentPath = `${parentPath}/${node.segment}`;
+    }
+
+    // Add displayName if present (for ANY node, regardless of vaultFolder)
     if (node.displayName) {
       displayNames[currentPath] = node.displayName;
     }

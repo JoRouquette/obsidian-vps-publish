@@ -22,6 +22,7 @@ import {
   type CollectedNote,
   type CustomIndexConfig,
   migrateLegacyFoldersToRouteTree,
+  validateRouteTree,
   type VpsConfig,
 } from '@core-domain';
 import { type HttpResponse } from '@core-domain/entities/http-response';
@@ -363,6 +364,37 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
   }
 
   async saveSettings() {
+    // Validate route trees before saving
+    for (const vps of this.settings.vpsConfigs) {
+      if (vps.routeTree) {
+        const result = validateRouteTree(vps.routeTree);
+        if (!result.valid) {
+          const { t } = getTranslations(this.app, this.settings);
+          const errorMessages = result.conflicts
+            .map((c) => `${c.type}: ${c.message}${c.path ? ` (${c.path})` : ''}`)
+            .join('\n');
+          new Notice(t.settings.errors.validationFailed + '\n' + errorMessages);
+          this.logger.error('Route tree validation failed', {
+            vpsId: vps.id,
+            conflicts: result.conflicts,
+          });
+          throw new Error('Route tree validation failed: ' + errorMessages);
+        }
+
+        // Sort route tree: move root route ("/") to the end of the array
+        // This ensures data.json has the root route last for better readability
+        if (vps.routeTree.roots && vps.routeTree.roots.length > 1) {
+          const rootRouteIndex = vps.routeTree.roots.findIndex(
+            (root) => !root.segment || root.segment === '' || root.segment === '/'
+          );
+          if (rootRouteIndex !== -1 && rootRouteIndex !== vps.routeTree.roots.length - 1) {
+            const rootRoute = vps.routeTree.roots.splice(rootRouteIndex, 1)[0];
+            vps.routeTree.roots.push(rootRoute);
+          }
+        }
+      }
+    }
+
     const toPersist = withEncryptedApiKeys(this.settings);
     await this.saveData(toPersist);
   }
