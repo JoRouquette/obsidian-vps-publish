@@ -5,6 +5,12 @@ export interface Manifest {
   createdAt: Date;
   lastUpdatedAt: Date;
   pages: ManifestPage[];
+  /**
+   * Optional mapping of route paths to their display names
+   * Used to preserve display names for folders even when no pages exist directly in them
+   * Example: { "/tresors": "Trésors", "/pantheon": "Panthéon" }
+   */
+  folderDisplayNames?: Record<string, string>;
 }
 
 export const defaultManifest: Manifest = {

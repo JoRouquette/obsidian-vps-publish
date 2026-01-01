@@ -379,6 +379,7 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
       vpsId,
       vaultFolder: node.vaultFolder || '',
       routeBase: currentRoutePath,
+      displayName: node.displayName, // Propagate displayName from RouteNode
       customIndexFile: node.customIndexFile,
       additionalFiles: node.additionalFiles,
       flattenTree: node.flattenTree,

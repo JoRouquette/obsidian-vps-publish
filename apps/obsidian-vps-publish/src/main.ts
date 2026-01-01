@@ -334,13 +334,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           needsSave = true;
 
           // Return migrated VPS with routeTree and cleaned up legacy fields
+          const { folders: _folders, customIndexes: _customIndexes, ...cleanVps } = vps;
           return {
-            ...vps,
+            ...cleanVps,
             routeTree,
-            // Keep folders for backward compatibility (one-time, will be removed on next save)
-            folders: vps.folders,
-            // Remove customIndexes after migration (now in route nodes)
-            customIndexes: undefined,
           };
         }
 
@@ -689,8 +686,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         });
       }
 
-      // Add folder indexes if configured
-      for (const folder of vps.folders) {
+      // Add folder indexes if configured (use getEffectiveFolders for route tree compatibility)
+      const effectiveFolders = getEffectiveFolders(vps);
+      for (const folder of effectiveFolders) {
         if (folder.customIndexFile) {
           customIndexConfigs.push({
             id: guidGen.generateGuid(),

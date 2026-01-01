@@ -83,6 +83,7 @@ export class ShellComponent implements OnInit {
   crumbs = () => this._crumbs;
   private readonly pageTitleCache = new Map<string, string>();
   private readonly pageByRoute = new Map<string, ManifestPage>();
+  private readonly folderDisplayNameCache = new Map<string, string>();
   vaultExplorerComponent = signal<Type<unknown> | null>(null);
 
   ngOnInit(): void {
@@ -143,9 +144,13 @@ export class ShellComponent implements OnInit {
       const partial = this.normalizeRoute('/' + parts.slice(0, i + 1).join('/'));
       const page = this.findPageForRoute(partial);
       const decodedSeg = decodeURIComponent(seg);
+
+      // Try to get folder displayName from cache
+      const folderDisplayName = this.folderDisplayNameCache.get(partial);
+
       return {
         url: page?.route ?? partial,
-        label: page?.title ?? humanizePropertyKey(decodedSeg),
+        label: page?.title ?? folderDisplayName ?? humanizePropertyKey(decodedSeg),
       };
     });
 
@@ -161,11 +166,35 @@ export class ShellComponent implements OnInit {
   private hydrateManifestCache(): void {
     this.pageTitleCache.clear();
     this.pageByRoute.clear();
+    this.folderDisplayNameCache.clear();
     const manifest = this.catalog.manifest?.();
+
+    // First, populate folderDisplayNameCache from manifest.folderDisplayNames (route tree config)
+    if (manifest?.folderDisplayNames) {
+      Object.entries(manifest.folderDisplayNames).forEach(([routePath, displayName]) => {
+        this.folderDisplayNameCache.set(this.normalizeRoute(routePath), displayName);
+      });
+    }
+
     manifest?.pages?.forEach((p) => {
       const key = this.normalizeRoute(p.route);
       this.pageTitleCache.set(key, p.title);
       this.pageByRoute.set(key, { ...p, route: key });
+
+      // Also populate from page folderDisplayName for backward compatibility
+      if (p.folderDisplayName && p.route) {
+        const routeParts = p.route.split('/').filter(Boolean);
+        if (routeParts.length > 0) {
+          // The folderDisplayName corresponds to the parent folder (all segments except last)
+          const folderPath = '/' + routeParts.slice(0, -1).join('/');
+          if (
+            folderPath !== '/' &&
+            !this.folderDisplayNameCache.has(this.normalizeRoute(folderPath))
+          ) {
+            this.folderDisplayNameCache.set(this.normalizeRoute(folderPath), p.folderDisplayName);
+          }
+        }
+      }
     });
   }
 

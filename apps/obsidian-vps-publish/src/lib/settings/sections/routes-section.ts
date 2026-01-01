@@ -103,7 +103,7 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
       cls: 'ptpv-button-row',
     });
     const btnAddRoute = rowAddRoute.createEl('button', {
-      text: 'Add root route',
+      text: t.settings.routes.addRootRoute,
     });
     btnAddRoute.onclick = () => {
       logger.debug('Adding new root route to VPS', { vpsId: vps.id });
@@ -198,13 +198,13 @@ function renderRouteNode(
   // Actions
   const actions = item.createDiv({ cls: 'ptpv-route-actions' });
 
-  const btnEdit = actions.createEl('button', { text: 'Edit' });
+  const btnEdit = actions.createEl('button', { text: ctx.t.settings.routes.editRoute });
   btnEdit.onclick = () => {
     uiState.editingNodeId = node.id;
     ctx.refresh();
   };
 
-  const btnAddChild = actions.createEl('button', { text: '+ Child' });
+  const btnAddChild = actions.createEl('button', { text: ctx.t.settings.routes.addChildRoute });
   btnAddChild.onclick = () => {
     logger.debug('Adding child route', { parentId: node.id });
     const newChild: RouteNode = {
@@ -220,10 +220,10 @@ function renderRouteNode(
     void ctx.save().then(() => ctx.refresh());
   };
 
-  const btnDelete = actions.createEl('button', { text: 'Delete' });
+  const btnDelete = actions.createEl('button', { text: ctx.t.settings.routes.deleteRoute });
   btnDelete.onclick = () => {
     if (!canDeleteNode(vps, node)) {
-      new Notice('Cannot delete last root route');
+      new Notice(ctx.t.settings.routes.deleteLastForbidden);
       return;
     }
     logger.debug('Route deleted', { nodeId: node.id });
@@ -265,12 +265,13 @@ function renderRouteEditor(
   node: RouteNode,
   ctx: SettingsViewContext
 ): void {
-  container.createEl('h4', { text: 'Route Configuration' });
+  const { t } = ctx;
+  container.createEl('h4', { text: t.settings.routes.routeConfiguration });
 
   // Segment
   new Setting(container)
-    .setName('Segment')
-    .setDesc('URL segment for this route (e.g., "blog", "docs"). Leave empty for root.')
+    .setName(t.settings.routes.segmentLabel)
+    .setDesc(t.settings.routes.segmentDescription)
     .addText((text) => {
       text.setValue(node.segment || '').onChange((value) => {
         node.segment = value;
@@ -280,13 +281,11 @@ function renderRouteEditor(
 
   // Display Name (optional)
   new Setting(container)
-    .setName('Display Name')
-    .setDesc(
-      'Optional: Custom name for navigation and breadcrumbs. If not set, the segment will be humanized (e.g., "api-docs" → "Api Docs").'
-    )
+    .setName(t.settings.routes.displayNameLabel)
+    .setDesc(t.settings.routes.displayNameDescription)
     .addText((text) => {
       text
-        .setPlaceholder('Inferred from segment if empty')
+        .setPlaceholder(t.settings.routes.displayNamePlaceholder)
         .setValue(node.displayName || '')
         .onChange((value) => {
           node.displayName = value || undefined;
@@ -296,10 +295,8 @@ function renderRouteEditor(
 
   // Vault Folder (optional)
   new Setting(container)
-    .setName('Vault Folder')
-    .setDesc(
-      'Optional: Link this route to a vault folder. Notes in this folder will be published under this route.'
-    )
+    .setName(t.settings.folders.vaultLabel)
+    .setDesc(t.settings.folders.vaultDescription)
     .addSearch((search) => {
       new FolderSuggest(ctx.plugin.app, search.inputEl);
       search.setValue(node.vaultFolder || '').onChange((value) => {
@@ -308,25 +305,25 @@ function renderRouteEditor(
       });
     });
 
-  // Flatten Tree (only if vaultFolder is set)
-  if (node.vaultFolder) {
-    new Setting(container)
-      .setName('Flatten Tree')
-      .setDesc(
-        'If enabled, all notes in subfolders are treated as direct children (subfolder structure is ignored).'
-      )
-      .addToggle((toggle) => {
-        toggle.setValue(node.flattenTree || false).onChange((value) => {
+  // Flatten Tree (always visible, disabled if no vaultFolder)
+  new Setting(container)
+    .setName(t.settings.folders.flattenTreeLabel)
+    .setDesc(t.settings.folders.flattenTreeDescription)
+    .setDisabled(!node.vaultFolder)
+    .addToggle((toggle) => {
+      toggle
+        .setValue(node.flattenTree || false)
+        .setDisabled(!node.vaultFolder)
+        .onChange((value) => {
           node.flattenTree = value;
           void ctx.save();
         });
-      });
-  }
+    });
 
   // Custom Index File
   new Setting(container)
-    .setName('Custom Index File')
-    .setDesc('Optional: Use a custom file as the index page for this route.')
+    .setName(t.settings.folders.customIndexLabel)
+    .setDesc(t.settings.folders.customIndexDescription)
     .addSearch((search) => {
       new FileSuggest(ctx.plugin.app, search.inputEl);
       search.setValue(node.customIndexFile || '').onChange((value) => {
@@ -337,10 +334,8 @@ function renderRouteEditor(
 
   // Additional Files
   new Setting(container)
-    .setName('Additional Files')
-    .setDesc(
-      'Optional: Files to publish at the root of this route, regardless of their vault location.'
-    )
+    .setName(t.settings.folders.additionalFilesLabel)
+    .setDesc(t.settings.folders.additionalFilesDescription)
     .setHeading();
 
   const additionalFiles = node.additionalFiles || [];
@@ -365,7 +360,7 @@ function renderRouteEditor(
 
   // Add additional file button
   new Setting(container).addButton((btn) => {
-    btn.setButtonText('+ Add file').onClick(() => {
+    btn.setButtonText(t.settings.folders.addAdditionalFileButton).onClick(() => {
       if (!node.additionalFiles) node.additionalFiles = [];
       node.additionalFiles.push('');
       ctx.refresh();
@@ -379,7 +374,7 @@ function renderRouteEditor(
   // Close editor button
   new Setting(container).addButton((btn) => {
     btn
-      .setButtonText('Close')
+      .setButtonText(t.settings.folders.closeEditor)
       .setCta()
       .onClick(() => {
         uiState.editingNodeId = null;

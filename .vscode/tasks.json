@@ -74,6 +74,12 @@
       "problemMatcher": []
     },
     {
+      "label": "Dev refresh",
+      "dependsOn": ["Docker: dev up", "Plugin: package"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
       "label": "Build all",
       "type": "shell",
       "command": "npm",

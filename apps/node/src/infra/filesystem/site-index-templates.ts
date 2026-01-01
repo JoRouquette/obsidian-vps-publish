@@ -11,14 +11,14 @@ function escapeHtml(s: string) {
 }
 
 export function renderRootIndex(
-  dirs: { name: string; link: string; count: number }[],
+  dirs: { name: string; link: string; count: number; displayName?: string }[],
   customContent?: string
 ) {
   const items = dirs
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(
       (d) =>
-        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(humanizePropertyKey(d.name))}</a><span class="index-count">(${d.count})</span></li>`
+        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(d.displayName ?? humanizePropertyKey(d.name))}</a><span class="index-count">(${d.count})</span></li>`
     )
     .join('');
 
@@ -33,7 +33,7 @@ export function renderRootIndex(
 export function renderFolderIndex(
   folderPath: string,
   pages: ManifestPage[],
-  subfolders: { name: string; link: string; count: number }[],
+  subfolders: { name: string; link: string; count: number; displayName?: string }[],
   customContent?: string
 ) {
   const folderName = folderPath === '/' ? '/' : folderPath.split('/').filter(Boolean).pop()!;
@@ -50,7 +50,7 @@ export function renderFolderIndex(
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(
       (d) =>
-        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(humanizePropertyKey(d.name))}</a><span class="index-count">(${d.count})</span></li>`
+        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(d.displayName ?? humanizePropertyKey(d.name))}</a><span class="index-count">(${d.count})</span></li>`
     )
     .join('');
 
@@ -80,8 +80,8 @@ export function renderFolderIndex(
       : '';
 
   return `<div class="markdown-body">
-  ${customContent || ''}
   <h1>${escapeHtml(folderTitle)}</h1>
+  ${customContent || ''}
   ${subfoldersSection}
   ${pagesSection}
 </div>`;

@@ -35,8 +35,11 @@ export class BuildTreeHandler implements QueryHandler<Manifest, TreeNode> {
     // Filter out custom index pages from the tree
     const regularPages = manifest.pages.filter((page) => !page.isCustomIndex);
 
+    // Use folder display names from manifest (preserves accents like "Trésors", "Panthéon")
+    const folderDisplayNames = this.buildFolderDisplayNameMap(manifest);
+
     for (const page of regularPages) {
-      this.processPage(page, root);
+      this.processPage(page, root, folderDisplayNames);
     }
 
     this.sortRec(root);
@@ -44,7 +47,40 @@ export class BuildTreeHandler implements QueryHandler<Manifest, TreeNode> {
     return root;
   }
 
-  private processPage(page: Manifest['pages'][number], root: TreeNode): void {
+  private buildFolderDisplayNameMap(manifest: Manifest): Map<string, string> {
+    const map = new Map<string, string>();
+
+    // Use manifest.folderDisplayNames directly (populated by plugin route tree config)
+    if (manifest.folderDisplayNames) {
+      for (const [routePath, displayName] of Object.entries(manifest.folderDisplayNames)) {
+        // Remove leading slash for consistency with route processing
+        const normalizedPath = routePath.replace(/^\/+/, '');
+        map.set(normalizedPath, displayName);
+      }
+    }
+
+    // Also extract from pages for backward compatibility (when pages have folderDisplayName)
+    for (const page of manifest.pages) {
+      if (!page.folderDisplayName || !page.route) continue;
+
+      const segments = page.route.split('/').filter(Boolean);
+      if (segments.length === 0) continue;
+
+      // The folderDisplayName corresponds to the parent folder (all segments except last)
+      const folderPath = segments.slice(0, -1).join('/');
+      if (folderPath && !map.has(folderPath)) {
+        map.set(folderPath, page.folderDisplayName);
+      }
+    }
+
+    return map;
+  }
+
+  private processPage(
+    page: Manifest['pages'][number],
+    root: TreeNode,
+    folderDisplayNames: Map<string, string>
+  ): void {
     const segments = page.route.replace(/^\/+/, '').split('/').filter(Boolean);
     if (segments.length === 0) return;
 
@@ -71,8 +107,10 @@ export class BuildTreeHandler implements QueryHandler<Manifest, TreeNode> {
         }
         current.count++;
       } else {
-        // Pass folderDisplayName from page if available for this segment
-        current = this.ensureFolderChild(current, segment, page.folderDisplayName);
+        // Build the cumulative folder path for this segment to look up displayName
+        const folderPath = segments.slice(0, i + 1).join('/');
+        const displayName = folderDisplayNames.get(folderPath);
+        current = this.ensureFolderChild(current, segment, displayName);
         current.count++;
       }
     }
