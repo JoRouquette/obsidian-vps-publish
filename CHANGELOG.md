@@ -1,3 +1,7 @@
+## <small>6.0.1 (2026-01-01)</small>
+
+* fix(logging): serialize Error objects in structured logs ([2fbc8ae](https://github.com/JoRouquette/obsidian-vps-publish/commit/2fbc8ae))
+
 ## 6.0.0 (2026-01-01)
 
 * feat(route-tree)!: implement route-first navigation model ([23cbfb3](https://github.com/JoRouquette/obsidian-vps-publish/commit/23cbfb3))
