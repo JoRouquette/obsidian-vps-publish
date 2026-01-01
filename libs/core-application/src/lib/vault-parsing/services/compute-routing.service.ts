@@ -135,7 +135,7 @@ export class ComputeRoutingService implements BaseService {
   }
 
   private slugifySegment(segment: string): string {
-    return segment
+    const slugified = segment
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-zA-Z0-9\s]/g, '')
@@ -143,6 +143,10 @@ export class ComputeRoutingService implements BaseService {
       .trim()
       .toLowerCase()
       .replace(/\s/g, '-');
+
+    // If slugification resulted in an empty string (e.g., file name was only special characters),
+    // generate a fallback slug
+    return slugified || 'note';
   }
 
   private normalizeRouteBase(routeBase: string): string {

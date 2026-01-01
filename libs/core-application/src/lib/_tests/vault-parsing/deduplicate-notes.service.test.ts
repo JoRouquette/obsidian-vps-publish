@@ -119,11 +119,11 @@ describe('DeduplicateNotesService', () => {
       expect(canonical!.routing.slug).toBe('report');
       expect(canonical!.routing.fullPath).toBe('/blog/report');
 
-      // Smaller gets suffix (1)
+      // Smaller gets suffix -1
       const renamed = result.find((n) => n.noteId === 'note-2');
       expect(renamed).toBeDefined();
-      expect(renamed!.routing.slug).toBe('report (1)');
-      expect(renamed!.routing.fullPath).toBe('/blog/report (1)');
+      expect(renamed!.routing.slug).toBe('report-1');
+      expect(renamed!.routing.fullPath).toBe('/blog/report-1');
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         'Notes renamed due to slug collisions with different sizes',
@@ -132,7 +132,7 @@ describe('DeduplicateNotesService', () => {
           details: expect.arrayContaining([
             expect.objectContaining({
               original: 'report',
-              new: 'report (1)',
+              new: 'report-1',
             }),
           ]),
         })
@@ -158,15 +158,15 @@ describe('DeduplicateNotesService', () => {
       expect(canonical).toBeDefined();
       expect(canonical!.routing.slug).toBe('document');
 
-      // note-3 (size=12, vaultPath="/vault/blog/new/document.md") gets (1)
+      // note-3 (size=12, vaultPath="/vault/blog/new/document.md") gets -1
       const renamed1 = result.find((n) => n.noteId === 'note-3');
       expect(renamed1).toBeDefined();
-      expect(renamed1!.routing.slug).toBe('document (1)');
+      expect(renamed1!.routing.slug).toBe('document-1');
 
-      // note-1 (size=10) gets (2)
+      // note-1 (size=10) gets -2
       const renamed2 = result.find((n) => n.noteId === 'note-1');
       expect(renamed2).toBeDefined();
-      expect(renamed2!.routing.slug).toBe('document (2)');
+      expect(renamed2!.routing.slug).toBe('document-2');
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         'Notes renamed due to slug collisions with different sizes',
@@ -197,7 +197,7 @@ describe('DeduplicateNotesService', () => {
       const betas = result.filter((n) => n.routing.slug.startsWith('beta'));
       expect(betas).toHaveLength(2);
       expect(betas.some((n) => n.routing.slug === 'beta')).toBe(true);
-      expect(betas.some((n) => n.routing.slug === 'beta (1)')).toBe(true);
+      expect(betas.some((n) => n.routing.slug === 'beta-1')).toBe(true);
 
       // gamma: unique → 1 retained
       const gammas = result.filter((n) => n.routing.slug === 'gamma');
@@ -237,7 +237,7 @@ describe('DeduplicateNotesService', () => {
       const folder2Notes = result.filter((n) => n.folderConfig.id === 'folder-2');
       expect(folder2Notes).toHaveLength(2);
       expect(folder2Notes.some((n) => n.routing.slug === 'page')).toBe(true);
-      expect(folder2Notes.some((n) => n.routing.slug === 'page (1)')).toBe(true);
+      expect(folder2Notes.some((n) => n.routing.slug === 'page-1')).toBe(true);
 
       expect(result).toHaveLength(3);
     });
@@ -261,8 +261,8 @@ describe('DeduplicateNotesService', () => {
 
       // Others get suffixes before .md
       const renamed = result.filter((n) => n.noteId !== 'note-1');
-      expect(renamed.some((n) => n.routing.slug === 'file (1).md')).toBe(true);
-      expect(renamed.some((n) => n.routing.slug === 'file (2).md')).toBe(true);
+      expect(renamed.some((n) => n.routing.slug === 'file-1.md')).toBe(true);
+      expect(renamed.some((n) => n.routing.slug === 'file-2.md')).toBe(true);
     });
   });
 
@@ -306,9 +306,9 @@ describe('DeduplicateNotesService', () => {
       const result = service.process(notes);
 
       const renamed = result.find((n) => n.noteId === 'note-2');
-      expect(renamed!.routing.slug).toBe('article (1)');
-      expect(renamed!.routing.path).toBe('/article (1)');
-      expect(renamed!.routing.fullPath).toBe('/blog/article (1)');
+      expect(renamed!.routing.slug).toBe('article-1');
+      expect(renamed!.routing.path).toBe('/article-1');
+      expect(renamed!.routing.fullPath).toBe('/blog/article-1');
 
       // Verify original note unchanged
       const original = result.find((n) => n.noteId === 'note-1');

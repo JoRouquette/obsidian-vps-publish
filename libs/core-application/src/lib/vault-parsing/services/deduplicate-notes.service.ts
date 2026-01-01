@@ -236,14 +236,14 @@ export class DeduplicateNotesService {
   }
 
   /**
-   * Add suffix (n) to a slug, inserting before file extension if present.
+   * Add suffix -n to a slug, inserting before file extension if present.
    * Examples:
-   * - "note" → "note (1)"
-   * - "note.md" → "note (1).md"
-   * - "my-page" → "my-page (1)"
+   * - "note" → "note-1"
+   * - "note.md" → "note-1.md"
+   * - "my-page" → "my-page-1"
    */
   private addSuffixToSlug(slug: string, index: number): string {
-    const suffix = ` (${index})`;
+    const suffix = `-${index}`;
 
     // Check if slug has a file extension
     const lastDotIndex = slug.lastIndexOf('.');

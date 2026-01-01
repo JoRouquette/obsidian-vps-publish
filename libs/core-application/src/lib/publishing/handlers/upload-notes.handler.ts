@@ -115,18 +115,34 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     const published = succeeded.length;
 
     if (succeeded.length > 0) {
-      const pages: ManifestPage[] = succeeded.map((n) => ({
-        id: n.noteId,
-        title: n.title,
-        route: n.routing.fullPath,
-        slug: Slug.from(n.routing.slug),
-        publishedAt: n.publishedAt,
-        vaultPath: n.vaultPath,
-        relativePath: n.relativePath,
-        tags: n.frontmatter.tags ?? [],
-        leafletBlocks: n.leafletBlocks,
-        folderDisplayName: n.routing.folderDisplayName,
-      }));
+      const pages: ManifestPage[] = succeeded.map((n) => {
+        try {
+          return {
+            id: n.noteId,
+            title: n.title,
+            route: n.routing.fullPath,
+            slug: Slug.from(n.routing.slug),
+            publishedAt: n.publishedAt,
+            vaultPath: n.vaultPath,
+            relativePath: n.relativePath,
+            tags: n.frontmatter.tags ?? [],
+            leafletBlocks: n.leafletBlocks,
+            folderDisplayName: n.routing.folderDisplayName,
+          };
+        } catch (err) {
+          logger?.error('Invalid slug for note', {
+            noteId: n.noteId,
+            title: n.title,
+            vaultPath: n.vaultPath,
+            slug: n.routing.slug,
+            fullPath: n.routing.fullPath,
+            error: err instanceof Error ? err.message : 'Unknown error',
+          });
+          throw new Error(
+            `Invalid slug "${n.routing.slug}" for note "${n.vaultPath}": ${err instanceof Error ? err.message : 'Unknown error'}`
+          );
+        }
+      });
 
       pages.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
 

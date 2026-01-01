@@ -1,6 +1,13 @@
 export class Slug {
   private constructor(readonly value: string) {
-    if (!value || !/^[a-z0-9-]+$/.test(value)) throw new Error('Slug invalide');
+    if (!value) {
+      throw new Error('Slug cannot be empty');
+    }
+    if (!/^[a-z0-9-]+$/.test(value)) {
+      throw new Error(
+        `Slug "${value}" contains invalid characters. Only lowercase letters, numbers, and hyphens are allowed.`
+      );
+    }
   }
 
   static from(value: string) {
