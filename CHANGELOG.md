@@ -1,3 +1,18 @@
+## 6.0.0 (2026-01-01)
+
+* feat(route-tree)!: implement route-first navigation model ([23cbfb3](https://github.com/JoRouquette/obsidian-vps-publish/commit/23cbfb3))
+* Merge branch 'feat/route-tree-by-vps' ([5f0a11d](https://github.com/JoRouquette/obsidian-vps-publish/commit/5f0a11d))
+* chore(plugin): migrate custom indexes to route tree during VPS migration ([f40760a](https://github.com/JoRouquette/obsidian-vps-publish/commit/f40760a))
+* chore(routes): add folder display names support across plugin, backend, and frontend ([899beea](https://github.com/JoRouquette/obsidian-vps-publish/commit/899beea))
+
+
+### BREAKING CHANGE
+
+* VPS configuration now uses route tree instead of flat folders array.
+The new `routeTree` property replaces the legacy `folders` array. Existing configurations
+are automatically migrated on plugin load. Routes can now exist independently of vault
+folders (pure route nodes), enabling flexible URL structures.
+
 ## 5.2.0 (2025-12-31)
 
 * Merge branch 'feat/additionnal-files' ([0fe7876](https://github.com/JoRouquette/obsidian-vps-publish/commit/0fe7876))
