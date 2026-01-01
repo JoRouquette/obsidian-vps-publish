@@ -60,6 +60,7 @@ export class SessionApiClient {
     calloutStyles?: { path: string; css: string }[];
     customIndexConfigs?: CustomIndexConfig[];
     ignoredTags?: string[];
+    folderDisplayNames?: Record<string, string>;
   }): Promise<StartSessionResponse> {
     const result = await this.postJson('/api/session/start', {
       notesPlanned: payload.notesPlanned,
@@ -68,6 +69,7 @@ export class SessionApiClient {
       calloutStyles: payload.calloutStyles ?? [],
       customIndexConfigs: payload.customIndexConfigs ?? [],
       ignoredTags: payload.ignoredTags ?? [],
+      folderDisplayNames: payload.folderDisplayNames ?? {},
     });
 
     if (result.isError) {

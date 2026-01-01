@@ -31,6 +31,13 @@ describe('sessionController', () => {
     discardSession: jest.fn().mockResolvedValue(undefined),
   };
 
+  const sessionRepository = {
+    findById: jest.fn().mockResolvedValue({
+      id: 's1',
+      folderDisplayNames: { '/test': 'Test Display Name' },
+    }),
+  };
+
   const buildApp = () => {
     const app = express();
     app.use(express.json());
@@ -51,7 +58,8 @@ describe('sessionController', () => {
         sessionFinalizer as any,
         stagingManager as any,
         calloutRenderer as any,
-        finalizationJobService
+        finalizationJobService,
+        sessionRepository as any
       )
     );
     return app;

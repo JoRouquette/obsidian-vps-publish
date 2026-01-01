@@ -15,4 +15,5 @@ export interface Session {
   cleanupRules?: SanitizationRules[];
   customIndexConfigs?: CustomIndexConfig[];
   ignoredTags?: string[];
+  folderDisplayNames?: Record<string, string>;
 }

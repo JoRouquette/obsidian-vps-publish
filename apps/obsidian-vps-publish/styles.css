@@ -1256,11 +1256,40 @@
 
 /* Route editor (expanded) */
 .ptpv-route-editor {
+  position: relative; /* For close button positioning */
   padding: 1rem;
   margin: 0.5rem 0 0.5rem 40px;
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
   background: var(--background-secondary);
+}
+
+/* Close button in top-right corner */
+.ptpv-route-editor-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--text-muted);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.ptpv-route-editor-close:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.ptpv-route-editor-close svg {
+  width: 16px;
+  height: 16px;
 }
 
 .ptpv-route-editor h4 {

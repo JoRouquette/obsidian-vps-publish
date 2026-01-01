@@ -4,6 +4,7 @@ import {
   type CreateSessionCommand,
   type CreateSessionHandler,
   type FinishSessionHandler,
+  type SessionRepository,
   type UploadAssetsCommand,
   type UploadAssetsHandler,
   type UploadNotesCommand,
@@ -33,6 +34,7 @@ export function createSessionController(
   stagingManager: StagingManager,
   calloutRenderer: CalloutRendererService,
   finalizationJobService: SessionFinalizationJobService,
+  sessionRepository: SessionRepository,
   logger?: LoggerPort
 ): Router {
   const router = Router();
@@ -56,6 +58,7 @@ export function createSessionController(
       calloutStyles,
       customIndexConfigs,
       ignoredTags,
+      folderDisplayNames,
     } = parsed.data;
     if (typeof notesPlanned !== 'number' || typeof assetsPlanned !== 'number') {
       routeLogger?.warn('Missing required fields for session creation', {
@@ -75,6 +78,7 @@ export function createSessionController(
       },
       customIndexConfigs,
       ignoredTags,
+      folderDisplayNames,
     };
 
     try {
@@ -115,13 +119,16 @@ export function createSessionController(
       return res.status(400).json({ status: 'invalid_payload' });
     }
 
-    const command: UploadNotesCommand = {
-      sessionId: req.params.sessionId,
-      notes: parsed.data.notes,
-      cleanupRules: parsed.data.cleanupRules,
-    };
-
     try {
+      // Fetch session to get folderDisplayNames (only for first batch)
+      const session = await sessionRepository.findById(req.params.sessionId);
+
+      const command: UploadNotesCommand = {
+        sessionId: req.params.sessionId,
+        notes: parsed.data.notes,
+        cleanupRules: parsed.data.cleanupRules,
+        folderDisplayNames: session?.folderDisplayNames, // Pass displayNames from session
+      };
       routeLogger?.debug('Publishing notes batch', {
         sessionId: command.sessionId,
         count: command.notes.length,

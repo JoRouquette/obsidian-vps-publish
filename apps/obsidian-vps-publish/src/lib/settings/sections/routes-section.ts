@@ -1,7 +1,7 @@
 import type { RouteNode } from '@core-domain/entities/route-node';
 import { getNodeConflicts, validateRouteTree } from '@core-domain/entities/route-node-validation';
 import type { VpsConfig } from '@core-domain/entities/vps-config';
-import { Notice, setIcon, Setting } from 'obsidian';
+import { Notice, setIcon, Setting, ToggleComponent } from 'obsidian';
 
 import { translate } from '../../../i18n';
 import { FileSuggest } from '../../suggesters/file-suggester';
@@ -90,8 +90,14 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
 
     const updateTree = () => {
       treeContainer.empty();
-      routeTree.roots.forEach((rootNode, index) => {
-        renderRouteNode(treeContainer, vps, rootNode, ctx, 0, index === routeTree.roots.length - 1);
+      // Sort roots alphabetically by segment before rendering
+      const sortedRoots = [...routeTree.roots].sort((a, b) => {
+        const segmentA = (a.segment || '/').toLowerCase();
+        const segmentB = (b.segment || '/').toLowerCase();
+        return segmentA.localeCompare(segmentB);
+      });
+      sortedRoots.forEach((rootNode, index) => {
+        renderRouteNode(treeContainer, vps, rootNode, ctx, 0, index === sortedRoots.length - 1);
       });
     };
 
@@ -237,6 +243,17 @@ function renderRouteNode(
   // Detailed editor (if this node is being edited)
   if (uiState.editingNodeId === node.id) {
     const editorContainer = nodeContainer.createDiv({ cls: 'ptpv-route-editor' });
+
+    // Close button in top-right corner
+    const closeBtn = editorContainer.createDiv({ cls: 'ptpv-route-editor-close' });
+    setIcon(closeBtn, 'x');
+    closeBtn.setAttribute('aria-label', ctx.t.settings.folders.closeEditor);
+    closeBtn.setAttribute('title', ctx.t.settings.folders.closeEditor);
+    closeBtn.onclick = () => {
+      uiState.editingNodeId = null;
+      ctx.refresh();
+    };
+
     renderRouteEditor(editorContainer, vps, node, ctx);
   }
 
@@ -293,7 +310,24 @@ function renderRouteEditor(
         });
     });
 
-  // Vault Folder (optional)
+  // Flatten Tree (always visible, disabled if no vaultFolder)
+  const flattenSetting = new Setting(container)
+    .setName(t.settings.folders.flattenTreeLabel)
+    .setDesc(t.settings.folders.flattenTreeDescription);
+
+  let flattenToggle: ToggleComponent | undefined; // Store reference to toggle component
+  flattenSetting.addToggle((toggle) => {
+    flattenToggle = toggle;
+    toggle
+      .setValue(node.flattenTree || false)
+      .setDisabled(!node.vaultFolder)
+      .onChange((value) => {
+        node.flattenTree = value;
+        void ctx.save();
+      });
+  });
+
+  // Vault Folder (optional) - placed after flattenTree to have reference to toggle
   new Setting(container)
     .setName(t.settings.folders.vaultLabel)
     .setDesc(t.settings.folders.vaultDescription)
@@ -301,23 +335,12 @@ function renderRouteEditor(
       new FolderSuggest(ctx.plugin.app, search.inputEl);
       search.setValue(node.vaultFolder || '').onChange((value) => {
         node.vaultFolder = value || undefined;
+        // Update flattenTree toggle state without full refresh
+        if (flattenToggle) {
+          flattenToggle.setDisabled(!value);
+        }
         void ctx.save();
       });
-    });
-
-  // Flatten Tree (always visible, disabled if no vaultFolder)
-  new Setting(container)
-    .setName(t.settings.folders.flattenTreeLabel)
-    .setDesc(t.settings.folders.flattenTreeDescription)
-    .setDisabled(!node.vaultFolder)
-    .addToggle((toggle) => {
-      toggle
-        .setValue(node.flattenTree || false)
-        .setDisabled(!node.vaultFolder)
-        .onChange((value) => {
-          node.flattenTree = value;
-          void ctx.save();
-        });
     });
 
   // Custom Index File

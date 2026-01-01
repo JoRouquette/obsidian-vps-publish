@@ -38,6 +38,7 @@ export class CreateSessionHandler implements CommandHandler<
       updatedAt: now,
       customIndexConfigs: command.customIndexConfigs,
       ignoredTags: command.ignoredTags,
+      folderDisplayNames: command.folderDisplayNames,
     };
 
     await this.sessionRepository.create(session);
