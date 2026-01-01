@@ -1,3 +1,8 @@
+## 6.1.0 (2026-01-01)
+
+* Merge branch 'feat/better-settings-and-html-conversion' ([d9fcebe](https://github.com/JoRouquette/obsidian-vps-publish/commit/d9fcebe))
+* feat(routes): pass folder display names from plugin to backend ([eb2337a](https://github.com/JoRouquette/obsidian-vps-publish/commit/eb2337a))
+
 ## <small>6.0.3 (2026-01-01)</small>
 
 * fix(core): remove folderDisplayName from pages, use manifest-level folderDisplayNames ([88a02b6](https://github.com/JoRouquette/obsidian-vps-publish/commit/88a02b6))
