@@ -1,3 +1,7 @@
+## <small>6.0.2 (2026-01-01)</small>
+
+* fix(routing): improve slug deduplication and validation ([07941ea](https://github.com/JoRouquette/obsidian-vps-publish/commit/07941ea))
+
 ## <small>6.0.1 (2026-01-01)</small>
 
 * fix(logging): serialize Error objects in structured logs ([2fbc8ae](https://github.com/JoRouquette/obsidian-vps-publish/commit/2fbc8ae))
