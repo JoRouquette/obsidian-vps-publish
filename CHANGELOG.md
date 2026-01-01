@@ -1,3 +1,7 @@
+## <small>6.1.1 (2026-01-01)</small>
+
+* fix(plugin): validate route tree on settings save and prevent multiple root routes ([03cf1e9](https://github.com/JoRouquette/obsidian-vps-publish/commit/03cf1e9))
+
 ## 6.1.0 (2026-01-01)
 
 * Merge branch 'feat/better-settings-and-html-conversion' ([d9fcebe](https://github.com/JoRouquette/obsidian-vps-publish/commit/d9fcebe))
