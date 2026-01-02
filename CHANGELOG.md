@@ -1,3 +1,8 @@
+## <small>6.1.3 (2026-01-02)</small>
+
+* Merge branch 'fix/dataview-rendering' ([1ff85a7](https://github.com/JoRouquette/obsidian-vps-publish/commit/1ff85a7))
+* fix(dataview): preserve HTML formatting in DataviewJS blocks ([73d608d](https://github.com/JoRouquette/obsidian-vps-publish/commit/73d608d))
+
 ## <small>6.1.2 (2026-01-02)</small>
 
 * fix(publishing): pass folderDisplayNames through session finalization to renderer ([a34a7a8](https://github.com/JoRouquette/obsidian-vps-publish/commit/a34a7a8))
