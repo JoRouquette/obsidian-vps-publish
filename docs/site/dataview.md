@@ -23,12 +23,21 @@ Les blocs de code Dataview et DataviewJS sont automatiquement traités par le pl
 
 **Convertisseur** : `libs/core-application/src/lib/dataview/dataview-to-markdown.converter.ts`
 
-Convertit les formats de sortie Dataview en Markdown :
+Convertit les formats de sortie Dataview en Markdown **ou préserve le HTML pour DataviewJS** :
+
+#### Requêtes DQL (```dataview)
 
 - **Listes** (`<ul>`, `<ol>`) → Listes Markdown (`-`, `1.`)
 - **Tableaux** → Tableaux Markdown avec pipes
 - **Résultats vides** → Callout info `> [!info] No Results`
 - **Wikilinks** → Format normalisé `[[path|title]]` sans extension `.md`
+
+#### Blocs DataviewJS (```dataviewjs)
+
+- **Préservation HTML** : Le HTML généré par `dataviewjs` est retourné tel quel
+- **Styles inline** : Les attributs `style` (background-color, font-weight, etc.) sont préservés
+- **Balises riches** : `<em>`, `<strong>`, `<span>`, `<div>` conservés
+- **Raison** : DataviewJS génère souvent du HTML complexe (badges colorés, layouts personnalisés) qui ne peut pas être représenté en Markdown
 
 ### Couche Backend (API Express)
 
@@ -51,6 +60,40 @@ CALENDAR date
 dv.list(dv.pages("#tag").map(p => p.file.link))
 dv.table(["Name", "Date"], pages.map(p => [p.name, p.date]))
 ```
+
+#### Formatage Riche avec DataviewJS
+
+DataviewJS supporte le HTML complexe avec styles inline :
+
+```dataviewjs
+// Exemple : afficher les propriétés frontmatter avec formatage
+const current = dv.current();
+dv.span(`*${current.ecole} de niveau ${current.niveau}*`);
+dv.paragraph(' ');
+
+const details = [
+  `***Temps d'incantation*** : ${current.temps_incantation}`,
+  `***Portée*** : ${current.portee}`,
+  `***Durée*** : ${current.duree}`
+];
+dv.list(details);
+```
+
+```dataviewjs
+// Exemple : badges colorés pour les classes
+const classes = dv.current().classes;
+let display = "";
+for (let classe of classes.sort()) {
+  display += `<span style="background-color:#800020;color:white;margin-right:0.3vw;display:inline-block;padding:3px 5px;border-radius:3px;">${classe}</span>`;
+}
+dv.el("div", display);
+```
+
+Ces blocs sont rendus avec **préservation complète du HTML**, incluant :
+
+- Balises d'emphase : `<em>`, `<strong>`
+- Styles inline : `style="background-color:..."`
+- Layouts personnalisés : `<div>`, `<span>` avec classes/attributs
 
 ## Détails d'Implémentation
 
@@ -133,6 +176,12 @@ Aucune configuration backend requise. Le traitement Dataview se fait dans le plu
 **Cause** : Comportement attendu pour plus de clarté.
 
 **Solution** : Les requêtes vides génèrent intentionnellement un callout info.
+
+### Problème : DataviewJS perd les styles (italique, gras, couleurs)
+
+**Cause** : Ancienne version qui convertissait tout en Markdown (≤6.1.0).
+
+**Solution** : Mettre à jour vers ≥6.1.1. Les blocs DataviewJS préservent maintenant le HTML avec tous les styles inline.
 
 ## Documentation Connexe
 

@@ -1,16 +1,20 @@
 /**
  * Dataview To Markdown Converter (Application Layer)
  *
- * Converts structured Dataview API results to native Obsidian Markdown.
+ * Converts structured Dataview API results to Markdown or HTML:
  *
- * CRITICAL PRINCIPLES:
- * - NO HTML output - only Markdown
- * - Links → wikilinks [[Page|Title]] (normalized, no .md)
- * - Images → inclusions ![[path/to/img.png]]
- * - Tables → Markdown tables (| ... |)
- * - Lists → Markdown lists (- ...)
+ * - DQL queries (```dataview) → Markdown:
+ *   - Links → wikilinks [[Page|Title]] (normalized, no .md)
+ *   - Images → inclusions ![[path/to/img.png]]
+ *   - Tables → Markdown tables (| ... |)
+ *   - Lists → Markdown lists (- ...)
  *
- * This ensures the resulting markdown is compatible with the existing
+ * - DataviewJS blocks (```dataviewjs) → Raw HTML:
+ *   - Preserves all HTML tags (<em>, <strong>, <span>, etc.)
+ *   - Preserves inline styles (background-color, font-weight, etc.)
+ *   - Necessary for complex formatting (badges, custom layouts)
+ *
+ * This ensures the resulting output is compatible with the existing
  * wikilink resolution / asset detection / routing pipeline.
  */
 
@@ -47,7 +51,10 @@ export interface DataviewJsResult {
 }
 
 /**
- * Service to convert Dataview API results to native Obsidian Markdown.
+ * Service to convert Dataview API results to Markdown or HTML.
+ *
+ * NOTE: Despite the class name, DataviewJS blocks are converted to HTML
+ * (not Markdown) to preserve styling and complex formatting.
  */
 export class DataviewToMarkdownConverter {
   private readonly normalizer: MarkdownLinkNormalizer;
@@ -97,16 +104,19 @@ export class DataviewToMarkdownConverter {
   }
 
   /**
-   * Convert DataviewJS result (DOM) to Markdown.
+   * Convert DataviewJS result (DOM) to HTML.
    *
    * STRATEGY:
-   * - Parse DOM structure
-   * - Extract tables/lists/links
-   * - Convert to Markdown equivalents
-   * - Preserve wikilinks as [[...]]
+   * - Return raw HTML from DataviewJS execution
+   * - Preserve all styles, formatting (em, strong, spans with inline styles)
+   * - This allows dataviewjs blocks to render with full fidelity
+   *
+   * NOTE: We return HTML instead of Markdown because dataviewjs often generates
+   * complex HTML with inline styles (e.g., colored badges) that cannot be
+   * represented in Markdown.
    *
    * @param jsResult - DataviewJS execution result
-   * @returns Markdown string
+   * @returns HTML string (or Markdown callout for errors)
    */
   convertJsToMarkdown(jsResult: DataviewJsResult): string {
     if (!jsResult.success || !jsResult.container) {
@@ -115,15 +125,18 @@ export class DataviewToMarkdownConverter {
     }
 
     try {
-      const markdown = this.convertDomToMarkdown(jsResult.container);
+      // Return raw HTML from container to preserve all formatting
+      const html = jsResult.container.innerHTML.trim();
+
       // DataviewJS blocks with no output should be ignored (return empty string)
-      if (!markdown || markdown.trim() === '') {
+      if (!html || html === '') {
         return '';
       }
-      return markdown;
+
+      return html;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      this.logger?.error('Failed to convert DataviewJS DOM to Markdown', { error: msg });
+      this.logger?.error('Failed to extract DataviewJS HTML', { error: msg });
       return this.renderErrorCallout('DataviewJS Conversion Error', msg);
     }
   }

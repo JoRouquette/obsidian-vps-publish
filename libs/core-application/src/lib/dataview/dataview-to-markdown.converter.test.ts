@@ -51,9 +51,9 @@ describe('DataviewToMarkdownConverter', () => {
         container,
       };
 
-      const markdown = converter.convertJsToMarkdown(jsResult);
+      const html = converter.convertJsToMarkdown(jsResult);
 
-      expect(markdown).toBe('');
+      expect(html).toBe('');
     });
 
     it.skip('should return empty string when DataviewJS container is empty (whitespace only)', () => {
@@ -66,9 +66,46 @@ describe('DataviewToMarkdownConverter', () => {
         container,
       };
 
-      const markdown = converter.convertJsToMarkdown(jsResult);
+      const html = converter.convertJsToMarkdown(jsResult);
 
-      expect(markdown).toBe('');
+      expect(html).toBe('');
+    });
+
+    it.skip('should return HTML with inline styles when DataviewJS produces styled content', () => {
+      // SKIPPED: Requires DOM
+      // This test documents the NEW behavior: preserving HTML instead of converting to Markdown
+      const container = document.createElement('div');
+      container.innerHTML = '<span><em>Transmutation de niveau 7 </em></span>';
+
+      const jsResult: DataviewJsResult = {
+        success: true,
+        container,
+      };
+
+      const html = converter.convertJsToMarkdown(jsResult);
+
+      // Should return raw HTML, preserving <em>, <strong>, and inline styles
+      expect(html).toContain('<em>Transmutation de niveau 7 </em>');
+      expect(html).not.toContain('*Transmutation de niveau 7*'); // Not Markdown
+    });
+
+    it.skip('should preserve inline styles from DataviewJS', () => {
+      // SKIPPED: Requires DOM
+      // Documents that inline styles (background-color, etc.) are preserved
+      const container = document.createElement('div');
+      container.innerHTML =
+        '<span style="background-color:#800020;color:white;padding:3px 5px;">Clerc</span>';
+
+      const jsResult: DataviewJsResult = {
+        success: true,
+        container,
+      };
+
+      const html = converter.convertJsToMarkdown(jsResult);
+
+      // Should preserve the span with inline styles
+      expect(html).toContain('background-color:#800020');
+      expect(html).toContain('<span');
     });
 
     it.skip('should return error callout when DataviewJS execution fails', () => {
