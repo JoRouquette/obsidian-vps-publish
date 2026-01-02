@@ -209,7 +209,11 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       manifest = {
         ...existing,
         lastUpdatedAt: now,
-        folderDisplayNames: existing.folderDisplayNames || {},
+        // Merge existing folderDisplayNames with providedDisplayNames (providedDisplayNames takes precedence)
+        folderDisplayNames: {
+          ...(existing.folderDisplayNames || {}),
+          ...(providedDisplayNames || {}),
+        },
       };
     }
 

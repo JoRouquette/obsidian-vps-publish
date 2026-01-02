@@ -82,8 +82,13 @@ export class SessionFinalizerService {
     stepStart = performance.now();
     const session = await this.sessionRepository.findById(sessionId);
     const customIndexConfigs = session?.customIndexConfigs ?? [];
+    const folderDisplayNames = session?.folderDisplayNames ?? {};
     timings.loadSessionMetadata = performance.now() - stepStart;
-    log.debug('Loaded custom index configs from session', { count: customIndexConfigs.length });
+    log.debug('Loaded session metadata', {
+      customIndexConfigsCount: customIndexConfigs.length,
+      folderDisplayNamesCount: Object.keys(folderDisplayNames).length,
+      folderDisplayNames,
+    });
 
     // STEP 2: Load cleanup rules
     stepStart = performance.now();
@@ -152,8 +157,12 @@ export class SessionFinalizerService {
       session?.ignoredTags // Pass ignoredTags from session
     );
 
-    // Publier toutes les notes (y compris les fichiers d'index custom)
-    await renderer.handle({ sessionId, notes: routed });
+    // Publier toutes les notes avec folderDisplayNames
+    await renderer.handle({
+      sessionId,
+      notes: routed,
+      folderDisplayNames, // Pass folderDisplayNames from session
+    });
     timings.renderMarkdownToHtml = performance.now() - stepStart;
 
     // STEP 9: Extract custom index HTML and update manifest
