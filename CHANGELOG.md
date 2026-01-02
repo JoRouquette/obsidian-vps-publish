@@ -1,3 +1,7 @@
+## <small>6.1.2 (2026-01-02)</small>
+
+* fix(publishing): pass folderDisplayNames through session finalization to renderer ([a34a7a8](https://github.com/JoRouquette/obsidian-vps-publish/commit/a34a7a8))
+
 ## <small>6.1.1 (2026-01-01)</small>
 
 * fix(plugin): validate route tree on settings save and prevent multiple root routes ([03cf1e9](https://github.com/JoRouquette/obsidian-vps-publish/commit/03cf1e9))
