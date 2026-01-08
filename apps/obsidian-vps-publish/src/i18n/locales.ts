@@ -680,7 +680,7 @@ export const en: Translations = {
       noPublishing: {
         title: 'Section Exclusion with ^no-publishing',
         content:
-          'You can exclude specific sections from publication using the ^no-publishing marker.\n\nWhen a line contains ^no-publishing, the plugin removes content up to the previous delimiter:\n1. Horizontal rule (---, ***, ___) if present (highest priority)\n2. Previous header (##, ###, etc.) if no horizontal rule\n3. Start of document if no delimiter found',
+          'You can exclude specific sections from publication using the ^no-publishing marker.\n\nWhen a line contains ^no-publishing, the plugin removes content up to the previous delimiter:\n1. Horizontal rule (---, ***, ___) if present (highest priority)\n2. Previous header (##, ###, etc.) if no horizontal rule\n3. Start of document if no delimiter found\n\nNote: Excessive blank lines (3+) are reduced to 2 after removal.',
         examples: [
           {
             code: '## Public Header\nPublic content\n\n---\n\nPrivate content\n^no-publishing\n\n## Next Section',
@@ -691,8 +691,12 @@ export const en: Translations = {
             description: 'Both header and content are removed (no horizontal rule present).',
           },
           {
-            code: 'Public start\n\n***\n\nPrivate section\n^no-publishing',
-            description: 'Horizontal rule with asterisks works too.',
+            code: '^no-publishing\n\n## First Header\nPublic content',
+            description: 'Marker at document start: only the marker is removed.',
+          },
+          {
+            code: '## Private Header\n^no-publishing\n\n## Public Header',
+            description: 'Header at document start: private header and marker removed.',
           },
         ],
       },
@@ -744,7 +748,7 @@ export const en: Translations = {
       dataview: {
         title: 'Dataview Support',
         content:
-          'Dataview queries are executed and rendered to HTML before publishing.\n\nSupported: inline queries (=this.property), dataview blocks, dataviewjs.',
+          'Dataview queries are executed and rendered to HTML before publishing.\n\nSupported: inline queries (=this.property), dataview blocks, dataviewjs, and custom views (dv.view()).',
         examples: [
           {
             code: '`= this.title`',
@@ -753,6 +757,10 @@ export const en: Translations = {
           {
             code: '```dataview\nLIST FROM #tag\n```',
             description: 'Dataview block query',
+          },
+          {
+            code: '```dataviewjs\nawait dv.view("my-view", {param: "value"})\n```',
+            description: 'DataviewJS custom view',
           },
         ],
       },
@@ -1164,7 +1172,7 @@ export const fr: Translations = {
       noPublishing: {
         title: 'Exclusion de Sections avec ^no-publishing',
         content:
-          "Vous pouvez exclure des sections spécifiques de la publication avec le marqueur ^no-publishing.\n\nQuand une ligne contient ^no-publishing, le plugin supprime le contenu jusqu'au délimiteur précédent :\n1. Ligne horizontale (---, ***, ___) si présente (priorité maximale)\n2. En-tête précédent (##, ###, etc.) si pas de ligne horizontale\n3. Début du document si aucun délimiteur trouvé",
+          "Vous pouvez exclure des sections spécifiques de la publication avec le marqueur ^no-publishing.\n\nQuand une ligne contient ^no-publishing, le plugin supprime le contenu jusqu'au délimiteur précédent :\n1. Ligne horizontale (---, ***, ___) si présente (priorité maximale)\n2. En-tête précédent (##, ###, etc.) si pas de ligne horizontale\n3. Début du document si aucun délimiteur trouvé\n\nNote : Les lignes vides excessives (3+) sont réduites à 2 après suppression.",
         examples: [
           {
             code: '## En-tête Public\nContenu public\n\n---\n\nContenu privé\n^no-publishing\n\n## Section Suivante',
@@ -1176,8 +1184,12 @@ export const fr: Translations = {
             description: "L'en-tête ET le contenu sont supprimés (pas de ligne horizontale).",
           },
           {
-            code: 'Début public\n\n***\n\nSection privée\n^no-publishing',
-            description: 'Ligne horizontale avec astérisques fonctionne aussi.',
+            code: '^no-publishing\n\n## Premier En-tête\nContenu public',
+            description: 'Marqueur au début : seul le marqueur est supprimé.',
+          },
+          {
+            code: '## En-tête Privé\n^no-publishing\n\n## En-tête Public',
+            description: "En-tête au début : l'en-tête privé et le marqueur sont supprimés.",
           },
         ],
       },
@@ -1229,7 +1241,7 @@ export const fr: Translations = {
       dataview: {
         title: 'Support Dataview',
         content:
-          'Les requêtes Dataview sont exécutées et rendues en HTML avant publication.\n\nSupporté : requêtes inline (=this.property), blocs dataview, dataviewjs.',
+          'Les requêtes Dataview sont exécutées et rendues en HTML avant publication.\n\nSupporté : requêtes inline (=this.property), blocs dataview, dataviewjs, et vues personnalisées (dv.view()).',
         examples: [
           {
             code: '`= this.title`',
@@ -1238,6 +1250,10 @@ export const fr: Translations = {
           {
             code: '```dataview\nLIST FROM #tag\n```',
             description: 'Bloc de requête dataview',
+          },
+          {
+            code: '```dataviewjs\nawait dv.view("ma-vue", {param: "valeur"})\n```',
+            description: 'Vue personnalisée DataviewJS',
           },
         ],
       },
