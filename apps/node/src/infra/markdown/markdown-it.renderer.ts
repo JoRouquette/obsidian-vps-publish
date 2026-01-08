@@ -185,10 +185,13 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       userCss ? '\n' + userCss : ''
     }</style>\n${html}`;
 
+    // Clean .md extensions from Dataview HTML blocks
+    const cleaned = this.cleanDataviewLinks(withStyles);
+
     // Filter ignored tags from rendered HTML
     // Get from context if available, otherwise use empty array (no default filtering)
     const ignoredTags = context?.ignoredTags ?? [];
-    const filtered = this.tagFilter.filterTags(withStyles, ignoredTags);
+    const filtered = this.tagFilter.filterTags(cleaned, ignoredTags);
 
     this.logger?.debug('Markdown rendered to HTML', {
       noteId: note.noteId,
@@ -223,6 +226,32 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     const escapedLabel = this.escapeHtml(label);
     const escapedTarget = this.escapeHtml(target);
     return `<span class="wikilink wikilink-unresolved" role="link" aria-disabled="true" title="Cette page arrive prochainement" data-tooltip="Cette page arrive prochainement" data-wikilink="${escapedTarget}">${escapedLabel}</span>`;
+  }
+
+  /**
+   * Clean .md extensions from data-wikilink and href attributes in Dataview-generated HTML.
+   * Dataview blocks are pre-rendered by the plugin and may contain links with .md extensions.
+   * This method post-processes the HTML to ensure consistency with the rest of the system.
+   *
+   * @param html - Rendered HTML content (may contain Dataview blocks)
+   * @returns HTML with cleaned link attributes
+   */
+  private cleanDataviewLinks(html: string): string {
+    // Pattern to match data-wikilink="..." or href="..." attributes
+    // Only targets attributes containing .md extension
+    return html
+      .replace(
+        /data-wikilink="([^"]+)\.md((?:#[^"]*)?)"/gi,
+        (match, path, anchor) => `data-wikilink="${path}${anchor}"`
+      )
+      .replace(/href="([^"]+)\.md((?:#[^"]*)?)"/gi, (match, path, anchor) => {
+        // Skip external URLs (http://, https://, mailto:, etc.)
+        const fullHref = path + '.md' + (anchor || '');
+        if (/^[a-z]+:\/\//i.test(fullHref) || fullHref.startsWith('mailto:')) {
+          return match;
+        }
+        return `href="${path}${anchor}"`;
+      });
   }
 
   private injectAssets(content: string, assets: AssetRef[]): string {
