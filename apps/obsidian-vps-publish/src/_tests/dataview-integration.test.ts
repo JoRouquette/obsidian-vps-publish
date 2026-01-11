@@ -2,6 +2,8 @@
  * Integration Test: Dataview → Markdown Pipeline
  *
  * Tests the complete flow: parse → execute → convert → replace
+ *
+ * @jest-environment jsdom
  */
 
 import type { DataviewExecutor } from '../lib/dataview/dataview-executor';
@@ -256,6 +258,84 @@ TABLE col1
       expect(result.content).toContain('- List Item');
       expect(result.content).toContain('| Col1 |');
       expect(result.content).not.toContain('```dataview');
+    });
+
+    it('should execute and render dv.view() calls in DataviewJS', async () => {
+      // Mock d'une exécution dv.view() réussie
+      const mockContainer = document.createElement('div');
+      mockContainer.innerHTML = `
+        <div class="dataview-view-result">
+          <p><strong>Book A</strong> by Author A</p>
+          <p>---</p>
+          <p><strong>Book B</strong> by Author B</p>
+          <p>---</p>
+        </div>
+      `;
+
+      mockExecutor.executeBlock.mockResolvedValue({
+        success: true,
+        container: mockContainer,
+      });
+
+      const content = `
+# Book List
+
+\`\`\`dataviewjs
+await dv.view("book-list", { tag: "#book" })
+\`\`\`
+
+## Notes
+
+More content here.
+`;
+
+      const result = await processDataviewBlocks(content, mockExecutor, 'test.md');
+
+      expect(result.processedBlocks).toHaveLength(1);
+      expect(result.processedBlocks[0].success).toBe(true);
+      // DataviewJS blocks preserve HTML
+      expect(result.content).toContain('<strong>Book A</strong>');
+      expect(result.content).toContain('by Author A');
+      expect(result.content).toContain('<strong>Book B</strong>');
+      expect(result.content).toContain('by Author B');
+      expect(result.content).not.toContain('```dataviewjs');
+      expect(mockExecutor.executeBlock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'js',
+          contentRaw: expect.stringContaining('await dv.view'),
+        }),
+        'test.md'
+      );
+    });
+
+    it('should handle empty dv.view() result gracefully', async () => {
+      // Mock d'une exécution dv.view() sans résultat
+      const mockContainer = document.createElement('div');
+      mockContainer.innerHTML = '';
+
+      mockExecutor.executeBlock.mockResolvedValue({
+        success: true,
+        container: mockContainer,
+      });
+
+      const content = `
+Before view.
+
+\`\`\`dataviewjs
+await dv.view("empty-view")
+\`\`\`
+
+After view.
+`;
+
+      const result = await processDataviewBlocks(content, mockExecutor, 'test.md');
+
+      expect(result.processedBlocks).toHaveLength(1);
+      expect(result.processedBlocks[0].success).toBe(true);
+      // Empty views should be replaced with empty string (block removed)
+      expect(result.content).toContain('Before view.');
+      expect(result.content).toContain('After view.');
+      expect(result.content).not.toContain('```dataviewjs');
     });
   });
 

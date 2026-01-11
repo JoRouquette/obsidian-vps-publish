@@ -1,6 +1,7 @@
 import type { MarkdownRendererPort, RenderContext } from '@core-application';
-import type { LoggerPort } from '@core-domain';
+import type { LoggerPort, Manifest, ManifestPage } from '@core-domain';
 import { type AssetRef, type PublishableNote, type ResolvedWikilink } from '@core-domain';
+import { load } from 'cheerio';
 import MarkdownIt from 'markdown-it';
 import anchor from 'markdown-it-anchor';
 import footnote from 'markdown-it-footnote';
@@ -185,10 +186,14 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       userCss ? '\n' + userCss : ''
     }</style>\n${html}`;
 
+    // Clean and normalize all links (remove .md extensions, add proper classes, translate paths)
+    // Pass manifest from context for vault-to-route path translation
+    const cleaned = this.cleanAndNormalizeLinks(withStyles, context?.manifest);
+
     // Filter ignored tags from rendered HTML
     // Get from context if available, otherwise use empty array (no default filtering)
     const ignoredTags = context?.ignoredTags ?? [];
-    const filtered = this.tagFilter.filterTags(withStyles, ignoredTags);
+    const filtered = this.tagFilter.filterTags(cleaned, ignoredTags);
 
     this.logger?.debug('Markdown rendered to HTML', {
       noteId: note.noteId,
@@ -223,6 +228,273 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     const escapedLabel = this.escapeHtml(label);
     const escapedTarget = this.escapeHtml(target);
     return `<span class="wikilink wikilink-unresolved" role="link" aria-disabled="true" title="Cette page arrive prochainement" data-tooltip="Cette page arrive prochainement" data-wikilink="${escapedTarget}">${escapedLabel}</span>`;
+  }
+
+  /**
+   * Clean and normalize all links in rendered HTML to match wikilink template.
+   *
+   * Ensures ALL internal links follow the wikilink structure:
+   * - Valid link (page exists): <a class="wikilink" data-wikilink="target" href="/path">Label</a>
+   * - Invalid link (page missing): <span class="wikilink wikilink-unresolved" ...>Label</span>
+   *
+   * This method:
+   * - Removes .md extensions from href and data-wikilink
+   * - Adds data-wikilink attribute if missing (using href as source)
+   * - Translates vault paths to routed paths using manifest (if available)
+   * - Validates links against manifest and converts invalid ones to unresolved spans
+   * - Ensures class="wikilink" for all internal links
+   * - Preserves external URLs unchanged
+   *
+   * Handles links from:
+   * - Dataview blocks (TABLE, LIST)
+   * - DataviewJS custom views (dv.view())
+   * - Any plugin-generated content
+   *
+   * @param html - Rendered HTML content
+   * @param manifest - Optional manifest for vault-to-route path translation and validation
+   * @returns HTML with all links normalized to wikilink template
+   */
+  private cleanAndNormalizeLinks(html: string, manifest?: Manifest): string {
+    const $ = load(html);
+
+    // Process all <a> tags to normalize to wikilink template
+    $('a').each((_, element) => {
+      const $link = $(element);
+      let href = $link.attr('href');
+      let dataWikilink = $link.attr('data-wikilink');
+      let dataHref = $link.attr('data-href'); // Dataview attribute
+
+      // Skip links without href or data-wikilink
+      if (!href && !dataWikilink) {
+        return;
+      }
+
+      // Skip external URLs (http://, https://, mailto:, etc.)
+      if (href && this.isExternalUrl(href)) {
+        return;
+      }
+
+      // Skip fragment-only links (internal anchors like #section)
+      if (href && href.startsWith('#')) {
+        return;
+      }
+
+      // This is an internal link - normalize to wikilink template
+      let cleanedHref = '';
+      let cleanedWikilink = '';
+      let matchedPage: ManifestPage | undefined;
+
+      // Clean and process href
+      if (href) {
+        cleanedHref = this.cleanLinkPath(href);
+
+        // Translate vault path to routed path if manifest available
+        if (manifest) {
+          const result = this.translateToRoutedPathWithValidation(cleanedHref, manifest);
+          cleanedHref = result.path;
+          matchedPage = result.matchedPage;
+        }
+
+        // If no data-wikilink, derive it from href (remove leading /)
+        if (!dataWikilink) {
+          cleanedWikilink = cleanedHref.replace(/^\//, '');
+          // Remove anchor for data-wikilink if present
+          const anchorIndex = cleanedWikilink.indexOf('#');
+          if (anchorIndex > 0) {
+            cleanedWikilink = cleanedWikilink.substring(0, anchorIndex);
+          }
+        }
+      }
+
+      // Clean data-wikilink attribute
+      if (dataWikilink) {
+        cleanedWikilink = this.cleanLinkPath(dataWikilink);
+      }
+
+      // Clean data-href attribute (Dataview)
+      if (dataHref) {
+        let cleanedDataHref = this.cleanLinkPath(dataHref);
+        if (manifest) {
+          const result = this.translateToRoutedPathWithValidation(cleanedDataHref, manifest);
+          cleanedDataHref = result.path;
+          // Use matchedPage from data-href if href didn't have one
+          if (!matchedPage) {
+            matchedPage = result.matchedPage;
+          }
+        }
+      }
+
+      // Check if link is valid (page exists in manifest)
+      const isValidLink = manifest ? matchedPage !== undefined : true; // Assume valid if no manifest
+
+      if (!isValidLink) {
+        // Transform invalid link to unresolved span (like wikilinks)
+        const label = $link.text();
+        const unresolvedSpan = this.renderUnresolvedWikilink(cleanedWikilink || cleanedHref, label);
+        $link.replaceWith(unresolvedSpan);
+        return; // Skip further processing for this element
+      }
+
+      // Valid link - update attributes
+      $link.attr('href', cleanedHref);
+
+      // Set data-wikilink attribute (required for wikilink template)
+      if (cleanedWikilink) {
+        $link.attr('data-wikilink', cleanedWikilink);
+      }
+
+      // Update data-href if it exists
+      if (dataHref) {
+        let cleanedDataHref = this.cleanLinkPath(dataHref);
+        if (manifest) {
+          const result = this.translateToRoutedPathWithValidation(cleanedDataHref, manifest);
+          cleanedDataHref = result.path;
+        }
+        $link.attr('data-href', cleanedDataHref);
+      }
+
+      // Ensure class="wikilink" (required for wikilink template)
+      const classes = $link.attr('class') || '';
+      const classList = classes.split(/\s+/).filter((c) => c.length > 0);
+      if (!classList.includes('wikilink')) {
+        classList.push('wikilink'); // Add to existing classes, preserving order
+      }
+      $link.attr('class', classList.join(' '));
+    });
+
+    return $.html();
+  }
+
+  /**
+   * Clean a link path by removing .md extension while preserving anchors.
+   *
+   * @param path - Link path (e.g., "note.md#section" or "note.md")
+   * @returns Cleaned path (e.g., "note#section" or "note")
+   */
+  private cleanLinkPath(path: string): string {
+    // Match .md extension followed by optional anchor (#...)
+    // Case-insensitive to handle .MD, .Md, etc.
+    return path.replace(/\.md(#.*)?$/i, '$1');
+  }
+
+  /**
+   * Check if a URL is external (http://, https://, mailto:, etc.)
+   *
+   * @param url - URL to check
+   * @returns True if external, false otherwise
+   */
+  private isExternalUrl(url: string): boolean {
+    return /^[a-z]+:\/\//i.test(url) || url.startsWith('mailto:');
+  }
+
+  /**
+   * Check if a link is an internal link (relative path, starts with /)
+   *
+   * @param path - Link path
+   * @returns True if internal, false otherwise
+   */
+  private isInternalLink(path: string): boolean {
+    // Internal links are relative paths or start with /
+    // External links start with http://, https://, etc.
+    return !this.isExternalUrl(path) && (path.startsWith('/') || !path.includes('://'));
+  }
+
+  /**
+   * Translate a vault path to a routed path using the manifest.
+   *
+   * For links generated by Dataview/plugins that use vault paths (e.g., "Aran'talas/Aran'talas"),
+   * this finds the corresponding page in the manifest and returns its full routed path
+   * (e.g., "/aran-talas/Aran'talas/Aran'talas").
+   *
+   * @param path - Vault path (may be relative or absolute, with or without leading /)
+   * @param manifest - Manifest containing all published pages with their routes
+   * @returns Routed path if found in manifest, otherwise returns original path
+   */
+  private translateToRoutedPath(path: string, manifest: Manifest): string {
+    // Extract base path and anchor
+    const anchorIndex = path.indexOf('#');
+    const basePath = anchorIndex >= 0 ? path.substring(0, anchorIndex) : path;
+    const anchor = anchorIndex >= 0 ? path.substring(anchorIndex) : '';
+
+    // Normalize base path (remove leading slash for comparison)
+    const normalizedPath = basePath.replace(/^\//, '');
+
+    // Find matching page in manifest by comparing normalized paths
+    const matchingPage = manifest.pages.find((page) => {
+      if (!page.vaultPath) return false;
+
+      // Compare vault paths (normalize both for consistent matching)
+      const pageVaultPath = page.vaultPath.replace(/\.md$/i, '').replace(/^\//, '');
+      const pageRelativePath = page.relativePath?.replace(/\.md$/i, '').replace(/^\//, '');
+
+      return (
+        pageVaultPath === normalizedPath ||
+        pageRelativePath === normalizedPath ||
+        pageVaultPath.toLowerCase() === normalizedPath.toLowerCase() ||
+        pageRelativePath?.toLowerCase() === normalizedPath.toLowerCase()
+      );
+    });
+
+    if (matchingPage) {
+      // Return the full routed path from manifest + anchor
+      return matchingPage.route + anchor;
+    }
+
+    // If no match found, return original path (may need leading / for absolute paths)
+    return path.startsWith('/') ? path : '/' + path;
+  }
+
+  /**
+   * Translate a vault path to a routed path using the manifest, with validation.
+   *
+   * Similar to translateToRoutedPath but also returns whether the page was found,
+   * allowing caller to distinguish valid links from invalid ones.
+   *
+   * @param path - Vault path (may be relative or absolute, with or without leading /)
+   * @param manifest - Manifest containing all published pages with their routes
+   * @returns Object with translated path and matched page (undefined if not found)
+   */
+  private translateToRoutedPathWithValidation(
+    path: string,
+    manifest: Manifest
+  ): { path: string; matchedPage?: ManifestPage } {
+    // Extract base path and anchor
+    const anchorIndex = path.indexOf('#');
+    const basePath = anchorIndex >= 0 ? path.substring(0, anchorIndex) : path;
+    const anchor = anchorIndex >= 0 ? path.substring(anchorIndex) : '';
+
+    // Normalize base path (remove leading slash for comparison)
+    const normalizedPath = basePath.replace(/^\//, '');
+
+    // Find matching page in manifest by comparing normalized paths
+    const matchingPage = manifest.pages.find((page) => {
+      if (!page.vaultPath) return false;
+
+      // Compare vault paths (normalize both for consistent matching)
+      const pageVaultPath = page.vaultPath.replace(/\.md$/i, '').replace(/^\//, '');
+      const pageRelativePath = page.relativePath?.replace(/\.md$/i, '').replace(/^\//, '');
+
+      return (
+        pageVaultPath === normalizedPath ||
+        pageRelativePath === normalizedPath ||
+        pageVaultPath.toLowerCase() === normalizedPath.toLowerCase() ||
+        pageRelativePath?.toLowerCase() === normalizedPath.toLowerCase()
+      );
+    });
+
+    if (matchingPage) {
+      // Return the full routed path from manifest + anchor
+      return {
+        path: matchingPage.route + anchor,
+        matchedPage: matchingPage,
+      };
+    }
+
+    // If no match found, return original path with leading slash but no matched page
+    return {
+      path: path.startsWith('/') ? path : '/' + path,
+      matchedPage: undefined,
+    };
   }
 
   private injectAssets(content: string, assets: AssetRef[]): string {

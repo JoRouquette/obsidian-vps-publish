@@ -36,7 +36,7 @@ Vous pouvez exclure des sections spécifiques en utilisant le marqueur `^no-publ
 2. **Header précédent** (`##`, `###`, etc.) si pas de règle horizontale
 3. **Début du document** si aucun délimiteur trouvé
 
-**Exemples** :
+**Exemples avec délimiteurs** :
 
 ```markdown
 ## Public Header
@@ -73,7 +73,37 @@ Private section
 ^no-publishing
 ```
 
-→ Fonctionne aussi avec `***` comme délimiteur.
+→ Fonctionne aussi avec `***` et `___` comme délimiteurs.
+
+**Cas spécial : Début de document**
+
+Si le marqueur est au tout début du document (sans contenu avant) :
+
+```markdown
+^no-publishing
+
+## First Header
+
+Public content
+```
+
+→ Seul le marqueur est supprimé, le reste du document est conservé.
+
+Si un header se trouve immédiatement au début :
+
+```markdown
+## Private Header
+
+^no-publishing
+
+## Public Header
+
+Public content
+```
+
+→ Le header privé et le marqueur sont supprimés, le contenu public est conservé.
+
+**Note** : Les espaces vides excessifs (3+ lignes blanches consécutives) sont automatiquement réduits à 2 après suppression pour maintenir la lisibilité.
 
 ## Frontmatter
 
@@ -165,6 +195,26 @@ WHERE publish = true
 \`\`\`dataviewjs
 dv.list(dv.pages("#blog").file.name)
 \`\`\`
+```
+
+### Vues personnalisées (dv.view)
+
+DataviewJS supporte les vues personnalisées réutilisables :
+
+```markdown
+\`\`\`dataviewjs
+await dv.view("my-custom-view", { parameter: "value" })
+\`\`\`
+```
+
+**Exemple de vue** (`views/book-list.js`) :
+
+```javascript
+const pages = dv.pages('#book').sort((p) => p.title);
+for (const page of pages) {
+  dv.span(`**${page.title}** by ${page.author}`);
+  dv.paragraph('---');
+}
 ```
 
 → Toutes les requêtes sont **exécutées côté plugin** et rendues en HTML avant upload.

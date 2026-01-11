@@ -64,6 +64,12 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
 
     logger?.debug(`Starting parallel publishing of ${notes.length} notes (max 10 concurrent)`);
 
+    // Load manifest for vault-to-route path translation
+    const manifest = await manifestStorage.load();
+    logger?.debug('Manifest loaded for path translation', {
+      pagesCount: manifest?.pages.length ?? 0,
+    });
+
     // Process notes in parallel with controlled concurrency
     // Using Promise.allSettled to handle both successes and failures
     const CONCURRENCY = 10;
@@ -78,6 +84,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
             noteLogger?.debug('Rendering markdown');
             const bodyHtml = await this.markdownRenderer.render(note, {
               ignoredTags: this.ignoredTags,
+              manifest: manifest ?? undefined,
             });
             noteLogger?.debug('Building HTML page');
             const fullHtml = this.buildHtmlPage(note, bodyHtml);

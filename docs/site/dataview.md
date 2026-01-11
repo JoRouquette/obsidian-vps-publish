@@ -30,7 +30,10 @@ Convertit les formats de sortie Dataview en Markdown **ou préserve le HTML pour
 - **Listes** (`<ul>`, `<ol>`) → Listes Markdown (`-`, `1.`)
 - **Tableaux** → Tableaux Markdown avec pipes
 - **Résultats vides** → Callout info `> [!info] No Results`
-- **Wikilinks** → Format normalisé `[[path|title]]` sans extension `.md`
+- **Wikilinks** → Format normalisé `[[path|title]]` **sans extension `.md`**
+  - Les attributs HTML `data-wikilink` ou `href` contenant `.md` sont automatiquement nettoyés
+  - Exception : les embeds d'assets (images, PDFs) conservent leur extension
+  - Exemple : `data-wikilink="Notes/Page.md"` → `[[Notes/Page|Page]]`
 
 #### Blocs DataviewJS (```dataviewjs)
 
@@ -94,6 +97,50 @@ Ces blocs sont rendus avec **préservation complète du HTML**, incluant :
 - Balises d'emphase : `<em>`, `<strong>`
 - Styles inline : `style="background-color:..."`
 - Layouts personnalisés : `<div>`, `<span>` avec classes/attributs
+
+#### Support de dv.view()
+
+DataviewJS supporte **pleinement** l'appel de vues personnalisées via `dv.view()` :
+
+```dataviewjs
+// Appeler une vue personnalisée
+await dv.view("my-custom-view", { parameter: "value" });
+```
+
+**Fonctionnement** :
+
+- Les vues personnalisées sont des fichiers JavaScript dans votre vault (par exemple `views/my-custom-view.js`)
+- Elles reçoivent l'objet `dv` et les paramètres passés
+- Le HTML généré par la vue est capturé et préservé dans le contenu publié
+- Les vues peuvent utiliser toutes les fonctionnalités `dv.*` (liste, table, span, el, etc.)
+
+**Exemple de vue personnalisée** (`views/book-list.js`) :
+
+```javascript
+// Afficher une liste de livres avec métadonnées
+const pages = dv.pages('#book').sort((p) => p.title);
+
+for (const page of pages) {
+  dv.span(`**${page.title}** by ${page.author} (${page.year})`);
+  dv.paragraph(page.summary || 'No summary');
+  dv.span('---');
+}
+```
+
+**Appel dans une note** :
+
+```dataviewjs
+await dv.view("book-list");
+```
+
+**Avec paramètres** :
+
+```dataviewjs
+// Vue avec filtrage par tag
+await dv.view("book-list", { tag: "#fantasy", limit: 10 });
+```
+
+**Important** : Les vues doivent être des fonctions **asynchrones** si elles utilisent `await`. Le plugin attend que l'exécution se termine avant de capturer le rendu.
 
 ## Détails d'Implémentation
 

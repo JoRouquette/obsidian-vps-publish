@@ -18,6 +18,7 @@ import { type CustomIndexConfig, type LoggerPort, LogLevel } from '@core-domain'
 
 import { type StagingManager } from '../filesystem/staging-manager';
 import { ContentSearchIndexer } from '../search/content-search-indexer';
+import { ValidateLinksService } from './validate-links.service';
 
 type ContentStorageFactory = (sessionId: string) => ContentStoragePort;
 type ManifestStorageFactory = (sessionId: string) => ManifestPort;
@@ -183,6 +184,22 @@ export class SessionFinalizerService {
       log.debug('Indexes rebuilt with custom content');
     }
     timings.rebuildIndexes = performance.now() - stepStart;
+
+    // STEP 10.5: Validate and fix all links in HTML files
+    if (manifest) {
+      stepStart = performance.now();
+      const contentRoot = this.stagingManager.contentStagingPath(sessionId);
+      const linkValidator = new ValidateLinksService(this.logger);
+      const validationResult = await linkValidator.validateAllLinks(contentRoot, manifest);
+      timings.validateLinks = performance.now() - stepStart;
+
+      log.info('Link validation completed', {
+        filesProcessed: validationResult.filesProcessed,
+        filesModified: validationResult.filesModified,
+        linksFixed: validationResult.linksFixed,
+        durationMs: timings.validateLinks.toFixed(2),
+      });
+    }
 
     // STEP 11: Rebuild content search index
     stepStart = performance.now();
