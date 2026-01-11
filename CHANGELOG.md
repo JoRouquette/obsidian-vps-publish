@@ -1,3 +1,11 @@
+## <small>6.1.4 (2026-01-11)</small>
+
+* Merge branch 'fix/several-bugs' ([10e5b71](https://github.com/JoRouquette/obsidian-vps-publish/commit/10e5b71))
+* fix(api): normalize all links to use proper routing and prevent broken wikilinks ([9c9c9a7](https://github.com/JoRouquette/obsidian-vps-publish/commit/9c9c9a7))
+* fix(backend): remove .md extensions from Dataview HTML links via post-processing ([0cc027a](https://github.com/JoRouquette/obsidian-vps-publish/commit/0cc027a)), closes [#section](https://github.com/JoRouquette/obsidian-vps-publish/issues/section)
+* docs(plugin): improve help content for Dataview and no-publishing marker ([4afb38e](https://github.com/JoRouquette/obsidian-vps-publish/commit/4afb38e))
+* refactor(core-app): improve no-publishing marker service documentation and tests ([c532638](https://github.com/JoRouquette/obsidian-vps-publish/commit/c532638))
+
 ## <small>6.1.3 (2026-01-02)</small>
 
 * Merge branch 'fix/dataview-rendering' ([1ff85a7](https://github.com/JoRouquette/obsidian-vps-publish/commit/1ff85a7))
