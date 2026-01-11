@@ -1,7 +1,8 @@
-import { type PublishableNote } from '@core-domain';
+import { type Manifest, type PublishableNote } from '@core-domain';
 
 export interface RenderContext {
   ignoredTags?: string[];
+  manifest?: Manifest;
 }
 
 export interface MarkdownRendererPort {

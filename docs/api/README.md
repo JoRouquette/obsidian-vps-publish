@@ -16,7 +16,16 @@ Le backend Node.js/Express :
 
 ## 📄 Documentation disponible
 
+### Rendu de contenu
+
+- **[Link Normalization](./link-normalization.md)** - Normalisation des liens pour uniformité du routing et du style
+
+### Logging et observabilité
+
 - **[Logging](./logging.md)** - Système de logging : niveaux, configuration, sortie console/fichier
+
+### Performance
+
 - **[Performance](./performance.md)** - Optimisations API, métriques, diagnostics
 - **[Performance Enhancements](./performance-enhancements.md)** - Détails techniques des optimisations implémentées
 - **[Performance Testing](./performance-testing.md)** - Guide de test de performance manuel

@@ -441,8 +441,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     const vps = settings.vpsConfigs[0];
 
-    if (!vps.folders || vps.folders.length === 0) {
-      this.logger.warn('No folders configured for VPS', { vpsId: vps.id });
+    // Check if either routeTree or folders are configured
+    const hasRouteTree = vps.routeTree && vps.routeTree.roots.length > 0;
+    const hasFolders = vps.folders && vps.folders.length > 0;
+
+    if (!hasRouteTree && !hasFolders) {
+      this.logger.warn('No folders or route tree configured for VPS', { vpsId: vps.id });
       new Notice(translate(t, 'notice.noFoldersConfigured'));
       return;
     }
