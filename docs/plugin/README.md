@@ -22,6 +22,7 @@ Le plugin Obsidian :
 - **[Folders Settings UI](./folders-settings-ui-README.md)** - Vue d'ensemble du refactor de l'interface des dossiers de publication
   - [Guide utilisateur](./folders-settings-ui.md)
   - [Détails techniques](./folders-settings-ui-implementation.md)
+- **[Testing Strategy](./testing-strategy.md)** - Stratégie de tests (unit + integration) pour la gestion des routes
 
 ## 🚀 Installation
 
