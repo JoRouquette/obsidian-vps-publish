@@ -22,6 +22,10 @@ Le frontend Angular est une Single Page Application (SPA) qui :
 - **[Leaflet](./leaflet.md)** - Intégration des cartes interactives Leaflet
 - **[Image Viewer](./image-viewer.md)** - Visualiseur d'images avec zoom et navigation
 
+### SEO et optimisation
+
+- **[SEO](./seo.md)** - Stratégie SEO complète : meta tags, sitemap, redirections 301, cache HTTP (106 tests)
+
 ### Design et thème
 
 - **[Design System](./design-system.md)** - Système de tokens CSS (ITS Theme), composants, accessibilité
