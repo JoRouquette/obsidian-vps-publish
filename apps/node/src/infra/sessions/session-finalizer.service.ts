@@ -18,6 +18,7 @@ import { type CustomIndexConfig, type LoggerPort, LogLevel } from '@core-domain'
 
 import { type StagingManager } from '../filesystem/staging-manager';
 import { ContentSearchIndexer } from '../search/content-search-indexer';
+import { SlugChangeDetectorService } from './slug-change-detector.service';
 import { ValidateLinksService } from './validate-links.service';
 
 type ContentStorageFactory = (sessionId: string) => ContentStoragePort;
@@ -185,7 +186,39 @@ export class SessionFinalizerService {
     }
     timings.rebuildIndexes = performance.now() - stepStart;
 
-    // STEP 10.5: Validate and fix all links in HTML files
+    // STEP 10.6: Detect slug changes and update canonicalMap
+    if (manifest) {
+      stepStart = performance.now();
+      const slugDetector = new SlugChangeDetectorService(this.logger);
+
+      // Charger le manifest de production (s'il existe)
+      const productionManifest = await slugDetector.loadProductionManifest(
+        this.stagingManager.contentRootPath
+      );
+
+      // Détecter les changements de slug et mettre à jour le canonicalMap
+      const updatedManifest = await slugDetector.detectAndUpdateCanonicalMap(
+        productionManifest,
+        manifest
+      );
+
+      // Nettoyer les mappings obsolètes
+      const cleanedManifest = slugDetector.cleanupCanonicalMap(updatedManifest);
+
+      // Sauvegarder le manifest mis à jour
+      await manifestPort.save(cleanedManifest);
+
+      log.debug('Slug changes detected and canonicalMap updated', {
+        hasCanonicalMap: !!cleanedManifest.canonicalMap,
+        mappingsCount: cleanedManifest.canonicalMap
+          ? Object.keys(cleanedManifest.canonicalMap).length
+          : 0,
+      });
+
+      timings.detectSlugChanges = performance.now() - stepStart;
+    }
+
+    // STEP 10.7: Validate and fix all links in HTML files
     if (manifest) {
       stepStart = performance.now();
       const contentRoot = this.stagingManager.contentStagingPath(sessionId);

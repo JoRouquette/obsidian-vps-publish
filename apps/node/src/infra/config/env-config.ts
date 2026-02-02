@@ -76,4 +76,12 @@ export class EnvConfig {
     const val = Number(this.norm(process.env.MAX_CONCURRENT_FINALIZATION_JOBS));
     return Number.isFinite(val) && val > 0 ? val : 8;
   }
+
+  /**
+   * Base URL for the public site (used for SEO: sitemap, canonical URLs)
+   * Example: https://example.com
+   */
+  static baseUrl(): string {
+    return this.norm(process.env.BASE_URL) || 'http://localhost:4200';
+  }
 }

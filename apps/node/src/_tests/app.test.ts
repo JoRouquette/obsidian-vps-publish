@@ -21,6 +21,7 @@ jest.mock('../infra/config/env-config', () => ({
     contentRoot: jest.fn(() => './tmp/content'),
     uiRoot: jest.fn(() => './tmp/ui'),
     loggerLevel: jest.fn(() => 'debug'),
+    baseUrl: jest.fn(() => 'http://localhost:4200'),
     siteName: jest.fn(() => 'Site'),
     author: jest.fn(() => 'Author'),
     repoUrl: jest.fn(() => 'http://repo'),
@@ -42,6 +43,7 @@ describe('createApp', () => {
 
     const cfgRes = await request(app).get('/public-config');
     expect(cfgRes.status).toBe(200);
+    expect(cfgRes.body.baseUrl).toBe('http://localhost:4200');
     expect(cfgRes.body.siteName).toBe('Site');
   });
 });

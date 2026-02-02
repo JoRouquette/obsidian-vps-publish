@@ -18,6 +18,11 @@ export class StagingManager {
     private readonly logger?: LoggerPort
   ) {}
 
+  /** Getter pour accéder au contentRoot (utile pour slug change detection) */
+  get contentRootPath(): string {
+    return this.contentRoot;
+  }
+
   contentStagingPath(sessionId: string): string {
     return path.join(this.contentRoot, '.staging', sessionId);
   }

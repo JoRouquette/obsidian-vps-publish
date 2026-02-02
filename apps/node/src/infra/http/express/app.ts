@@ -7,7 +7,7 @@ import {
   UploadAssetsHandler,
   UploadNotesHandler,
 } from '@core-application';
-import { type LoggerPort } from '@core-domain';
+import { type LoggerPort, type Manifest } from '@core-domain';
 import compression from 'compression';
 import express from 'express';
 
@@ -26,12 +26,14 @@ import { SessionFinalizerService } from '../../sessions/session-finalizer.servic
 import { createHealthCheckController } from './controllers/health-check.controller';
 import { createMaintenanceController } from './controllers/maintenance-controller';
 import { createPingController } from './controllers/ping.controller';
+import { createSeoController } from './controllers/seo.controller';
 import { createSessionController } from './controllers/session-controller';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
 import { BackpressureMiddleware } from './middleware/backpressure.middleware';
 import { ChunkedUploadMiddleware } from './middleware/chunked-upload.middleware';
 import { createCorsMiddleware } from './middleware/cors.middleware';
 import { PerformanceMonitoringMiddleware } from './middleware/performance-monitoring.middleware';
+import { createRedirectMiddleware } from './middleware/redirect.middleware';
 import { RequestCorrelationMiddleware } from './middleware/request-correlation.middleware';
 
 export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
@@ -88,17 +90,7 @@ export function createApp(rootLogger?: LoggerPort) {
   app.use(createCorsMiddleware(EnvConfig.allowedOrigins()));
   const apiKeyMiddleware = createApiKeyAuthMiddleware(EnvConfig.apiKey());
 
-  const disableCache = (
-    _req: express.Request,
-    res: express.Response,
-    next: express.NextFunction
-  ) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.setHeader('Surrogate-Control', 'no-store');
-    next();
-  };
+  // Note: Removed disableCache middleware (no longer needed after conditional caching implementation)
 
   // Static assets with aggressive caching (immutable content)
   app.use(
@@ -111,11 +103,26 @@ export function createApp(rootLogger?: LoggerPort) {
     })
   );
 
-  // Content with no-cache (dynamic content, frequently updated)
+  // Content with conditional caching (ETag validation)
+  // Enable ETags for content files but keep short max-age for freshness
   app.use(
     '/content',
-    disableCache,
-    express.static(EnvConfig.contentRoot(), { etag: false, cacheControl: false, maxAge: 0 })
+    express.static(EnvConfig.contentRoot(), {
+      etag: true, // Enable ETag for conditional requests (If-None-Match)
+      lastModified: true, // Enable Last-Modified for conditional requests (If-Modified-Since)
+      maxAge: '5m', // Cache for 5 minutes, then revalidate
+      cacheControl: true, // Send Cache-Control header
+      setHeaders: (res, filePath) => {
+        // Special handling for manifest: shorter cache + must-revalidate
+        if (filePath.endsWith('_manifest.json')) {
+          res.setHeader('Cache-Control', 'public, max-age=60, must-revalidate');
+        }
+        // HTML content: moderate cache with revalidation
+        else if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'public, max-age=300, must-revalidate');
+        }
+      },
+    })
   );
 
   // UI files with moderate caching (versioned via deployment)
@@ -241,6 +248,21 @@ export function createApp(rootLogger?: LoggerPort) {
 
   app.use('/api', apiRouter);
 
+  // SEO routes (sitemap.xml, robots.txt)
+  const manifestLoader = async (): Promise<Manifest> => {
+    const fs = await import('fs/promises');
+    const manifestPath = path.join(EnvConfig.contentRoot(), '_manifest.json');
+    const raw = await fs.readFile(manifestPath, 'utf-8');
+    return JSON.parse(raw) as Manifest;
+  };
+
+  const seoRouter = createSeoController(manifestLoader, EnvConfig.baseUrl(), rootLogger);
+  app.use('/seo', seoRouter);
+
+  // Redirect middleware (301 redirects from canonicalMap)
+  // Must be BEFORE Angular routing to intercept old routes
+  app.use(createRedirectMiddleware(manifestLoader, rootLogger));
+
   app.use(
     createHealthCheckController(
       {
@@ -254,6 +276,7 @@ export function createApp(rootLogger?: LoggerPort) {
   app.get('/public-config', (req, res) => {
     rootLogger?.debug('Serving public config');
     res.json({
+      baseUrl: EnvConfig.baseUrl(),
       siteName: EnvConfig.siteName(),
       author: EnvConfig.author(),
       repoUrl: EnvConfig.repoUrl(),

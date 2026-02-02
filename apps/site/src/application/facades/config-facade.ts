@@ -9,6 +9,10 @@ export class ConfigFacade {
 
   constructor(private readonly repo: HttpConfigRepository) {}
 
+  config(): PublicConfig | null {
+    return this.cfg();
+  }
+
   async ensure() {
     if (!this.cfg()) this.cfg.set(await this.repo.load());
   }

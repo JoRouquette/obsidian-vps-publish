@@ -11,6 +11,13 @@ export interface Manifest {
    * Example: { "/tresors": "Trésors", "/pantheon": "Panthéon" }
    */
   folderDisplayNames?: Record<string, string>;
+
+  /**
+   * Mapping of old routes to new routes for 301 redirects
+   * Used to handle slug changes and prevent broken links
+   * Example: { "/old-route": "/new-route", "/legacy-page": "/current-page" }
+   */
+  canonicalMap?: Record<string, string>;
 }
 
 export const defaultManifest: Manifest = {
