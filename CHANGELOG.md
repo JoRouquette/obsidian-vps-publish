@@ -1,3 +1,12 @@
+## 6.2.0 (2026-02-02)
+
+* feat(seo)!: add comprehensive SEO implementation with meta tags, sitemap, and redirects ([5d36140](https://github.com/JoRouquette/obsidian-vps-publish/commit/5d36140))
+* Merge branch 'feat/add-seo' ([cf26ca2](https://github.com/JoRouquette/obsidian-vps-publish/commit/cf26ca2))
+* Merge branch 'fix/images-and-settings' ([1a42df2](https://github.com/JoRouquette/obsidian-vps-publish/commit/1a42df2))
+* fix(plugin): move route validation to save action instead of display ([f47858f](https://github.com/JoRouquette/obsidian-vps-publish/commit/f47858f))
+* feat(plugin): add drag & drop route management with temporary state ([9edbf74](https://github.com/JoRouquette/obsidian-vps-publish/commit/9edbf74))
+* docs(seo): consolidate SEO documentation into single reference guide ([9d354f6](https://github.com/JoRouquette/obsidian-vps-publish/commit/9d354f6))
+
 ## <small>6.1.4 (2026-01-11)</small>
 
 * Merge branch 'fix/several-bugs' ([10e5b71](https://github.com/JoRouquette/obsidian-vps-publish/commit/10e5b71))
