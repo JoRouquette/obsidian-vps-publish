@@ -91,33 +91,18 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
       uiState.hasUnsavedChanges = true;
     }
 
-    // Validate route tree and display global warning if needed
-    const validationResult = validateRouteTree(uiState.tempRouteTree!);
-    if (!validationResult.valid) {
-      const warningContainer = vpsSection.createDiv({ cls: 'ptpv-validation-warning' });
-      warningContainer.createEl('strong', { text: '⚠️ Route Configuration Issues' });
-
-      const conflictsList = warningContainer.createEl('ul');
-      validationResult.conflicts.forEach((conflict) => {
-        const item = conflictsList.createEl('li');
-        item.textContent = `${conflict.message} at ${conflict.path}`;
-        item.style.color = 'var(--text-error)';
-      });
-
-      const helpText = warningContainer.createEl('div', { cls: 'setting-item-description' });
-      helpText.textContent =
-        'Please fix these conflicts before publishing. Hover over route labels with ⚠️ for details.';
-    }
-
     // Render tree container
     const treeContainer = vpsSection.createDiv({ cls: 'ptpv-routes-tree' });
 
     const updateTree = () => {
       treeContainer.empty();
-      // Sort roots alphabetically by segment before rendering
+      // Sort roots alphabetically by segment for organized display
       const sortedRoots = [...routeTree.roots].sort((a, b) => {
-        const segmentA = (a.segment || '/').toLowerCase();
-        const segmentB = (b.segment || '/').toLowerCase();
+        const segmentA = (a.segment || '').toLowerCase();
+        const segmentB = (b.segment || '').toLowerCase();
+        // Empty segments first, then alphabetical
+        if (segmentA === '' && segmentB !== '') return -1;
+        if (segmentA !== '' && segmentB === '') return 1;
         return segmentA.localeCompare(segmentB);
       });
       sortedRoots.forEach((rootNode, index) => {
@@ -161,6 +146,17 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
     btnSave.disabled = !uiState.hasUnsavedChanges;
     btnSave.onclick = async () => {
       logger.debug('Saving route tree changes', { vpsId: vps.id });
+
+      // Validate before saving
+      const validationResult = validateRouteTree(uiState.tempRouteTree!);
+      if (!validationResult.valid) {
+        const errorMsg = validationResult.conflicts
+          .map((c) => `${c.message} at ${c.path}`)
+          .join('\n');
+        new Notice(`⚠️ Cannot save: Route conflicts detected\n${errorMsg}`, 8000);
+        return;
+      }
+
       // Apply temp changes to actual settings
       vps.routeTree = JSON.parse(JSON.stringify(uiState.tempRouteTree));
       uiState.hasUnsavedChanges = false;
