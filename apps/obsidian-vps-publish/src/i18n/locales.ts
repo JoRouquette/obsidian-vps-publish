@@ -50,6 +50,9 @@ type CommonTranslations = {
   initializing: string;
   processing: string;
   vpsNumberFallback: string; // "VPS #{number}"
+  save: string;
+  saved: string;
+  cancelled: string;
 };
 
 type PlaceholdersTranslations = {
@@ -212,6 +215,7 @@ type RoutesTranslations = {
   displayNameLabel: string;
   displayNameDescription: string;
   displayNamePlaceholder: string;
+  cannotMoveParentToChild: string;
 };
 
 type IgnoreRulesTranslations = {
@@ -570,6 +574,7 @@ export const en: Translations = {
       displayNameDescription:
         'Optional: Custom name for navigation and breadcrumbs. If not set, the segment will be humanized (e.g., "api-docs" → "Api Docs").',
       displayNamePlaceholder: 'Inferred from segment if empty',
+      cannotMoveParentToChild: 'Cannot move a parent route into its own child',
     },
     cleanupRules: {
       removeCodeBlocks: {
@@ -849,6 +854,9 @@ export const en: Translations = {
     initializing: 'Initializing...',
     processing: 'Processing...',
     vpsNumberFallback: 'VPS #{number}',
+    save: 'Save',
+    saved: 'Saved',
+    cancelled: 'Cancelled',
   },
   placeholders: {
     selectVps: 'Select a VPS to target...',
@@ -1060,6 +1068,7 @@ export const fr: Translations = {
       displayNameDescription:
         'Optionnel : Nom personnalisé pour la navigation et le fil d\'Ariane. Si non défini, le segment sera humanisé (ex: "api-docs" → "Api Docs").',
       displayNamePlaceholder: 'Déduit du segment si vide',
+      cannotMoveParentToChild: 'Impossible de déplacer une route parente dans son propre enfant',
     },
     cleanupRules: {
       removeCodeBlocks: {
@@ -1343,6 +1352,9 @@ export const fr: Translations = {
     initializing: 'Initialisation...',
     processing: 'Traitement...',
     vpsNumberFallback: 'VPS n°{number}',
+    save: 'Sauvegarder',
+    saved: 'Sauvegardé',
+    cancelled: 'Annulé',
   },
   placeholders: {
     selectVps: 'Sélectionnez un VPS cible...',

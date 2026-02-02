@@ -1147,6 +1147,52 @@
   border-radius: 4px;
   background: var(--background-primary);
   margin-bottom: 2px;
+  transition: background-color 0.2s ease;
+}
+
+/* Drag handle icon */
+.ptpv-route-drag-handle {
+  width: 20px;
+  height: 20px;
+  padding: 2px;
+  cursor: grab;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ptpv-route-drag-handle:hover {
+  color: var(--text-normal);
+}
+
+.ptpv-route-drag-handle:active {
+  cursor: grabbing;
+}
+
+.ptpv-route-drag-handle svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Drag states */
+.ptpv-route-item.is-dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.ptpv-route-item.drag-over-top {
+  border-top: 3px solid var(--interactive-accent);
+}
+
+.ptpv-route-item.drag-over-bottom {
+  border-bottom: 3px solid var(--interactive-accent);
+}
+
+.ptpv-route-item.drag-over-child {
+  background-color: var(--background-modifier-hover);
+  border: 2px dashed var(--interactive-accent);
 }
 
 /* Expand/collapse button */
@@ -1333,8 +1379,33 @@
   margin-left: 0;
 }
 
+/* Route actions with save/cancel buttons */
+.ptpv-routes-actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--background-modifier-border);
+  justify-content: space-between;
+}
+
+.ptpv-routes-actions button {
+  min-width: 120px;
+}
+
+.ptpv-routes-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .ptpv-routes-actions {
+    flex-direction: column;
+  }
+
+  .ptpv-routes-actions button {
+    width: 100%;
+  }
+
   .ptpv-route-item {
     flex-wrap: wrap;
     gap: 0.25rem;

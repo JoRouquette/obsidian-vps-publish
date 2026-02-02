@@ -7,6 +7,16 @@ import { translate } from '../../../i18n';
 import { FileSuggest } from '../../suggesters/file-suggester';
 import { FolderSuggest } from '../../suggesters/folder-suggester';
 import type { SettingsViewContext } from '../context';
+import {
+  canDeleteNode,
+  deleteNodeFromTree,
+  findNodeById,
+  findParentNode,
+  insertNodeAfter,
+  insertNodeBefore,
+  isDescendant,
+  removeNodeFromTree,
+} from '../utils/route-tree.utils';
 
 /**
  * UI State (non-persisted, ephemeral)
@@ -14,6 +24,10 @@ import type { SettingsViewContext } from '../context';
 interface RoutesUIState {
   editingNodeId: string | null; // null = no editor open
   expandedNodes: Set<string>; // IDs of expanded nodes in tree view
+  tempRouteTree: { roots: RouteNode[] } | null; // Temporary route tree for editing
+  hasUnsavedChanges: boolean; // Track if there are unsaved changes
+  draggedNodeId: string | null; // ID of the node being dragged
+  draggedNodeParentId: string | null; // Parent ID (null for root)
 }
 
 /**
@@ -22,6 +36,10 @@ interface RoutesUIState {
 let uiState: RoutesUIState = {
   editingNodeId: null,
   expandedNodes: new Set<string>(),
+  tempRouteTree: null,
+  hasUnsavedChanges: false,
+  draggedNodeId: null,
+  draggedNodeParentId: null,
 };
 
 /**
@@ -56,7 +74,12 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
       };
     }
 
-    const routeTree = vps.routeTree;
+    // Initialize temp route tree if not already set
+    if (!uiState.tempRouteTree) {
+      uiState.tempRouteTree = JSON.parse(JSON.stringify(vps.routeTree));
+    }
+
+    const routeTree = uiState.tempRouteTree!; // Non-null assertion safe here after check
 
     // Ensure at least one root route
     if (routeTree.roots.length === 0) {
@@ -65,24 +88,7 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
         segment: '',
         ignoredCleanupRuleIds: [],
       });
-    }
-
-    // Validate route tree and display global warning if needed
-    const validationResult = validateRouteTree(routeTree);
-    if (!validationResult.valid) {
-      const warningContainer = vpsSection.createDiv({ cls: 'ptpv-validation-warning' });
-      warningContainer.createEl('strong', { text: '⚠️ Route Configuration Issues' });
-
-      const conflictsList = warningContainer.createEl('ul');
-      validationResult.conflicts.forEach((conflict) => {
-        const item = conflictsList.createEl('li');
-        item.textContent = `${conflict.message} at ${conflict.path}`;
-        item.style.color = 'var(--text-error)';
-      });
-
-      const helpText = warningContainer.createEl('div', { cls: 'setting-item-description' });
-      helpText.textContent =
-        'Please fix these conflicts before publishing. Hover over route labels with ⚠️ for details.';
+      uiState.hasUnsavedChanges = true;
     }
 
     // Render tree container
@@ -90,10 +96,13 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
 
     const updateTree = () => {
       treeContainer.empty();
-      // Sort roots alphabetically by segment before rendering
+      // Sort roots alphabetically by segment for organized display
       const sortedRoots = [...routeTree.roots].sort((a, b) => {
-        const segmentA = (a.segment || '/').toLowerCase();
-        const segmentB = (b.segment || '/').toLowerCase();
+        const segmentA = (a.segment || '').toLowerCase();
+        const segmentB = (b.segment || '').toLowerCase();
+        // Empty segments first, then alphabetical
+        if (segmentA === '' && segmentB !== '') return -1;
+        if (segmentA !== '' && segmentB === '') return 1;
         return segmentA.localeCompare(segmentB);
       });
       sortedRoots.forEach((rootNode, index) => {
@@ -121,8 +130,61 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
       // Add to END of list (user requirement)
       routeTree.roots.push(newRoute);
       uiState.editingNodeId = newRoute.id; // Auto-open editor
-      void ctx.save().then(() => ctx.refresh());
+      uiState.hasUnsavedChanges = true;
+      ctx.refresh();
     };
+
+    // Save/Cancel buttons at the bottom
+    const actionRow = vpsSection.createDiv({
+      cls: 'ptpv-button-row ptpv-routes-actions',
+    });
+
+    const btnSave = actionRow.createEl('button', {
+      text: t.common.save || 'Sauvegarder',
+      cls: uiState.hasUnsavedChanges ? 'mod-cta' : '',
+    });
+    btnSave.disabled = !uiState.hasUnsavedChanges;
+    btnSave.onclick = async () => {
+      logger.debug('Saving route tree changes', { vpsId: vps.id });
+
+      // Validate before saving
+      const validationResult = validateRouteTree(uiState.tempRouteTree!);
+      if (!validationResult.valid) {
+        const errorMsg = validationResult.conflicts
+          .map((c) => `${c.message} at ${c.path}`)
+          .join('\n');
+        new Notice(`⚠️ Cannot save: Route conflicts detected\n${errorMsg}`, 8000);
+        return;
+      }
+
+      // Apply temp changes to actual settings
+      vps.routeTree = JSON.parse(JSON.stringify(uiState.tempRouteTree));
+      uiState.hasUnsavedChanges = false;
+      uiState.tempRouteTree = null;
+      await ctx.save();
+      ctx.refresh();
+      new Notice(t.common.saved || 'Sauvegardé');
+    };
+
+    const btnCancel = actionRow.createEl('button', {
+      text: t.common.cancel || 'Annuler',
+    });
+    btnCancel.disabled = !uiState.hasUnsavedChanges;
+    btnCancel.onclick = () => {
+      logger.debug('Cancelling route tree changes', { vpsId: vps.id });
+      // Reset temp state
+      uiState.tempRouteTree = null;
+      uiState.hasUnsavedChanges = false;
+      uiState.editingNodeId = null;
+      ctx.refresh();
+      new Notice(t.common.cancelled || 'Annulé');
+    };
+  });
+
+  // Reset temp state on section unmount
+  root.addEventListener('DOMContentLoaded', () => {
+    uiState.tempRouteTree = null;
+    uiState.hasUnsavedChanges = false;
   });
 }
 
@@ -146,9 +208,120 @@ function renderRouteNode(
 
   // Compact item (always visible)
   const item = nodeContainer.createDiv({ cls: 'ptpv-route-item' });
+  item.draggable = true;
+
+  // Set data attributes for drag & drop
+  item.setAttribute('data-node-id', node.id);
+
+  // Drag event handlers
+  item.ondragstart = (e) => {
+    uiState.draggedNodeId = node.id;
+    // Find parent
+    const parent = findParentNode(uiState.tempRouteTree!, node.id);
+    uiState.draggedNodeParentId = parent?.id || null;
+    item.addClass('is-dragging');
+    e.dataTransfer!.effectAllowed = 'move';
+  };
+
+  item.ondragend = () => {
+    item.removeClass('is-dragging');
+    // Clean up any drag-over classes
+    document
+      .querySelectorAll('.drag-over-top, .drag-over-bottom, .drag-over-child')
+      .forEach((el) => {
+        el.removeClass('drag-over-top');
+        el.removeClass('drag-over-bottom');
+        el.removeClass('drag-over-child');
+      });
+  };
+
+  item.ondragover = (e) => {
+    e.preventDefault();
+    if (!uiState.draggedNodeId || uiState.draggedNodeId === node.id) return;
+
+    const rect = item.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const height = rect.height;
+
+    // Remove all drag-over classes first
+    item.removeClass('drag-over-top');
+    item.removeClass('drag-over-bottom');
+    item.removeClass('drag-over-child');
+
+    // Determine drop zone
+    if (y < height * 0.25) {
+      item.addClass('drag-over-top');
+      e.dataTransfer!.dropEffect = 'move';
+    } else if (y > height * 0.75) {
+      item.addClass('drag-over-bottom');
+      e.dataTransfer!.dropEffect = 'move';
+    } else {
+      item.addClass('drag-over-child');
+      e.dataTransfer!.dropEffect = 'move';
+    }
+  };
+
+  item.ondragleave = () => {
+    item.removeClass('drag-over-top');
+    item.removeClass('drag-over-bottom');
+    item.removeClass('drag-over-child');
+  };
+
+  item.ondrop = (e) => {
+    e.preventDefault();
+    item.removeClass('drag-over-top');
+    item.removeClass('drag-over-bottom');
+    item.removeClass('drag-over-child');
+
+    if (!uiState.draggedNodeId || uiState.draggedNodeId === node.id) return;
+
+    const rect = item.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const height = rect.height;
+
+    const draggedNode = findNodeById(uiState.tempRouteTree!, uiState.draggedNodeId);
+    if (!draggedNode) return;
+
+    // Prevent dropping a parent into its own child
+    if (isDescendant(draggedNode, node.id)) {
+      new Notice(
+        ctx.t.settings.routes.cannotMoveParentToChild || 'Cannot move a parent into its child'
+      );
+      return;
+    }
+
+    // Remove from old location
+    removeNodeFromTree(uiState.tempRouteTree!, uiState.draggedNodeId);
+
+    // Determine drop position
+    if (y < height * 0.25) {
+      // Insert before target
+      insertNodeBefore(uiState.tempRouteTree!, node.id, draggedNode);
+    } else if (y > height * 0.75) {
+      // Insert after target
+      insertNodeAfter(uiState.tempRouteTree!, node.id, draggedNode);
+    } else {
+      // Add as child
+      if (!node.children) node.children = [];
+      node.children.push(draggedNode);
+      uiState.expandedNodes.add(node.id);
+    }
+
+    uiState.hasUnsavedChanges = true;
+    uiState.draggedNodeId = null;
+    uiState.draggedNodeParentId = null;
+    ctx.refresh();
+  };
 
   // Indent based on depth
   item.style.paddingLeft = `${depth * 20}px`;
+
+  // Drag handle icon (always first)
+  const dragHandle = item.createEl('span', {
+    cls: 'ptpv-route-drag-handle',
+    attr: { 'aria-label': 'Drag to reorder' },
+  });
+  setIcon(dragHandle, 'grip-vertical');
 
   // Expand/collapse button (if has children)
   const hasChildren = node.children && node.children.length > 0;
@@ -182,7 +355,7 @@ function renderRouteNode(
   if (node.flattenTree) indicators.push('⬇');
 
   // Check for validation errors
-  const conflicts = getNodeConflicts(vps.routeTree!, node.id);
+  const conflicts = getNodeConflicts(uiState.tempRouteTree!, node.id);
   if (conflicts.length > 0) {
     label.addClass('ptpv-route-has-conflicts');
     indicators.push('⚠️');
@@ -223,21 +396,23 @@ function renderRouteNode(
     node.children.push(newChild);
     uiState.expandedNodes.add(node.id); // Auto-expand parent
     uiState.editingNodeId = newChild.id; // Auto-open editor
-    void ctx.save().then(() => ctx.refresh());
+    uiState.hasUnsavedChanges = true;
+    ctx.refresh();
   };
 
   const btnDelete = actions.createEl('button', { text: ctx.t.settings.routes.deleteRoute });
   btnDelete.onclick = () => {
-    if (!canDeleteNode(vps, node)) {
+    if (!canDeleteNode(uiState.tempRouteTree!, node)) {
       new Notice(ctx.t.settings.routes.deleteLastForbidden);
       return;
     }
     logger.debug('Route deleted', { nodeId: node.id });
-    deleteNodeFromTree(vps.routeTree!, node.id);
+    deleteNodeFromTree(uiState.tempRouteTree!, node.id);
     if (uiState.editingNodeId === node.id) {
       uiState.editingNodeId = null;
     }
-    void ctx.save().then(() => ctx.refresh());
+    uiState.hasUnsavedChanges = true;
+    ctx.refresh();
   };
 
   // Detailed editor (if this node is being edited)
@@ -292,7 +467,7 @@ function renderRouteEditor(
     .addText((text) => {
       text.setValue(node.segment || '').onChange((value) => {
         node.segment = value;
-        void ctx.save();
+        uiState.hasUnsavedChanges = true;
       });
     });
 
@@ -306,7 +481,7 @@ function renderRouteEditor(
         .setValue(node.displayName || '')
         .onChange((value) => {
           node.displayName = value || undefined;
-          void ctx.save();
+          uiState.hasUnsavedChanges = true;
         });
     });
 
@@ -323,7 +498,7 @@ function renderRouteEditor(
       .setDisabled(!node.vaultFolder)
       .onChange((value) => {
         node.flattenTree = value;
-        void ctx.save();
+        uiState.hasUnsavedChanges = true;
       });
   });
 
@@ -339,7 +514,7 @@ function renderRouteEditor(
         if (flattenToggle) {
           flattenToggle.setDisabled(!value);
         }
-        void ctx.save();
+        uiState.hasUnsavedChanges = true;
       });
     });
 
@@ -351,7 +526,7 @@ function renderRouteEditor(
       new FileSuggest(ctx.plugin.app, search.inputEl);
       search.setValue(node.customIndexFile || '').onChange((value) => {
         node.customIndexFile = value || undefined;
-        void ctx.save();
+        uiState.hasUnsavedChanges = true;
       });
     });
 
@@ -368,7 +543,7 @@ function renderRouteEditor(
       search.setValue(filePath).onChange((value) => {
         if (!node.additionalFiles) node.additionalFiles = [];
         node.additionalFiles[index] = value;
-        void ctx.save();
+        uiState.hasUnsavedChanges = true;
       });
     });
 
@@ -376,7 +551,8 @@ function renderRouteEditor(
       btn.setIcon('trash').onClick(() => {
         if (!node.additionalFiles) return;
         node.additionalFiles.splice(index, 1);
-        void ctx.save().then(() => ctx.refresh());
+        uiState.hasUnsavedChanges = true;
+        ctx.refresh();
       });
     });
   });
@@ -386,6 +562,7 @@ function renderRouteEditor(
     btn.setButtonText(t.settings.folders.addAdditionalFileButton).onClick(() => {
       if (!node.additionalFiles) node.additionalFiles = [];
       node.additionalFiles.push('');
+      uiState.hasUnsavedChanges = true;
       ctx.refresh();
     });
   });
@@ -404,62 +581,4 @@ function renderRouteEditor(
         ctx.refresh();
       });
   });
-}
-
-/**
- * Check if a node can be deleted
- */
-function canDeleteNode(vps: VpsConfig, node: RouteNode): boolean {
-  if (!vps.routeTree || !vps.routeTree.roots) return false;
-
-  // If it's a root node, ensure it's not the last root
-  const isRoot = vps.routeTree.roots.some((r) => r.id === node.id);
-  if (isRoot && vps.routeTree.roots.length <= 1) {
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Delete a node from the tree (recursive search)
- */
-function deleteNodeFromTree(routeTree: { roots: RouteNode[] }, nodeId: string): boolean {
-  // Check roots
-  const rootIndex = routeTree.roots.findIndex((r) => r.id === nodeId);
-  if (rootIndex !== -1) {
-    routeTree.roots.splice(rootIndex, 1);
-    return true;
-  }
-
-  // Recursively check children
-  for (const root of routeTree.roots) {
-    if (deleteNodeFromChildren(root, nodeId)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
- * Delete a node from children (recursive)
- */
-function deleteNodeFromChildren(parent: RouteNode, nodeId: string): boolean {
-  if (!parent.children) return false;
-
-  const childIndex = parent.children.findIndex((c) => c.id === nodeId);
-  if (childIndex !== -1) {
-    parent.children.splice(childIndex, 1);
-    return true;
-  }
-
-  // Recursively check grandchildren
-  for (const child of parent.children) {
-    if (deleteNodeFromChildren(child, nodeId)) {
-      return true;
-    }
-  }
-
-  return false;
 }

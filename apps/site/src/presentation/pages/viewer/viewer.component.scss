@@ -464,8 +464,9 @@
       display: block;
       max-inline-size: 100%;
       height: auto;
-      margin: 0.6rem auto;
+      margin: 1.2rem auto;
       padding: 0.2rem;
+      clear: both; // Éviter les chevauchements avec le texte flottant
     }
 
     /* Images: Interactivité et amélioration du contraste dans viewer */
