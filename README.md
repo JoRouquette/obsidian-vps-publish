@@ -78,7 +78,94 @@ npm run test
 npm run test:e2e
 ```
 
-See `docs/e2e-testing.md` for detailed E2E testing guide.
+See `docs/site/testing-e2e.md` for detailed E2E testing guide.
+
+## SEO Features
+
+This project implements comprehensive **search engine optimization** to ensure published content is discoverable and ranks well in search results.
+
+### Key SEO Capabilities
+
+| Feature                   | Description                                     | Implementation                                                   |
+| ------------------------- | ----------------------------------------------- | ---------------------------------------------------------------- |
+| **Dynamic Meta Tags**     | OG tags, Twitter Cards, canonical links         | [PR #3: Frontend SEO Service](docs/PR-3-FRONTEND-SEO-SERVICE.md) |
+| **Sitemap.xml**           | Auto-generated XML sitemap with ETag caching    | [PR #2: Backend SEO API](docs/PR-2-BACKEND-SEO-API.md)           |
+| **Robots.txt**            | Search engine crawl directives                  | [PR #2: Backend SEO API](docs/PR-2-BACKEND-SEO-API.md)           |
+| **301 Redirects**         | Automatic slug change detection and redirection | [PR #4: Redirections 301](docs/PR-4-REDIRECTIONS-301.md)         |
+| **Cache Optimization**    | ETag-based conditional caching for performance  | [PR #5: Cache Optimizations](docs/PR-5-CACHE-OPTIMIZATIONS.md)   |
+| **JSON-LD**               | Structured data for rich snippets               | [PR #3: Frontend SEO Service](docs/PR-3-FRONTEND-SEO-SERVICE.md) |
+| **Server-Side Rendering** | Pre-rendered HTML for search engine crawlers    | [docs/site/ssr.md](docs/site/ssr.md)                             |
+
+### SEO Configuration
+
+#### Environment Variables
+
+```bash
+# Backend SEO settings
+BASE_URL=https://your-domain.com          # Required for sitemap and canonical URLs
+SITE_NAME="Your Site Name"                # Used in meta tags
+AUTHOR="Your Name"                        # Used in JSON-LD structured data
+```
+
+#### Manifest Fields
+
+Pages in `_manifest.json` support SEO metadata:
+
+```json
+{
+  "slug": "/my-page",
+  "title": "Page Title",
+  "description": "Page description for meta tags",
+  "lastModifiedAt": "2026-02-02T10:00:00Z",
+  "coverImage": "/assets/cover.jpg",
+  "noIndex": false,
+  "canonicalSlug": "/my-page"
+}
+```
+
+### SEO Endpoints
+
+| Endpoint                  | Purpose                        | Cache Strategy                   |
+| ------------------------- | ------------------------------ | -------------------------------- |
+| `/seo/sitemap.xml`        | XML sitemap for search engines | ETag-based, 1h cache             |
+| `/seo/robots.txt`         | Crawl directives               | Static, long cache               |
+| `/content/_manifest.json` | Content catalog                | ETag, 60s cache, must-revalidate |
+
+### Automatic Features
+
+1. **Slug Change Detection**: When publishing, if a page's route changes, a 301 redirect is automatically created from old → new route
+2. **NoIndex Support**: Mark pages with `noIndex: true` in frontmatter to exclude from sitemap and add `robots: noindex` meta tag
+3. **Canonical URLs**: Automatically generated for every page to avoid duplicate content issues
+4. **Social Media Cards**: OG and Twitter Card meta tags for rich previews when shared
+
+### Testing SEO
+
+```bash
+# Run E2E tests including SEO validation
+npx nx e2e site --grep="SEO"
+
+# Validate sitemap
+curl http://localhost:3000/seo/sitemap.xml
+
+# Check meta tags in real browser
+# Open DevTools → Elements → <head>
+
+# Lighthouse SEO audit
+npx lighthouse http://localhost:4200 --only-categories=seo --view
+```
+
+### SEO Documentation
+
+Complete SEO implementation details:
+
+- [PR #1: Domain Layer SEO](docs/PR-1-DOMAIN-LAYER-SEO.md) - Domain entities (8 tests)
+- [PR #2: Backend SEO API](docs/PR-2-BACKEND-SEO-API.md) - Sitemap & robots.txt (17 tests)
+- [PR #3: Frontend SEO Service](docs/PR-3-FRONTEND-SEO-SERVICE.md) - Meta tags & resolver (24 tests)
+- [PR #4: Redirections 301](docs/PR-4-REDIRECTIONS-301.md) - Slug change detection (21 tests)
+- [PR #5: Cache Optimizations](docs/PR-5-CACHE-OPTIMIZATIONS.md) - ETag caching (15 tests)
+- [PR #6: E2E Tests](docs/PR-6-E2E-TESTS.md) - Browser validation (21 tests)
+
+**Total: 106 tests across 6 PRs** ensuring robust SEO implementation.
 
 ## Server-Side Rendering
 

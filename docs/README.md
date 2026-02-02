@@ -201,6 +201,19 @@ Ce script est exécuté en CI pour garantir le respect des règles.
 - [Docker](./docker.md)
 - [Release](./release.md)
 
+### SEO Implementation
+
+Documentation complète de l'implémentation SEO en 6 Pull Requests :
+
+- **[SEO Strategy](./SEO-STRATEGY.md)** - Plan d'amélioration SEO initial
+- **[SEO Implementation Summary](./SEO-IMPLEMENTATION-SUMMARY.md)** - Vue d'ensemble complète (106 tests)
+- [PR #1: Domain Layer SEO](./PR-1-DOMAIN-LAYER-SEO.md) - Entities, ports, value objects (8 tests)
+- [PR #2: Backend SEO API](./PR-2-BACKEND-SEO-API.md) - Sitemap.xml, robots.txt (17 tests)
+- [PR #3: Frontend SEO Service](./PR-3-FRONTEND-SEO-SERVICE.md) - Meta tags, resolver (24 tests)
+- [PR #4: Redirections 301](./PR-4-REDIRECTIONS-301.md) - Slug change detection (21 tests)
+- [PR #5: Cache Optimizations](./PR-5-CACHE-OPTIMIZATIONS.md) - ETags, conditional caching (15 tests)
+- [PR #6: E2E Tests](./PR-6-E2E-TESTS.md) - Browser validation (21 tests)
+
 ---
 
 ## 📝 Maintenance de la documentation

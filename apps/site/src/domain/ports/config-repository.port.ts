@@ -1,4 +1,5 @@
 export interface PublicConfig {
+  baseUrl: string;
   siteName: string;
   author: string;
   repoUrl: string;
