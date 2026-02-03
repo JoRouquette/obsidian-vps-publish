@@ -1,3 +1,8 @@
+## <small>6.2.4 (2026-02-03)</small>
+
+* Merge branch 'fix/images-integration' ([adf4211](https://github.com/JoRouquette/obsidian-vps-publish/commit/adf4211))
+* fix(ui): wrap floated images in figure elements for proper CSS isolation ([1008848](https://github.com/JoRouquette/obsidian-vps-publish/commit/1008848))
+
 ## <small>6.2.3 (2026-02-03)</small>
 
 * Merge branch 'fix/images-integration' ([6f71511](https://github.com/JoRouquette/obsidian-vps-publish/commit/6f71511))
