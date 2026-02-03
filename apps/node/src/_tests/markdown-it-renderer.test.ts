@@ -47,7 +47,7 @@ describe('MarkdownItRenderer', () => {
 
     const html = await renderer.render(note);
 
-    expect(html).toContain('<img class="md-asset md-asset-image align-right is-inline rounded"');
+    expect(html).toContain('<figure class="md-asset md-asset-image align-right is-inline rounded"');
     expect(html).toContain('src="/assets/images/pic.png"');
     expect(html).toContain('max-width:300px');
   });

@@ -112,7 +112,6 @@
 
     p {
       margin: 0.5rem 0 0.7rem;
-      overflow: auto; /* Create BFC to prevent floated images from rising above first line */
     }
 
     ul,
@@ -486,18 +485,11 @@
     /* Images: Interactivité et amélioration du contraste dans viewer */
     img {
       cursor: pointer;
-      transition:
-        transform 0.15s ease,
-        box-shadow 0.2s ease;
+      transition: box-shadow 0.2s ease;
       border-radius: 0.5rem;
 
       &:hover {
-        transform: scale(1.01);
         box-shadow: 0 4px 12px color-mix(in oklab, #000 20%, transparent);
-      }
-
-      &:active {
-        transform: scale(0.99);
       }
     }
 
@@ -980,57 +972,48 @@
     accent-color: var(--c-secondary);
   }
 
-  /* Assets inline (no figure) */
-  .md-asset {
-    margin: 0.6rem auto;
+  /* Assets as figure elements */
+  figure.md-asset {
+    margin: 1rem auto;
     max-inline-size: min(100%, 860px);
     display: block;
   }
 
-  /* Clear uniquement pour assets non-inline */
-  .md-asset:not(.is-inline) {
-    clear: both;
-  }
-
-  /* Assets inline ajustent leur largeur au contenu */
-  .md-asset.is-inline {
+  /* Floated assets (wrapped in figure) */
+  figure.md-asset.is-inline {
     width: fit-content;
     max-inline-size: 100%;
   }
 
-  .md-asset.align-left {
+  figure.md-asset.align-left {
     float: left;
-    margin: 0.3rem 1rem 0.8rem 0;
+    margin: 0 1rem 1rem 0;
     shape-outside: margin-box;
-    shape-margin: 0.5rem;
+    shape-margin: 1rem;
   }
 
-  .md-asset.align-right {
+  figure.md-asset.align-right {
     float: right;
-    margin: 0.3rem 0 0.8rem 1rem;
+    margin: 0 0 1rem 1rem;
     shape-outside: margin-box;
-    shape-margin: 0.5rem;
+    shape-margin: 1rem;
   }
 
-  .md-asset img,
-  .md-asset video {
+  /* Clear floats after content sections */
+  figure.md-asset.align-left::after,
+  figure.md-asset.align-right::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+
+  figure.md-asset img,
+  figure.md-asset video {
     display: block;
+    width: 100%;
     height: auto;
     border-radius: 4px;
     box-shadow: none;
-  }
-
-  /* Images dans assets non-inline prennent 100% */
-  .md-asset:not(.is-inline) img,
-  .md-asset:not(.is-inline) video {
-    inline-size: 100%;
-  }
-
-  /* Images inline respectent leur max-width */
-  .md-asset.is-inline img,
-  .md-asset.is-inline video {
-    inline-size: 100%;
-    max-inline-size: 100%;
   }
 
   .md-asset audio,
@@ -1040,10 +1023,10 @@
 
   // Mobile: Stack floating assets below 768px
   @media (max-width: 768px) {
-    .md-asset.align-left,
-    .md-asset.align-right {
+    figure.md-asset.align-left,
+    figure.md-asset.align-right {
       float: none;
-      margin: 0.65rem auto;
+      margin: 1rem auto;
       shape-outside: none;
     }
   }
