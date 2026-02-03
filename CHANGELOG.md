@@ -1,3 +1,8 @@
+## <small>6.2.3 (2026-02-03)</small>
+
+* Merge branch 'fix/images-integration' ([6f71511](https://github.com/JoRouquette/obsidian-vps-publish/commit/6f71511))
+* fix(site): adjust floated image margins and prevent text overlap ([fbfc1e3](https://github.com/JoRouquette/obsidian-vps-publish/commit/fbfc1e3))
+
 ## <small>6.2.2 (2026-02-03)</small>
 
 * Merge branch 'fix/images-integration' ([f8dce1a](https://github.com/JoRouquette/obsidian-vps-publish/commit/f8dce1a))
