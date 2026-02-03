@@ -482,15 +482,9 @@
       padding: 0;
     }
 
-    /* Images: Interactivité et amélioration du contraste dans viewer */
+    /* Images: clickable but no decorations */
     img {
       cursor: pointer;
-      transition: box-shadow 0.2s ease;
-      border-radius: 0.5rem;
-
-      &:hover {
-        box-shadow: 0 4px 12px color-mix(in oklab, #000 20%, transparent);
-      }
     }
 
     iframe {
@@ -974,46 +968,26 @@
 
   /* Assets as figure elements */
   figure.md-asset {
-    margin: 1rem auto;
-    max-inline-size: min(100%, 860px);
+    margin: 0.5rem 0;
     display: block;
   }
 
-  /* Floated assets (wrapped in figure) */
-  figure.md-asset.is-inline {
-    width: fit-content;
-    max-inline-size: 100%;
-  }
-
+  /* Floated assets */
   figure.md-asset.align-left {
     float: left;
-    margin: 0 1rem 1rem 0;
-    shape-outside: margin-box;
-    shape-margin: 1rem;
+    margin: 0 1rem 0.5rem 0;
   }
 
   figure.md-asset.align-right {
     float: right;
-    margin: 0 0 1rem 1rem;
-    shape-outside: margin-box;
-    shape-margin: 1rem;
-  }
-
-  /* Clear floats after content sections */
-  figure.md-asset.align-left::after,
-  figure.md-asset.align-right::after {
-    content: '';
-    display: table;
-    clear: both;
+    margin: 0 0 0.5rem 1rem;
   }
 
   figure.md-asset img,
   figure.md-asset video {
     display: block;
-    width: 100%;
+    max-width: 100%;
     height: auto;
-    border-radius: 4px;
-    box-shadow: none;
   }
 
   .md-asset audio,
@@ -1026,8 +1000,7 @@
     figure.md-asset.align-left,
     figure.md-asset.align-right {
       float: none;
-      margin: 1rem auto;
-      shape-outside: none;
+      margin: 0.5rem 0;
     }
   }
 
