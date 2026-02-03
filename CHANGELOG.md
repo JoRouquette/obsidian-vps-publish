@@ -1,3 +1,8 @@
+## <small>6.2.1 (2026-02-03)</small>
+
+* Merge branch 'fix/images-integration' ([ef40a4b](https://github.com/JoRouquette/obsidian-vps-publish/commit/ef40a4b))
+* fix(site): improve inline image text wrapping with margin-box shape-outside ([f07ca1b](https://github.com/JoRouquette/obsidian-vps-publish/commit/f07ca1b))
+
 ## 6.2.0 (2026-02-02)
 
 * feat(seo)!: add comprehensive SEO implementation with meta tags, sitemap, and redirects ([5d36140](https://github.com/JoRouquette/obsidian-vps-publish/commit/5d36140))
