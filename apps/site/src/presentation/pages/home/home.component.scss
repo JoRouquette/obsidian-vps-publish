@@ -356,56 +356,48 @@
     --callout-color: color-mix(in oklab, var(--c-outline) 80%, var(--c-headers) 20%);
   }
 
-  /* Assets (wrap images/audio/video + download buttons) */
-  .md-asset {
-    margin: 0.8rem auto;
+  /* Assets as figure elements */
+  figure.md-asset {
+    margin: 1rem auto;
     max-inline-size: min(100%, 860px);
     display: block;
   }
 
-  /* Clear uniquement pour assets non-inline */
-  .md-asset:not(.is-inline) {
+  /* Floated assets (wrapped in figure) */
+  figure.md-asset.is-inline {
+    width: fit-content;
+    max-inline-size: clamp(180px, 32vw, 360px);
+  }
+
+  figure.md-asset.align-left {
+    float: left;
+    margin: 0 1rem 1rem 0;
+    shape-outside: margin-box;
+    shape-margin: 1rem;
+  }
+
+  figure.md-asset.align-right {
+    float: right;
+    margin: 0 0 1rem 1rem;
+    shape-outside: margin-box;
+    shape-margin: 1rem;
+  }
+
+  /* Clear floats after content sections */
+  figure.md-asset.align-left::after,
+  figure.md-asset.align-right::after {
+    content: '';
+    display: table;
     clear: both;
   }
 
-  .md-asset.is-inline {
-    max-inline-size: clamp(180px, 32vw, 360px);
-    width: fit-content;
-  }
-
-  .md-asset.align-left {
-    float: left;
-    margin: 0.3rem 1rem 0.8rem 0;
-    shape-outside: margin-box;
-    shape-margin: 0.5rem;
-  }
-
-  .md-asset.align-right {
-    float: right;
-    margin: 0.3rem 0 0.8rem 1rem;
-    shape-outside: margin-box;
-    shape-margin: 0.5rem;
-  }
-
-  .md-asset img,
-  .md-asset video {
+  figure.md-asset img,
+  figure.md-asset video {
     display: block;
+    width: 100%;
     height: auto;
     border-radius: 8px;
     box-shadow: 0 8px 24px color-mix(in oklab, #000 6%, transparent);
-  }
-
-  /* Images dans assets non-inline prennent 100% */
-  .md-asset:not(.is-inline) img,
-  .md-asset:not(.is-inline) video {
-    inline-size: 100%;
-  }
-
-  /* Images inline respectent leur max-width */
-  .md-asset.is-inline img,
-  .md-asset.is-inline video {
-    inline-size: 100%;
-    max-inline-size: 100%;
   }
 
   .md-asset audio,

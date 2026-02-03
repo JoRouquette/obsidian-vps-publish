@@ -546,7 +546,11 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     let inner = '';
     switch (asset.kind) {
       case 'image':
-        inner = `<img class="${classes.join(' ')}" src="${src}" alt="" loading="lazy"${mediaStyleAttr}${styleAttr}>`;
+        inner = `<img src="${src}" alt="" loading="lazy"${mediaStyleAttr}>`;
+        // Wrap floated images in figure for proper isolation
+        if (asset.display.alignment === 'left' || asset.display.alignment === 'right') {
+          return `\n<figure class="${classes.join(' ')}"${styleAttr}>${inner}</figure>\n`;
+        }
         return inner;
       case 'audio':
         inner = `<audio controls src="${src}"${mediaStyleAttr}></audio>`;
