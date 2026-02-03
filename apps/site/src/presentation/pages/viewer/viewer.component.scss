@@ -466,13 +466,20 @@
       height: auto;
       margin: 1.2rem auto;
       padding: 0.2rem;
-      clear: both; // Éviter les chevauchements avec le texte flottant
     }
 
-    /* Images inline (floated) ne doivent pas avoir clear: both */
+    /* Clear uniquement pour images non-inline */
+    img:not(.is-inline),
+    video:not(.is-inline),
+    svg:not(.is-inline),
+    canvas:not(.is-inline) {
+      clear: both;
+    }
+
+    /* Images inline (floated) ne doivent pas avoir les styles généraux */
     img.is-inline {
-      clear: none;
-      margin: 0; /* Margin géré par .md-asset wrapper */
+      margin: 0;
+      padding: 0;
     }
 
     /* Images: Interactivité et amélioration du contraste dans viewer */
@@ -977,7 +984,17 @@
     margin: 0.6rem auto;
     max-inline-size: min(100%, 860px);
     display: block;
+  }
+
+  /* Clear uniquement pour assets non-inline */
+  .md-asset:not(.is-inline) {
     clear: both;
+  }
+
+  /* Assets inline ajustent leur largeur au contenu */
+  .md-asset.is-inline {
+    width: fit-content;
+    max-inline-size: 100%;
   }
 
   .md-asset.align-left {
@@ -997,10 +1014,22 @@
   .md-asset img,
   .md-asset video {
     display: block;
-    inline-size: 100%;
     height: auto;
     border-radius: 4px;
     box-shadow: none;
+  }
+
+  /* Images dans assets non-inline prennent 100% */
+  .md-asset:not(.is-inline) img,
+  .md-asset:not(.is-inline) video {
+    inline-size: 100%;
+  }
+
+  /* Images inline respectent leur max-width */
+  .md-asset.is-inline img,
+  .md-asset.is-inline video {
+    inline-size: 100%;
+    max-inline-size: 100%;
   }
 
   .md-asset audio,

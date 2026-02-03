@@ -361,12 +361,16 @@
     margin: 0.8rem auto;
     max-inline-size: min(100%, 860px);
     display: block;
+  }
+
+  /* Clear uniquement pour assets non-inline */
+  .md-asset:not(.is-inline) {
     clear: both;
   }
 
   .md-asset.is-inline {
     max-inline-size: clamp(180px, 32vw, 360px);
-    clear: none;
+    width: fit-content;
   }
 
   .md-asset.align-left {
@@ -386,10 +390,22 @@
   .md-asset img,
   .md-asset video {
     display: block;
-    inline-size: 100%;
     height: auto;
     border-radius: 8px;
     box-shadow: 0 8px 24px color-mix(in oklab, #000 6%, transparent);
+  }
+
+  /* Images dans assets non-inline prennent 100% */
+  .md-asset:not(.is-inline) img,
+  .md-asset:not(.is-inline) video {
+    inline-size: 100%;
+  }
+
+  /* Images inline respectent leur max-width */
+  .md-asset.is-inline img,
+  .md-asset.is-inline video {
+    inline-size: 100%;
+    max-inline-size: 100%;
   }
 
   .md-asset audio,
