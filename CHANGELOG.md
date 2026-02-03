@@ -1,3 +1,8 @@
+## <small>6.2.2 (2026-02-03)</small>
+
+* Merge branch 'fix/images-integration' ([f8dce1a](https://github.com/JoRouquette/obsidian-vps-publish/commit/f8dce1a))
+* fix(site): correct inline image sizing and clear behavior ([f2d1090](https://github.com/JoRouquette/obsidian-vps-publish/commit/f2d1090))
+
 ## <small>6.2.1 (2026-02-03)</small>
 
 * Merge branch 'fix/images-integration' ([ef40a4b](https://github.com/JoRouquette/obsidian-vps-publish/commit/ef40a4b))
