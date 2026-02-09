@@ -94,4 +94,4 @@ Voir [Testing E2E](./testing-e2e.md) pour plus de détails.
 
 ---
 
-**Dernière mise à jour** : 2025-12-25
+**Dernière mise à jour** : Février 2026

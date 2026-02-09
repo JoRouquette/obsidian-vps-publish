@@ -115,6 +115,7 @@ This script runs in CI to enforce compliance.
 
 ### Cross-cutting Documents (root)
 
+- **[Contributing Guide](../CONTRIBUTING.md)** - Prerequisites, installation, workflow, conventions (FR + EN)
 - **[Architecture](./architecture.md)** - Clean Architecture, CQRS, monorepo structure
 - **[Development](./development.md)** - Local setup, npm scripts, Git workflows
 
@@ -124,11 +125,11 @@ This script runs in CI to enforce compliance.
 
 ### Node.js Backend (`api/`)
 
-➡️ **[API Documentation](./api/)** - Endpoints, logging, performance, configuration
+➡️ **[API Documentation](./api/)** - Endpoints, logging, performance, load testing
 
 ### Obsidian Plugin (`plugin/`)
 
-➡️ **[Plugin Documentation](./plugin/)** - Upload system, supported syntaxes, internal help
+➡️ **[Plugin Documentation](./plugin/)** - Upload system, supported syntaxes, configuration
 
 ---
 
@@ -136,8 +137,8 @@ This script runs in CI to enforce compliance.
 
 ### For Developers
 
-1. Read [Architecture](./architecture.md) to understand the monorepo
-2. Follow [Development](./development.md) for local setup
+1. Read the **[Contributing Guide](../CONTRIBUTING.md)** for installation and prerequisites
+2. Read [Architecture](./architecture.md) to understand the monorepo
 3. Consult specific documentation for your work area (site/api/plugin)
 
 ### For Deployment
@@ -147,7 +148,7 @@ This script runs in CI to enforce compliance.
 
 ### To Contribute
 
-1. Read [Development](./development.md) - Contributing section
+1. Read the **[Contributing Guide](../CONTRIBUTING.md)** - prerequisites, installation, workflow
 2. **Respect the documentation charter** (this README)
 3. Update plugin internal help if modifying logic/syntax
 
@@ -199,5 +200,5 @@ If a document is no longer needed:
 
 ---
 
-**Charter Version**: December 2025  
-**Last Updated**: 2025-12-25
+**Charter Version**: February 2026  
+**Last Updated**: February 2026
