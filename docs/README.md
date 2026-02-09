@@ -31,6 +31,7 @@
 ```
 docs/
 ├── README.md                 # Ce fichier - Charte + index principal (FR)
+├── CONTRIBUTING.md           # Guide de contribution (FR + EN)
 ├── architecture.md           # Clean Architecture, CQRS, monorepo (transverse)
 ├── development.md            # Setup local, workflows, conventions (transverse)
 ├── docker.md                 # Container, déploiement (transverse)
@@ -43,6 +44,7 @@ docs/
 │   ├── leaflet.md
 │   ├── image-viewer.md
 │   ├── design-system.md
+│   ├── seo.md
 │   ├── ssr.md
 │   ├── testing-e2e.md
 │   └── performance.md
@@ -50,12 +52,16 @@ docs/
 ├── api/                      # Documentation Backend Node.js
 │   ├── README.md             # Index + Getting started API
 │   ├── logging.md
-│   └── performance.md
+│   ├── performance.md
+│   ├── load-testing.md
+│   └── link-normalization.md
 │
 ├── plugin/                   # Documentation Plugin Obsidian
 │   ├── README.md             # Index + Getting started Plugin
 │   ├── chunked-upload.md
-│   └── syntaxes.md           # Syntaxes supportées (sync avec help interne)
+│   ├── syntaxes.md           # Syntaxes supportées (sync avec help interne)
+│   ├── folders-settings-ui.md
+│   └── testing-strategy.md
 │
 ├── en/                       # Documentation anglaise (structure miroir)
 │   ├── README.md
@@ -135,6 +141,7 @@ Ce script est exécuté en CI pour garantir le respect des règles.
 
 ### Documents transverses (racine)
 
+- **[Guide de contribution](./CONTRIBUTING.md)** - Prérequis, installation, workflow, conventions
 - **[Architecture](./architecture.md)** - Clean Architecture, CQRS, structure du monorepo
 - **[Development](./development.md)** - Configuration locale, scripts npm, workflows Git
 - **[Docker](./docker.md)** - Image container, volumes, healthcheck, déploiement
@@ -146,11 +153,11 @@ Ce script est exécuté en CI pour garantir le respect des règles.
 
 ### Backend Node.js (`api/`)
 
-➡️ **[Documentation API](./api/)** - Endpoints, logging, performance, configuration
+➡️ **[Documentation API](./api/)** - Endpoints, logging, performance, tests de charge
 
 ### Plugin Obsidian (`plugin/`)
 
-➡️ **[Documentation Plugin](./plugin/)** - Upload, syntaxes supportées, aide interne
+➡️ **[Documentation Plugin](./plugin/)** - Upload, syntaxes supportées, configuration
 
 ---
 
@@ -158,8 +165,8 @@ Ce script est exécuté en CI pour garantir le respect des règles.
 
 ### Pour les développeurs
 
-1. Lire [Architecture](./architecture.md) pour comprendre le monorepo
-2. Suivre [Development](./development.md) pour le setup local
+1. Lire le **[Guide de contribution](./CONTRIBUTING.md)** pour l'installation et les prérequis
+2. Lire [Architecture](./architecture.md) pour comprendre le monorepo
 3. Consulter la doc spécifique à votre zone de travail (site/api/plugin)
 
 ### Pour le déploiement
@@ -169,7 +176,7 @@ Ce script est exécuté en CI pour garantir le respect des règles.
 
 ### Pour contribuer
 
-1. Lire [Development](./development.md) - section Contributing
+1. Lire le **[Guide de contribution](./CONTRIBUTING.md)** - prérequis, installation, workflow
 2. **Respecter la charte de documentation** (ce README)
 3. Mettre à jour l'aide interne du plugin si modification de logique/syntaxe
 
@@ -226,5 +233,5 @@ Si un document n'a plus de raison d'être :
 
 ---
 
-**Version de cette charte** : Décembre 2025  
-**Dernière mise à jour** : 2025-12-25
+**Version de cette charte** : Février 2026  
+**Dernière mise à jour** : Février 2026
