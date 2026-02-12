@@ -1,3 +1,11 @@
+## 6.3.0 (2026-02-12)
+
+* Merge branch 'docs/better-documentation' ([3cc6a3b](https://github.com/JoRouquette/obsidian-vps-publish/commit/3cc6a3b))
+* Merge branch 'fix/images-integration' ([16f32aa](https://github.com/JoRouquette/obsidian-vps-publish/commit/16f32aa))
+* feat(images): implement float wrapping and responsive sizing for floated assets ([dd044bf](https://github.com/JoRouquette/obsidian-vps-publish/commit/dd044bf))
+* docs: consolidate documentation per charter, remove orphaned files ([7d7a4d2](https://github.com/JoRouquette/obsidian-vps-publish/commit/7d7a4d2))
+* fix(site): simplify asset styling and remove decorative effects ([37a0108](https://github.com/JoRouquette/obsidian-vps-publish/commit/37a0108))
+
 ## <small>6.2.4 (2026-02-03)</small>
 
 * Merge branch 'fix/images-integration' ([adf4211](https://github.com/JoRouquette/obsidian-vps-publish/commit/adf4211))
