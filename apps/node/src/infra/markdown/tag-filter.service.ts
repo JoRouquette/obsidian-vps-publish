@@ -83,6 +83,7 @@ export class TagFilterService {
     const root = $('body').length > 0 ? $('body') : $.root();
     processTextInElement(root);
 
-    return $.html();
+    // Return only body content to avoid re-wrapping in html/head/body structure
+    return $('body').html() ?? $.html();
   }
 }

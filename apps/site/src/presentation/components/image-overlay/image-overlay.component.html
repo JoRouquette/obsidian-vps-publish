@@ -1,40 +1,75 @@
-@if (isOpen()) {
-  <div class="image-overlay" (click)="onBackdropClick($event)" data-testid="image-viewer">
-    <div class="overlay-controls">
-      <button mat-icon-button class="control-btn" (click)="zoomIn()" aria-label="Zoom avant">
-        <mat-icon>zoom_in</mat-icon>
-      </button>
-      <button mat-icon-button class="control-btn" (click)="zoomOut()" aria-label="Zoom arrière">
-        <mat-icon>zoom_out</mat-icon>
+<dialog
+  #dialogEl
+  class="image-overlay"
+  aria-label="Visionneuse d'image"
+  (click)="onBackdropClick($event)"
+  (dblclick)="onDoubleClick($event)"
+  data-testid="image-viewer"
+>
+  <div class="overlay-controls">
+    <!-- Zoom controls group -->
+    <div class="control-group">
+      <button
+        mat-icon-button
+        class="control-btn"
+        (click)="zoomOut()"
+        title="Zoom arrière (-)"
+        aria-label="Zoom arrière"
+      >
+        <mat-icon>remove</mat-icon>
       </button>
       <button
         mat-icon-button
         class="control-btn"
         (click)="resetZoom()"
+        title="Ajuster (0)"
         aria-label="Réinitialiser le zoom"
       >
         <mat-icon>fit_screen</mat-icon>
       </button>
-      <button mat-icon-button class="control-btn close-btn" (click)="close()" aria-label="Fermer">
-        <mat-icon>close</mat-icon>
+      <button
+        mat-icon-button
+        class="control-btn"
+        (click)="zoomIn()"
+        title="Zoom avant (+)"
+        aria-label="Zoom avant"
+      >
+        <mat-icon>add</mat-icon>
       </button>
     </div>
 
-    <div class="image-container">
-      <img
-        #imageEl
-        [src]="imageSrc()"
-        [alt]="imageAlt()"
-        [style.transform]="
-          'scale(' + scale() + ') translate(' + translateX() + 'px, ' + translateY() + 'px)'
-        "
-        [style.cursor]="scale() > 1 ? 'grab' : 'default'"
-        (mousedown)="onMouseDown($event)"
-        (wheel)="onWheel($event)"
-        (touchstart)="onTouchStart($event)"
-        (touchmove)="onTouchMove($event)"
-        class="overlay-image"
-      />
+    <!-- Close button -->
+    <div class="control-group">
+      <button
+        mat-icon-button
+        class="control-btn close-btn"
+        (click)="close()"
+        title="Fermer (Esc)"
+        aria-label="Fermer"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
     </div>
   </div>
-}
+
+  <div class="image-container">
+    <img
+      #imageEl
+      [src]="imageSrc()"
+      [alt]="altText()"
+      [style.transform]="imageTransform()"
+      [style.cursor]="scale() > 1 ? 'grab' : 'zoom-in'"
+      (mousedown)="onMouseDown($event)"
+      (wheel)="onWheel($event)"
+      (touchstart)="onTouchStart($event)"
+      (touchmove)="onTouchMove($event)"
+      class="overlay-image"
+    />
+  </div>
+
+  <!-- Zoom level indicator -->
+  <div class="zoom-indicator">
+    <span class="zoom-value">{{ zoomPercentage() }}%</span>
+    <span class="hint">Double-clic pour zoomer</span>
+  </div>
+</dialog>

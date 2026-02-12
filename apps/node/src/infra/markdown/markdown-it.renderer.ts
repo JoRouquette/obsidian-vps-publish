@@ -1,6 +1,12 @@
 import type { MarkdownRendererPort, RenderContext } from '@core-application';
-import type { LoggerPort, Manifest, ManifestPage } from '@core-domain';
-import { type AssetRef, type PublishableNote, type ResolvedWikilink } from '@core-domain';
+import type {
+  AssetRef,
+  LoggerPort,
+  Manifest,
+  ManifestPage,
+  PublishableNote,
+  ResolvedWikilink,
+} from '@core-domain';
 import { load } from 'cheerio';
 import MarkdownIt from 'markdown-it';
 import anchor from 'markdown-it-anchor';
@@ -190,10 +196,13 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     // Pass manifest from context for vault-to-route path translation
     const cleaned = this.cleanAndNormalizeLinks(withStyles, context?.manifest);
 
+    // Wrap text following floated figures in <p> tags for proper text wrapping
+    const fixedFloats = this.wrapTextAfterFloatedFigures(cleaned);
+
     // Filter ignored tags from rendered HTML
     // Get from context if available, otherwise use empty array (no default filtering)
     const ignoredTags = context?.ignoredTags ?? [];
-    const filtered = this.tagFilter.filterTags(cleaned, ignoredTags);
+    const filtered = this.tagFilter.filterTags(fixedFloats, ignoredTags);
 
     this.logger?.debug('Markdown rendered to HTML', {
       noteId: note.noteId,
@@ -205,12 +214,48 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
   }
 
   /**
+   * Wrap text immediately following floated figures in <p> tags for proper float behavior.
+   *
+   * Markdown-it cannot handle inline HTML block elements (like <figure>) properly.
+   * When we inject <figure class="align-left|right"> before parsing, markdown-it creates
+   * invalid HTML: <p><figure>...</figure>text</p>. Browsers auto-correct this by closing
+   * the <p> before <figure>, leaving text unwrapped.
+   *
+   * Without <p> wrappers, text cannot flow around floats. This method detects such cases
+   * and wraps naked text following floated figures into proper <p> elements.
+   *
+   * Pattern: </figure>TEXT until next block element → </figure><p>TEXT</p>
+   */
+  private wrapTextAfterFloatedFigures(html: string): string {
+    // Match floated figure followed by unwrapped text/inline elements
+    // Captures text/inline tags until hitting a block-level tag
+    const blockTags =
+      'h[1-6]|p|div|ul|ol|li|blockquote|pre|table|figure|hr|section|article|details|header|footer|nav|aside';
+    const pattern = new RegExp(
+      String.raw`(<figure\s+[^>]*class="[^"]*align-(?:left|right)[^"]*"[^>]*>.*?</figure>)\s*([^<][\s\S]*?)(?=<(?:${blockTags})|$)`,
+      'gi'
+    );
+
+    return html.replaceAll(pattern, (match, figureTag, textContent) => {
+      // Only wrap if there's actual text content (not just whitespace)
+      const trimmed = textContent.trim();
+      if (trimmed.length === 0) {
+        return figureTag;
+      }
+
+      // Check if text is already wrapped in inline tags but not in a block tag
+      // If it starts with an inline tag, include it in the <p>
+      return `${figureTag}<p>${textContent.trimStart()}</p>`;
+    });
+  }
+
+  /**
    * Handle markdown links to .md files by rendering them as unresolved wikilink spans.
    * This is necessary when markdown links weren't converted upstream or when resolvedWikilinks is empty.
    */
   private handleMarkdownLinks(content: string): string {
     const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\(([^)]+\.md(?:#[^)]*)?)\)/gi;
-    return content.replace(MARKDOWN_LINK_REGEX, (match, text, href) => {
+    return content.replaceAll(MARKDOWN_LINK_REGEX, (match: string, text: string, href: string) => {
       // Skip external URLs
       if (/^https?:\/\//i.test(href)) {
         return match;
@@ -255,114 +300,119 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
    * @returns HTML with all links normalized to wikilink template
    */
   private cleanAndNormalizeLinks(html: string, manifest?: Manifest): string {
+    // Load HTML - Cheerio wraps content in html/body tags, we'll extract body content at the end
     const $ = load(html);
 
     // Process all <a> tags to normalize to wikilink template
     $('a').each((_, element) => {
-      const $link = $(element);
-      let href = $link.attr('href');
-      let dataWikilink = $link.attr('data-wikilink');
-      let dataHref = $link.attr('data-href'); // Dataview attribute
-
-      // Skip links without href or data-wikilink
-      if (!href && !dataWikilink) {
-        return;
-      }
-
-      // Skip external URLs (http://, https://, mailto:, etc.)
-      if (href && this.isExternalUrl(href)) {
-        return;
-      }
-
-      // Skip fragment-only links (internal anchors like #section)
-      if (href && href.startsWith('#')) {
-        return;
-      }
-
-      // This is an internal link - normalize to wikilink template
-      let cleanedHref = '';
-      let cleanedWikilink = '';
-      let matchedPage: ManifestPage | undefined;
-
-      // Clean and process href
-      if (href) {
-        cleanedHref = this.cleanLinkPath(href);
-
-        // Translate vault path to routed path if manifest available
-        if (manifest) {
-          const result = this.translateToRoutedPathWithValidation(cleanedHref, manifest);
-          cleanedHref = result.path;
-          matchedPage = result.matchedPage;
-        }
-
-        // If no data-wikilink, derive it from href (remove leading /)
-        if (!dataWikilink) {
-          cleanedWikilink = cleanedHref.replace(/^\//, '');
-          // Remove anchor for data-wikilink if present
-          const anchorIndex = cleanedWikilink.indexOf('#');
-          if (anchorIndex > 0) {
-            cleanedWikilink = cleanedWikilink.substring(0, anchorIndex);
-          }
-        }
-      }
-
-      // Clean data-wikilink attribute
-      if (dataWikilink) {
-        cleanedWikilink = this.cleanLinkPath(dataWikilink);
-      }
-
-      // Clean data-href attribute (Dataview)
-      if (dataHref) {
-        let cleanedDataHref = this.cleanLinkPath(dataHref);
-        if (manifest) {
-          const result = this.translateToRoutedPathWithValidation(cleanedDataHref, manifest);
-          cleanedDataHref = result.path;
-          // Use matchedPage from data-href if href didn't have one
-          if (!matchedPage) {
-            matchedPage = result.matchedPage;
-          }
-        }
-      }
-
-      // Check if link is valid (page exists in manifest)
-      const isValidLink = manifest ? matchedPage !== undefined : true; // Assume valid if no manifest
-
-      if (!isValidLink) {
-        // Transform invalid link to unresolved span (like wikilinks)
-        const label = $link.text();
-        const unresolvedSpan = this.renderUnresolvedWikilink(cleanedWikilink || cleanedHref, label);
-        $link.replaceWith(unresolvedSpan);
-        return; // Skip further processing for this element
-      }
-
-      // Valid link - update attributes
-      $link.attr('href', cleanedHref);
-
-      // Set data-wikilink attribute (required for wikilink template)
-      if (cleanedWikilink) {
-        $link.attr('data-wikilink', cleanedWikilink);
-      }
-
-      // Update data-href if it exists
-      if (dataHref) {
-        let cleanedDataHref = this.cleanLinkPath(dataHref);
-        if (manifest) {
-          const result = this.translateToRoutedPathWithValidation(cleanedDataHref, manifest);
-          cleanedDataHref = result.path;
-        }
-        $link.attr('data-href', cleanedDataHref);
-      }
-
-      // Ensure class="wikilink" (required for wikilink template)
-      const classes = $link.attr('class') || '';
-      const classList = classes.split(/\s+/).filter((c) => c.length > 0);
-      if (!classList.includes('wikilink')) {
-        classList.push('wikilink'); // Add to existing classes, preserving order
-      }
-      $link.attr('class', classList.join(' '));
+      this.processLinkElement($(element), manifest);
     });
 
-    return $.html();
+    // Return body content only to avoid html/head/body wrapper tags
+    return $('body').html() ?? $.html();
+  }
+
+  /**
+   * Process a single link element for normalization.
+   */
+  private processLinkElement(
+    $link: ReturnType<ReturnType<typeof load>>,
+    manifest?: Manifest
+  ): void {
+    const href = $link.attr('href');
+    const dataWikilink = $link.attr('data-wikilink');
+    const dataHref = $link.attr('data-href');
+
+    // Skip links without href or data-wikilink
+    if (!href && !dataWikilink) return;
+
+    // Skip external URLs and fragment-only links
+    if (href && this.isExternalUrl(href)) return;
+    if (href?.startsWith('#')) return;
+
+    // Process internal link
+    const processed = this.processInternalLink(href, dataWikilink, dataHref, manifest);
+
+    // Check if link is valid (page exists in manifest)
+    const isValidLink = manifest ? processed.matchedPage !== undefined : true;
+
+    if (!isValidLink) {
+      const label = $link.text();
+      const unresolvedSpan = this.renderUnresolvedWikilink(
+        processed.cleanedWikilink || processed.cleanedHref,
+        label
+      );
+      $link.replaceWith(unresolvedSpan);
+      return;
+    }
+
+    // Valid link - update attributes
+    this.updateLinkAttributes($link, processed, dataHref, manifest);
+  }
+
+  /**
+   * Process an internal link and return cleaned values.
+   */
+  private processInternalLink(
+    href: string | undefined,
+    dataWikilink: string | undefined,
+    dataHref: string | undefined,
+    manifest?: Manifest
+  ): { cleanedHref: string; cleanedWikilink: string; matchedPage?: ManifestPage } {
+    let cleanedHref = '';
+    let cleanedWikilink = '';
+    let matchedPage: ManifestPage | undefined;
+
+    if (href) {
+      cleanedHref = this.cleanLinkPath(href);
+      if (manifest) {
+        const result = this.translateToRoutedPathWithValidation(cleanedHref, manifest);
+        cleanedHref = result.path;
+        matchedPage = result.matchedPage;
+      }
+      if (!dataWikilink) {
+        cleanedWikilink = this.deriveWikilinkFromHref(cleanedHref);
+      }
+    }
+
+    if (dataWikilink) {
+      cleanedWikilink = this.cleanLinkPath(dataWikilink);
+    }
+
+    if (dataHref && manifest) {
+      const cleanedDataHref = this.cleanLinkPath(dataHref);
+      const result = this.translateToRoutedPathWithValidation(cleanedDataHref, manifest);
+      matchedPage ??= result.matchedPage;
+    }
+
+    return { cleanedHref, cleanedWikilink, matchedPage };
+  }
+
+  /**
+   * Update attributes on a valid link element.
+   */
+  private updateLinkAttributes(
+    $link: ReturnType<ReturnType<typeof load>>,
+    processed: { cleanedHref: string; cleanedWikilink: string },
+    dataHref: string | undefined,
+    manifest?: Manifest
+  ): void {
+    $link.attr('href', processed.cleanedHref);
+
+    if (processed.cleanedWikilink) {
+      $link.attr('data-wikilink', processed.cleanedWikilink);
+    }
+
+    if (dataHref) {
+      let cleanedDataHref = this.cleanLinkPath(dataHref);
+      if (manifest) {
+        const result = this.translateToRoutedPathWithValidation(cleanedDataHref, manifest);
+        cleanedDataHref = result.path;
+      }
+      $link.attr('data-href', cleanedDataHref);
+    }
+
+    this.ensureWikilinkClass($link);
   }
 
   /**
@@ -378,6 +428,35 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
   }
 
   /**
+   * Derive a wikilink target from a cleaned href by removing leading slash and anchor.
+   *
+   * @param cleanedHref - Cleaned href path
+   * @returns Wikilink target string
+   */
+  private deriveWikilinkFromHref(cleanedHref: string): string {
+    let wikilink = cleanedHref.replace(/^\//, '');
+    const anchorIndex = wikilink.indexOf('#');
+    if (anchorIndex > 0) {
+      wikilink = wikilink.substring(0, anchorIndex);
+    }
+    return wikilink;
+  }
+
+  /**
+   * Ensure a link element has the 'wikilink' class.
+   *
+   * @param $link - Cheerio link element
+   */
+  private ensureWikilinkClass($link: ReturnType<ReturnType<typeof load>>): void {
+    const classes = $link.attr('class') || '';
+    const classList = classes.split(/\s+/).filter((c: string) => c.length > 0);
+    if (!classList.includes('wikilink')) {
+      classList.push('wikilink');
+    }
+    $link.attr('class', classList.join(' '));
+  }
+
+  /**
    * Check if a URL is external (http://, https://, mailto:, etc.)
    *
    * @param url - URL to check
@@ -388,67 +467,11 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
   }
 
   /**
-   * Check if a link is an internal link (relative path, starts with /)
-   *
-   * @param path - Link path
-   * @returns True if internal, false otherwise
-   */
-  private isInternalLink(path: string): boolean {
-    // Internal links are relative paths or start with /
-    // External links start with http://, https://, etc.
-    return !this.isExternalUrl(path) && (path.startsWith('/') || !path.includes('://'));
-  }
-
-  /**
-   * Translate a vault path to a routed path using the manifest.
+   * Translate a vault path to a routed path using the manifest, with validation.
    *
    * For links generated by Dataview/plugins that use vault paths (e.g., "Aran'talas/Aran'talas"),
    * this finds the corresponding page in the manifest and returns its full routed path
    * (e.g., "/aran-talas/Aran'talas/Aran'talas").
-   *
-   * @param path - Vault path (may be relative or absolute, with or without leading /)
-   * @param manifest - Manifest containing all published pages with their routes
-   * @returns Routed path if found in manifest, otherwise returns original path
-   */
-  private translateToRoutedPath(path: string, manifest: Manifest): string {
-    // Extract base path and anchor
-    const anchorIndex = path.indexOf('#');
-    const basePath = anchorIndex >= 0 ? path.substring(0, anchorIndex) : path;
-    const anchor = anchorIndex >= 0 ? path.substring(anchorIndex) : '';
-
-    // Normalize base path (remove leading slash for comparison)
-    const normalizedPath = basePath.replace(/^\//, '');
-
-    // Find matching page in manifest by comparing normalized paths
-    const matchingPage = manifest.pages.find((page) => {
-      if (!page.vaultPath) return false;
-
-      // Compare vault paths (normalize both for consistent matching)
-      const pageVaultPath = page.vaultPath.replace(/\.md$/i, '').replace(/^\//, '');
-      const pageRelativePath = page.relativePath?.replace(/\.md$/i, '').replace(/^\//, '');
-
-      return (
-        pageVaultPath === normalizedPath ||
-        pageRelativePath === normalizedPath ||
-        pageVaultPath.toLowerCase() === normalizedPath.toLowerCase() ||
-        pageRelativePath?.toLowerCase() === normalizedPath.toLowerCase()
-      );
-    });
-
-    if (matchingPage) {
-      // Return the full routed path from manifest + anchor
-      return matchingPage.route + anchor;
-    }
-
-    // If no match found, return original path (may need leading / for absolute paths)
-    return path.startsWith('/') ? path : '/' + path;
-  }
-
-  /**
-   * Translate a vault path to a routed path using the manifest, with validation.
-   *
-   * Similar to translateToRoutedPath but also returns whether the page was found,
-   * allowing caller to distinguish valid links from invalid ones.
    *
    * @param path - Vault path (may be relative or absolute, with or without leading /)
    * @param manifest - Manifest containing all published pages with their routes
@@ -528,30 +551,39 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     const wrapperStyles: string[] = [];
     const mediaStyles: string[] = [];
 
-    if (asset.display.width) {
+    // For floated images (left/right), let CSS handle max-width responsively with min(320px, 45%)
+    // Only add inline max-width for centered or non-aligned images
+    const isFloated = asset.display.alignment === 'left' || asset.display.alignment === 'right';
+
+    if (asset.display.width && !isFloated) {
+      // Centered/block images: use inline width as specified
       wrapperStyles.push(`max-width:${asset.display.width}px`);
       mediaStyles.push(`max-width:${asset.display.width}px`);
+    } else if (asset.display.width && isFloated) {
+      // Floated images: only limit the <img> natural size, figure width is CSS-controlled
+      mediaStyles.push(`max-width:${asset.display.width}px`);
     }
+
+    // Only add margin styles for centered images (block layout)
+    // Floated images (left/right) don't need margin auto - CSS handles positioning
     if (asset.display.alignment === 'center') {
       wrapperStyles.push('margin-inline:auto; text-align:center');
-    } else if (asset.display.alignment === 'right') {
-      wrapperStyles.push('margin-inline-start:auto');
-    } else if (asset.display.alignment === 'left') {
-      wrapperStyles.push('margin-inline-end:auto');
     }
 
     const styleAttr = wrapperStyles.length ? ` style="${wrapperStyles.join(';')}"` : '';
     const mediaStyleAttr = mediaStyles.length ? ` style="${mediaStyles.join(';')}"` : '';
 
+    // Inline images (left/right aligned) should NOT have newlines to preserve text flow
+    // Block images (center or no alignment) should have newlines for proper block separation
+    const isInline = asset.display.alignment === 'left' || asset.display.alignment === 'right';
+    const prefix = isInline ? '' : '\n';
+    const suffix = isInline ? '' : '\n';
+
     let inner = '';
     switch (asset.kind) {
       case 'image':
         inner = `<img src="${src}" alt="" loading="lazy"${mediaStyleAttr}>`;
-        // Wrap floated images in figure for proper isolation
-        if (asset.display.alignment === 'left' || asset.display.alignment === 'right') {
-          return `\n<figure class="${classes.join(' ')}"${styleAttr}>${inner}</figure>\n`;
-        }
-        return inner;
+        return `${prefix}<figure class="${classes.join(' ')}"${styleAttr}>${inner}</figure>${suffix}`;
       case 'audio':
         inner = `<audio controls src="${src}"${mediaStyleAttr}></audio>`;
         break;
@@ -566,7 +598,7 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
         break;
     }
 
-    return `\n<figure class="${classes.join(' ')}"${styleAttr}>${inner}</figure>\n`;
+    return `${prefix}<figure class="${classes.join(' ')}"${styleAttr}>${inner}</figure>${suffix}`;
   }
 
   private renderWikilink(link: ResolvedWikilink): string {
@@ -620,14 +652,14 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
 
   private escapeHtml(input: string): string {
     return input
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
   }
 
   private escapeAttribute(input: string): string {
-    return this.escapeHtml(input).replace(/`/g, '&#96;');
+    return this.escapeHtml(input).replaceAll('`', '&#96;');
   }
 }

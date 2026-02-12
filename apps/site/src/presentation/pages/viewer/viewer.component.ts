@@ -8,6 +8,7 @@ import {
   ElementRef,
   EnvironmentInjector,
   Inject,
+  OnDestroy,
   signal,
   ViewChild,
   ViewEncapsulation,
@@ -17,9 +18,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltip, MatTooltipModule } from '@angular/material/tooltip';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
-import { distinctUntilChanged, map, switchMap } from 'rxjs';
-
 import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
+import { distinctUntilChanged, map, switchMap } from 'rxjs';
 
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
@@ -36,7 +36,7 @@ import { LeafletMapComponent } from '../../components/leaflet-map/leaflet-map.co
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ViewerComponent {
+export class ViewerComponent implements OnDestroy {
   @ViewChild('contentEl', { static: true }) contentEl?: ElementRef<HTMLElement>;
   @ViewChild('tooltipTarget', { read: MatTooltip }) tooltip?: MatTooltip;
   @ViewChild('tooltipTarget', { read: ElementRef }) tooltipTarget?: ElementRef<HTMLElement>;
@@ -67,17 +67,11 @@ export class ViewerComponent {
             this.title.set(this.capitalize(p.title) ?? '');
             // Mettre à jour les blocs Leaflet si présents
             const leafletBlocks = p.leafletBlocks ?? [];
-            console.log('[ViewerComponent] Found page:', {
-              route: normalized,
-              leafletBlocks,
-            });
             this.leafletBlocks.set(leafletBlocks);
           } else {
-            console.log('[ViewerComponent] Page not found in manifest:', normalized);
             this.leafletBlocks.set([]);
           }
         } else {
-          console.log('[ViewerComponent] Manifest is empty');
           this.leafletBlocks.set([]);
         }
 
@@ -194,7 +188,7 @@ export class ViewerComponent {
       if (targetElement) {
         targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
         // Update URL without navigation
-        window.history.pushState(null, '', `${window.location.pathname}${href}`);
+        globalThis.history.pushState(null, '', `${globalThis.location.pathname}${href}`);
       }
       return;
     }
@@ -281,15 +275,12 @@ export class ViewerComponent {
       container.querySelectorAll<HTMLElement>('[data-leaflet-map-id]')
     );
 
-    console.log('[ViewerComponent] Found placeholders:', placeholders.length);
-
     for (const placeholder of placeholders) {
       const mapId = placeholder.dataset['leafletMapId'];
       if (!mapId) continue;
 
       const block = blocksById.get(mapId);
       if (!block) {
-        console.warn('[ViewerComponent] Block not found for placeholder:', mapId);
         continue;
       }
 
@@ -307,8 +298,6 @@ export class ViewerComponent {
 
       // Stocker la référence pour nettoyage ultérieur
       this.leafletComponentRefs.push(componentRef);
-
-      console.log('[ViewerComponent] Injected Leaflet component:', mapId);
     }
   }
 

@@ -64,7 +64,7 @@ export class EnvConfig {
   }
 
   static homeWelcomeTitle(): string {
-    return this.norm(process.env.HOME_WELCOME_TITLE) || 'Bienvenue sur votre site de lore.';
+    return this.norm(process.env.HOME_WELCOME_TITLE) || '';
   }
 
   static maxActiveRequests(): number {

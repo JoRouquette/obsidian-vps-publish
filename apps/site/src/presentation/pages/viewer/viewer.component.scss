@@ -56,8 +56,7 @@
 
   /* Le conteneur centre le “bloc page” */
   .content {
-    display: flex;
-    justify-content: center;
+    display: block;
     inline-size: 100%;
     max-inline-size: 100%;
     min-inline-size: 0;
@@ -73,6 +72,8 @@
     line-height: 1.6;
     overflow-wrap: anywhere;
     word-break: break-word;
+    /* Contenir les floats (images alignees left/right) */
+    display: flow-root;
 
     /* Masquer l’en-tête interne (double H1) */
     .page-header {
@@ -280,7 +281,7 @@
       font-size: 1.25rem;
       letter-spacing: 0.03em;
       text-transform: uppercase;
-      font-family: 'Material Symbols Outlined', 'Material Icons';
+      font-family: 'Material Symbols Outlined', 'Material Icons', sans-serif;
       font-variation-settings:
         'FILL' 0,
         'wght' 600,
@@ -464,33 +465,28 @@
       display: block;
       max-inline-size: 100%;
       height: auto;
-      margin: 1.2rem auto;
-      padding: 0.2rem;
+
+      video,
+      svg,
+      canvas {
+        margin: 1.2rem auto;
+        padding: 0.2rem;
+      }
     }
 
-    /* Clear uniquement pour images non-inline */
-    img:not(.is-inline),
-    video:not(.is-inline),
-    svg:not(.is-inline),
-    canvas:not(.is-inline) {
+    /* Clear uniquement pour les éléments de bloc après les images flottantes */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
       clear: both;
     }
 
-    /* Images inline (floated) ne doivent pas avoir les styles généraux */
-    img.is-inline {
-      margin: 0;
-      padding: 0;
-    }
-
-    /* Images: Interactivité et amélioration du contraste dans viewer */
+    /* Images: clickable but no decorations */
     img {
       cursor: pointer;
-      transition: box-shadow 0.2s ease;
-      border-radius: 0.5rem;
-
-      &:hover {
-        box-shadow: 0 4px 12px color-mix(in oklab, #000 20%, transparent);
-      }
     }
 
     iframe {
@@ -530,6 +526,68 @@
       font-weight: 400;
       margin-left: 0.25rem;
       font-size: 0.92em;
+    }
+
+    /* ===== Assets (images, videos, etc.) ===== */
+    /* Base figure styling */
+    figure.md-asset {
+      margin: 0;
+      padding: 0;
+      display: block;
+    }
+
+    /* Floated assets - text wrapping (desktop) */
+    figure.md-asset.align-left {
+      float: left;
+      max-width: min(320px, 45%);
+      margin: 0 0.75rem 0.5rem 0;
+      shape-outside: margin-box;
+      clear: left;
+    }
+
+    figure.md-asset.align-right {
+      float: right;
+      max-width: min(320px, 45%);
+      margin: 0 0 0.5rem 0.75rem;
+      shape-outside: margin-box;
+      clear: right;
+    }
+
+    /* Centered images (block layout) */
+    figure.md-asset.align-center {
+      display: block;
+      margin: 0.75rem auto;
+      clear: both;
+    }
+
+    figure.md-asset img,
+    figure.md-asset video {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      border-radius: 0.25rem;
+      margin: 0;
+      padding: 0;
+    }
+
+    .md-asset audio,
+    .md-asset video {
+      margin-inline: auto;
+    }
+  }
+
+  // Desktop: Ensure headings wrap around floated images
+  @media (min-width: 769px) {
+    .content .markdown-body {
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        clear: none;
+        width: auto;
+        overflow: visible;
+      }
     }
   }
 
@@ -653,7 +711,8 @@
     .content .markdown-body .md-asset.align-left,
     .content .markdown-body .md-asset.align-right {
       float: none;
-      margin: 0.65rem auto;
+      max-width: 100%;
+      margin: 0.5rem auto;
       shape-outside: none;
     }
   }
@@ -844,64 +903,62 @@
 }
 
 /* --- Frontmatter layout and asset overrides --- */
-.viewer .content .markdown-body {
-  .frontmatter-card {
-    inline-size: min(var(--page-max), 100%);
-    margin: 0.6rem auto 1rem;
-    border: 1px solid color-mix(in oklab, var(--c-outline) 35%, transparent);
-    border-radius: 0.75rem;
-    background: color-mix(in oklab, var(--c-surface-variant) 8%, transparent);
-    overflow: hidden;
-    transition:
-      border-color 0.2s ease,
-      box-shadow 0.2s ease,
-      background-color 0.2s ease;
+.viewer .content .markdown-body .frontmatter-card {
+  inline-size: min(var(--page-max), 100%);
+  margin: 0.6rem auto 1rem;
+  border: 1px solid color-mix(in oklab, var(--c-outline) 35%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in oklab, var(--c-surface-variant) 8%, transparent);
+  overflow: hidden;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 
-    summary {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.6rem;
-      cursor: pointer;
-      padding: 0.65rem 0.9rem;
-      list-style: none;
-      user-select: none;
-      margin: 0;
-    }
-
-    summary::-webkit-details-marker {
-      display: none;
-    }
-
-    summary:focus-visible {
-      outline: 2px solid var(--c-secondary);
-      outline-offset: 2px;
-    }
-
-    summary::after {
-      content: '+';
-      font-weight: 700;
-      color: var(--c-headers);
-      transition:
-        transform 0.2s ease,
-        color 0.2s ease,
-        content 0.2s ease;
-    }
-
-    &[open] summary::after {
-      content: '-';
-    }
-
-    summary:hover {
-      background: color-mix(in oklab, var(--c-surface-variant) 14%, transparent);
-    }
-
-    &[open] summary {
-      border-bottom: 1px solid color-mix(in oklab, var(--c-outline) 28%, transparent);
-    }
+  summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    cursor: pointer;
+    padding: 0.65rem 0.9rem;
+    list-style: none;
+    user-select: none;
+    margin: 0;
   }
 
-  .frontmatter-card .fm-title {
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  summary:focus-visible {
+    outline: 2px solid var(--c-secondary);
+    outline-offset: 2px;
+  }
+
+  summary::after {
+    content: '+';
+    font-weight: 700;
+    color: var(--c-headers);
+    transition:
+      transform 0.2s ease,
+      color 0.2s ease,
+      content 0.2s ease;
+  }
+
+  &[open] summary::after {
+    content: '-';
+  }
+
+  summary:hover {
+    background: color-mix(in oklab, var(--c-surface-variant) 14%, transparent);
+  }
+
+  &[open] summary {
+    border-bottom: 1px solid color-mix(in oklab, var(--c-outline) 28%, transparent);
+  }
+
+  .fm-title {
     font-weight: 700;
     font-size: 0.95rem;
     color: var(--c-headers);
@@ -911,14 +968,14 @@
     margin: 0;
   }
 
-  .frontmatter-card .fm-grid {
+  .fm-grid {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
     padding: 0.45rem 0.9rem 0.75rem;
   }
 
-  .frontmatter-card .fm-row {
+  .fm-row {
     display: grid;
     grid-template-columns: auto auto 1fr;
     align-items: baseline;
@@ -970,65 +1027,6 @@
   .frontmatter-card .fm-boolean input {
     pointer-events: none;
     accent-color: var(--c-secondary);
-  }
-
-  /* Assets as figure elements */
-  figure.md-asset {
-    margin: 1rem auto;
-    max-inline-size: min(100%, 860px);
-    display: block;
-  }
-
-  /* Floated assets (wrapped in figure) */
-  figure.md-asset.is-inline {
-    width: fit-content;
-    max-inline-size: 100%;
-  }
-
-  figure.md-asset.align-left {
-    float: left;
-    margin: 0 1rem 1rem 0;
-    shape-outside: margin-box;
-    shape-margin: 1rem;
-  }
-
-  figure.md-asset.align-right {
-    float: right;
-    margin: 0 0 1rem 1rem;
-    shape-outside: margin-box;
-    shape-margin: 1rem;
-  }
-
-  /* Clear floats after content sections */
-  figure.md-asset.align-left::after,
-  figure.md-asset.align-right::after {
-    content: '';
-    display: table;
-    clear: both;
-  }
-
-  figure.md-asset img,
-  figure.md-asset video {
-    display: block;
-    width: 100%;
-    height: auto;
-    border-radius: 4px;
-    box-shadow: none;
-  }
-
-  .md-asset audio,
-  .md-asset video {
-    margin-inline: auto;
-  }
-
-  // Mobile: Stack floating assets below 768px
-  @media (max-width: 768px) {
-    figure.md-asset.align-left,
-    figure.md-asset.align-right {
-      float: none;
-      margin: 1rem auto;
-      shape-outside: none;
-    }
   }
 
   // Leaflet map placeholders (injectés dynamiquement dans le contenu)
