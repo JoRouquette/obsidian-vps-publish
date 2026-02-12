@@ -199,27 +199,6 @@
       'opsz' 24;
   }
 
-  /* Callout icons tweaks to improve visibility */
-  .callout-title {
-    background: color-mix(in oklab, var(--callout-color) 24%, var(--c-surface));
-    color: color-mix(in oklab, var(--callout-color) 85%, #fff 15%);
-  }
-
-  .callout-icon {
-    min-inline-size: 2rem;
-    min-block-size: 2rem;
-    border-radius: 0.65rem;
-    background: color-mix(in oklab, var(--callout-color) 26%, transparent);
-    color: color-mix(in oklab, #fff 85%, var(--callout-color) 15%);
-    font-size: 1.25rem;
-    font-family: 'Material Symbols Outlined', 'Material Icons';
-    font-variation-settings:
-      'FILL' 0,
-      'wght' 600,
-      'GRAD' 0,
-      'opsz' 24;
-  }
-
   /* Callouts (Obsidian-style) */
   .callout {
     --callout-color: color-mix(in oklab, var(--c-secondary) 70%, var(--c-primary) 30%);
@@ -248,8 +227,8 @@
     align-items: center;
     gap: 0.75rem;
     padding: 0.875rem 1.125rem;
-    background: color-mix(in oklab, var(--callout-color) 14%, transparent);
-    color: var(--callout-color);
+    background: color-mix(in oklab, var(--callout-color) 22%, var(--c-surface));
+    color: color-mix(in oklab, var(--callout-color) 85%, #fff 15%);
     font-weight: 600;
     font-size: 1.05rem;
     line-height: 1.4;
@@ -292,15 +271,21 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-inline-size: 1.85rem;
-    min-block-size: 1.85rem;
+    min-inline-size: 2rem;
+    min-block-size: 2rem;
     border-radius: 0.65rem;
-    background: color-mix(in oklab, var(--callout-color) 20%, transparent);
-    color: color-mix(in oklab, var(--c-surface) 90%, #fff 10%);
+    background: color-mix(in oklab, var(--callout-color) 24%, transparent);
+    color: color-mix(in oklab, #fff 85%, var(--callout-color) 15%);
     font-weight: 800;
-    font-size: 0.95rem;
+    font-size: 1.15rem;
     letter-spacing: 0.03em;
     text-transform: uppercase;
+    font-family: 'Material Symbols Outlined', 'Material Icons', sans-serif;
+    font-variation-settings:
+      'FILL' 0,
+      'wght' 600,
+      'GRAD' 0,
+      'opsz' 24;
   }
 
   .callout-label {
@@ -362,15 +347,26 @@
     display: block;
   }
 
-  /* Floated assets */
+  /* Floated assets - habillage du texte style ITS Obsidian */
   figure.md-asset.align-left {
     float: left;
-    margin: 0 1rem 0.5rem 0;
+    margin: 0.5rem 1.5rem 1rem 0;
+    shape-outside: margin-box;
+    clear: left;
   }
 
   figure.md-asset.align-right {
     float: right;
-    margin: 0 0 0.5rem 1rem;
+    margin: 0.5rem 0 1rem 1.5rem;
+    shape-outside: margin-box;
+    clear: right;
+  }
+
+  /* Images centrees */
+  figure.md-asset.align-center {
+    display: block;
+    margin: 1rem auto;
+    clear: both;
   }
 
   figure.md-asset img,
@@ -378,6 +374,7 @@
     display: block;
     max-width: 100%;
     height: auto;
+    border-radius: 0.25rem;
   }
 
   .md-asset audio,

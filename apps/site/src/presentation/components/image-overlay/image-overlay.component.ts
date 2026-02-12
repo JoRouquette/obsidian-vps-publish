@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   ElementRef,
   HostListener,
   signal,
@@ -21,13 +22,21 @@ import { MatIconModule } from '@angular/material/icon';
 })
 export class ImageOverlayComponent {
   @ViewChild('imageEl', { static: false }) imageEl?: ElementRef<HTMLImageElement>;
+  @ViewChild('dialogEl', { static: false }) dialogEl?: ElementRef<HTMLDialogElement>;
 
   isOpen = signal(false);
   imageSrc = signal('');
-  imageAlt = signal('');
+  altText = signal('');
   scale = signal(1);
   translateX = signal(0);
   translateY = signal(0);
+
+  // Computed signals for template
+  imageTransform = computed(
+    () => `scale(${this.scale()}) translate(${this.translateX()}px, ${this.translateY()}px)`
+  );
+
+  zoomPercentage = computed(() => Math.round(this.scale() * 100));
 
   private isDragging = false;
   private startX = 0;
@@ -37,12 +46,17 @@ export class ImageOverlayComponent {
 
   open(src: string, alt: string = '') {
     this.imageSrc.set(src);
-    this.imageAlt.set(alt);
+    this.altText.set(alt);
     this.isOpen.set(true);
     this.resetTransform();
+    // Use setTimeout to ensure ViewChild is available after isOpen triggers rendering
+    setTimeout(() => {
+      this.dialogEl?.nativeElement.showModal();
+    });
   }
 
   close() {
+    this.dialogEl?.nativeElement.close();
     this.isOpen.set(false);
     this.resetTransform();
   }
@@ -76,9 +90,43 @@ export class ImageOverlayComponent {
     }
   }
 
+  @HostListener('window:keydown.+')
+  @HostListener('window:keydown.=')
+  onKeyZoomIn() {
+    if (this.isOpen()) {
+      this.zoomIn();
+    }
+  }
+
+  @HostListener('window:keydown.-')
+  onKeyZoomOut() {
+    if (this.isOpen()) {
+      this.zoomOut();
+    }
+  }
+
+  @HostListener('window:keydown.0')
+  onKeyReset() {
+    if (this.isOpen()) {
+      this.resetZoom();
+    }
+  }
+
   onBackdropClick(event: MouseEvent) {
     if (event.target === event.currentTarget) {
       this.close();
+    }
+  }
+
+  onDoubleClick(event: MouseEvent) {
+    // Prevent backdrop close
+    event.stopPropagation();
+
+    // Toggle between 100% and 200% zoom
+    if (this.scale() < 2) {
+      this.scale.set(2);
+    } else {
+      this.resetTransform();
     }
   }
 
@@ -163,8 +211,6 @@ export class ImageOverlayComponent {
   }
 
   private getDistance(touch1: Touch, touch2: Touch): number {
-    const dx = touch1.clientX - touch2.clientX;
-    const dy = touch1.clientY - touch2.clientY;
-    return Math.sqrt(dx * dx + dy * dy);
+    return Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
   }
 }

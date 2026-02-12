@@ -52,6 +52,124 @@ describe('MarkdownItRenderer', () => {
     expect(html).toContain('max-width:300px');
   });
 
+  it('does not inject html/body wrappers in rendered content', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = 'Paragraph with ![[image.png|left]] floated image.';
+    note.assets = [
+      {
+        raw: '![[image.png|left]]',
+        target: 'image.png',
+        kind: 'image',
+        display: { alignment: 'left', classes: [], rawModifiers: [] },
+      },
+    ];
+
+    const html = await renderer.render(note);
+
+    // Should not contain html/body tags (cheerio wrappers should be stripped)
+    expect(html).not.toMatch(/<html[^>]*>/i);
+    expect(html).not.toMatch(/<body[^>]*>/i);
+    expect(html).not.toMatch(/<\/html>/i);
+    expect(html).not.toMatch(/<\/body>/i);
+
+    // Should contain proper align-left class
+    expect(html).toContain('align-left');
+    expect(html).toContain('is-inline');
+
+    // Should NOT contain margin-inline-*:auto for floated images
+    expect(html).not.toMatch(/margin-inline[^:]*:\s*auto/i);
+  });
+
+  it('wraps text following floated figures in <p> tags', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = '![[image.png|right]]Les jumelles lunaire se manifestèrent.';
+    note.assets = [
+      {
+        raw: '![[image.png|right]]',
+        target: 'image.png',
+        kind: 'image',
+        display: { alignment: 'right', classes: [], rawModifiers: [] },
+      },
+    ];
+
+    const html = await renderer.render(note);
+
+    // The text after the figure should be wrapped in <p>
+    expect(html).toMatch(/<\/figure>\s*<p>Les jumelles/);
+
+    // Should contain proper float classes
+    expect(html).toContain('align-right');
+    expect(html).toContain('is-inline');
+  });
+
+  it('wraps text with inline elements following floated figures', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = "![[image.png|left]]A l'inverse de sa sœur, elle s'intéressa.";
+    note.assets = [
+      {
+        raw: '![[image.png|left]]',
+        target: 'image.png',
+        kind: 'image',
+        display: { alignment: 'left', classes: [], rawModifiers: [] },
+      },
+    ];
+
+    const html = await renderer.render(note);
+
+    // The text should be wrapped in <p>
+    expect(html).toMatch(/<\/figure>\s*<p>A l'inverse.*elle s'intéressa\.<\/p>/);
+
+    // Should contain proper float classes
+    expect(html).toContain('align-left');
+    expect(html).toContain('is-inline');
+  });
+
+  it('does not add inline max-width style on floated figure wrappers', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = '![[image.png|right|300]]Text flows around.';
+    note.assets = [
+      {
+        raw: '![[image.png|right|300]]',
+        target: 'image.png',
+        kind: 'image',
+        display: { alignment: 'right', width: 300, classes: [], rawModifiers: [] },
+      },
+    ];
+
+    const html = await renderer.render(note);
+
+    // The figure should NOT have inline max-width (CSS handles responsive sizing)
+    expect(html).toMatch(/<figure[^>]*class="[^"]*align-right[^"]*"[^>]*>/);
+    expect(html).not.toMatch(/<figure[^>]*style="[^"]*max-width/);
+
+    // But the <img> should have max-width to limit natural size
+    expect(html).toMatch(/<img[^>]*style="[^"]*max-width:\s*300px/);
+  });
+
+  it('adds inline max-width style on centered images', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = '![[image.png|center|400]]Text after.';
+    note.assets = [
+      {
+        raw: '![[image.png|center|400]]',
+        target: 'image.png',
+        kind: 'image',
+        display: { alignment: 'center', width: 400, classes: [], rawModifiers: [] },
+      },
+    ];
+
+    const html = await renderer.render(note);
+
+    // Both figure AND img should have max-width for centered images
+    expect(html).toMatch(/<figure[^>]*style="[^"]*max-width:\s*400px/);
+    expect(html).toMatch(/<img[^>]*style="[^"]*max-width:\s*400px/);
+  });
+
   it('renders pdf as download button', async () => {
     const renderer = new MarkdownItRenderer();
     const note = baseNote();

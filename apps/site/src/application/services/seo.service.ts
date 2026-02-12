@@ -42,7 +42,7 @@ export class SeoService {
   ) {
     const config = this.configFacade.config();
     this.baseUrl = config?.baseUrl || 'http://localhost:4200';
-    this.siteName = config?.siteName || 'Obsidian VPS Publish';
+    this.siteName = config?.siteName || "Scribe d'Ektaron";
   }
 
   /**
@@ -138,18 +138,7 @@ export class SeoService {
    * Met à jour le lien canonical dans le <head>.
    */
   private updateCanonicalLink(url: string): void {
-    if (!isPlatformBrowser(this.platformId)) {
-      // SSR: manipulation DOM via DOCUMENT injection
-      let link = this.document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-
-      if (!link) {
-        link = this.document.createElement('link');
-        link.setAttribute('rel', 'canonical');
-        this.document.head.appendChild(link);
-      }
-
-      link.setAttribute('href', url);
-    } else {
+    if (isPlatformBrowser(this.platformId)) {
       // Browser: manipulation DOM classique
       let link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
 
@@ -157,6 +146,17 @@ export class SeoService {
         link = document.createElement('link');
         link.setAttribute('rel', 'canonical');
         document.head.appendChild(link);
+      }
+
+      link.setAttribute('href', url);
+    } else {
+      // SSR: manipulation DOM via DOCUMENT injection
+      let link = this.document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+
+      if (!link) {
+        link = this.document.createElement('link');
+        link.setAttribute('rel', 'canonical');
+        this.document.head.appendChild(link);
       }
 
       link.setAttribute('href', url);
