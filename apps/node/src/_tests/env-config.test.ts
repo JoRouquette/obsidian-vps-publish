@@ -21,6 +21,7 @@ describe('EnvConfig', () => {
     delete process.env.API_KEY;
     delete process.env.PORT;
     delete process.env.LOGGER_LEVEL;
+    process.env.NODE_ENV = 'test'; // Nécessaire pour obtenir la valeur par défaut de API_KEY
 
     expect(EnvConfig.assetsRoot()).toBe(path.resolve('./tmp/assets'));
     expect(EnvConfig.contentRoot()).toBe(path.resolve('./tmp/site-content'));

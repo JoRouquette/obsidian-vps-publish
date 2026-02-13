@@ -15,12 +15,16 @@ export class EnvConfig {
   }
 
   static apiKey(): string {
-    return (
-      this.norm(process.env.API_KEY) ||
-      (() => {
-        throw new Error('API_KEY is not set in environment variables');
-      })()
-    );
+    const key = this.norm(process.env.API_KEY);
+    if (key) return key;
+
+    // En développement ou tests, retourne une clé par défaut
+    const env = this.nodeEnv();
+    if (env === 'development' || env === 'test') {
+      return 'devkeylocal';
+    }
+
+    throw new Error('API_KEY is not set in environment variables');
   }
 
   static uiRoot(): string {
