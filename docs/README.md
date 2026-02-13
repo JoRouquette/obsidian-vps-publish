@@ -144,6 +144,8 @@ Ce script est exécuté en CI pour garantir le respect des règles.
 - **[Guide de contribution](./CONTRIBUTING.md)** - Prérequis, installation, workflow, conventions
 - **[Architecture](./architecture.md)** - Clean Architecture, CQRS, structure du monorepo
 - **[Development](./development.md)** - Configuration locale, scripts npm, workflows Git
+- **[Développement local sans Docker](./LOCAL_DEV.md)** - Guide pour développer en local sur Windows sans Docker
+- **[Configuration Plugin → Localhost (Quickstart)](./PLUGIN_LOCALHOST_QUICKSTART.md)** - Configuration rapide du plugin pour le dev local
 - **[Docker](./docker.md)** - Image container, volumes, healthcheck, déploiement
 - **[Release](./release.md)** - Processus de release, semantic-release, versioning
 
