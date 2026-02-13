@@ -44,7 +44,8 @@
         "development": {
           "optimization": false,
           "extractLicenses": false,
-          "sourceMap": true
+          "sourceMap": true,
+          "ssr": false
         }
       },
       "defaultConfiguration": "production"
@@ -57,10 +58,14 @@
           "buildTarget": "site:build:production"
         },
         "development": {
-          "buildTarget": "site:build:development"
+          "buildTarget": "site:build:development",
+          "proxyConfig": "apps/site/proxy.conf.json"
         }
       },
-      "defaultConfiguration": "development"
+      "defaultConfiguration": "development",
+      "options": {
+        "port": 4200
+      }
     },
     "extract-i18n": {
       "executor": "@angular/build:extract-i18n",

@@ -17,9 +17,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltip, MatTooltipModule } from '@angular/material/tooltip';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
-import { Router } from '@angular/router';
+import { NavigationEnd, Router } from '@angular/router';
 import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
-import { distinctUntilChanged, map, switchMap } from 'rxjs';
+import { distinctUntilChanged, filter, map, switchMap } from 'rxjs';
 
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
@@ -47,6 +47,9 @@ export class ViewerComponent implements OnDestroy {
 
   // Signal pour les blocs Leaflet de la page actuelle
   leafletBlocks = signal<LeafletBlock[]>([]);
+
+  // Signal pour indiquer qu'on attend un scroll vers un fragment
+  private readonly pendingScrollFragment = signal<string | null>(null);
 
   private readonly cleanupFns: Array<() => void> = [];
   private readonly leafletComponentRefs: ComponentRef<LeafletMapComponent>[] = [];
@@ -104,8 +107,19 @@ export class ViewerComponent implements OnDestroy {
         this.decorateWikilinks();
         this.decorateImages();
         this.injectLeafletComponents();
+        this.scrollToFragmentIfPending();
       });
     });
+
+    // Gérer le scroll vers fragment lors de navigation (deep links)
+    this.router.events
+      .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
+      .subscribe((event) => {
+        const fragment = this.extractFragmentFromUrl(event.urlAfterRedirects);
+        if (fragment) {
+          this.pendingScrollFragment.set(fragment);
+        }
+      });
   }
 
   ngOnDestroy(): void {
@@ -180,21 +194,84 @@ export class ViewerComponent implements OnDestroy {
     const isExternal = /^[a-z]+:\/\//i.test(href) || href.startsWith('mailto:');
     if (isExternal) return;
 
-    // Handle fragment-only links (footnotes, heading anchors)
+    // Handle fragment-only links (footnotes, heading anchors) sur la même page
     if (href.startsWith('#')) {
       event.preventDefault();
       const targetId = href.substring(1);
-      const targetElement = document.getElementById(targetId);
-      if (targetElement) {
-        targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        // Update URL without navigation
-        globalThis.history.pushState(null, '', `${globalThis.location.pathname}${href}`);
-      }
+      this.scrollToElement(targetId);
+      // Update URL without navigation
+      globalThis.history.pushState(null, '', `${globalThis.location.pathname}${href}`);
       return;
     }
 
     event.preventDefault();
-    void this.router.navigateByUrl(href);
+
+    // Extraire le path et le fragment du href
+    const [path, fragment] = href.split('#');
+
+    // Si le lien contient un fragment, le marquer comme pending
+    if (fragment) {
+      this.pendingScrollFragment.set(fragment);
+    } else {
+      this.pendingScrollFragment.set(null);
+    }
+
+    // Naviguer vers la nouvelle page (le fragment sera géré après le rendu)
+    void this.router.navigateByUrl(path);
+  }
+
+  /**
+   * Extrait le fragment d'une URL complète
+   */
+  private extractFragmentFromUrl(url: string): string | null {
+    const hashIndex = url.indexOf('#');
+    return hashIndex >= 0 ? url.substring(hashIndex + 1) : null;
+  }
+
+  /**
+   * Scroll vers un élément par son ID
+   */
+  private scrollToElement(elementId: string): void {
+    const targetElement = document.getElementById(elementId);
+    if (targetElement) {
+      targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  /**
+   * Tente de scroller vers le fragment pending si présent
+   * Appelé après que le contenu HTML est injecté dans le DOM
+   */
+  private scrollToFragmentIfPending(): void {
+    const fragment = this.pendingScrollFragment();
+    if (!fragment) return;
+
+    // Stratégie de retry bornée car le DOM peut ne pas être immédiatement prêt
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    const tryScroll = () => {
+      attempts++;
+      const targetElement = document.getElementById(fragment);
+
+      if (targetElement) {
+        // Élément trouvé, on scroll
+        targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        this.pendingScrollFragment.set(null);
+        return;
+      }
+
+      // Si pas trouvé et qu'on a encore des tentatives, réessayer après un frame
+      if (attempts < maxAttempts) {
+        requestAnimationFrame(tryScroll);
+      } else {
+        // Abandon après maxAttempts
+        this.pendingScrollFragment.set(null);
+      }
+    };
+
+    // Démarrer la première tentative après un frame (pour laisser le DOM se mettre à jour)
+    requestAnimationFrame(tryScroll);
   }
 
   private showTooltip(event: Event): void {
