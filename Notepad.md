@@ -64,235 +64,6 @@ COMMENCE MAINTENANT
 
 # Rapport d'Audit Technique : Gestion des Assets
 
-## Résumé Exécutif (8-12 lignes)
-
-Ce projet (obsidian-vps-publish) permet de publier du contenu depuis un vault Obsidian vers un VPS auto-hébergé. La **gestion des assets** désigne le flux de fichiers binaires (images, PDF, audio, vidéo) depuis le vault Obsidian jusqu'au serving HTTP.
-
-**Architecture** : Clean Architecture (monorepo Nx) avec 3 apps (plugin Obsidian, backend Node/Express, frontend Angular) et 2 libs partagées. Les assets suivent un cycle **détection → résolution → upload chunké → staging → promotion → serving**.
-
-**Stockage** : filesystem local (`ASSETS_ROOT`), pas de cloud storage. Serving via `express.static` avec cache agressif (immutable, 365d).
-
-**Risques majeurs identifiés** :
-
-1. **Aucune validation MIME type réelle** (upload-assets.dto.ts) - le `mimeType` est accepté tel quel
-2. **Pas de scan antivirus/malware** - aucune référence trouvée
-3. **Pas de déduplication/checksum** - re-upload systématique
-4. **Pas de limite de taille par fichier individuel** - seulement limite globale 50MB (app.ts)
-
-## Glossaire Asset (spécifique au repo)
-
-### Définition opérationnelle
-
-Un **Asset** est un fichier binaire référencé dans une note Obsidian, détecté via la syntaxe `![[filename]]` ou via les propriétés frontmatter.
-
-**Référence** : asset.ts
-
-```typescript
-export type Asset = {
-  relativePath: string; // Chemin relatif pour stockage backend
-  vaultPath: string; // Chemin dans le vault Obsidian
-  fileName: string; // Nom de fichier seul
-  mimeType: string; // Type MIME déclaré (non validé)
-  contentBase64: string; // Contenu encodé base64
-};
-```
-
-### Champs/attributs clés
-
-| Entité                | Fichier                  | Rôle                                                      |
-| --------------------- | ------------------------ | --------------------------------------------------------- |
-| `Asset`               | asset.ts                 | Structure d'upload API                                    |
-| `AssetRef`            | asset-ref.ts             | Référence détectée dans une note                          |
-| `AssetKind`           | asset-kind.ts            | Type: `'image' \| 'audio' \| 'video' \| 'pdf' \| 'other'` |
-| `ResolvedAssetFile`   | resolved-asset-file.ts   | Fichier résolu avec contenu binaire                       |
-| `AssetDisplayOptions` | asset-display-options.ts | Options d'affichage (alignment, width, classes CSS)       |
-
-### Invariants
-
-1. Un asset doit avoir un `contentBase64` non vide pour être uploadé (assets-uploader.adapter.test.ts)
-2. Le `relativePath` ne peut pas contenir `..` (protection path traversal) (path-utils.test.ts)
-3. Les assets sont uploadés **après** les notes, dans la même session
-
-## Architecture & Flux
-
-### Flux principal : Upload d'assets
-
-```
-Plugin Obsidian                         Backend Node/Express
-================                        ====================
-
-1. DETECTION (au parsing des notes)
-   DetectAssetsService.process()
-   → parse ![[...]] dans content
-   → parse frontmatter strings
-   → retourne AssetRef[]
-         │
-         ▼
-2. RESOLUTION (avant upload)
-   ObsidianAssetsVaultAdapter
-   .resolveAssetsFromNotes()
-   → cherche fichier dans assetsFolder
-   → fallback: tout le vault
-   → lit contenu binaire
-   → retourne ResolvedAssetFile[]
-         │
-         ▼
-3. PREPARATION UPLOAD
-   AssetsUploaderAdapter
-   → encode base64
-   → batch par octets (maxBytesPerRequest)
-   → compression gzip (ChunkedUploadService)
-   → découpe en chunks 5MB
-         │
-         ▼
-4. UPLOAD HTTP ────────────────────────► ChunkedUploadMiddleware
-   POST /api/session/{id}/assets/upload   → assemble chunks
-                                          → décompresse
-                                               │
-                                               ▼
-                                         5. VALIDATION
-                                            ApiAssetsBodyDto.safeParse()
-                                            (Zod: strings non vides)
-                                               │
-                                               ▼
-                                         6. HANDLER
-                                            UploadAssetsHandler.handle()
-                                            → decode base64
-                                            → CONCURRENCY=10
-                                               │
-                                               ▼
-                                         7. STORAGE (staging)
-                                            AssetsFileSystemStorage.save()
-                                            → mkdir récursif
-                                            → writeFile
-                                            → path:
-                                              /assets/.staging/{sessionId}/{relativePath}
-                                               │
-                                               ▼
-8. FINISH SESSION ─────────────────────► StagingManager.promoteSession()
-   POST /api/session/{id}/finish          → clear /assets (hors .staging)
-                                          → copy staging → production
-                                          → cleanup staging
-```
-
-### Flux : Serving des assets
-
-```
-Client HTTP                           Backend
-===========                           =======
-
-GET /assets/images/photo.jpg ──────► express.static(ASSETS_ROOT)
-                                      │
-                                      ├── Cache-Control: max-age=365d, immutable
-                                      ├── ETag: true
-                                      └── sendFile()
-```
-
-**Référence** : app.ts
-
-## Points de Preuve
-
-### 1. Détection des assets dans les notes
-
-| Affirmation                  | Référence                                                             |
-| ---------------------------- | --------------------------------------------------------------------- |
-| Regex de détection           | detect-assets.service.ts: `const EMBED_REGEX = /!\[\[([^\]]+)\]\]/g;` |
-| Classification par extension | detect-assets.service.ts                                              |
-| Détection dans frontmatter   | detect-assets.service.ts                                              |
-
-### 2. Résolution dans le vault Obsidian
-
-| Affirmation                         | Référence                                                           |
-| ----------------------------------- | ------------------------------------------------------------------- |
-| Recherche dans assetsFolder d'abord | obsidian-assets-vault.adapter.ts                                    |
-| Fallback vault complet configurable | obsidian-assets-vault.adapter.ts                                    |
-| Lecture binaire via Obsidian API    | obsidian-assets-vault.adapter.ts: `this.app.vault.readBinary(file)` |
-
-### 3. Upload vers backend
-
-| Affirmation                   | Référence                                                                     |
-| ----------------------------- | ----------------------------------------------------------------------------- |
-| Encodage base64               | assets-uploader.adapter.ts                                                    |
-| Batch par octets              | batch-by-bytes.util.ts                                                        |
-| Compression gzip              | chunked-upload.service.ts                                                     |
-| Upload concurrent (3 batches) | assets-uploader.adapter.ts: `this.concurrencyLimit = concurrencyLimit \|\| 3` |
-
-### 4. Validation backend
-
-| Affirmation                                   | Référence                                           |
-| --------------------------------------------- | --------------------------------------------------- |
-| Validation Zod (strings non vides uniquement) | upload-assets.dto.ts                                |
-| Pas de validation MIME réelle                 | DTO accepte n'importe quelle string pour `mimeType` |
-| Pas de limite de taille par fichier           | Non présent dans le DTO ni handler                  |
-
-### 5. Stockage filesystem
-
-| Affirmation                | Référence                     |
-| -------------------------- | ----------------------------- |
-| Stockage en staging        | staging-manager.ts            |
-| Protection path traversal  | path-utils.util.ts            |
-| mkdir récursif + writeFile | assets-file-system.storage.ts |
-
-### 6. Promotion et serving
-
-| Affirmation                        | Référence          |
-| ---------------------------------- | ------------------ |
-| Clear production puis copy staging | staging-manager.ts |
-| Mutex sur clear seulement          | staging-manager.ts |
-| express.static avec cache 365d     | app.ts             |
-
-### 7. Authentification
-
-| Affirmation                 | Référence                                 |
-| --------------------------- | ----------------------------------------- |
-| API key requise sur /api/\* | app.ts: `apiRouter.use(apiKeyMiddleware)` |
-| Assets publics (pas d'auth) | app.ts: pas de middleware auth            |
-
-## Non Déterminable Depuis le Code Actuel
-
-| Élément                           | Ce qui manque                                                                      | Pistes                                                              |
-| --------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| **Scan antivirus/malware**        | Aucune référence à ClamAV, VirusTotal, ou autre. Pas de quarantaine.               | Chercher: `clam`, `virus`, `scan`, `quarantine` - aucun résultat    |
-| **Déduplication (hash/checksum)** | Aucun calcul de hash des fichiers. Re-upload systématique.                         | Chercher: `checksum`, `hash`, `dedup` - seulement dans node_modules |
-| **Limite de taille par fichier**  | Seulement limite globale `MAX_REQUEST_SIZE=50mb`. Pas de max par asset.            | Absent du DTO et du handler                                         |
-| **Validation MIME réelle**        | Le `mimeType` dans le DTO est `z.string().min(1)`, jamais validé contre le contenu | Pas de lib de détection MIME (`file-type`, `magic-bytes`)           |
-| **Retention policy**              | `purgeAll()` existe mais pas de purge automatique/retention                        | Absent du cron/scheduler                                            |
-| **Backup des assets**             | Aucune référence à backup/snapshot                                                 | Probablement géré en dehors du code (infra)                         |
-| **CDN**                           | Aucune référence à CloudFront, Cloudflare, etc.                                    | Serving direct via Node.js                                          |
-| **Signed URLs (présignés)**       | Aucune référence à `presign`, `signed`                                             | Les assets sont publics                                             |
-| **Resize/thumbnail**              | Aucune transformation d'image                                                      | Pas de sharp, jimp, ou équivalent                                   |
-| **Quota utilisateur**             | Pas de limite par session/utilisateur                                              | Absent de la logique                                                |
-
-## Qualité et Tests
-
-### Tests existants autour des assets
-
-| Fichier                            | Lignes | Couverture                                  |
-| ---------------------------------- | ------ | ------------------------------------------- |
-| detect-assets.service.test.ts      | ~55    | Détection content + frontmatter             |
-| assets-file-system-storage.test.ts | ~45    | Save multiple, path traversal, write errors |
-| assets-uploader.adapter.test.ts    | ~75    | Empty array, batch upload, missing content  |
-| upload-assets.handler.test.ts      | ~85    | Handler basique (sessionId, published=0)    |
-| path-utils.test.ts                 | ~17    | Path traversal protection                   |
-
-### Scénarios non testés
-
-1. **Upload fichier malicieux** (polyglot, MIME spoofing)
-2. **Très gros fichier individuel** (>50MB après chunking)
-3. **Concurrence élevée** (100+ assets simultanés)
-4. **Collision de fichiers** (même `relativePath` dans 2 sessions)
-5. **Erreur réseau pendant chunk** (retry behavior)
-6. **Disk full pendant staging**
-7. **Race condition promotion** (mutex seulement sur clear)
-
-### Dette technique identifiée
-
-1. **Tests du handler superficiels** : upload-assets.handler.test.ts teste un handler quasi-vide (published=0)
-2. **Pas de test d'intégration E2E** pour le flux complet asset
-3. **ChunkedUploadMiddleware** non testé unitairement (seulement docs)
-
-## Recommandations
-
 ### Priorité Haute (Sécurité)
 
 | #   | Risque                 | Recommandation                                                                                     | Fichier concerné                               |
@@ -321,71 +92,56 @@ Audit terminé. Le rapport ci-dessus synthétise l'analyse complète de la gesti
 
 -------------------------------------------------------------------------/
 
-Voici les commandes Docker nécessaires pour résoudre le problème de déploiement CSS :
+## Prompt performance pluggin
 
-## 1. Nettoyage complet et rebuild
+Tu es GitHub Copilot Chat. Objectif : VÉRIFIER (sans supposition) si, dans le plugin Obsidian de ce repo, le traitement de publication “se met en pause” quand l’utilisateur ne reste pas focus sur la page (fenêtre inactive / onglet en arrière-plan), et préparer une correction pour rendre le traitement le plus asynchrone possible sans bloquer l’UI Obsidian.
 
-```bash
-# Arrêter et supprimer TOUT (containers, volumes, images)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
-docker image rm obsidian-vps-publish:dev 2>/dev/null || true
-docker system prune -f
+Contraintes non négociables :
 
-# Rebuild SANS cache (force la recopie des sources)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml build --no-cache --pull
+- Zéro hallucination : tu n’affirmes rien sans preuve issue du code + d’une reproduction instrumentée.
+- Tu ne proposes pas de refactor global. Tu instrumentes, tu mesures, tu conclus, puis tu proposes le minimum viable.
+- Tu ne “rends asynchrone” que ce qui est actuellement synchrone/bloquant, et tu le prouves.
 
-# Démarrer le container
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-```
+Phase 1 — Localiser et instrumenter (preuve)
 
-## 2. Vérification du déploiement CSS
+1. Localise dans le repo le code du plugin Obsidian qui déclenche la publication (commande, bouton, event). Donne chemins exacts + extraits.
+2. Identifie la “pipeline” de publication : scan du vault, lecture fichiers, rendu markdown, génération manifest, upload/HTTP, etc. Pour chaque étape, indique si elle est sync ou async avec preuve (extrait).
+3. Ajoute une instrumentation STRICTEMENT TEMPORAIRE derrière un flag (ex: settings.debugPublishTiming = true) :
+   - log de début/fin pour chaque étape (avec performance.now()).
+   - un “heartbeat” toutes les 250ms pendant la publication : log l’intervalle réel entre ticks et le timestamp. (Si l’intervalle dérive fortement ou s’arrête, on le verra.)
+   - écouteurs window/document pour : visibilitychange, blur/focus, pagehide, freeze/resume (si dispo), et log ces événements avec timestamp.
+   - si le code utilise requestAnimationFrame, setTimeout, setInterval, ou awaits en boucle, log aussi le type de scheduling utilisé.
+4. Ajoute un mode “repro deterministe” : une commande “Publish (debug)” qui lance la publication + instrumentation sans dépendre d’interactions UI.
 
-```bash
-# 1. Vérifier que le container tourne
-docker ps --filter "name=obsidian-vps-publish"
+Phase 2 — Reproduction contrôlée (preuve) 5) Écris un scénario de reproduction dans un test manuel guidé (pas d’hypothèse) :
 
-# 2. Chercher le nouveau max-width dans les chunks JS
-docker exec obsidian-vps-publish sh -c "grep -r 'max-width:min(320px' /ui/"
+- lancer “Publish (debug)”
+- pendant la publication, alt-tab (perdre le focus), minimiser, changer d’onglet, puis revenir
+- récupérer les logs : vérifier s’il y a un trou dans le heartbeat, et quelle étape était en cours
 
-# 3. Vérifier les marges corrigées (0.25rem au lieu de 0.5rem)
-docker exec obsidian-vps-publish sh -c "grep -r 'margin:\.25rem 1\.5rem' /ui/"
+6. Si le repo a déjà une infra de test (unit/e2e) pour le plugin, ajoute un test minimal qui valide au moins que la pipeline n’est pas 100% sync (ex: le heartbeat tick pendant une étape lourde). Si aucun test plugin n’existe, constate-le explicitement (preuve par structure repo), et garde la preuve via logs.
 
-# 4. Vérifier le HTML (doit contenir </figure><p>)
-docker exec obsidian-vps-publish sh -c "grep -o '</figure>[^<]*<p>' /content/lore/pantheon/tenebra.html"
-```
+Phase 3 — Analyse causale (pas de théorie) 7) Si pause observée :
 
-## 3. Si les styles sont TOUJOURS absents
+- prouve si c’est causé par “background throttling” (timers/RAF) vs “blocage event loop” (CPU sync) vs “await qui attend un event UI”.
+- Pour trancher “blocage event loop”, utilise une mesure : pendant une étape suspecte, fais un micro-benchmark de boucle CPU (ou mesure de long tasks via PerformanceObserver si possible dans Obsidian/Electron) et log les durées.
+- Montre la ligne de code précise qui crée le comportement (ex: boucle sync, appel à une lib sync, utilisation de raf, etc.)
 
-```bash
-# Vérifier que le fichier SCSS local contient bien les modifications
-grep -A 5 "figure.md-asset.align-left" apps/site/src/presentation/pages/viewer/viewer.component.scss
+Phase 4 — Rendre la publication non bloquante (patch minimal, si et seulement si la preuve le justifie) 8) Objectif : ne pas bloquer l’UI Obsidian pendant publication.
 
-# Si le fichier local est correct mais pas déployé, il faut vider le cache Nx AVANT le build Docker
-rm -rf .nx/cache node_modules/.cache
-docker compose -f docker-compose.yml -f docker-compose.dev.yml build --no-cache --pull
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-```
+- Identifie les sections CPU-heavy (par ex. parsing/rendu en masse, compression, hashing, etc.). Prouve-les (timing).
+- Pour celles-ci, implémente un “yield” coopératif entre lots (chunking) : traiter N fichiers, puis await une fonction yield() qui rend la main (ex: await new Promise(r => setTimeout(r, 0)) ou meilleure primitive existante dans le code). Pas de setTimeout arbitraire long.
+- Ne change pas la logique métier, uniquement la planification.
 
-## 4. Alternative : Utiliser la task VS Code
+9. Objectif : “asynchrone possible” : si certaines tâches peuvent être externalisées :
+   - Propose (uniquement si nécessaire et réaliste dans ce repo) un Worker (WebWorker) ou un processus Node séparé, mais seulement après avoir prouvé que le blocage vient du CPU et que chunking est insuffisant.
+   - Si Electron/Obsidian limite les workers, prouve-le ou cite la doc/contrainte (sinon ne le dis pas).
+10. Ajoute un indicateur de progression UI non bloquant (si l’UI existe déjà) et assure-toi qu’il reste réactif pendant les grosses étapes. Prouve-le via heartbeat et/ou logs.
 
-Tu peux aussi utiliser la task définie dans tasks.json :
+Livrable attendu :
 
-**Ctrl+Shift+P** → "Tasks: Run Task" → **"Dev refresh"**
+- Un rapport factuel : “quand on perd le focus, voilà ce qui se passe” avec logs horodatés.
+- Un patch minimal (diff) qui : (a) ajoute instrumentation (flag), (b) ajoute yield/chunking sur l’étape prouvée bloquante, (c) garde le comportement fonctionnel.
+- Les commandes exactes pour build/test le plugin dans ce repo (Nx targets), VÉRIFIÉES dans project.json.
 
-Cette task exécute en parallèle `Docker: dev up` et `Plugin: package`, ce qui correspond au workflow de développement.
-
----
-
-**Rappel du problème identifié :**
-
-- Le Dockerfile copiait une **ancienne version** des sources à cause du cache Docker sur `COPY apps ./apps`
-- Le `--no-cache` standard ne suffit pas toujours car les **layers** peuvent être réutilisées
-- Il faut **supprimer l'image** avant rebuild pour forcer Docker à tout reconstruire
-
-Une fois le rebuild terminé, les styles devraient contenir :
-
-- ✅ `max-width: min(320px, 45%)`
-- ✅ `margin: 0.25rem 1.5rem 0.75rem 0` (au lieu de 0.5rem 1.5rem 1rem 0)
-- ✅ `shape-outside: margin-box`
-
-**\*\*\*\***\*\***\*\*\*\***\*\*\*\***\*\*\*\***\*\***\*\*\*\***\_\_\_**\*\*\*\***\*\***\*\*\*\***\*\*\*\***\*\*\*\***\*\***\*\*\*\***/
+Commence maintenant par : retrouver le point d’entrée de la commande de publication du plugin et montrer le pipeline exact (chemins + extraits), puis implémente l’instrumentation heartbeat + visibilitychange derrière un flag.

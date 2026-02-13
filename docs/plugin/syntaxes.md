@@ -305,6 +305,19 @@ Callouts Obsidian sont supportés avec styles personnalisables :
 > Tip with custom title.
 ```
 
+**Aliases supportés** (selon spécification Obsidian Help) :
+
+- `abstract` ← `summary`, `tldr`
+- `tip` ← `hint`, `important`
+- `success` ← `check`, `done`
+- `question` ← `help`, `faq`
+- `warning` ← `caution`, `attention`
+- `failure` ← `fail`, `missing`
+- `danger` ← `error`
+- `quote` ← `cite`
+
+Les aliases sont automatiquement convertis vers leur type canonique pour le rendu (couleur, icône, classes CSS).
+
 **Configuration** : Vous pouvez ajouter des CSS custom dans Settings → Advanced → Callout styles.
 
 ## Configuration des règles d'exclusion
