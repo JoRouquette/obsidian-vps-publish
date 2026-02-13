@@ -1,3 +1,17 @@
+## 6.4.0 (2026-02-13)
+
+* Merge branch 'feat/wikilinks_and_vault_explorer' ([1a51a22](https://github.com/JoRouquette/obsidian-vps-publish/commit/1a51a22))
+* fix: correct workflow errors (linting and env config tests) ([95e4c02](https://github.com/JoRouquette/obsidian-vps-publish/commit/95e4c02))
+* fix(backend): preserve URL fragments in link validation ([643e5fa](https://github.com/JoRouquette/obsidian-vps-publish/commit/643e5fa)), closes [Note#Section](https://github.com/Note/issues/Section) [#fragment](https://github.com/JoRouquette/obsidian-vps-publish/issues/fragment)
+* docs: add local development guides ([8d51bf1](https://github.com/JoRouquette/obsidian-vps-publish/commit/8d51bf1))
+* style(ui): improve mobile image responsive behavior ([1c9fe0c](https://github.com/JoRouquette/obsidian-vps-publish/commit/1c9fe0c))
+* feat(backend): add fragment to resolved wikilink hrefs ([750a365](https://github.com/JoRouquette/obsidian-vps-publish/commit/750a365)), closes [Note#Header](https://github.com/Note/issues/Header)
+* feat(frontend): implement fragment-based navigation with scroll ([65d9070](https://github.com/JoRouquette/obsidian-vps-publish/commit/65d9070))
+* feat(ui): add clear button to search bar ([4045955](https://github.com/JoRouquette/obsidian-vps-publish/commit/4045955))
+* test(backend): add wikilink header resolution tests ([e3c6be0](https://github.com/JoRouquette/obsidian-vps-publish/commit/e3c6be0)), closes [s#Vision](https://github.com/s/issues/Vision)
+* test(frontend): add wikilink header navigation e2e tests ([7edf2ff](https://github.com/JoRouquette/obsidian-vps-publish/commit/7edf2ff)), closes [#heading](https://github.com/JoRouquette/obsidian-vps-publish/issues/heading) [page#heading](https://github.com/page/issues/heading)
+* chore: setup local development environment without Docker ([bd65736](https://github.com/JoRouquette/obsidian-vps-publish/commit/bd65736))
+
 ## 6.3.0 (2026-02-12)
 
 * Merge branch 'docs/better-documentation' ([3cc6a3b](https://github.com/JoRouquette/obsidian-vps-publish/commit/3cc6a3b))
