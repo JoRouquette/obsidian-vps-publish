@@ -710,10 +710,14 @@
     // Mobile: Stack floating assets
     .content .markdown-body .md-asset.align-left,
     .content .markdown-body .md-asset.align-right {
-      float: none;
-      max-width: 100%;
-      margin: 0.5rem auto;
-      shape-outside: none;
+      float: none !important;
+      max-width: 100% !important;
+      display: block;
+      margin: 0.5rem auto !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+      shape-outside: none !important;
+      clear: none;
     }
   }
 
