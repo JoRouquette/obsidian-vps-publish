@@ -15,7 +15,12 @@ export class EnvConfig {
   }
 
   static apiKey(): string {
-    return this.norm(process.env.API_KEY) || 'devkeylocal';
+    return (
+      this.norm(process.env.API_KEY) ||
+      (() => {
+        throw new Error('API_KEY is not set in environment variables');
+      })()
+    );
   }
 
   static uiRoot(): string {
@@ -82,6 +87,11 @@ export class EnvConfig {
    * Example: https://example.com
    */
   static baseUrl(): string {
-    return this.norm(process.env.BASE_URL) || 'http://localhost:4200';
+    return (
+      this.norm(process.env.BASE_URL) ||
+      (() => {
+        throw new Error('BASE_URL is not set in environment variables');
+      })()
+    );
   }
 }

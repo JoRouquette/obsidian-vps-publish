@@ -1,0 +1,11 @@
+# Nx configuration locale
+# Désactive complètement l'UI interactive de Nx
+
+# Force le mode non-interactif
+export NX_INTERACTIVE=false
+
+# Simule un environnement CI pour désactiver l'UI
+export CI=true
+
+# Désactive le daemon
+export NX_DAEMON=false
