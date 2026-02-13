@@ -132,14 +132,17 @@ export class SessionFinalizerService {
     }));
     timings.convertMarkdownLinks = performance.now() - stepStart;
 
-    // STEP 5: Resolve wikilinks and compute routing
+    // STEP 5: Compute routing first, then resolve wikilinks
+    // IMPORTANT: routing must be calculated BEFORE wikilink resolution,
+    // because ResolveWikilinksService checks if targetNote.routing is defined
+    // to determine if a wikilink is resolved (line 51: isResolved = !!targetNote && targetNote.routing !== undefined)
     stepStart = performance.now();
+    const computeRouting = new ComputeRoutingService(this.logger);
     const detect = new DetectWikilinksService(this.logger);
     const resolve = new ResolveWikilinksService(this.logger, detect);
-    const computeRouting = new ComputeRoutingService(this.logger);
 
-    const withLinks = resolve.process(withConvertedLinks);
-    const routed = computeRouting.process(withLinks);
+    const routed = computeRouting.process(withConvertedLinks);
+    const withLinks = resolve.process(routed);
     timings.resolveWikilinksAndRouting = performance.now() - stepStart;
 
     // STEP 7: Reset content staging directory
@@ -162,7 +165,7 @@ export class SessionFinalizerService {
     // Publier toutes les notes avec folderDisplayNames
     await renderer.handle({
       sessionId,
-      notes: routed,
+      notes: withLinks, // Use withLinks (has routing + resolved wikilinks)
       folderDisplayNames, // Pass folderDisplayNames from session
     });
     timings.renderMarkdownToHtml = performance.now() - stepStart;

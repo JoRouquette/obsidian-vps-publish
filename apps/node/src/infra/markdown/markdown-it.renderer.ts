@@ -333,8 +333,30 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     // Process internal link
     const processed = this.processInternalLink(href, dataWikilink, dataHref, manifest);
 
-    // Check if link is valid (page exists in manifest)
-    const isValidLink = manifest ? processed.matchedPage !== undefined : true;
+    // Check if link is valid
+    // - If link has data-wikilink attribute, it was created by injectWikilinks and resolved by backend → trust it
+    // - Otherwise, validate against manifest (if available)
+    const isBackendResolvedWikilink = !!dataWikilink && !!href && !href.startsWith('#');
+    const isValidLink =
+      isBackendResolvedWikilink || !manifest || processed.matchedPage !== undefined;
+
+    // Debug logging for specific link
+    if (
+      href?.toLowerCase().includes('sens-et-capacites') ||
+      dataWikilink?.toLowerCase().includes('sens et capacités')
+    ) {
+      this.logger?.debug('Processing link for Sens et capacités', {
+        href,
+        dataWikilink,
+        processedHref: processed.cleanedHref,
+        processedWikilink: processed.cleanedWikilink,
+        hasMatchedPage: processed.matchedPage !== undefined,
+        matchedPageRoute: processed.matchedPage?.route,
+        isBackendResolvedWikilink,
+        isValidLink,
+        manifestPresent: !!manifest,
+      });
+    }
 
     if (!isValidLink) {
       const label = $link.text();
@@ -489,21 +511,56 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     // Normalize base path (remove leading slash for comparison)
     const normalizedPath = basePath.replace(/^\//, '');
 
+    // Debug logging for specific path
+    const isTargetPath = normalizedPath.toLowerCase().includes('sens-et-capacites');
+    if (isTargetPath) {
+      this.logger?.debug('translateToRoutedPathWithValidation called', {
+        originalPath: path,
+        basePath,
+        anchor,
+        normalizedPath,
+        manifestPagesCount: manifest.pages.length,
+      });
+    }
+
     // Find matching page in manifest by comparing normalized paths
     const matchingPage = manifest.pages.find((page) => {
       if (!page.vaultPath) return false;
 
-      // Compare vault paths (normalize both for consistent matching)
+      // Compare both vault paths AND routed paths
       const pageVaultPath = page.vaultPath.replace(/\.md$/i, '').replace(/^\//, '');
       const pageRelativePath = page.relativePath?.replace(/\.md$/i, '').replace(/^\//, '');
+      const pageRoute = page.route.replace(/^\//, '');
 
-      return (
+      const matches =
         pageVaultPath === normalizedPath ||
         pageRelativePath === normalizedPath ||
+        pageRoute === normalizedPath ||
         pageVaultPath.toLowerCase() === normalizedPath.toLowerCase() ||
-        pageRelativePath?.toLowerCase() === normalizedPath.toLowerCase()
-      );
+        pageRelativePath?.toLowerCase() === normalizedPath.toLowerCase() ||
+        pageRoute.toLowerCase() === normalizedPath.toLowerCase();
+
+      if (isTargetPath && page.title?.toLowerCase().includes('sens')) {
+        this.logger?.debug('Comparing with page', {
+          pageTitle: page.title,
+          pageRoute,
+          pageVaultPath,
+          pageRelativePath,
+          normalizedPath,
+          matches,
+        });
+      }
+
+      return matches;
     });
+
+    if (isTargetPath) {
+      this.logger?.debug('translateToRoutedPathWithValidation result', {
+        found: matchingPage !== undefined,
+        matchedPageTitle: matchingPage?.title,
+        matchedPageRoute: matchingPage?.route,
+      });
+    }
 
     if (matchingPage) {
       // Return the full routed path from manifest + anchor
@@ -528,6 +585,36 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
   }
 
   private injectWikilinks(content: string, links: ResolvedWikilink[]): string {
+    // Debug logging for specific wikilink
+    const sensLink = links.find((l) => l.path?.toLowerCase().includes('sens et capacités'));
+    if (sensLink) {
+      const rawIndex = content.indexOf(sensLink.raw);
+      const contextStart = Math.max(0, rawIndex - 50);
+      const contextEnd = Math.min(content.length, rawIndex + sensLink.raw.length + 50);
+
+      this.logger?.debug('Injecting wikilink for Sens et capacités', {
+        raw: sensLink.raw,
+        rawLength: sensLink.raw.length,
+        path: sensLink.path,
+        subpath: sensLink.subpath,
+        alias: sensLink.alias,
+        isResolved: sensLink.isResolved,
+        href: sensLink.href,
+        contentIncludes: content.includes(sensLink.raw),
+        rawIndex,
+        contextBefore: content.substring(contextStart, rawIndex),
+        contextAfter: content.substring(rawIndex + sensLink.raw.length, contextEnd),
+      });
+
+      // Test the replacement
+      const testSplit = content.split(sensLink.raw);
+      this.logger?.debug('Wikilink replacement test', {
+        splitParts: testSplit.length,
+        firstPartEnd: testSplit[0]?.substring(testSplit[0].length - 30),
+        secondPartStart: testSplit[1]?.substring(0, 30),
+      });
+    }
+
     return links.reduce(
       (acc, link) => acc.split(link.raw).join(this.renderWikilink(link)),
       content
@@ -612,6 +699,13 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       // Remove .md extension if present (fallback safety for malformed paths)
       hrefTarget = hrefTarget.replace(/\.md$/i, '');
 
+      // If link has a subpath but href doesn't include it yet, append it
+      // This handles cases where backend provides href without fragment
+      if (link.subpath && !hrefTarget.includes('#')) {
+        const slugifiedSubpath = this.headingSlugger.slugify(link.subpath);
+        hrefTarget = `${hrefTarget}#${slugifiedSubpath}`;
+      }
+
       // Handle heading anchors: [[#Heading]] or [[Page#Heading]]
       // Transform heading text to slug matching markdown-it's behavior
       if (hrefTarget.includes('#')) {
@@ -619,6 +713,16 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
         if (heading) {
           const slug = this.headingSlugger.slugify(heading);
           hrefTarget = path ? `${path}#${slug}` : `#${slug}`;
+
+          // Debug log for specific case
+          if (heading.toLowerCase().includes('vision thermique')) {
+            this.logger?.debug('Slugifying heading in renderWikilink', {
+              originalHref: link.href,
+              originalHeading: heading,
+              slugifiedHeading: slug,
+              finalHrefTarget: hrefTarget,
+            });
+          }
         }
       }
 
