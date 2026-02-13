@@ -1,5 +1,21 @@
 import type { ManifestPage } from './manifest-page';
 
+/**
+ * Represents an asset entry in the manifest with hash for deduplication
+ */
+export interface ManifestAsset {
+  /** Relative path of the asset (e.g., "_assets/image.png") */
+  path: string;
+  /** SHA256 hash of the asset content */
+  hash: string;
+  /** Size in bytes */
+  size: number;
+  /** Detected MIME type */
+  mimeType: string;
+  /** Upload timestamp */
+  uploadedAt: Date;
+}
+
 export interface Manifest {
   sessionId: string;
   createdAt: Date;
@@ -18,6 +34,12 @@ export interface Manifest {
    * Example: { "/old-route": "/new-route", "/legacy-page": "/current-page" }
    */
   canonicalMap?: Record<string, string>;
+
+  /**
+   * Optional array of uploaded assets with hash for deduplication
+   * Enables skipping re-upload of identical files
+   */
+  assets?: ManifestAsset[];
 }
 
 export const defaultManifest: Manifest = {

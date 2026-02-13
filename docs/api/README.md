@@ -20,6 +20,16 @@ Le backend Node.js/Express :
 
 - **[Asset Security](./asset-security.md)** - Validation des assets : détection MIME, limites de taille, scanning antivirus (ClamAV)
 
+### Gestion des assets
+
+- **[Asset Deduplication & Lifecycle Management](./asset-deduplication.md)** - Déduplication par hash SHA256, promotion sélective, cleanup automatique des assets obsolètes
+
+### Déploiement et production
+
+- **[CDN Deployment Guide](./cdn-deployment.md)** - Déploiement avec CDN (Cloudflare, CloudFront, Fastly) : configuration cache, stratégies de purge, optimisation performance
+- **[Thumbnail Generation Guide](./thumbnail-generation-guide.md)** - ⏳ Guide d'implémentation : génération automatique de miniatures, optimisation des images, stratégie de cache (LOW priority, non implémenté)
+- **[Streaming Refactor Guide](./streaming-refactor-guide.md)** - ⏳ Guide d'implémentation : uploads streaming (multipart/form-data), optimisation mémoire, support fichiers volumineux (LOW priority, non implémenté)
+
 ### Rendu de contenu
 
 - **[Link Normalization](./link-normalization.md)** - Normalisation des liens pour uniformité du routing et du style

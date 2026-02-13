@@ -19,13 +19,22 @@ describe('UploadAssetsHandler', () => {
       debug: jest.fn(),
     } as any;
 
-    handler = new UploadAssetsHandler(assetStorage, undefined, undefined, logger);
+    handler = new UploadAssetsHandler(
+      assetStorage,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      logger
+    );
   });
 
   it('should initialize logger with correct child context', () => {
     expect(logger.child).toHaveBeenCalledWith({ handler: 'UploadAssetHandler' });
     expect(logger.debug).toHaveBeenCalledWith('UploadAssetHandler initialized.', {
       hasValidator: false,
+      hasManifest: false,
+      hasHasher: false,
       maxAssetSizeBytes: undefined,
     });
   });

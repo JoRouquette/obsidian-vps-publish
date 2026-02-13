@@ -7,6 +7,7 @@ export * from './errors/asset-scan.error';
 export * from './errors/asset-validation.error';
 export * from './errors/session-error';
 export * from './ports';
+export * from './ports/asset-hash-port';
 export * from './ports/cancellation-port';
 export * from './ports/compression-port';
 export * from './ports/performance-tracker.port';

@@ -22,7 +22,7 @@ describe('Asset Upload Integration - With Validation', () => {
     const storage = new AssetsFileSystemStorage(tmpAssetsRoot);
     // Initialize validator WITHOUT virus scanner for these tests
     const validator = new FileTypeAssetValidator(undefined);
-    handler = new UploadAssetsHandler(storage, validator, maxSizeBytes);
+    handler = new UploadAssetsHandler(storage, undefined, undefined, validator, maxSizeBytes);
   });
 
   afterEach(async () => {

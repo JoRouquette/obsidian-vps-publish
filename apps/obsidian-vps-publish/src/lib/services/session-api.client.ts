@@ -12,6 +12,7 @@ import { requestUrlWithRetry } from '../utils/request-with-retry.util';
 export interface StartSessionResponse {
   sessionId: string;
   maxBytesPerRequest: number;
+  existingAssetHashes?: string[];
 }
 
 export class SessionApiClient {
@@ -83,6 +84,7 @@ export class SessionApiClient {
     return {
       sessionId: parsed.sessionId,
       maxBytesPerRequest: parseLimit(parsed.maxBytesPerRequest),
+      existingAssetHashes: parsed.existingAssetHashes ?? [],
     };
   }
 

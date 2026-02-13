@@ -44,6 +44,7 @@ import { DEFAULT_LOGGER_LEVEL } from './lib/constants/default-logger-level.const
 import { type DataviewApi, DataviewExecutor } from './lib/dataview/dataview-executor';
 import { processDataviewBlocks } from './lib/dataview/process-dataview-blocks.service';
 import { AbortCancellationAdapter } from './lib/infra/abort-cancellation.adapter';
+import { AssetHashService } from './lib/infra/crypto/asset-hash.service';
 import { AssetsUploaderAdapter } from './lib/infra/assets-uploader.adapter';
 import { BackgroundThrottleMonitorAdapter } from './lib/infra/background-throttle-monitor.adapter';
 import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
@@ -815,10 +816,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
       sessionId = started.sessionId;
       const serverRequestLimit = started.maxBytesPerRequest;
+      const existingAssetHashes = started.existingAssetHashes ?? [];
 
       trace.endStep('6-session-start', {
         sessionId,
         maxBytesPerRequest: serverRequestLimit,
+        existingAssetHashesCount: existingAssetHashes.length,
       });
 
       this.logger.debug('Session started', { sessionId, maxBytesPerRequest: serverRequestLimit });
@@ -898,15 +901,18 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
         const uploadAssetsSpan = perfTracker.startSpan('upload-assets');
 
+        const assetHasher = new AssetHashService();
         const assetsVault = new ObsidianAssetsVaultAdapter(this.app, this.logger);
         const assetsUploader = new AssetsUploaderAdapter(
           sessionClient,
           sessionId,
           new GuidGeneratorAdapter(),
+          assetHasher,
           this.logger,
           serverRequestLimit,
           stepProgressManager,
-          settings.maxConcurrentUploads || 3
+          settings.maxConcurrentUploads || 3,
+          existingAssetHashes
         );
 
         const resolvedAssets = await assetsVault.resolveAssetsFromNotes(

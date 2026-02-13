@@ -96,6 +96,7 @@ export function createSessionController(
         sessionId: result.sessionId,
         success: result.success,
         maxBytesPerRequest: BYTES_LIMIT,
+        existingAssetHashes: result.existingAssetHashes ?? [],
       });
     } catch (err) {
       routeLogger?.error('Error while creating session', {

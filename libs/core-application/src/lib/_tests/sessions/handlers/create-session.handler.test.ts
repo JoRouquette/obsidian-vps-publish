@@ -14,7 +14,7 @@ describe('CreateSessionHandler', () => {
     idGenerator = { generateId: jest.fn().mockReturnValue('session-123') } as any;
     sessionRepository = { create: jest.fn() } as any;
     logger = new FakeLogger();
-    handler = new CreateSessionHandler(idGenerator, sessionRepository, logger);
+    handler = new CreateSessionHandler(idGenerator, sessionRepository, undefined, logger);
   });
 
   it('should create a session and return success', async () => {
@@ -49,7 +49,7 @@ describe('CreateSessionHandler', () => {
   });
 
   it('should handle missing logger gracefully', async () => {
-    handler = new CreateSessionHandler(idGenerator, sessionRepository);
+    handler = new CreateSessionHandler(idGenerator, sessionRepository, undefined);
     const command: CreateSessionCommand = {
       notesPlanned: 1,
       assetsPlanned: 1,

@@ -33,6 +33,13 @@
   - **Size limits** reject oversized files before processing (configurable via `MAX_ASSET_SIZE_BYTES`).
   - **Virus scanning** (optional, requires ClamAV daemon) scans uploads via TCP socket.
   - Clean Architecture: ports in `core-domain` (`AssetValidatorPort`, `AssetScannerPort`), implementations in `apps/node/src/infra/` (`FileTypeAssetValidator`, `NoopAssetScanner`, `ClamAVAssetScanner`).
+- Asset deduplication system:
+  - **SHA256-based deduplication** - Identical assets uploaded only once (content hash comparison).
+  - **Selective promotion** - Staging-to-production sync preserves referenced assets, removes obsolete ones.
+  - **Automatic cleanup** - Orphaned assets deleted during session finalization based on manifest.
+  - **Manifest tracking** - Each asset in manifest includes `{ path, hash, size, mimeType, uploadedAt }`.
+  - Clean Architecture: `AssetHashPort` in `core-domain`, `AssetHashService` (SHA256) in `node/infra`, deduplication logic in `UploadAssetsHandler` (application layer).
+  - See [Asset Deduplication](./api/asset-deduplication.md) for detailed workflow and troubleshooting.
 
 ## Frontend (`apps/site`)
 

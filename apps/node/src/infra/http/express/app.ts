@@ -25,6 +25,7 @@ import { ClamAVAssetScanner } from '../../security/clamav-asset-scanner';
 import { NoopAssetScanner } from '../../security/noop-asset-scanner';
 import { SessionFinalizationJobService } from '../../sessions/session-finalization-job.service';
 import { SessionFinalizerService } from '../../sessions/session-finalizer.service';
+import { AssetHashService } from '../../utils/asset-hash.service';
 import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
 import { createHealthCheckController } from './controllers/health-check.controller';
 import { createMaintenanceController } from './controllers/maintenance-controller';
@@ -165,6 +166,8 @@ export function createApp(rootLogger?: LoggerPort) {
     new NotesFileSystemStorage(stagingManager.contentStagingPath(sessionId), rootLogger);
   const manifestFileSystem = (sessionId: string) =>
     new ManifestFileSystem(stagingManager.contentStagingPath(sessionId), rootLogger);
+  // Production manifest (for reading existing asset hashes in CreateSessionHandler)
+  const productionManifest = new ManifestFileSystem(EnvConfig.contentRoot(), rootLogger);
   const assetStorage = (sessionId: string) =>
     new AssetsFileSystemStorage(stagingManager.assetsStagingPath(sessionId), rootLogger);
   const sessionRepository = new FileSystemSessionRepository(EnvConfig.contentRoot());
@@ -190,14 +193,22 @@ export function createApp(rootLogger?: LoggerPort) {
     : new NoopAssetScanner(rootLogger);
 
   const assetValidator = new FileTypeAssetValidator(assetScanner, rootLogger);
+  const assetHasher = new AssetHashService();
   const maxAssetSizeBytes = EnvConfig.maxAssetSizeBytes();
   const uploadAssetsHandler = new UploadAssetsHandler(
     assetStorage,
+    manifestFileSystem,
+    assetHasher,
     assetValidator,
     maxAssetSizeBytes,
     rootLogger
   );
-  const createSessionHandler = new CreateSessionHandler(idGenerator, sessionRepository, rootLogger);
+  const createSessionHandler = new CreateSessionHandler(
+    idGenerator,
+    sessionRepository,
+    productionManifest,
+    rootLogger
+  );
   const finishSessionHandler = new FinishSessionHandler(sessionRepository, rootLogger);
   const abortSessionHandler = new AbortSessionHandler(sessionRepository, rootLogger);
   const sessionFinalizer = new SessionFinalizerService(
