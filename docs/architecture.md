@@ -27,6 +27,12 @@
   - `API_KEY` (required), `ALLOWED_ORIGINS`, `LOGGER_LEVEL`, `PORT`, `NODE_ENV`.
   - Roots: `CONTENT_ROOT` (rendered HTML + `_manifest.json`, default `/content`), `ASSETS_ROOT` (default `/assets`), `UI_ROOT` (default `/ui`).
   - Metadata: `SITE_NAME`, `AUTHOR`, `REPO_URL`, `REPORT_ISSUES_URL`.
+  - Asset security: `MAX_ASSET_SIZE_BYTES` (default 10MB), `VIRUS_SCANNER_ENABLED` (default false), `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_TIMEOUT` (see [Asset Security](./api/asset-security.md)).
+- Asset validation pipeline:
+  - **MIME detection** via file-type library (magic bytes) prevents spoofing attacks.
+  - **Size limits** reject oversized files before processing (configurable via `MAX_ASSET_SIZE_BYTES`).
+  - **Virus scanning** (optional, requires ClamAV daemon) scans uploads via TCP socket.
+  - Clean Architecture: ports in `core-domain` (`AssetValidatorPort`, `AssetScannerPort`), implementations in `apps/node/src/infra/` (`FileTypeAssetValidator`, `NoopAssetScanner`, `ClamAVAssetScanner`).
 
 ## Frontend (`apps/site`)
 

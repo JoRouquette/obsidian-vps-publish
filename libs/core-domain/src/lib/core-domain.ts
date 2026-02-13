@@ -3,6 +3,7 @@ export * from './entities';
 export * from './entities/chunked-data';
 export * from './entities/publishing-context';
 export * from './entities/publishing-stats';
+export * from './errors/asset-scan.error';
 export * from './errors/asset-validation.error';
 export * from './errors/session-error';
 export * from './ports';

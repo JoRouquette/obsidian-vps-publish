@@ -1,4 +1,6 @@
 import {
+  AssetScanError,
+  type AssetScannerPort,
   AssetValidationError,
   type AssetValidationResult,
   type AssetValidatorPort,
@@ -9,9 +11,13 @@ import { fileTypeFromBuffer } from 'file-type';
 /**
  * Asset validator that detects real MIME types from file bytes using file-type library.
  * Prevents MIME spoofing attacks by not trusting client-provided MIME types.
+ * Optionally scans for viruses using an injected AssetScannerPort.
  */
 export class FileTypeAssetValidator implements AssetValidatorPort {
-  constructor(private readonly logger?: LoggerPort) {}
+  constructor(
+    private readonly assetScanner?: AssetScannerPort,
+    private readonly logger?: LoggerPort
+  ) {}
 
   async validate(
     buffer: Buffer | Uint8Array,
@@ -73,6 +79,45 @@ export class FileTypeAssetValidator implements AssetValidatorPort {
       });
       // If we wanted strict mode, we would throw here:
       // throw new AssetValidationError(`MIME mismatch: client=${clientMimeType}, detected=${detectedMimeType}`, filename, 'MIME_MISMATCH');
+    }
+
+    // Check 4: Virus scan (if scanner is configured)
+    if (this.assetScanner) {
+      try {
+        const scanResult = await this.assetScanner.scan(buffer, filename);
+
+        if (!scanResult.isClean) {
+          const errorMsg = `Asset failed virus scan: ${scanResult.threat || 'unknown threat'}`;
+          this.logger?.error('Asset failed virus scan', {
+            filename,
+            threat: scanResult.threat,
+          });
+          throw new AssetValidationError(errorMsg, filename, 'INVALID_CONTENT');
+        }
+
+        this.logger?.debug('Asset passed virus scan', {
+          filename,
+          scanDurationMs: scanResult.metadata?.scanDurationMs,
+        });
+      } catch (error) {
+        // Re-throw AssetScanError (virus detected by scanner)
+        if (error instanceof AssetScanError) {
+          throw error;
+        }
+
+        // Re-throw AssetValidationError (scan failed with validation error)
+        if (error instanceof AssetValidationError) {
+          throw error;
+        }
+
+        // Log other errors but don't fail validation if scanner is misconfigured
+        this.logger?.error('Virus scan failed with error (validation continues)', {
+          filename,
+          error,
+        });
+        // In production, you might want to FAIL if scanner is enabled but not working
+        // For now, we log and continue (fail-open approach)
+      }
     }
 
     return {

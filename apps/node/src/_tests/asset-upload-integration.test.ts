@@ -20,7 +20,8 @@ describe('Asset Upload Integration - With Validation', () => {
   beforeEach(async () => {
     tmpAssetsRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'assets-upload-test-'));
     const storage = new AssetsFileSystemStorage(tmpAssetsRoot);
-    const validator = new FileTypeAssetValidator();
+    // Initialize validator WITHOUT virus scanner for these tests
+    const validator = new FileTypeAssetValidator(undefined);
     handler = new UploadAssetsHandler(storage, validator, maxSizeBytes);
   });
 

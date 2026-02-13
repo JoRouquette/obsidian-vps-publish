@@ -12,7 +12,8 @@ describe('FileTypeAssetValidator - MIME Detection & Size Limits', () => {
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'asset-validation-'));
-    validator = new FileTypeAssetValidator();
+    // Initialize validator WITHOUT scanner for these tests (focused on MIME + size only)
+    validator = new FileTypeAssetValidator(undefined);
   });
 
   afterEach(() => {

@@ -21,6 +21,8 @@ import { StagingManager } from '../../filesystem/staging-manager';
 import { UuidIdGenerator } from '../../id/uuid-id.generator';
 import { CalloutRendererService } from '../../markdown/callout-renderer.service';
 import { MarkdownItRenderer } from '../../markdown/markdown-it.renderer';
+import { ClamAVAssetScanner } from '../../security/clamav-asset-scanner';
+import { NoopAssetScanner } from '../../security/noop-asset-scanner';
 import { SessionFinalizationJobService } from '../../sessions/session-finalization-job.service';
 import { SessionFinalizerService } from '../../sessions/session-finalizer.service';
 import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
@@ -174,7 +176,20 @@ export function createApp(rootLogger?: LoggerPort) {
     rootLogger,
     sessionNotesStorage
   );
-  const assetValidator = new FileTypeAssetValidator(rootLogger);
+
+  // Initialize asset scanner (Noop by default, ClamAV if enabled)
+  const assetScanner = EnvConfig.virusScannerEnabled()
+    ? new ClamAVAssetScanner(
+        {
+          host: EnvConfig.clamavHost(),
+          port: EnvConfig.clamavPort(),
+          timeout: EnvConfig.clamavTimeout(),
+        },
+        rootLogger
+      )
+    : new NoopAssetScanner(rootLogger);
+
+  const assetValidator = new FileTypeAssetValidator(assetScanner, rootLogger);
   const maxAssetSizeBytes = EnvConfig.maxAssetSizeBytes();
   const uploadAssetsHandler = new UploadAssetsHandler(
     assetStorage,

@@ -31,6 +31,10 @@ jest.mock('../infra/config/env-config', () => ({
     maxActiveRequests: jest.fn(() => 100),
     maxConcurrentFinalizationJobs: jest.fn(() => 3),
     maxAssetSizeBytes: jest.fn(() => 10 * 1024 * 1024), // 10MB
+    virusScannerEnabled: jest.fn(() => false), // Disable scanner in tests
+    clamavHost: jest.fn(() => 'localhost'),
+    clamavPort: jest.fn(() => 3310),
+    clamavTimeout: jest.fn(() => 10000),
   },
 }));
 
