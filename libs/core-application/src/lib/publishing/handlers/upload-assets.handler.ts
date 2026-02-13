@@ -1,4 +1,4 @@
-import { type LoggerPort } from '@core-domain';
+import { type AssetValidatorPort, type LoggerPort } from '@core-domain';
 
 import { type CommandHandler } from '../../common/command-handler';
 import {
@@ -17,12 +17,17 @@ export class UploadAssetsHandler implements CommandHandler<
 
   constructor(
     private readonly assetStorage: AssetStoragePort | AssetStorageFactory,
+    private readonly assetValidator?: AssetValidatorPort,
+    private readonly maxAssetSizeBytes?: number,
     logger?: LoggerPort
   ) {
     this._logger = logger?.child({
       handler: 'UploadAssetHandler',
     });
-    this._logger?.debug('UploadAssetHandler initialized.');
+    this._logger?.debug('UploadAssetHandler initialized.', {
+      hasValidator: !!assetValidator,
+      maxAssetSizeBytes,
+    });
   }
 
   async handle(command: UploadAssetsCommand): Promise<UploadAssetsResult> {
@@ -45,6 +50,26 @@ export class UploadAssetsHandler implements CommandHandler<
         batch.map(async (asset) => {
           const filename = asset.relativePath || asset.fileName;
           const content = this.decodeBase64(asset.contentBase64);
+
+          // Validate asset (size + real MIME detection) if validator is configured
+          if (this.assetValidator) {
+            const validationResult = await this.assetValidator.validate(
+              content,
+              filename,
+              asset.mimeType,
+              this.maxAssetSizeBytes
+            );
+
+            // Replace client MIME with detected MIME for security
+            asset.mimeType = validationResult.detectedMimeType;
+
+            this._logger?.debug('Asset validated', {
+              filename,
+              sizeBytes: validationResult.sizeBytes,
+              detectedMimeType: validationResult.detectedMimeType,
+            });
+          }
+
           await storage.save([{ filename, content }]);
           return filename;
         })

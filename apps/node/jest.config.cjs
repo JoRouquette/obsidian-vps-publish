@@ -17,6 +17,11 @@ module.exports = {
     prefix: '<rootDir>/../../',
   }),
 
+  transformIgnorePatterns: [
+    // Transform file-type (ESM module) instead of ignoring it
+    'node_modules/(?!(file-type|strtok3|token-types|peek-readable)/)',
+  ],
+
   moduleFileExtensions: ['ts', 'js', 'html'],
 
   coverageDirectory: '../../coverage/apps/node',

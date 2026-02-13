@@ -1,3 +1,4 @@
+export * from './asset-validator-port';
 export * from './assets-vault-port';
 export * from './custom-index-resolver-port';
 export * from './dataview-processor-port';

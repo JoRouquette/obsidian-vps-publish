@@ -23,6 +23,7 @@ import { CalloutRendererService } from '../../markdown/callout-renderer.service'
 import { MarkdownItRenderer } from '../../markdown/markdown-it.renderer';
 import { SessionFinalizationJobService } from '../../sessions/session-finalization-job.service';
 import { SessionFinalizerService } from '../../sessions/session-finalizer.service';
+import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
 import { createHealthCheckController } from './controllers/health-check.controller';
 import { createMaintenanceController } from './controllers/maintenance-controller';
 import { createPingController } from './controllers/ping.controller';
@@ -173,7 +174,14 @@ export function createApp(rootLogger?: LoggerPort) {
     rootLogger,
     sessionNotesStorage
   );
-  const uploadAssetsHandler = new UploadAssetsHandler(assetStorage, rootLogger);
+  const assetValidator = new FileTypeAssetValidator(rootLogger);
+  const maxAssetSizeBytes = EnvConfig.maxAssetSizeBytes();
+  const uploadAssetsHandler = new UploadAssetsHandler(
+    assetStorage,
+    assetValidator,
+    maxAssetSizeBytes,
+    rootLogger
+  );
   const createSessionHandler = new CreateSessionHandler(idGenerator, sessionRepository, rootLogger);
   const finishSessionHandler = new FinishSessionHandler(sessionRepository, rootLogger);
   const abortSessionHandler = new AbortSessionHandler(sessionRepository, rootLogger);

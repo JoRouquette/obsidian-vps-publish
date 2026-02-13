@@ -87,6 +87,15 @@ export class EnvConfig {
   }
 
   /**
+   * Maximum allowed asset size in bytes.
+   * Default: 10MB (10 * 1024 * 1024 bytes)
+   */
+  static maxAssetSizeBytes(): number {
+    const val = Number(this.norm(process.env.MAX_ASSET_SIZE_BYTES));
+    return Number.isFinite(val) && val > 0 ? val : 10 * 1024 * 1024;
+  }
+
+  /**
    * Base URL for the public site (used for SEO: sitemap, canonical URLs)
    * Example: https://example.com
    */
