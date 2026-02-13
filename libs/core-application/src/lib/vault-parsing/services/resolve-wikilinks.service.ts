@@ -103,7 +103,7 @@ export class ResolveWikilinksService implements BaseService {
     const slugFile = this.basename(slugPath);
     const titleSlug = this.slugifySegment(note.title);
 
-    return this.normalizeKeys([
+    const keys = this.normalizeKeys([
       normalizedPath,
       withoutExt,
       fileName,
@@ -112,6 +112,19 @@ export class ResolveWikilinksService implements BaseService {
       slugFile,
       titleSlug,
     ]);
+
+    // Debug logging for specific note
+    if (note.relativePath.includes('Sens et capacités')) {
+      this._logger.debug('Building note keys for target note', {
+        relativePath: note.relativePath,
+        title: note.title,
+        hasRouting: note.routing !== undefined,
+        routingPath: note.routing?.fullPath,
+        generatedKeys: keys,
+      });
+    }
+
+    return keys;
   }
 
   private buildLinkKeys(target: string): string[] {
@@ -123,7 +136,7 @@ export class ResolveWikilinksService implements BaseService {
     const slugPath = this.slugifyPath(withoutExt);
     const slugFile = this.basename(slugPath);
 
-    return this.normalizeKeys([
+    const keys = this.normalizeKeys([
       normalized,
       withMd,
       withoutExt,
@@ -133,6 +146,16 @@ export class ResolveWikilinksService implements BaseService {
       slugFile,
       this.slugifySegment(target),
     ]);
+
+    // Debug logging for specific target
+    if (target.toLowerCase().includes('sens et capacités')) {
+      this._logger.debug('Building link keys for wikilink', {
+        target,
+        generatedKeys: keys,
+      });
+    }
+
+    return keys;
   }
 
   private normalizeKeys(keys: string[]): string[] {
@@ -151,9 +174,29 @@ export class ResolveWikilinksService implements BaseService {
     for (const key of candidates) {
       const note = lookup.get(key);
       if (note) {
+        // Debug logging for specific target
+        if (target.toLowerCase().includes('sens et capacités')) {
+          this._logger.debug('Found target note match', {
+            target,
+            matchedKey: key,
+            noteTitle: note.title,
+            noteRelativePath: note.relativePath,
+            hasRouting: note.routing !== undefined,
+          });
+        }
         return note;
       }
     }
+
+    // Debug logging when target not found
+    if (target.toLowerCase().includes('sens et capacités')) {
+      this._logger.warn('Target note NOT found in lookup', {
+        target,
+        attemptedKeys: candidates,
+        lookupSize: lookup.size,
+      });
+    }
+
     return undefined;
   }
 

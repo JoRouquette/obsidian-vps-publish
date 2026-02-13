@@ -134,6 +134,60 @@ describe('ValidateLinksService', () => {
       expect(fixedHtml).toContain('<a href="#section">Section</a>');
     });
 
+    it('should preserve links with fragments to valid pages', async () => {
+      const manifest = createMockManifest();
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <p>Link to section: <a href="/mundis/ektaron#history">History of Ektaron</a></p>
+              <p>Another link: <a href="/lore/classes/barbarian#abilities">Barbarian Abilities</a></p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const htmlPath = path.join(tempDir, 'test.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      const result = await service.validateAllLinks(tempDir, manifest);
+
+      // Links are valid (base path exists in manifest), so they should be preserved with fragments
+      expect(result.filesModified).toBe(0); // No modifications needed (already valid)
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      expect(fixedHtml).toContain('<a href="/mundis/ektaron#history">History of Ektaron</a>');
+      expect(fixedHtml).toContain(
+        '<a href="/lore/classes/barbarian#abilities">Barbarian Abilities</a>'
+      );
+      expect(fixedHtml).not.toContain('wikilink-unresolved');
+    });
+
+    it('should invalidate links with fragments to invalid pages', async () => {
+      const manifest = createMockManifest();
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <p>Link to unknown page: <a href="/invalid/page#section">Invalid Section</a></p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const htmlPath = path.join(tempDir, 'test.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      await service.validateAllLinks(tempDir, manifest);
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      expect(fixedHtml).toContain('class="wikilink wikilink-unresolved"');
+      expect(fixedHtml).toContain('title="Page inconnue : Invalid Section"');
+      expect(fixedHtml).not.toContain('<a href="/invalid/page#section"');
+    });
+
     it('should preserve external URLs', async () => {
       const manifest = createMockManifest();
 

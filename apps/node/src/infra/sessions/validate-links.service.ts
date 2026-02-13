@@ -141,13 +141,19 @@ export class ValidateLinksService {
         return;
       }
 
+      // Extract the base path without fragment for validation
+      // e.g., "/page#section" → "/page", but keep the fragment to preserve it if valid
+      const [basePath, fragment] = href.split('#');
+      const hrefToValidate = basePath || href;
+
       // Try to resolve the link against the manifest
-      const resolved = this.resolveLinkPath(href, pathMap);
+      const resolved = this.resolveLinkPath(hrefToValidate, pathMap);
 
       if (resolved) {
-        // Valid link - update href to use proper routed path
-        if ($el.attr('href') !== resolved.route) {
-          $el.attr('href', resolved.route);
+        // Valid link - update href to use proper routed path, preserving fragment if present
+        const correctHref = fragment ? `${resolved.route}#${fragment}` : resolved.route;
+        if ($el.attr('href') !== correctHref) {
+          $el.attr('href', correctHref);
           linksTransformed++;
         }
       } else {

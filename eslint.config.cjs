@@ -16,6 +16,7 @@ const ignoreConfig = {
     '**/*.d.ts',
     '**/e2e/**',
     '**/playwright.config.ts',
+    'test-vault/**',
   ],
 };
 

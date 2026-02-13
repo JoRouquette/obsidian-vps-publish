@@ -1,6 +1,7 @@
 <mat-form-field appearance="outline" class="search-field">
   <mat-icon matPrefix class="search-ico">search</mat-icon>
   <input
+    #searchInput
     matInput
     [type]="type"
     [placeholder]="placeholder"
@@ -11,6 +12,18 @@
     spellcheck="false"
     aria-label="Rechercher"
   />
+  @if (value.length > 0) {
+    <button
+      matSuffix
+      mat-icon-button
+      (click)="clear()"
+      aria-label="Effacer la recherche"
+      type="button"
+      class="clear-btn"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+  }
   @if (showSubmitButton) {
     <button
       matSuffix

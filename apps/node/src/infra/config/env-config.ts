@@ -15,7 +15,16 @@ export class EnvConfig {
   }
 
   static apiKey(): string {
-    return this.norm(process.env.API_KEY) || 'devkeylocal';
+    const key = this.norm(process.env.API_KEY);
+    if (key) return key;
+
+    // En développement ou tests, retourne une clé par défaut
+    const env = this.nodeEnv();
+    if (env === 'development' || env === 'test') {
+      return 'devkeylocal';
+    }
+
+    throw new Error('API_KEY is not set in environment variables');
   }
 
   static uiRoot(): string {
@@ -82,6 +91,11 @@ export class EnvConfig {
    * Example: https://example.com
    */
   static baseUrl(): string {
-    return this.norm(process.env.BASE_URL) || 'http://localhost:4200';
+    return (
+      this.norm(process.env.BASE_URL) ||
+      (() => {
+        throw new Error('BASE_URL is not set in environment variables');
+      })()
+    );
   }
 }

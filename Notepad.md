@@ -1,8 +1,11 @@
 # ToDo list
 
-- Ajout de l'inclusion des wikilinks vers header comme `[[Sens et capacités#Vision thermique|vision thermique]]`. Utiliser les frangments d'url Angular.
-- Amélioration de l'ergonomie : vault explorer clear filter
 - Site web PWA
+
+## Corriger les erreurs console angular
+
+1. NG0751: Angular has detected that this application contains `@defer` blocks and the hot module replacement (HMR) mode is enabled. All `@defer` block dependencies will be loaded eagerly. Find more at https://v20.angular.dev/errors/NG0751
+2. tree.mjs:481 Tree is using conflicting node types which can cause unexpected behavior. Please use tree nodes of the same type (e.g. only flat or only nested). Current node type: "nested", new node type "flat".
 
 ## Prompt de refactorisation
 
