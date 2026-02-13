@@ -148,4 +148,38 @@ test.describe('Vault Explorer', () => {
       expect(newWidth).not.toBe(initialWidth);
     }
   });
+
+  test('should clear filter when clicking clear button', async ({ page }) => {
+    const menuButton = page.getByRole('button', { name: /menu/i });
+    await menuButton.click();
+
+    await page.waitForSelector('[data-testid="vault-explorer"]');
+
+    // Locate the search input
+    const searchInput = page.locator('.search-field input[type="search"]').first();
+    await expect(searchInput).toBeVisible();
+
+    // Type a search query
+    await searchInput.fill('test-query');
+    await page.waitForTimeout(300); // Debounce
+
+    // Verify value is set
+    await expect(searchInput).toHaveValue('test-query');
+
+    // Clear button should appear
+    const clearButton = page.locator('.search-field button[aria-label="Effacer la recherche"]');
+    await expect(clearButton).toBeVisible();
+
+    // Click clear button
+    await clearButton.click();
+
+    // Value should be empty
+    await expect(searchInput).toHaveValue('');
+
+    // Clear button should disappear
+    await expect(clearButton).not.toBeVisible();
+
+    // Input should still be focused
+    await expect(searchInput).toBeFocused();
+  });
 });

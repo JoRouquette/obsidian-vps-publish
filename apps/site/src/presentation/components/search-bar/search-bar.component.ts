@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -20,6 +20,8 @@ export class SearchBarComponent {
   @Output() readonly queryChange = new EventEmitter<string>();
   @Output() readonly searchSubmit = new EventEmitter<string>();
 
+  @ViewChild('searchInput') searchInput?: ElementRef<HTMLInputElement>;
+
   onInput(event: Event) {
     const val = (event.target as HTMLInputElement).value ?? '';
     this.value = val;
@@ -36,5 +38,7 @@ export class SearchBarComponent {
   clear() {
     this.value = '';
     this.queryChange.emit('');
+    // Remettre le focus sur l'input après clear
+    this.searchInput?.nativeElement.focus();
   }
 }
