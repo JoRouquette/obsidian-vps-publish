@@ -3,6 +3,7 @@ import {
   type LoggerPort,
   type Manifest,
   type ManifestPage,
+  type NoteHashPort,
   type PublishableNote,
   type ResolvedWikilink,
   Slug,
@@ -33,7 +34,8 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     private readonly manifestStorage: ManifestPort | ManifestStorageFactory,
     logger?: LoggerPort,
     private readonly notesStorage?: SessionNotesStoragePort,
-    private readonly ignoredTags?: string[]
+    private readonly ignoredTags?: string[],
+    private readonly noteHashService?: NoteHashPort
   ) {
     this.logger = logger?.child({ handler: 'UploadNotesHandler' });
   }
@@ -122,33 +124,59 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     const published = succeeded.length;
 
     if (succeeded.length > 0) {
-      const pages: ManifestPage[] = succeeded.map((n) => {
-        try {
-          return {
-            id: n.noteId,
-            title: n.title,
-            route: n.routing.fullPath,
-            slug: Slug.from(n.routing.slug),
-            publishedAt: n.publishedAt,
-            vaultPath: n.vaultPath,
-            relativePath: n.relativePath,
-            tags: n.frontmatter.tags ?? [],
-            leafletBlocks: n.leafletBlocks,
-          };
-        } catch (err) {
-          logger?.error('Invalid slug for note', {
-            noteId: n.noteId,
-            title: n.title,
-            vaultPath: n.vaultPath,
-            slug: n.routing.slug,
-            fullPath: n.routing.fullPath,
-            error: err instanceof Error ? err.message : 'Unknown error',
-          });
-          throw new Error(
-            `Invalid slug "${n.routing.slug}" for note "${n.vaultPath}": ${err instanceof Error ? err.message : 'Unknown error'}`
-          );
-        }
-      });
+      // Compute source hashes in parallel if noteHashService is available
+      const pages: ManifestPage[] = await Promise.all(
+        succeeded.map(async (n) => {
+          try {
+            // Compute source hash and size if hash service available
+            let sourceHash: string | undefined;
+            let sourceSize: number | undefined;
+
+            if (this.noteHashService && n.content) {
+              try {
+                sourceHash = await this.noteHashService.computeHash(n.content);
+                sourceSize = Buffer.byteLength(n.content, 'utf8');
+                logger?.debug('Computed source hash for note', {
+                  route: n.routing.fullPath,
+                  hash: sourceHash,
+                  size: sourceSize,
+                });
+              } catch (hashErr) {
+                logger?.warn('Failed to compute source hash for note', {
+                  route: n.routing.fullPath,
+                  error: hashErr,
+                });
+              }
+            }
+
+            return {
+              id: n.noteId,
+              title: n.title,
+              route: n.routing.fullPath,
+              slug: Slug.from(n.routing.slug),
+              publishedAt: n.publishedAt,
+              vaultPath: n.vaultPath,
+              relativePath: n.relativePath,
+              tags: n.frontmatter.tags ?? [],
+              leafletBlocks: n.leafletBlocks,
+              sourceHash,
+              sourceSize,
+            };
+          } catch (err) {
+            logger?.error('Invalid slug for note', {
+              noteId: n.noteId,
+              title: n.title,
+              vaultPath: n.vaultPath,
+              slug: n.routing.slug,
+              fullPath: n.routing.fullPath,
+              error: err instanceof Error ? err.message : 'Unknown error',
+            });
+            throw new Error(
+              `Invalid slug "${n.routing.slug}" for note "${n.vaultPath}": ${err instanceof Error ? err.message : 'Unknown error'}`
+            );
+          }
+        })
+      );
 
       pages.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
 

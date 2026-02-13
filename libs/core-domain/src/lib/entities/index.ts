@@ -24,6 +24,7 @@ export * from './note-ignored-by-rule';
 export * from './note-routing-info';
 export * from './note-with-assets';
 export * from './note-with-wikilinks';
+export * from './pipeline-signature';
 export * from './plugin-locale';
 export * from './progress-step';
 export * from './publish-plugin-settings';

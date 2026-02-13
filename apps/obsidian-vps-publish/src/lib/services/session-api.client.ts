@@ -13,6 +13,8 @@ export interface StartSessionResponse {
   sessionId: string;
   maxBytesPerRequest: number;
   existingAssetHashes?: string[];
+  existingNoteHashes?: Record<string, string>;
+  pipelineChanged?: boolean;
 }
 
 export class SessionApiClient {
@@ -62,6 +64,7 @@ export class SessionApiClient {
     customIndexConfigs?: CustomIndexConfig[];
     ignoredTags?: string[];
     folderDisplayNames?: Record<string, string>;
+    pipelineSignature?: { version: string; renderSettingsHash: string };
   }): Promise<StartSessionResponse> {
     const result = await this.postJson('/api/session/start', {
       notesPlanned: payload.notesPlanned,
@@ -71,6 +74,7 @@ export class SessionApiClient {
       customIndexConfigs: payload.customIndexConfigs ?? [],
       ignoredTags: payload.ignoredTags ?? [],
       folderDisplayNames: payload.folderDisplayNames ?? {},
+      pipelineSignature: payload.pipelineSignature,
     });
 
     if (result.isError) {
@@ -85,6 +89,8 @@ export class SessionApiClient {
       sessionId: parsed.sessionId,
       maxBytesPerRequest: parseLimit(parsed.maxBytesPerRequest),
       existingAssetHashes: parsed.existingAssetHashes ?? [],
+      existingNoteHashes: parsed.existingNoteHashes ?? {},
+      pipelineChanged: parsed.pipelineChanged,
     };
   }
 
@@ -150,7 +156,11 @@ export class SessionApiClient {
 
   async finishSession(
     sessionId: string,
-    payload: { notesProcessed: number; assetsProcessed: number }
+    payload: {
+      notesProcessed: number;
+      assetsProcessed: number;
+      allCollectedRoutes?: string[]; // PHASE 6.1: detect deleted pages
+    }
   ): Promise<void> {
     const result = await this.postJson(`/api/session/${sessionId}/finish`, payload);
     if (result.isError) {

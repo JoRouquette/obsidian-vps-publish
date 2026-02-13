@@ -1,4 +1,5 @@
 import type { ManifestPage } from './manifest-page';
+import type { PipelineSignature } from './pipeline-signature';
 
 /**
  * Represents an asset entry in the manifest with hash for deduplication
@@ -40,6 +41,13 @@ export interface Manifest {
    * Enables skipping re-upload of identical files
    */
   assets?: ManifestAsset[];
+
+  /**
+   * Signature of the rendering pipeline configuration
+   * Used to detect when pipeline settings change (version, renderSettingsHash)
+   * When signature changes, all notes must be re-rendered
+   */
+  pipelineSignature?: PipelineSignature;
 }
 
 export const defaultManifest: Manifest = {

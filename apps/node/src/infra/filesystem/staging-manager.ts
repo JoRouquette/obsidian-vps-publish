@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { type LoggerPort, type Manifest } from '@core-domain';
+import { type LoggerPort, type Manifest, type ManifestPage } from '@core-domain';
 import { Mutex } from 'async-mutex';
 
 /**
@@ -32,56 +32,190 @@ export class StagingManager {
   }
 
   /**
-   * Promotes staged content to production with selective asset synchronization.
-   * Content is fully replaced, but assets are synchronized based on manifest:
-   * - New assets from staging are copied
-   * - Existing assets referenced in manifest are preserved
-   * - Obsolete assets not in manifest are deleted (cleanup)
+   * Promotes staged content to production with manifest merge and selective synchronization.
+   *
+   * Key features:
+   * - Manifest merge: staging pages + unchanged production pages (inter-publication deduplication)
+   * - HTML cleanup: deleted pages' HTML files are removed
+   * - Asset sync: new assets copied, referenced assets kept, obsolete deleted
+   * - Pipeline signature: updated from session or staging manifest
    *
    * CRITICAL: Mutex protects the entire promotion sequence to prevent race conditions.
-   * Without mutex, concurrent promotions could interleave operations:
-   * - Session A clears content, Session B clears (overwrites A's partial copy)
-   * - Session A copies files while Session B clears (corrupted state)
    *
-   * The promotion is atomic per-session but serialized across sessions.
+   * @param sessionId - Session identifier
+   * @param allCollectedRoutes - All routes collected from vault (PHASE 6.1), used to detect deleted pages
+   * @param pipelineSignature - Pipeline signature from session (PHASE 7 fix)
    */
-  async promoteSession(sessionId: string): Promise<void> {
+  async promoteSession(
+    sessionId: string,
+    allCollectedRoutes?: string[],
+    pipelineSignature?: unknown
+  ): Promise<void> {
     const stagingContent = this.contentStagingPath(sessionId);
     const stagingAssets = this.assetsStagingPath(sessionId);
 
     await fs.mkdir(stagingContent, { recursive: true });
     await fs.mkdir(stagingAssets, { recursive: true });
 
-    this.logger?.debug('Promoting staged content with selective asset sync', {
+    this.logger?.debug('Promoting staged content with manifest merge', {
       sessionId,
       stagingContent,
       stagingAssets,
-    });
-
-    // Load manifest from staging to get list of referenced assets
-    const manifest = await this.loadManifestFromStaging(sessionId);
-    const referencedAssetPaths = new Set<string>(
-      manifest?.assets?.map((asset) => asset.path) ?? []
-    );
-
-    this.logger?.debug('Manifest loaded from staging', {
-      sessionId,
-      referencedAssetsCount: referencedAssetPaths.size,
+      allCollectedRoutesCount: allCollectedRoutes?.length,
     });
 
     // CRITICAL SECTION: Entire promotion must be atomic (mutex protected)
-    // Prevents race conditions from concurrent session promotions
     await this.promotionMutex.runExclusive(async () => {
       this.logger?.debug('Acquired promotion mutex, starting atomic promotion', { sessionId });
 
-      // Step 1: Clear production content (preserves .staging)
-      await this.clearRootExcept(this.contentRoot, ['.staging']);
+      // Step 1: Load manifests BEFORE any filesystem operations
+      const productionManifest = await this.loadManifestFromProduction();
+      const stagingManifest = await this.loadManifestFromStaging(sessionId);
 
-      // Step 2: Synchronize assets (copy new, keep referenced, delete obsolete)
-      await this.synchronizeAssets(stagingAssets, referencedAssetPaths);
+      if (!stagingManifest) {
+        throw new Error(`Staging manifest not found for session ${sessionId}`);
+      }
 
-      // Step 3: Copy staged content to production
+      // Step 2: Build final manifest with merged pages
+      const stagingRoutes = new Set(stagingManifest.pages.map((p) => p.route));
+
+      // Keep production pages whose routes are NOT in staging (unchanged notes)
+      // PHASE 6.1: If allCollectedRoutes provided, also filter by presence in vault
+      let unchangedPages: ManifestPage[] = [];
+
+      if (allCollectedRoutes) {
+        const collectedRoutesSet = new Set(allCollectedRoutes);
+        // Only keep production pages that are:
+        // 1. NOT in staging (not modified)
+        // 2. Still present in vault (in allCollectedRoutes)
+        unchangedPages =
+          productionManifest?.pages.filter(
+            (p) => !stagingRoutes.has(p.route) && collectedRoutesSet.has(p.route)
+          ) ?? [];
+      } else {
+        // Fallback: keep all production pages not in staging (conservative)
+        unchangedPages = productionManifest?.pages.filter((p) => !stagingRoutes.has(p.route)) ?? [];
+      }
+
+      const finalManifest: Manifest = {
+        ...stagingManifest,
+        pages: [
+          ...stagingManifest.pages, // New/updated pages from staging
+          ...unchangedPages, // Unchanged pages from production
+        ],
+        // Update pipelineSignature from session or staging (PHASE 7 fix)
+        pipelineSignature: (pipelineSignature ?? stagingManifest.pipelineSignature) as any,
+      };
+
+      this.logger?.debug('Manifest merge prepared', {
+        sessionId,
+        stagingPages: stagingManifest.pages.length,
+        unchangedPages: unchangedPages.length,
+        finalPages: finalManifest.pages.length,
+      });
+
+      // Step 3: Detect deleted pages (PHASE 6.1: using allCollectedRoutes if available)
+      const finalRoutes = new Set(finalManifest.pages.map((p) => p.route));
+      let deletedPages: ManifestPage[] = [];
+
+      if (allCollectedRoutes) {
+        // PHASE 6.1: Use allCollectedRoutes to detect deleted pages
+        // Deleted pages are in production but NOT in allCollectedRoutes (vault)
+        const collectedRoutesSet = new Set(allCollectedRoutes);
+        deletedPages =
+          productionManifest?.pages.filter((p) => !collectedRoutesSet.has(p.route)) ?? [];
+        this.logger?.debug('Deleted pages detection (using allCollectedRoutes)', {
+          productionPages: productionManifest?.pages.length,
+          collectedRoutes: allCollectedRoutes.length,
+          deletedPages: deletedPages.length,
+        });
+      } else {
+        // Fallback: deleted pages = in production but not in final
+        // This is conservative (treats skipped notes as unchanged, not deleted)
+        deletedPages = productionManifest?.pages.filter((p) => !finalRoutes.has(p.route)) ?? [];
+        this.logger?.warn('Deleted pages detection (fallback: no allCollectedRoutes)', {
+          productionPages: productionManifest?.pages.length,
+          finalPages: finalManifest.pages.length,
+          deletedPages: deletedPages.length,
+        });
+      }
+
+      // Step 4: Delete HTML files for deleted pages
+      if (deletedPages.length > 0) {
+        this.logger?.info('Deleting HTML files for removed pages', {
+          sessionId,
+          count: deletedPages.length,
+        });
+
+        for (const page of deletedPages) {
+          // Construct HTML path from route (e.g., /notes/note1 → /content/notes/note1.html)
+          // NotesFileSystemStorage creates slug.html, not slug/index.html
+          const routeSegments = page.route.split('/').filter(Boolean);
+          const htmlPath = path.join(
+            this.contentRoot,
+            ...routeSegments.slice(0, -1),
+            `${routeSegments[routeSegments.length - 1]}.html`
+          );
+
+          try {
+            await fs.unlink(htmlPath);
+            this.logger?.debug('Deleted HTML for removed page', {
+              route: page.route,
+              path: htmlPath,
+            });
+          } catch (err) {
+            // File might not exist (e.g., custom index), log warning only
+            if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+              this.logger?.warn('Failed to delete HTML for removed page', {
+                route: page.route,
+                path: htmlPath,
+                error: err instanceof Error ? err.message : String(err),
+              });
+            }
+          }
+        }
+      }
+
+      // Step 5: Copy staged content to production (new/updated files)
       await this.copyDirContents(stagingContent, this.contentRoot);
+
+      // Step 6: Save final manifest to production
+      const finalManifestPath = path.join(this.contentRoot, '_manifest.json');
+      await fs.writeFile(
+        finalManifestPath,
+        JSON.stringify(
+          {
+            ...finalManifest,
+            createdAt: finalManifest.createdAt.toISOString(),
+            lastUpdatedAt: finalManifest.lastUpdatedAt.toISOString(),
+            pages: finalManifest.pages.map((p) => ({
+              ...p,
+              publishedAt: p.publishedAt.toISOString(),
+            })),
+            assets: finalManifest.assets?.map((a) => ({
+              ...a,
+              uploadedAt: a.uploadedAt.toISOString(),
+            })),
+          },
+          null,
+          2
+        ),
+        'utf8'
+      );
+
+      this.logger?.info('Manifest merged and saved to production', {
+        sessionId,
+        stagingPages: stagingManifest.pages.length,
+        unchangedPages: unchangedPages.length,
+        deletedPages: deletedPages.length,
+        finalPages: finalManifest.pages.length,
+      });
+
+      // Step 7: Synchronize assets (copy new, keep referenced, delete obsolete)
+      const referencedAssetPaths = new Set<string>(
+        finalManifest.assets?.map((asset) => asset.path) ?? []
+      );
+      await this.synchronizeAssets(stagingAssets, referencedAssetPaths);
 
       this.logger?.debug('Promotion completed atomically, releasing mutex', { sessionId });
     });
@@ -146,14 +280,107 @@ export class StagingManager {
   }
 
   /**
+   * Loads manifest from production content root
+   * Used for inter-publication note deduplication and manifest merge
+   */
+  private async loadManifestFromProduction(): Promise<Manifest | null> {
+    const manifestPath = path.join(this.contentRoot, '_manifest.json');
+    try {
+      const raw = await fs.readFile(manifestPath, 'utf8');
+      const parsed = JSON.parse(raw) as {
+        sessionId?: string;
+        createdAt?: string;
+        lastUpdatedAt?: string;
+        pages?: unknown[];
+        folderDisplayNames?: Record<string, string>;
+        canonicalMap?: Record<string, string>;
+        assets?: unknown[];
+        pipelineSignature?: unknown;
+      };
+
+      // Deserialize dates for pages
+      const pages = Array.isArray(parsed.pages)
+        ? parsed.pages.map((p: any) => ({
+            ...p,
+            publishedAt: new Date(p.publishedAt ?? 0),
+          }))
+        : [];
+
+      // Deserialize dates for assets
+      const assets = Array.isArray(parsed.assets)
+        ? parsed.assets.map((a: any) => ({
+            ...a,
+            uploadedAt: new Date(a.uploadedAt ?? 0),
+          }))
+        : undefined;
+
+      return {
+        sessionId: parsed.sessionId ?? '',
+        createdAt: new Date(parsed.createdAt ?? 0),
+        lastUpdatedAt: new Date(parsed.lastUpdatedAt ?? 0),
+        pages,
+        folderDisplayNames: parsed.folderDisplayNames,
+        canonicalMap: parsed.canonicalMap,
+        assets,
+        pipelineSignature: parsed.pipelineSignature as any,
+      };
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        this.logger?.debug('No production manifest found (first publish)');
+        return null;
+      }
+      this.logger?.warn('Failed to load production manifest', {
+        manifestPath,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    }
+  }
+
+  /**
    * Loads manifest from staging directory
    */
   private async loadManifestFromStaging(sessionId: string): Promise<Manifest | null> {
     const manifestPath = path.join(this.contentStagingPath(sessionId), '_manifest.json');
     try {
       const raw = await fs.readFile(manifestPath, 'utf8');
-      const parsed = JSON.parse(raw) as Manifest;
-      return parsed;
+      const parsed = JSON.parse(raw) as {
+        sessionId?: string;
+        createdAt?: string;
+        lastUpdatedAt?: string;
+        pages?: unknown[];
+        folderDisplayNames?: Record<string, string>;
+        canonicalMap?: Record<string, string>;
+        assets?: unknown[];
+        pipelineSignature?: unknown;
+      };
+
+      // Deserialize dates for pages
+      const pages = Array.isArray(parsed.pages)
+        ? parsed.pages.map((p: any) => ({
+            ...p,
+            publishedAt: new Date(p.publishedAt ?? 0),
+          }))
+        : [];
+
+      // Deserialize dates for assets
+      const assets = Array.isArray(parsed.assets)
+        ? parsed.assets.map((a: any) => ({
+            ...a,
+            uploadedAt: new Date(a.uploadedAt ?? 0),
+          }))
+        : undefined;
+
+      return {
+        sessionId: parsed.sessionId ?? '',
+        createdAt: new Date(parsed.createdAt ?? 0),
+        lastUpdatedAt: new Date(parsed.lastUpdatedAt ?? 0),
+        pages,
+        folderDisplayNames: parsed.folderDisplayNames,
+        canonicalMap: parsed.canonicalMap,
+        assets,
+        pipelineSignature: parsed.pipelineSignature as any,
+      };
     } catch (err) {
       this.logger?.warn('Failed to load manifest from staging, proceeding without asset sync', {
         sessionId,

@@ -41,22 +41,72 @@ export class CreateSessionHandler implements CommandHandler<
       customIndexConfigs: command.customIndexConfigs,
       ignoredTags: command.ignoredTags,
       folderDisplayNames: command.folderDisplayNames,
+      pipelineSignature: command.pipelineSignature, // PHASE 7: Store for later injection into manifest
     };
 
     await this.sessionRepository.create(session);
 
-    // Load existing manifest to extract asset hashes for client-side deduplication
+    // Load existing manifest to extract hashes for client-side deduplication
     let existingAssetHashes: string[] | undefined;
+    let existingNoteHashes: Record<string, string> | undefined;
+    let pipelineChanged: boolean | undefined;
+
     if (this.manifestStorage) {
       try {
         const manifest: Manifest | null = await this.manifestStorage.load();
-        if (manifest?.assets && manifest.assets.length > 0) {
-          existingAssetHashes = manifest.assets
-            .map((asset: ManifestAsset) => asset.hash)
-            .filter((hash: string | undefined): hash is string => !!hash);
-          logger?.debug('Loaded existing asset hashes for deduplication', {
-            count: existingAssetHashes?.length ?? 0,
-          });
+        if (manifest) {
+          // Extract asset hashes
+          if (manifest.assets && manifest.assets.length > 0) {
+            existingAssetHashes = manifest.assets
+              .map((asset: ManifestAsset) => asset.hash)
+              .filter((hash: string | undefined): hash is string => !!hash);
+            logger?.debug('Loaded existing asset hashes for deduplication', {
+              count: existingAssetHashes?.length ?? 0,
+            });
+          }
+
+          // Compare pipeline signatures
+          if (command.pipelineSignature && manifest.pipelineSignature) {
+            const versionChanged =
+              command.pipelineSignature.version !== manifest.pipelineSignature.version;
+            const settingsChanged =
+              command.pipelineSignature.renderSettingsHash !==
+              manifest.pipelineSignature.renderSettingsHash;
+
+            pipelineChanged = versionChanged || settingsChanged;
+
+            logger?.debug('Pipeline signature comparison', {
+              currentVersion: command.pipelineSignature.version,
+              manifestVersion: manifest.pipelineSignature.version,
+              currentSettingsHash: command.pipelineSignature.renderSettingsHash,
+              manifestSettingsHash: manifest.pipelineSignature.renderSettingsHash,
+              versionChanged,
+              settingsChanged,
+              pipelineChanged,
+            });
+          } else if (command.pipelineSignature || manifest.pipelineSignature) {
+            // One side has signature, the other doesn't => changed
+            pipelineChanged = true;
+            logger?.debug('Pipeline signature missing on one side, marking as changed');
+          }
+
+          // Extract note hashes only if pipeline unchanged
+          if (pipelineChanged === false && manifest.pages && manifest.pages.length > 0) {
+            existingNoteHashes = {};
+            let hashCount = 0;
+            for (const page of manifest.pages) {
+              if (page.sourceHash && page.route) {
+                existingNoteHashes[page.route] = page.sourceHash;
+                hashCount++;
+              }
+            }
+            logger?.debug('Loaded existing note hashes for deduplication', {
+              totalPages: manifest.pages.length,
+              pagesWithHash: hashCount,
+            });
+          } else if (pipelineChanged) {
+            logger?.info('Pipeline changed, skipping note hash extraction (full re-render)');
+          }
         }
       } catch (err) {
         // Manifest doesn't exist yet or can't be loaded - that's fine
@@ -71,6 +121,8 @@ export class CreateSessionHandler implements CommandHandler<
       notesPlanned: session.notesPlanned,
       assetsPlanned: session.assetsPlanned,
       existingAssetHashesCount: existingAssetHashes?.length ?? 0,
+      existingNoteHashesCount: existingNoteHashes ? Object.keys(existingNoteHashes).length : 0,
+      pipelineChanged: pipelineChanged ?? 'unknown',
       durationMs: duration,
     });
 
@@ -78,6 +130,8 @@ export class CreateSessionHandler implements CommandHandler<
       sessionId,
       success: true,
       existingAssetHashes,
+      existingNoteHashes,
+      pipelineChanged,
     };
   }
 }

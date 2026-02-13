@@ -44,4 +44,16 @@ export interface ManifestPage {
    * Used for draft pages or pages marked as private
    */
   noIndex?: boolean;
+
+  /**
+   * SHA-256 hash of the source markdown content (UTF-8 bytes)
+   * Used for inter-publication deduplication to skip unchanged notes
+   */
+  sourceHash?: string;
+
+  /**
+   * Size in bytes of the source markdown content
+   * Used for deduplication optimization
+   */
+  sourceSize?: number;
 }

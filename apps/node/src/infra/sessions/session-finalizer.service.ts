@@ -9,6 +9,7 @@ import {
   DetectWikilinksService,
   type ManifestPort,
   type MarkdownRendererPort,
+  NoteHashService,
   ResolveWikilinksService,
   type SessionNotesStoragePort,
   type SessionRepository,
@@ -153,13 +154,15 @@ export class SessionFinalizerService {
 
     // STEP 8: Render markdown to HTML
     stepStart = performance.now();
+    const noteHashService = new NoteHashService();
     const renderer = new UploadNotesHandler(
       this.markdownRenderer,
       this.contentStorage,
       this.manifestStorage,
       this.logger,
       undefined, // notesStorage not needed here
-      session?.ignoredTags // Pass ignoredTags from session
+      session?.ignoredTags, // Pass ignoredTags from session
+      noteHashService
     );
 
     // Publier toutes les notes avec folderDisplayNames

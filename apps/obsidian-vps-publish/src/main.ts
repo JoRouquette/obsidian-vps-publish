@@ -45,6 +45,7 @@ import { type DataviewApi, DataviewExecutor } from './lib/dataview/dataview-exec
 import { processDataviewBlocks } from './lib/dataview/process-dataview-blocks.service';
 import { AbortCancellationAdapter } from './lib/infra/abort-cancellation.adapter';
 import { AssetHashService } from './lib/infra/crypto/asset-hash.service';
+import { BrowserHashService } from './lib/infra/crypto/browser-hash.service';
 import { AssetsUploaderAdapter } from './lib/infra/assets-uploader.adapter';
 import { BackgroundThrottleMonitorAdapter } from './lib/infra/background-throttle-monitor.adapter';
 import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
@@ -89,6 +90,46 @@ const defaultSettings: PluginSettings = {
 // -----------------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------------
+
+/**
+ * Compute PipelineSignature for inter-publication note deduplication
+ * @param version - Plugin version from manifest
+ * @param renderSettings - Settings affecting rendering output
+ * @returns PipelineSignature with version and renderSettingsHash
+ */
+async function computePipelineSignature(
+  version: string,
+  renderSettings: {
+    calloutStyles: Record<string, string>;
+    cleanupRules: Array<{ id: string; isEnabled: boolean; regex: string; replace: string }>;
+    ignoredTags: string[];
+  }
+): Promise<{ version: string; renderSettingsHash: string }> {
+  const hashService = new BrowserHashService();
+
+  // Create stable JSON representation (sorted keys)
+  const stable = JSON.stringify(
+    {
+      calloutStyles: renderSettings.calloutStyles,
+      cleanupRules: renderSettings.cleanupRules.map((r) => ({
+        id: r.id,
+        isEnabled: r.isEnabled,
+        regex: r.regex,
+        replace: r.replace,
+      })),
+      ignoredTags: [...renderSettings.ignoredTags].sort(),
+    },
+    // Sort keys alphabetically
+    Object.keys(renderSettings).sort()
+  );
+
+  const renderSettingsHash = await hashService.computeHash(stable);
+
+  return {
+    version,
+    renderSettingsHash,
+  };
+}
 
 function cloneSettings(settings: PluginSettings): PluginSettings {
   return JSON.parse(JSON.stringify(settings));
@@ -801,39 +842,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         displayNames: folderDisplayNames,
       });
 
-      trace.checkpoint('6-session-start', 'calling-startSession-api');
-
-      const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
-      const started = await sessionClient.startSession({
-        notesPlanned: publishableCount,
-        assetsPlanned: assetsPlanned,
-        maxBytesPerRequest: defaultNginxLimit,
-        calloutStyles,
-        customIndexConfigs,
-        ignoredTags: settings.frontmatterTagsToExclude || [],
-        folderDisplayNames, // Send displayNames upfront
-      });
-
-      sessionId = started.sessionId;
-      const serverRequestLimit = started.maxBytesPerRequest;
-      const existingAssetHashes = started.existingAssetHashes ?? [];
-
-      trace.endStep('6-session-start', {
-        sessionId,
-        maxBytesPerRequest: serverRequestLimit,
-        existingAssetHashesCount: existingAssetHashes.length,
-      });
-
-      this.logger.debug('Session started', { sessionId, maxBytesPerRequest: serverRequestLimit });
-
-      // ====================================================================
-      // ÉTAPE 2: UPLOAD_NOTES - Upload des notes
-      // ====================================================================
-      trace.startStep('7-upload-notes');
-
-      const uploadNotesSpan = perfTracker.startSpan('upload-notes');
-
       // Filtrer les règles de nettoyage : ne garder que celles activées avec regex valide
+      // (Moved before startSession for pipeline signature computation)
       const validCleanupRules = (vps.cleanupRules ?? []).filter(
         (rule) => rule.isEnabled && rule.regex && rule.regex.trim().length > 0
       );
@@ -849,6 +859,114 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         })),
       });
 
+      trace.checkpoint('6-session-start', 'computing-pipeline-signature');
+
+      // Compute pipeline signature for note deduplication
+      const pipelineSignature = await computePipelineSignature(this.manifest.version, {
+        calloutStyles,
+        cleanupRules: validCleanupRules,
+        ignoredTags: settings.frontmatterTagsToExclude || [],
+      });
+
+      this.logger.debug('Pipeline signature computed', {
+        version: pipelineSignature.version,
+        renderSettingsHash: pipelineSignature.renderSettingsHash,
+      });
+
+      trace.checkpoint('6-session-start', 'calling-startSession-api');
+
+      const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
+      const started = await sessionClient.startSession({
+        notesPlanned: publishableCount,
+        assetsPlanned: assetsPlanned,
+        maxBytesPerRequest: defaultNginxLimit,
+        calloutStyles,
+        customIndexConfigs,
+        ignoredTags: settings.frontmatterTagsToExclude || [],
+        folderDisplayNames, // Send displayNames upfront
+        pipelineSignature, // Include pipeline signature for inter-publication deduplication
+      });
+
+      sessionId = started.sessionId;
+      const serverRequestLimit = started.maxBytesPerRequest;
+      const existingAssetHashes = started.existingAssetHashes ?? [];
+      const existingNoteHashes = started.existingNoteHashes ?? {};
+      const pipelineChanged = started.pipelineChanged ?? true;
+
+      trace.endStep('6-session-start', {
+        sessionId,
+        maxBytesPerRequest: serverRequestLimit,
+        existingAssetHashesCount: existingAssetHashes.length,
+        existingNoteHashesCount: Object.keys(existingNoteHashes).length,
+        pipelineChanged,
+      });
+
+      this.logger.debug('Session started', {
+        sessionId,
+        maxBytesPerRequest: serverRequestLimit,
+        existingNoteHashesCount: Object.keys(existingNoteHashes).length,
+        pipelineChanged,
+      });
+
+      // ====================================================================
+      // ÉTAPE 2: UPLOAD_NOTES - Upload des notes
+      // ====================================================================
+      trace.startStep('7-upload-notes');
+
+      const uploadNotesSpan = perfTracker.startSpan('upload-notes');
+
+      // ====================================================================
+      // 2a: FILTER UNCHANGED NOTES (inter-publication deduplication)
+      // ====================================================================
+      let notesToUpload = deduplicated;
+
+      if (!pipelineChanged && Object.keys(existingNoteHashes).length > 0) {
+        trace.checkpoint('7-upload-notes', 'filtering-unchanged-notes');
+        const hashService = new BrowserHashService();
+        const filteredNotes: PublishableNote[] = [];
+        let skippedCount = 0;
+
+        for (const note of deduplicated) {
+          const route = note.routing.fullPath;
+          const existingHash = existingNoteHashes[route];
+
+          if (existingHash) {
+            // Compute hash of current note content
+            const currentHash = await hashService.computeHash(note.content);
+
+            if (currentHash === existingHash) {
+              // Note unchanged, skip
+              this.logger.debug('Note unchanged, skipping', {
+                route,
+                hash: currentHash,
+              });
+              skippedCount++;
+              continue;
+            }
+          }
+
+          // Note changed or new, include for upload
+          filteredNotes.push(note);
+        }
+
+        notesToUpload = filteredNotes;
+
+        this.logger.info('Notes filtered by inter-publication deduplication', {
+          totalNotes: deduplicated.length,
+          toUpload: notesToUpload.length,
+          skipped: skippedCount,
+        });
+
+        trace.checkpoint('7-upload-notes', 'filtering-complete', {
+          skippedCount,
+          uploadCount: notesToUpload.length,
+        });
+      } else if (pipelineChanged) {
+        this.logger.info('Pipeline changed, uploading all notes (full re-render)', {
+          totalNotes: deduplicated.length,
+        });
+      }
+
       const notesUploader = new NotesUploaderAdapter(
         sessionClient,
         sessionId,
@@ -861,13 +979,13 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       );
 
       // Calculer le nombre de batchs
-      const notesBatchInfo = notesUploader.getBatchInfo(deduplicated);
+      const notesBatchInfo = notesUploader.getBatchInfo(notesToUpload);
       stats.notesBatchCount = notesBatchInfo.batchCount;
 
       stepProgressManager.startStep(
         ProgressStepId.UPLOAD_NOTES,
         getStepLabel(t, ProgressStepId.UPLOAD_NOTES),
-        publishableCount
+        notesToUpload.length
       );
 
       notificationAdapter.info(
@@ -877,9 +995,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         })
       );
 
-      await notesUploader.upload(deduplicated);
+      await notesUploader.upload(notesToUpload);
 
-      stats.notesUploaded = publishableCount;
+      stats.notesUploaded = notesToUpload.length;
 
       perfTracker.endSpan(uploadNotesSpan, {
         notesUploaded: stats.notesUploaded,
@@ -975,9 +1093,13 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         1
       );
 
+      // PHASE 6.1: Extract all routes collected from vault (for deleted page detection)
+      const allCollectedRoutes = deduplicated.map((note) => note.routing.fullPath);
+
       await sessionClient.finishSession(sessionId, {
         notesProcessed: stats.notesUploaded,
         assetsProcessed: stats.assetsUploaded,
+        allCollectedRoutes, // PHASE 6.1: send to backend for deleted page detection
       });
 
       stepProgressManager.advanceStep(ProgressStepId.FINALIZE_SESSION, 1);

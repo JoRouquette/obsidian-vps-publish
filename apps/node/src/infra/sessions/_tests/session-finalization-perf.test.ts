@@ -34,6 +34,7 @@ describe.skip('SessionFinalizationJobService - Performance Tests', () => {
   let jobService: SessionFinalizationJobService;
   let mockFinalizer: jest.Mocked<SessionFinalizerService>;
   let mockStagingManager: any;
+  let mockSessionRepository: any;
 
   beforeEach(() => {
     mockFinalizer = {
@@ -44,7 +45,17 @@ describe.skip('SessionFinalizationJobService - Performance Tests', () => {
       promoteSession: jest.fn().mockResolvedValue(undefined),
     };
 
-    jobService = new SessionFinalizationJobService(mockFinalizer, mockStagingManager);
+    mockSessionRepository = {
+      findById: jest.fn().mockResolvedValue({ allCollectedRoutes: [] }),
+      save: jest.fn().mockResolvedValue(undefined),
+      create: jest.fn(),
+    };
+
+    jobService = new SessionFinalizationJobService(
+      mockFinalizer,
+      mockStagingManager,
+      mockSessionRepository
+    );
   });
 
   describe('Small batch (50 notes)', () => {

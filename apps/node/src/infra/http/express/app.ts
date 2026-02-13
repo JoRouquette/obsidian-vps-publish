@@ -4,6 +4,7 @@ import {
   AbortSessionHandler,
   CreateSessionHandler,
   FinishSessionHandler,
+  NoteHashService,
   UploadAssetsHandler,
   UploadNotesHandler,
 } from '@core-application';
@@ -172,12 +173,15 @@ export function createApp(rootLogger?: LoggerPort) {
     new AssetsFileSystemStorage(stagingManager.assetsStagingPath(sessionId), rootLogger);
   const sessionRepository = new FileSystemSessionRepository(EnvConfig.contentRoot());
   const idGenerator = new UuidIdGenerator();
+  const noteHashService = new NoteHashService();
   const uploadNotesHandler = new UploadNotesHandler(
     markdownRenderer,
     noteStorage,
     manifestFileSystem,
     rootLogger,
-    sessionNotesStorage
+    sessionNotesStorage,
+    undefined, // ignoredTags (set dynamically per session)
+    noteHashService
   );
 
   // Initialize asset scanner (Noop by default, ClamAV if enabled)
@@ -224,6 +228,7 @@ export function createApp(rootLogger?: LoggerPort) {
   const finalizationJobService = new SessionFinalizationJobService(
     sessionFinalizer,
     stagingManager,
+    sessionRepository, // PHASE 6.1: needed to load allCollectedRoutes
     rootLogger,
     EnvConfig.maxConcurrentFinalizationJobs()
   );

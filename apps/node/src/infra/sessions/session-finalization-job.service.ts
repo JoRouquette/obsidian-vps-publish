@@ -7,6 +7,7 @@
 import { type LoggerPort } from '@core-domain';
 import { randomUUID } from 'crypto';
 
+import { type SessionRepository } from '@core-application';
 import { type StagingManager } from '../filesystem/staging-manager';
 import { type SessionFinalizerService } from './session-finalizer.service';
 
@@ -34,6 +35,7 @@ export class SessionFinalizationJobService {
   constructor(
     private readonly sessionFinalizer: SessionFinalizerService,
     private readonly stagingManager: StagingManager,
+    private readonly sessionRepository: SessionRepository, // PHASE 6.1
     private readonly logger?: LoggerPort,
     maxConcurrentJobs?: number
   ) {
@@ -150,6 +152,11 @@ export class SessionFinalizationJobService {
     });
 
     try {
+      // STEP 0: Load session to get allCollectedRoutes and pipelineSignature (PHASE 6.1, PHASE 7)
+      const session = await this.sessionRepository.findById(job.sessionId);
+      const allCollectedRoutes = session?.allCollectedRoutes;
+      const pipelineSignature = session?.pipelineSignature;
+
       // STEP 1: Rebuild from stored notes (heaviest operation)
       job.progress = 20;
       const rebuildStart = Date.now();
@@ -157,10 +164,14 @@ export class SessionFinalizationJobService {
       timings.rebuildFromStored = Date.now() - rebuildStart;
       job.progress = 80;
 
-      // STEP 2: Promote staging to production
+      // STEP 2: Promote staging to production (with deleted page detection and pipelineSignature injection)
       job.progress = 85;
       const promoteStart = Date.now();
-      await this.stagingManager.promoteSession(job.sessionId);
+      await this.stagingManager.promoteSession(
+        job.sessionId,
+        allCollectedRoutes,
+        pipelineSignature
+      );
       timings.promoteSession = Date.now() - promoteStart;
       job.progress = 100;
 
