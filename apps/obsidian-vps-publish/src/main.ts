@@ -45,6 +45,7 @@ import { type DataviewApi, DataviewExecutor } from './lib/dataview/dataview-exec
 import { processDataviewBlocks } from './lib/dataview/process-dataview-blocks.service';
 import { AbortCancellationAdapter } from './lib/infra/abort-cancellation.adapter';
 import { AssetsUploaderAdapter } from './lib/infra/assets-uploader.adapter';
+import { BackgroundThrottleMonitorAdapter } from './lib/infra/background-throttle-monitor.adapter';
 import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
 import { EventLoopMonitorAdapter } from './lib/infra/event-loop-monitor.adapter';
 import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
@@ -81,6 +82,7 @@ const defaultSettings: PluginSettings = {
   maxConcurrentFileReads: 5,
   // Performance debugging
   enablePerformanceDebug: false,
+  enableBackgroundThrottleDebug: false,
 };
 
 // -----------------------------------------------------------------------------
@@ -154,6 +156,41 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           },
           t
         );
+      },
+    });
+
+    this.addCommand({
+      id: 'vps-publish-debug',
+      name: t.plugin.commandPublish + ' (Debug: Background Throttle)',
+      callback: async () => {
+        if (!this.settings.vpsConfigs || this.settings.vpsConfigs.length === 0) {
+          new Notice(t.settings.errors?.missingVpsConfig ?? 'No VPS configured');
+          return;
+        }
+        // Temporarily enable debug flags for this run
+        const originalPerfDebug = this.settings.enablePerformanceDebug;
+        const originalBgThrottleDebug = this.settings.enableBackgroundThrottleDebug;
+        this.settings.enablePerformanceDebug = true;
+        this.settings.enableBackgroundThrottleDebug = true;
+
+        try {
+          new Notice(
+            '🔍 Debug mode enabled: Background throttle monitoring active.\nSwitch tabs or minimize window during publishing to test.',
+            8000
+          );
+          selectVpsOrAuto(
+            this.app,
+            this.settings.vpsConfigs,
+            async (vps) => {
+              await this.uploadToVps(vps);
+            },
+            t
+          );
+        } finally {
+          // Restore original settings
+          this.settings.enablePerformanceDebug = originalPerfDebug;
+          this.settings.enableBackgroundThrottleDebug = originalBgThrottleDebug;
+        }
       },
     });
 
@@ -470,6 +507,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     // Enable performance debug mode if configured
     const enablePerfDebug = settings.enablePerformanceDebug ?? false;
+    const enableBgThrottleDebug = settings.enableBackgroundThrottleDebug ?? false;
 
     // Initialize publishing trace service
     const trace = new PublishingTraceService(uploadRunId, scopedLogger);
@@ -478,11 +516,20 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       vpsId: vps.id,
       vpsName: vps.name,
       perfDebugEnabled: enablePerfDebug,
+      bgThrottleDebugEnabled: enableBgThrottleDebug,
     });
 
     // Start event loop lag monitor
     const eventLoopMonitor = new EventLoopMonitorAdapter(scopedLogger, 100);
     eventLoopMonitor.start();
+
+    // Start background throttle monitor (if enabled)
+    let backgroundThrottleMonitor: BackgroundThrottleMonitorAdapter | null = null;
+    if (enableBgThrottleDebug) {
+      backgroundThrottleMonitor = new BackgroundThrottleMonitorAdapter(scopedLogger, 250);
+      backgroundThrottleMonitor.start();
+      scopedLogger.info('🔍 Background throttle monitoring enabled (heartbeat: 250ms)');
+    }
 
     // Initialize performance tracker
     // Debug mode enabled if logLevel is 'debug'
@@ -516,6 +563,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     // Start progress bar immediately (at 0%)
     totalProgressAdapter.start(0);
+
+    // Warn user to keep focus (browser throttling mitigation)
+    notificationAdapter.info(translate(t, 'notice.keepFocusWarning'));
 
     let sessionId: string | null = null;
     let sessionClient: SessionApiClient | null = null;
@@ -943,6 +993,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // Stop event loop monitor
       const eventLoopStats = eventLoopMonitor.stop();
 
+      // Stop background throttle monitor (if enabled)
+      let backgroundThrottleStats = null;
+      if (backgroundThrottleMonitor) {
+        backgroundThrottleStats = backgroundThrottleMonitor.stop();
+      }
+
       // End performance tracking
       perfTracker.endSpan(sessionPerfSpan, {
         totalDurationMs: stats.completedAt.getTime() - stats.startedAt.getTime(),
@@ -974,6 +1030,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const uiPressureSummary = uiMonitor.generateSummary();
       scopedLogger.info('🎯 ' + uiPressureSummary);
 
+      // Generate and log background throttle summary (if enabled)
+      if (backgroundThrottleStats) {
+        const bgThrottleSummary = backgroundThrottleMonitor!.generateSummary();
+        scopedLogger.info('🔍 ' + bgThrottleSummary);
+      }
+
       // Afficher les stats finales
       const summary = formatPublishingStats(stats, t.publishingStats);
 
@@ -988,6 +1050,11 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           .join(', ');
 
         perfDebugInfo = `\n\n🔍 Performance Debug:\nTotal: ${traceData.totalDurationSec.toFixed(2)}s\nTop steps: ${topSteps}\nEvent loop p95 lag: ${eventLoopStats.p95LagMs.toFixed(0)}ms`;
+      }
+
+      // Add background throttle debug summary if enabled
+      if (enableBgThrottleDebug && backgroundThrottleStats) {
+        perfDebugInfo += `\n\n🔍 Background Throttle Debug:\nStalled heartbeats: ${backgroundThrottleStats.stalledHeartbeats}\nMax drift: ${backgroundThrottleStats.maxHeartbeatDriftMs.toFixed(0)}ms\nTime in background: ${(backgroundThrottleStats.timeInBackgroundMs / 1000).toFixed(1)}s`;
       }
 
       // Add performance hint if debug mode is off
@@ -1200,7 +1267,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         },
         {
           concurrency: settings.maxConcurrentDataviewNotes || 5, // Configurable
-          yieldEveryN: 5, // Yield to UI every 5 notes
+          yieldEveryN: 2,
           onProgress: (current, total) => {
             logger.debug('Dataview processing progress', {
               current,

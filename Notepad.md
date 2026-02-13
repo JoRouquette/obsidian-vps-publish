@@ -60,88 +60,108 @@ COMMENCE MAINTENANT
 1. Fais l’analyse du repo et donne le plan.
 2. Ensuite, commence la passe fichier par fichier.
 
----
-
-# Rapport d'Audit Technique : Gestion des Assets
-
-### Priorité Haute (Sécurité)
-
-| #   | Risque                 | Recommandation                                                                                     | Fichier concerné                               |
-| --- | ---------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| 1   | **MIME spoofing**      | Valider le MIME type réel via `file-type` ou `magic-bytes` au lieu d'accepter `mimeType` du client | upload-assets.dto.ts, upload-assets.handler.ts |
-| 2   | **Fichiers malicieux** | Intégrer ClamAV ou scanner externe avant `writeFile`                                               | assets-file-system.storage.ts                  |
-| 3   | **Limite par fichier** | Ajouter `maxAssetSizeBytes` configurable (ex: 10MB) et valider avant stockage                      | upload-assets.handler.ts                       |
-
-### Priorité Moyenne (Robustesse)
-
-| #   | Risque                       | Recommandation                                                                     | Fichier concerné                                         |
-| --- | ---------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| 4   | **Re-upload systématique**   | Calculer hash SHA256 des assets, stocker dans manifest, skip si identique          | assets-uploader.adapter.ts, session-finalizer.service.ts |
-| 5   | **Race condition promotion** | Étendre le mutex pour couvrir aussi la copie, pas seulement le clear               | staging-manager.ts                                       |
-| 6   | **Tests superficiels**       | Écrire tests d'intégration pour le flux complet upload → staging → promote → serve | Nouveau fichier test                                     |
-
-### Priorité Basse (Performance)
-
-| #   | Risque                  | Recommandation                                                           | Fichier concerné   |
-| --- | ----------------------- | ------------------------------------------------------------------------ | ------------------ |
-| 7   | **Pas de CDN**          | Documenter l'option Nginx reverse proxy avec cache ou CDN externe        | architecture.md    |
-| 8   | **Pas de resize**       | Si pertinent, ajouter génération de thumbnails pour images lourdes       | Nouveau service    |
-| 9   | **Streaming vs base64** | Pour fichiers très gros, envisager streaming multipart au lieu de base64 | Refactoring majeur |
-
-Audit terminé. Le rapport ci-dessus synthétise l'analyse complète de la gestion des assets dans ce repository, avec chaque affirmation soutenue par des références précises au code source.
-
 -------------------------------------------------------------------------/
 
-## Prompt performance pluggin
+## Prompt overhaul asset handling
 
-Tu es GitHub Copilot Chat. Objectif : VÉRIFIER (sans supposition) si, dans le plugin Obsidian de ce repo, le traitement de publication “se met en pause” quand l’utilisateur ne reste pas focus sur la page (fenêtre inactive / onglet en arrière-plan), et préparer une correction pour rendre le traitement le plus asynchrone possible sans bloquer l’UI Obsidian.
+Tu es GitHub Copilot Chat dans ce monorepo Nx. Mission : overhauler proprement le système de gestion des assets en appliquant EXACTEMENT les recommandations ci-dessous (priorités haute → moyenne → basse) SANS hallucination ni supposition. Toute affirmation doit être prouvée par : chemin de fichier + extrait réel (idéalement avec numéros de lignes) + tests qui échouent puis passent. Si une info n’est pas dans le repo, tu le dis et tu proposes une commande de recherche (rg / nx graph / cat package.json), au lieu d’inventer.
 
-Contraintes non négociables :
+Périmètre imposé (ne pas élargir sans preuve d’un bug existant) :
 
-- Zéro hallucination : tu n’affirmes rien sans preuve issue du code + d’une reproduction instrumentée.
-- Tu ne proposes pas de refactor global. Tu instrumentes, tu mesures, tu conclus, puis tu proposes le minimum viable.
-- Tu ne “rends asynchrone” que ce qui est actuellement synchrone/bloquant, et tu le prouves.
+- Upload + validation (DTO/handler)
+- Stockage local (file system storage)
+- Staging + promotion (mutex, copie)
+- Manifest (dédup/hash)
+- Tests d’intégration end-to-end
+- Documentation architecture (option reverse-proxy/CDN)
+- Optionnel perf : thumbnails (si et seulement si tu trouves déjà un besoin clair dans le code/usages)
 
-Phase 1 — Localiser et instrumenter (preuve)
+Backlog à implémenter (dans cet ordre strict) :
 
-1. Localise dans le repo le code du plugin Obsidian qui déclenche la publication (commande, bouton, event). Donne chemins exacts + extraits.
-2. Identifie la “pipeline” de publication : scan du vault, lecture fichiers, rendu markdown, génération manifest, upload/HTTP, etc. Pour chaque étape, indique si elle est sync ou async avec preuve (extrait).
-3. Ajoute une instrumentation STRICTEMENT TEMPORAIRE derrière un flag (ex: settings.debugPublishTiming = true) :
-   - log de début/fin pour chaque étape (avec performance.now()).
-   - un “heartbeat” toutes les 250ms pendant la publication : log l’intervalle réel entre ticks et le timestamp. (Si l’intervalle dérive fortement ou s’arrête, on le verra.)
-   - écouteurs window/document pour : visibilitychange, blur/focus, pagehide, freeze/resume (si dispo), et log ces événements avec timestamp.
-   - si le code utilise requestAnimationFrame, setTimeout, setInterval, ou awaits en boucle, log aussi le type de scheduling utilisé.
-4. Ajoute un mode “repro deterministe” : une commande “Publish (debug)” qui lance la publication + instrumentation sans dépendre d’interactions UI.
+A) Priorité HAUTE — Sécurité
 
-Phase 2 — Reproduction contrôlée (preuve) 5) Écris un scénario de reproduction dans un test manuel guidé (pas d’hypothèse) :
+1. MIME spoofing
 
-- lancer “Publish (debug)”
-- pendant la publication, alt-tab (perdre le focus), minimiser, changer d’onglet, puis revenir
-- récupérer les logs : vérifier s’il y a un trou dans le heartbeat, et quelle étape était en cours
+- Objectif : ne JAMAIS faire confiance au `mimeType` fourni par le client.
+- Localise l’endpoint / handler qui reçoit les assets et le DTO : upload-assets.dto.ts, upload-assets.handler.ts (et tout ce qu’ils appellent).
+- Ajoute une validation du “MIME réel” à partir des bytes.
+  - Avant de choisir une lib, vérifie ce qui est déjà présent dans package.json (ou lockfile) : si `file-type` ou une lib de magic bytes existe, réutilise-la ; sinon ajoute la dépendance minimale et justifie-la.
+  - Le MIME réel doit être déterminé depuis le buffer (pas l’extension, pas le header client).
+  - Définis une politique claire : soit tu refuses si MIME réel != attendu, soit tu ignores le MIME client et tu remplaces par le MIME réel. Tu choisis en t’alignant sur la logique existante (prouve-la).
+- Mets à jour le modèle interne (si besoin) pour stocker le MIME réel et l’extension calculée.
 
-6. Si le repo a déjà une infra de test (unit/e2e) pour le plugin, ajoute un test minimal qui valide au moins que la pipeline n’est pas 100% sync (ex: le heartbeat tick pendant une étape lourde). Si aucun test plugin n’existe, constate-le explicitement (preuve par structure repo), et garde la preuve via logs.
+2. Fichiers malicieux (scan)
 
-Phase 3 — Analyse causale (pas de théorie) 7) Si pause observée :
+- Objectif : intégrer un scan AVANT `writeFile` dans assets-file-system.storage.ts.
+- Contrainte : ne suppose pas que ClamAV est installé. Tu dois donc introduire une abstraction “scanner” injectée/configurable :
+  - Interface ex: `IAssetScanner.scan(buffer, meta) -> ScanResult`.
+  - Implémentation par défaut : “NoopScanner” (mais loggable en debug) si aucun scanner n’est configuré.
+  - Implémentation “ClamAVScanner” : uniquement si tu peux prouver une stratégie réaliste depuis le repo (ex: usage de `clamdscan`/socket clamd, variables env déjà présentes, ou doc interne). Sinon, tu la laisses comme option documentée + code non activé par défaut.
+- En cas de détection, refuser l’upload avec une erreur explicite et testée.
 
-- prouve si c’est causé par “background throttling” (timers/RAF) vs “blocage event loop” (CPU sync) vs “await qui attend un event UI”.
-- Pour trancher “blocage event loop”, utilise une mesure : pendant une étape suspecte, fais un micro-benchmark de boucle CPU (ou mesure de long tasks via PerformanceObserver si possible dans Obsidian/Electron) et log les durées.
-- Montre la ligne de code précise qui crée le comportement (ex: boucle sync, appel à une lib sync, utilisation de raf, etc.)
+3. Limite par fichier
 
-Phase 4 — Rendre la publication non bloquante (patch minimal, si et seulement si la preuve le justifie) 8) Objectif : ne pas bloquer l’UI Obsidian pendant publication.
+- Objectif : `maxAssetSizeBytes` configurable (ex 10MB) et validation AVANT stockage (donc avant decode/base64->buffer si ça coûte cher, et avant writeFile).
+- Ajoute la config au système de config existant (ne crée pas un nouveau mécanisme).
+- Vérifie où la taille est accessible : si l’upload est base64, calcule la taille réelle en bytes (pas la longueur de la string) et prouve le calcul dans un test.
+- Refuser proprement avec code d’erreur cohérent avec l’existant.
 
-- Identifie les sections CPU-heavy (par ex. parsing/rendu en masse, compression, hashing, etc.). Prouve-les (timing).
-- Pour celles-ci, implémente un “yield” coopératif entre lots (chunking) : traiter N fichiers, puis await une fonction yield() qui rend la main (ex: await new Promise(r => setTimeout(r, 0)) ou meilleure primitive existante dans le code). Pas de setTimeout arbitraire long.
-- Ne change pas la logique métier, uniquement la planification.
+B) Priorité MOYENNE — Robustesse 4) Re-upload systématique
 
-9. Objectif : “asynchrone possible” : si certaines tâches peuvent être externalisées :
-   - Propose (uniquement si nécessaire et réaliste dans ce repo) un Worker (WebWorker) ou un processus Node séparé, mais seulement après avoir prouvé que le blocage vient du CPU et que chunking est insuffisant.
-   - Si Electron/Obsidian limite les workers, prouve-le ou cite la doc/contrainte (sinon ne le dis pas).
-10. Ajoute un indicateur de progression UI non bloquant (si l’UI existe déjà) et assure-toi qu’il reste réactif pendant les grosses étapes. Prouve-le via heartbeat et/ou logs.
+- Objectif : calculer un hash SHA256 des assets, le stocker dans manifest, et SKIP l’upload si identique.
+- Localise assets-uploader.adapter.ts et session-finalizer.service.ts + le format du manifest actuel (chemin + extrait).
+- Implémente :
+  - calcul SHA256 sur les bytes réellement stockés (pas sur le base64 brut).
+  - stockage dans manifest (clé stable : au minimum chemin logique + hash + taille + MIME réel).
+  - logique de dédup : si le manifest indique que l’asset (même chemin logique) a le même hash, ne pas re-téléverser / ne pas réécrire.
+- Attention aux cas : renommage, collisions de nom, asset manquant sur disque : tu dois aligner le comportement sur l’existant et le prouver par tests (pas de logique inventée).
 
-Livrable attendu :
+5. Race condition promotion
 
-- Un rapport factuel : “quand on perd le focus, voilà ce qui se passe” avec logs horodatés.
-- Un patch minimal (diff) qui : (a) ajoute instrumentation (flag), (b) ajoute yield/chunking sur l’étape prouvée bloquante, (c) garde le comportement fonctionnel.
-- Les commandes exactes pour build/test le plugin dans ce repo (Nx targets), VÉRIFIÉES dans project.json.
+- Objectif : étendre le mutex dans staging-manager.ts pour couvrir aussi la copie/promotion, pas seulement le clear.
+- Localise le mutex actuel et les sections protégées. Cite le code.
+- Étends la section critique au minimum nécessaire pour garantir atomicité (clear + stage write + promote/copy), en restant compatible avec l’architecture (ne pas transformer toute l’app en lock global si ce n’est pas déjà le cas).
 
-Commence maintenant par : retrouver le point d’entrée de la commande de publication du plugin et montrer le pipeline exact (chemins + extraits), puis implémente l’instrumentation heartbeat + visibilitychange derrière un flag.
+6. Tests d’intégration “réels”
+
+- Objectif : un test d’intégration pour le flux complet upload → staging → promote → serve.
+- Contrainte : réutiliser l’infra de tests existante (Jest/Vitest + supertest/playwright/whatever). Tu dois d’abord prouver ce qui est utilisé dans apps/node.
+- Le test doit couvrir :
+  - upload d’un asset valide (MIME réel détecté),
+  - rejet d’un asset dont le MIME client ment (MIME spoofing),
+  - rejet d’un asset “trop gros” (maxAssetSizeBytes),
+  - comportement “skip” quand hash identique,
+  - promotion sous mutex (au moins un test concurrentiel minimal : deux promotions simultanées ne doivent pas corrompre l’état),
+  - asset servi/accessible après promote (prouve via endpoint ou lecture FS selon l’existant).
+- Le test doit échouer AVANT tes changements et passer APRÈS. C’est non négociable.
+
+C) Priorité BASSE — Performance / doc 7) CDN / cache
+
+- Objectif : documenter une option Nginx reverse proxy cache / CDN externe dans architecture.md, en décrivant comment servir les assets statiques et où brancher le cache.
+- Ne donne pas de recette “générique” : base-toi sur l’architecture réelle du repo (ports, chemins, endpoints) que tu prouves dans le code.
+
+8. Thumbnails (si pertinent)
+
+- N’implémente cette partie QUE si tu peux prouver un besoin clair : présence d’images lourdes, endpoints de preview, ou perf UI liée aux images (preuve par code/config).
+- Si c’est pertinent, propose un “nouveau service” minimal, derrière un flag, qui génère des thumbnails au moment du promote ou à la demande. Tests minimaux.
+
+9. Streaming vs base64 (refactor majeur)
+
+- Ne le fais PAS dans ce patch. À la place, produis une note technique (dans un fichier doc du repo) avec :
+  - pourquoi le base64 est limitant (preuve depuis le code actuel),
+  - une proposition de migration (multipart/stream) adaptée au stack existant,
+  - impacts sur DTO/handler/tests.
+- Pas de promesse, pas d’implémentation ici.
+
+Règles de travail
+
+- Tu commences par cartographier le flux actuel (upload → storage → staging → promote → serve), avec chemins + extraits.
+- Chaque item A/B/C : tu fournis un diff, puis tu fais tourner les tests cibles, puis tu ajoutes/ajustes les tests.
+- Tu donnes les commandes Nx EXACTES en fin de réponse (tu les vérifies dans project.json/workspace.json : pas d’invention).
+- Tu ne touches pas au comportement fonctionnel non lié aux assets.
+
+Commence maintenant par :
+
+1. ouvrir upload-assets.dto.ts, upload-assets.handler.ts, assets-file-system.storage.ts, assets-uploader.adapter.ts, session-finalizer.service.ts, staging-manager.ts, architecture.md (si existe) ;
+2. me rendre une carte du flux actuel avec les points exacts où : mimeType client est lu, writeFile est appelé, manifest est construit/lu, mutex est utilisé.
+   Ensuite seulement, tu proposes le premier patch (MIME réel + maxAssetSizeBytes) accompagné d’un test qui échoue puis passe.

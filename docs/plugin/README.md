@@ -21,6 +21,13 @@ Le plugin Obsidian :
 - **[Folders Settings UI](./folders-settings-ui.md)** - Configuration des dossiers de publication améliorée
 - **[Testing Strategy](./testing-strategy.md)** - Stratégie de tests (unit + integration) pour la gestion des routes
 
+### Performance & Optimisation
+
+- **[Background Throttle - Guide de Test](./BACKGROUND_THROTTLE_TEST_GUIDE.md)** - Tester la détection de pauses lors de la perte de focus (instrumentation)
+- **[Background Throttle - Analyse des Résultats](./BACKGROUND_THROTTLE_ANALYSIS.md)** - Résultats de test, métriques mesurées, patches implémentés
+- **[Background Throttle - Rapport Technique](./BACKGROUND_THROTTLE_TECHNICAL_REPORT.md)** - Analyse technique complète du monitoring de background throttling
+- **[Background Throttle - Résumé](./BACKGROUND_THROTTLE_SUMMARY.md)** - Résumé exécutif de l'instrumentation installée
+
 ## 🚀 Installation
 
 ### Via release GitHub

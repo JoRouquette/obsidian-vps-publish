@@ -21,6 +21,7 @@ export type PluginSettings = PublishPluginSettings &
     maxConcurrentFileReads?: number;
     // Performance debugging
     enablePerformanceDebug?: boolean; // Enable detailed performance tracing
+    enableBackgroundThrottleDebug?: boolean; // Enable background throttling detection (heartbeat + visibility events)
   };
 
 export type SettingsSave = () => Promise<void>;
