@@ -1,5 +1,5 @@
 import { CdkTreeModule } from '@angular/cdk/tree';
-import type { ElementRef, OnInit } from '@angular/core';
+import type { ElementRef, OnDestroy, OnInit } from '@angular/core';
 import { Component, computed, effect, signal, ViewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
@@ -33,18 +33,20 @@ import { SearchBarComponent } from '../search-bar/search-bar.component';
   templateUrl: './vault-explorer.component.html',
   styleUrls: ['./vault-explorer.component.scss'],
 })
-export class VaultExplorerComponent implements OnInit {
+export class VaultExplorerComponent implements OnInit, OnDestroy {
   private visible = new WeakMap<TreeNode, TreeNode[]>();
   private matches = new WeakMap<TreeNode, boolean>();
   tree = signal<TreeNode>(defaultTreeNode);
   q = signal<string>('');
+  private searchDebounceTimer?: ReturnType<typeof setTimeout>;
   private readonly EMPTY: TreeNode[] = [];
+  private readonly DEBOUNCE_MS = 200; // Wait 200ms after last keystroke before filtering
   private readonly buildTree = new BuildTreeHandler();
   hasQuery = computed(() => this.q().trim().length > 0);
   rootChildren = computed(() => {
     const root = this.filteredRoot();
     if (!root) return this.EMPTY;
-    if (!this.q().trim()) return (root.children ?? []) as TreeNode[];
+    if (!this.q().trim()) return root.children ?? [];
     return this.visible.get(root) ?? this.EMPTY;
   });
   noResult = computed(() => {
@@ -59,6 +61,17 @@ export class VaultExplorerComponent implements OnInit {
     if (!root) return true;
     const children = root.children ?? [];
     return children.length === 0;
+  });
+
+  /**
+   * Count total results (files + folders) when searching.
+   * Returns 0 when not searching.
+   */
+  resultCount = computed(() => {
+    if (!this.hasQuery()) return 0;
+    const root = this.filteredRoot();
+    if (!root) return 0;
+    return this.countVisibleNodes(root);
   });
 
   @ViewChild('treeScroller', { static: false })
@@ -102,8 +115,29 @@ export class VaultExplorerComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    // Clean up debounce timer to prevent memory leaks
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+    }
+  }
+
   onInputQuery(value: string): void {
-    this.q.set(value ?? '');
+    // Clear any pending debounce timer
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+    }
+
+    // For empty queries, apply immediately without debounce
+    if (!value || value.trim().length === 0) {
+      this.q.set('');
+      return;
+    }
+
+    // Debounce non-empty queries to improve performance
+    this.searchDebounceTimer = setTimeout(() => {
+      this.q.set(value ?? '');
+    }, this.DEBOUNCE_MS);
   }
 
   syncX(source: 'tree' | 'h'): void {
@@ -128,16 +162,77 @@ export class VaultExplorerComponent implements OnInit {
     return hasVisibleChildren || selfMatch;
   }
 
+  /**
+   * Normalize a string by removing diacritics/accents and converting to lowercase.
+   * This allows searching "tenebra" to match "Ténébra".
+   */
+  private normalizeString(str: string): string {
+    return str
+      .normalize('NFD') // Decompose combined characters (é → e + ´)
+      .replaceAll(/[\u0300-\u036f]/g, '') // Remove diacritical marks
+      .toLowerCase()
+      .trim();
+  }
+
+  /**
+   * Check if a search query matches a text.
+   * Supports:
+   * - Accent-insensitive search: "tenebra" matches "Ténébra"
+   * - Substring matching: "ebr" matches "Ténébra"
+   * - Multi-word search: each word must match (space-separated)
+   */
+  private matchesQuery(text: string, query: string): boolean {
+    const normalizedText = this.normalizeString(text);
+    const normalizedQuery = this.normalizeString(query);
+
+    // Support multi-word search: all words must be present
+    const queryWords = normalizedQuery.split(/\s+/).filter((w) => w.length > 0);
+    if (queryWords.length === 0) return false;
+
+    // Each query word must appear somewhere in the text (substring match)
+    return queryWords.every((word) => normalizedText.includes(word));
+  }
+
+  /**
+   * Count all visible nodes (files and folders) recursively.
+   * Used to display result count during search.
+   */
+  private countVisibleNodes(node: TreeNode): number {
+    let count = 0;
+
+    // Count this node if it matches
+    if (this.matches.get(node)) {
+      count++;
+    }
+
+    // Recursively count visible children
+    const visibleChildren = this.visible.get(node) ?? [];
+    for (const child of visibleChildren) {
+      count += this.countVisibleNodes(child);
+    }
+
+    return count;
+  }
+
   private markVisible(node: TreeNode, q: string): boolean {
-    const label = (node.label || node.name).toLowerCase();
+    const label = node.label || node.name;
     const tags = node.tags ?? [];
-    const tagsMatch = tags?.some((t) => t.toLowerCase().includes(q)) ?? false;
-    const selfMatch = label.includes(q) || tagsMatch;
+
+    // Check if label matches query (with normalization and substring support)
+    const labelMatch = this.matchesQuery(label, q);
+
+    // Check if any tag matches query
+    const tagsMatch = tags.some((t) => this.matchesQuery(t, q));
+
+    const selfMatch = labelMatch || tagsMatch;
     this.matches.set(node, selfMatch);
+
     if (node.kind === 'file') return selfMatch;
+
     const kids = node.children ?? [];
     const vis: TreeNode[] = [];
     for (const c of kids) if (this.markVisible(c, q)) vis.push(c);
+
     if (selfMatch || vis.length) {
       this.visible.set(node, vis);
       return true;
