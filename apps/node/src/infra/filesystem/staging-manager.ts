@@ -1,7 +1,14 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { type LoggerPort, type Manifest, type ManifestPage } from '@core-domain';
+import {
+  type LoggerPort,
+  type Manifest,
+  type ManifestAsset,
+  type ManifestPage,
+  type PipelineSignature,
+  type PromotionStats,
+} from '@core-domain';
 import { Mutex } from 'async-mutex';
 
 /**
@@ -45,12 +52,13 @@ export class StagingManager {
    * @param sessionId - Session identifier
    * @param allCollectedRoutes - All routes collected from vault (PHASE 6.1), used to detect deleted pages
    * @param pipelineSignature - Pipeline signature from session (PHASE 7 fix)
+   * @returns PromotionStats with deduplication metrics
    */
   async promoteSession(
     sessionId: string,
     allCollectedRoutes?: string[],
     pipelineSignature?: unknown
-  ): Promise<void> {
+  ): Promise<PromotionStats> {
     const stagingContent = this.contentStagingPath(sessionId);
     const stagingAssets = this.assetsStagingPath(sessionId);
 
@@ -65,7 +73,7 @@ export class StagingManager {
     });
 
     // CRITICAL SECTION: Entire promotion must be atomic (mutex protected)
-    await this.promotionMutex.runExclusive(async () => {
+    const promotionStats = await this.promotionMutex.runExclusive(async () => {
       this.logger?.debug('Acquired promotion mutex, starting atomic promotion', { sessionId });
 
       // Step 1: Load manifests BEFORE any filesystem operations
@@ -104,7 +112,9 @@ export class StagingManager {
           ...unchangedPages, // Unchanged pages from production
         ],
         // Update pipelineSignature from session or staging (PHASE 7 fix)
-        pipelineSignature: (pipelineSignature ?? stagingManifest.pipelineSignature) as any,
+        pipelineSignature: (pipelineSignature ?? stagingManifest.pipelineSignature) as
+          | PipelineSignature
+          | undefined,
       };
 
       this.logger?.debug('Manifest merge prepared', {
@@ -217,12 +227,31 @@ export class StagingManager {
       );
       await this.synchronizeAssets(stagingAssets, referencedAssetPaths);
 
-      this.logger?.debug('Promotion completed atomically, releasing mutex', { sessionId });
+      // Calculate promotion statistics for observability
+      const finalAssetsCount = finalManifest.assets?.length ?? 0;
+      const stagingAssetsCount = stagingManifest.assets?.length ?? 0;
+
+      const promotionStats: PromotionStats = {
+        notesPublished: stagingManifest.pages.length,
+        notesDeduplicated: unchangedPages.length,
+        notesDeleted: deletedPages.length,
+        assetsPublished: stagingAssetsCount,
+        assetsDeduplicated: Math.max(0, finalAssetsCount - stagingAssetsCount),
+      };
+
+      this.logger?.debug('Promotion completed atomically, releasing mutex', {
+        sessionId,
+        promotionStats,
+      });
+
+      return promotionStats;
     });
 
     await this.cleanupStaging(sessionId);
 
-    this.logger?.debug('Staging promoted to production roots', { sessionId });
+    this.logger?.debug('Staging promoted to production roots', { sessionId, promotionStats });
+
+    return promotionStats;
   }
 
   async discardSession(sessionId: string): Promise<void> {
@@ -299,19 +328,19 @@ export class StagingManager {
       };
 
       // Deserialize dates for pages
-      const pages = Array.isArray(parsed.pages)
-        ? parsed.pages.map((p: any) => ({
-            ...p,
-            publishedAt: new Date(p.publishedAt ?? 0),
-          }))
+      const pages: ManifestPage[] = Array.isArray(parsed.pages)
+        ? (parsed.pages.map((p: unknown) => ({
+            ...(p as Record<string, unknown>),
+            publishedAt: new Date(((p as Record<string, unknown>).publishedAt as number) ?? 0),
+          })) as ManifestPage[])
         : [];
 
       // Deserialize dates for assets
-      const assets = Array.isArray(parsed.assets)
-        ? parsed.assets.map((a: any) => ({
-            ...a,
-            uploadedAt: new Date(a.uploadedAt ?? 0),
-          }))
+      const assets: ManifestAsset[] | undefined = Array.isArray(parsed.assets)
+        ? (parsed.assets.map((a: unknown) => ({
+            ...(a as Record<string, unknown>),
+            uploadedAt: new Date(((a as Record<string, unknown>).uploadedAt as number) ?? 0),
+          })) as ManifestAsset[])
         : undefined;
 
       return {
@@ -322,7 +351,7 @@ export class StagingManager {
         folderDisplayNames: parsed.folderDisplayNames,
         canonicalMap: parsed.canonicalMap,
         assets,
-        pipelineSignature: parsed.pipelineSignature as any,
+        pipelineSignature: parsed.pipelineSignature as PipelineSignature | undefined,
       };
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -356,19 +385,19 @@ export class StagingManager {
       };
 
       // Deserialize dates for pages
-      const pages = Array.isArray(parsed.pages)
-        ? parsed.pages.map((p: any) => ({
-            ...p,
-            publishedAt: new Date(p.publishedAt ?? 0),
-          }))
+      const pages: ManifestPage[] = Array.isArray(parsed.pages)
+        ? (parsed.pages.map((p: unknown) => ({
+            ...(p as Record<string, unknown>),
+            publishedAt: new Date(((p as Record<string, unknown>).publishedAt as number) ?? 0),
+          })) as ManifestPage[])
         : [];
 
       // Deserialize dates for assets
-      const assets = Array.isArray(parsed.assets)
-        ? parsed.assets.map((a: any) => ({
-            ...a,
-            uploadedAt: new Date(a.uploadedAt ?? 0),
-          }))
+      const assets: ManifestAsset[] | undefined = Array.isArray(parsed.assets)
+        ? (parsed.assets.map((a: unknown) => ({
+            ...(a as Record<string, unknown>),
+            uploadedAt: new Date(((a as Record<string, unknown>).uploadedAt as number) ?? 0),
+          })) as ManifestAsset[])
         : undefined;
 
       return {
@@ -379,7 +408,7 @@ export class StagingManager {
         folderDisplayNames: parsed.folderDisplayNames,
         canonicalMap: parsed.canonicalMap,
         assets,
-        pipelineSignature: parsed.pipelineSignature as any,
+        pipelineSignature: parsed.pipelineSignature as PipelineSignature | undefined,
       };
     } catch (err) {
       this.logger?.warn('Failed to load manifest from staging, proceeding without asset sync', {

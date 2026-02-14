@@ -1,13 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import type { Manifest, ManifestAsset, ManifestPage } from '@core-domain';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { promises as fs } from 'fs';
-import * as path from 'path';
 import * as os from 'os';
+import * as path from 'path';
+
 import { StagingManager } from '../infra/filesystem/staging-manager';
-import type {
-  Manifest,
-  ManifestPage,
-  ManifestAsset,
-} from '../../../../libs/core-domain/src/lib/entities';
 
 describe('StagingManager - Manifest Merge (PHASE 6)', () => {
   let stagingManager: StagingManager;
@@ -87,9 +84,15 @@ describe('StagingManager - Manifest Merge (PHASE 6)', () => {
 
   /**
    * Helper: Create HTML file for a page route
+   * Uses slug.html format (matches NotesFileSystemStorage behavior)
    */
   async function createHtmlForRoute(route: string, content: string): Promise<string> {
-    const htmlPath = path.join(contentRoot, ...route.split('/').filter(Boolean), 'index.html');
+    const routeSegments = route.split('/').filter(Boolean);
+    const htmlPath = path.join(
+      contentRoot,
+      ...routeSegments.slice(0, -1),
+      `${routeSegments[routeSegments.length - 1]}.html`
+    );
     await fs.mkdir(path.dirname(htmlPath), { recursive: true });
     await fs.writeFile(htmlPath, content, 'utf8');
     return htmlPath;
@@ -97,9 +100,15 @@ describe('StagingManager - Manifest Merge (PHASE 6)', () => {
 
   /**
    * Helper: Check if HTML file exists for route
+   * Uses slug.html format (matches NotesFileSystemStorage behavior)
    */
   async function htmlExistsForRoute(route: string): Promise<boolean> {
-    const htmlPath = path.join(contentRoot, ...route.split('/').filter(Boolean), 'index.html');
+    const routeSegments = route.split('/').filter(Boolean);
+    const htmlPath = path.join(
+      contentRoot,
+      ...routeSegments.slice(0, -1),
+      `${routeSegments[routeSegments.length - 1]}.html`
+    );
     try {
       await fs.access(htmlPath);
       return true;
@@ -247,7 +256,7 @@ describe('StagingManager - Manifest Merge (PHASE 6)', () => {
 
     // Create HTML files for both pages
     await createHtmlForRoute('/dir/kept', '<html>Kept content</html>');
-    const deletedHtmlPath = await createHtmlForRoute(
+    const _deletedHtmlPath = await createHtmlForRoute(
       '/dir/deleted',
       '<html>Deleted content</html>'
     );

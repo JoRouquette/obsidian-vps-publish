@@ -1,6 +1,7 @@
 export * from './dataview';
 export * from './entities';
 export * from './entities/chunked-data';
+export * from './entities/promotion-stats';
 export * from './entities/publishing-context';
 export * from './entities/publishing-stats';
 export * from './errors/asset-scan.error';

@@ -36,7 +36,7 @@ describe('StagingManager - Selective Asset Promotion', () => {
     try {
       const tmpDir = path.dirname(contentRoot);
       await fs.rm(tmpDir, { recursive: true, force: true });
-    } catch (err) {
+    } catch {
       // Ignore cleanup errors
     }
   });
@@ -51,10 +51,11 @@ describe('StagingManager - Selective Asset Promotion', () => {
       await fs.mkdir(stagingAssets, { recursive: true });
 
       // Create manifest in staging with new assets
+      const now = new Date();
       const manifest: Manifest = {
         sessionId,
-        createdAt: new Date(),
-        lastUpdatedAt: new Date(),
+        createdAt: now,
+        lastUpdatedAt: now,
         pages: [],
         assets: [
           {
@@ -62,20 +63,32 @@ describe('StagingManager - Selective Asset Promotion', () => {
             hash: 'hash1',
             size: 1024,
             mimeType: 'image/png',
-            uploadedAt: new Date(),
+            uploadedAt: now,
           },
           {
             path: '_assets/image2.jpg',
             hash: 'hash2',
             size: 2048,
             mimeType: 'image/jpeg',
-            uploadedAt: new Date(),
+            uploadedAt: now,
           },
         ],
       };
       await fs.writeFile(
         path.join(stagingContent, '_manifest.json'),
-        JSON.stringify(manifest, null, 2)
+        JSON.stringify(
+          {
+            ...manifest,
+            createdAt: manifest.createdAt.toISOString(),
+            lastUpdatedAt: manifest.lastUpdatedAt.toISOString(),
+            assets: manifest.assets?.map((a) => ({
+              ...a,
+              uploadedAt: a.uploadedAt.toISOString(),
+            })),
+          },
+          null,
+          2
+        )
       );
 
       // Create asset files in staging
@@ -226,25 +239,52 @@ describe('StagingManager - Selective Asset Promotion', () => {
       await fs.mkdir(path.join(assetsRoot, '_assets'), { recursive: true });
       await fs.writeFile(path.join(assetsRoot, '_assets', 'old-asset.png'), 'old-content');
 
-      // Prepare staging WITHOUT manifest
+      // Prepare staging with minimal manifest (no pages, only assets)
       const stagingContent = stagingManager.contentStagingPath(sessionId);
       const stagingAssets = stagingManager.assetsStagingPath(sessionId);
 
       await fs.mkdir(stagingContent, { recursive: true });
       await fs.mkdir(stagingAssets, { recursive: true });
 
+      // Create manifest with asset reference
+      const now = new Date();
+      const manifest: Manifest = {
+        sessionId,
+        createdAt: now,
+        lastUpdatedAt: now,
+        pages: [],
+        assets: [
+          {
+            path: '_assets/new-asset.jpg',
+            hash: 'hash-new',
+            size: 1024,
+            mimeType: 'image/jpeg',
+            uploadedAt: now,
+          },
+        ],
+      };
+      await fs.writeFile(
+        path.join(stagingContent, '_manifest.json'),
+        JSON.stringify({
+          ...manifest,
+          createdAt: manifest.createdAt.toISOString(),
+          lastUpdatedAt: manifest.lastUpdatedAt.toISOString(),
+          assets: manifest.assets?.map((a) => ({ ...a, uploadedAt: a.uploadedAt.toISOString() })),
+        })
+      );
+
       // Create assets in staging
       await fs.mkdir(path.join(stagingAssets, '_assets'), { recursive: true });
       await fs.writeFile(path.join(stagingAssets, '_assets', 'new-asset.jpg'), 'new-content');
 
-      // ACT: Promote staging to production
-      await stagingManager.promoteSession(sessionId);
+      // ACT: Promote staging to production with empty allCollectedRoutes (no pages)
+      await stagingManager.promoteSession(sessionId, []);
 
-      // ASSERT: Check that new asset was copied (backward compatibility mode)
+      // ASSERT: Check that new asset was copied
       const newAsset = await fs.readFile(path.join(assetsRoot, '_assets', 'new-asset.jpg'), 'utf8');
       expect(newAsset).toBe('new-content');
 
-      // Old assets should still be deleted (no manifest = no reference)
+      // Old assets should be deleted (not referenced in manifest)
       const oldExists = await fs
         .access(path.join(assetsRoot, '_assets', 'old-asset.png'))
         .then(() => true)
@@ -338,7 +378,7 @@ describe('StagingManager - Selective Asset Promotion', () => {
   });
 
   describe('Concurrent promotion race conditions (B6)', () => {
-    it('should serialize concurrent promotions without data corruption', async () => {
+    it('should serialize concurrent promotions and apply deletion logic correctly', async () => {
       // ARRANGE: Two sessions ready to promote simultaneously
       const sessionId1 = 'concurrent-session-1';
       const sessionId2 = 'concurrent-session-2';
@@ -349,10 +389,11 @@ describe('StagingManager - Selective Asset Promotion', () => {
       await fs.mkdir(staging1Content, { recursive: true });
       await fs.mkdir(staging1Assets, { recursive: true });
 
+      const now1 = new Date();
       const manifest1: Manifest = {
         sessionId: sessionId1,
-        createdAt: new Date(),
-        lastUpdatedAt: new Date(),
+        createdAt: now1,
+        lastUpdatedAt: now1,
         pages: [
           {
             id: 'page-session-1-id',
@@ -360,7 +401,7 @@ describe('StagingManager - Selective Asset Promotion', () => {
             title: 'Session 1 Page',
             route: '/page-session-1',
             relativePath: 'page-session-1.html',
-            publishedAt: new Date(),
+            publishedAt: now1,
             tags: [],
           },
         ],
@@ -370,13 +411,26 @@ describe('StagingManager - Selective Asset Promotion', () => {
             hash: 'hash-session1',
             size: 1024,
             mimeType: 'image/png',
-            uploadedAt: new Date(),
+            uploadedAt: now1,
           },
         ],
       };
       await fs.writeFile(
         path.join(staging1Content, '_manifest.json'),
-        JSON.stringify(manifest1, null, 2)
+        JSON.stringify(
+          {
+            ...manifest1,
+            createdAt: manifest1.createdAt.toISOString(),
+            lastUpdatedAt: manifest1.lastUpdatedAt.toISOString(),
+            pages: manifest1.pages.map((p) => ({ ...p, publishedAt: p.publishedAt.toISOString() })),
+            assets: manifest1.assets?.map((a) => ({
+              ...a,
+              uploadedAt: a.uploadedAt.toISOString(),
+            })),
+          },
+          null,
+          2
+        )
       );
       await fs.writeFile(path.join(staging1Content, 'page-session-1.html'), '<h1>Session 1</h1>');
       await fs.mkdir(path.join(staging1Assets, '_assets'), { recursive: true });
@@ -391,10 +445,11 @@ describe('StagingManager - Selective Asset Promotion', () => {
       await fs.mkdir(staging2Content, { recursive: true });
       await fs.mkdir(staging2Assets, { recursive: true });
 
+      const now2 = new Date();
       const manifest2: Manifest = {
         sessionId: sessionId2,
-        createdAt: new Date(),
-        lastUpdatedAt: new Date(),
+        createdAt: now2,
+        lastUpdatedAt: now2,
         pages: [
           {
             id: 'page-session-2-id',
@@ -402,7 +457,7 @@ describe('StagingManager - Selective Asset Promotion', () => {
             title: 'Session 2 Page',
             route: '/page-session-2',
             relativePath: 'page-session-2.html',
-            publishedAt: new Date(),
+            publishedAt: now2,
             tags: [],
           },
         ],
@@ -412,13 +467,26 @@ describe('StagingManager - Selective Asset Promotion', () => {
             hash: 'hash-session2',
             size: 2048,
             mimeType: 'image/jpeg',
-            uploadedAt: new Date(),
+            uploadedAt: now2,
           },
         ],
       };
       await fs.writeFile(
         path.join(staging2Content, '_manifest.json'),
-        JSON.stringify(manifest2, null, 2)
+        JSON.stringify(
+          {
+            ...manifest2,
+            createdAt: manifest2.createdAt.toISOString(),
+            lastUpdatedAt: manifest2.lastUpdatedAt.toISOString(),
+            pages: manifest2.pages.map((p) => ({ ...p, publishedAt: p.publishedAt.toISOString() })),
+            assets: manifest2.assets?.map((a) => ({
+              ...a,
+              uploadedAt: a.uploadedAt.toISOString(),
+            })),
+          },
+          null,
+          2
+        )
       );
       await fs.writeFile(path.join(staging2Content, 'page-session-2.html'), '<h1>Session 2</h1>');
       await fs.mkdir(path.join(staging2Assets, '_assets'), { recursive: true });
@@ -427,10 +495,11 @@ describe('StagingManager - Selective Asset Promotion', () => {
         'session2-content'
       );
 
-      // ACT: Trigger both promotions concurrently
+      // ACT: Trigger both promotions concurrently WITH allCollectedRoutes
+      // Each session represents the complete vault state at that moment
       const results = await Promise.allSettled([
-        stagingManager.promoteSession(sessionId1),
-        stagingManager.promoteSession(sessionId2),
+        stagingManager.promoteSession(sessionId1, ['/page-session-1']),
+        stagingManager.promoteSession(sessionId2, ['/page-session-2']),
       ]);
 
       // ASSERT: Both promotions should succeed
@@ -438,6 +507,7 @@ describe('StagingManager - Selective Asset Promotion', () => {
       expect(results[1].status).toBe('fulfilled');
 
       // Production should contain content from ONE complete session (whichever won the race)
+      // The second promotion deletes the first session's content (not in its allCollectedRoutes)
       const manifestExists = await fs
         .access(path.join(contentRoot, '_manifest.json'))
         .then(() => true)
@@ -448,7 +518,7 @@ describe('StagingManager - Selective Asset Promotion', () => {
         await fs.readFile(path.join(contentRoot, '_manifest.json'), 'utf8')
       ) as Manifest;
 
-      // Manifest should be complete (not corrupted/mixed)
+      // With allCollectedRoutes, only content from last session remains (first is deleted)
       expect(finalManifest.pages).toHaveLength(1);
       expect(finalManifest.assets).toHaveLength(1);
 
@@ -506,22 +576,30 @@ describe('StagingManager - Selective Asset Promotion', () => {
         await fs.mkdir(stagingContent, { recursive: true });
         await fs.mkdir(stagingAssets, { recursive: true });
 
+        const now = new Date();
         const manifest: Manifest = {
           sessionId: sid,
-          createdAt: new Date(),
-          lastUpdatedAt: new Date(),
+          createdAt: now,
+          lastUpdatedAt: now,
           pages: [],
           assets: [],
         };
-        await fs.writeFile(path.join(stagingContent, '_manifest.json'), JSON.stringify(manifest));
+        await fs.writeFile(
+          path.join(stagingContent, '_manifest.json'),
+          JSON.stringify({
+            ...manifest,
+            createdAt: manifest.createdAt.toISOString(),
+            lastUpdatedAt: manifest.lastUpdatedAt.toISOString(),
+          })
+        );
         await fs.writeFile(path.join(stagingContent, `${sid}.html`), `<p>${sid}</p>`);
       }
 
-      // ACT: Launch both promotions concurrently
+      // ACT: Launch both promotions concurrently WITH allCollectedRoutes (empty)
       const startTime = Date.now();
       const results = await Promise.allSettled([
-        stagingManager.promoteSession(sessionId1),
-        stagingManager.promoteSession(sessionId2),
+        stagingManager.promoteSession(sessionId1, []),
+        stagingManager.promoteSession(sessionId2, []),
       ]);
       const duration = Date.now() - startTime;
 
@@ -557,10 +635,11 @@ describe('StagingManager - Selective Asset Promotion', () => {
         await fs.mkdir(stagingContent, { recursive: true });
         await fs.mkdir(stagingAssets, { recursive: true });
 
+        const now = new Date();
         const manifest: Manifest = {
           sessionId: sid,
-          createdAt: new Date(),
-          lastUpdatedAt: new Date(),
+          createdAt: now,
+          lastUpdatedAt: now,
           pages: [
             {
               id: `page-${sid}-id`,
@@ -568,7 +647,7 @@ describe('StagingManager - Selective Asset Promotion', () => {
               title: `Page ${sid}`,
               route: `/page-${sid}`,
               relativePath: `page-${sid}.html`,
-              publishedAt: new Date(),
+              publishedAt: now,
               tags: [],
             },
           ],
@@ -578,25 +657,37 @@ describe('StagingManager - Selective Asset Promotion', () => {
               hash: `hash-${sid}`,
               size: 1024,
               mimeType: 'image/png',
-              uploadedAt: new Date(),
+              uploadedAt: now,
             },
           ],
         };
-        await fs.writeFile(path.join(stagingContent, '_manifest.json'), JSON.stringify(manifest));
+        await fs.writeFile(
+          path.join(stagingContent, '_manifest.json'),
+          JSON.stringify({
+            ...manifest,
+            createdAt: manifest.createdAt.toISOString(),
+            lastUpdatedAt: manifest.lastUpdatedAt.toISOString(),
+            pages: manifest.pages.map((p) => ({ ...p, publishedAt: p.publishedAt.toISOString() })),
+            assets: manifest.assets?.map((a) => ({ ...a, uploadedAt: a.uploadedAt.toISOString() })),
+          })
+        );
         await fs.writeFile(path.join(stagingContent, `page-${sid}.html`), `<h1>${sid}</h1>`);
         await fs.mkdir(path.join(stagingAssets, '_assets'), { recursive: true });
         await fs.writeFile(path.join(stagingAssets, '_assets', `${sid}.png`), `content-${sid}`);
       }
 
-      // ACT: Promote all three concurrently
-      await Promise.all(sessions.map((sid) => stagingManager.promoteSession(sid)));
+      // ACT: Promote all three concurrently WITH allCollectedRoutes
+      // Each session represents complete vault state with only its own page
+      await Promise.all(
+        sessions.map((sid) => stagingManager.promoteSession(sid, [`/page-${sid}`]))
+      );
 
-      // ASSERT: Final state should be consistent
+      // ASSERT: Final state should be consistent (last session wins, deletes others)
       const finalManifest = JSON.parse(
         await fs.readFile(path.join(contentRoot, '_manifest.json'), 'utf8')
       ) as Manifest;
 
-      // Manifest should have exactly one page and one asset (from winner session)
+      // With allCollectedRoutes, only the last promoted session's content remains
       expect(finalManifest.pages).toHaveLength(1);
       expect(finalManifest.assets).toHaveLength(1);
 

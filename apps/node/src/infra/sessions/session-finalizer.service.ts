@@ -9,12 +9,12 @@ import {
   DetectWikilinksService,
   type ManifestPort,
   type MarkdownRendererPort,
-  NoteHashService,
   ResolveWikilinksService,
   type SessionNotesStoragePort,
   type SessionRepository,
   UploadNotesHandler,
 } from '@core-application';
+import { NoteHashService } from '@core-application/publishing/services/note-hash.service';
 import { type CustomIndexConfig, type LoggerPort, LogLevel } from '@core-domain';
 
 import { type StagingManager } from '../filesystem/staging-manager';

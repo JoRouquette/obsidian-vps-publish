@@ -75,7 +75,7 @@ export class CreateSessionHandler implements CommandHandler<
 
             pipelineChanged = versionChanged || settingsChanged;
 
-            logger?.debug('Pipeline signature comparison', {
+            logger?.info('🔍 Pipeline signature comparison', {
               currentVersion: command.pipelineSignature.version,
               manifestVersion: manifest.pipelineSignature.version,
               currentSettingsHash: command.pipelineSignature.renderSettingsHash,
@@ -87,7 +87,10 @@ export class CreateSessionHandler implements CommandHandler<
           } else if (command.pipelineSignature || manifest.pipelineSignature) {
             // One side has signature, the other doesn't => changed
             pipelineChanged = true;
-            logger?.debug('Pipeline signature missing on one side, marking as changed');
+            logger?.info('⚠️ Pipeline signature missing on one side, marking as changed', {
+              hasCommandSignature: !!command.pipelineSignature,
+              hasManifestSignature: !!manifest.pipelineSignature,
+            });
           }
 
           // Extract note hashes only if pipeline unchanged
@@ -100,12 +103,12 @@ export class CreateSessionHandler implements CommandHandler<
                 hashCount++;
               }
             }
-            logger?.debug('Loaded existing note hashes for deduplication', {
+            logger?.info('✅ Loaded existing note hashes for deduplication', {
               totalPages: manifest.pages.length,
               pagesWithHash: hashCount,
             });
           } else if (pipelineChanged) {
-            logger?.info('Pipeline changed, skipping note hash extraction (full re-render)');
+            logger?.info('🔄 Pipeline changed, skipping note hash extraction (full re-render)');
           }
         }
       } catch (err) {

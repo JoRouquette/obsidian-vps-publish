@@ -1,12 +1,14 @@
+import { promises as fs } from 'node:fs';
+import * as path from 'node:path';
+
 import { type ManifestPort } from '@core-application';
 import {
   type LoggerPort,
   type Manifest,
-  type ManifestPage,
   type ManifestAsset,
+  type ManifestPage,
+  type PipelineSignature,
 } from '@core-domain';
-import { promises as fs } from 'node:fs';
-import * as path from 'node:path';
 
 import { renderFolderIndex, renderRootIndex } from './site-index-templates';
 
@@ -60,7 +62,7 @@ export class ManifestFileSystem implements ManifestPort {
         pages,
         folderDisplayNames: parsed.folderDisplayNames || undefined,
         assets,
-        pipelineSignature: parsed.pipelineSignature as any, // PHASE 7: Load pipelineSignature
+        pipelineSignature: parsed.pipelineSignature as PipelineSignature | undefined, // PHASE 7: Load pipelineSignature
       };
 
       this._logger?.debug('Manifest loaded', {

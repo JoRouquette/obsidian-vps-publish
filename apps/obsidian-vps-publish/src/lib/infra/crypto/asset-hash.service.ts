@@ -24,7 +24,8 @@ export class AssetHashService implements AssetHashPort {
           );
 
     // Use SubtleCrypto API (available in modern browsers and Electron)
-    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    // Cast to ArrayBuffer to satisfy BufferSource type (crypto.subtle.digest doesn't accept SharedArrayBuffer)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer as ArrayBuffer);
 
     // Convert ArrayBuffer to hex string
     const hashArray = Array.from(new Uint8Array(hashBuffer));

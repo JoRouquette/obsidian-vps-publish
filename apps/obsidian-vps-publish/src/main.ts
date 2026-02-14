@@ -44,11 +44,11 @@ import { DEFAULT_LOGGER_LEVEL } from './lib/constants/default-logger-level.const
 import { type DataviewApi, DataviewExecutor } from './lib/dataview/dataview-executor';
 import { processDataviewBlocks } from './lib/dataview/process-dataview-blocks.service';
 import { AbortCancellationAdapter } from './lib/infra/abort-cancellation.adapter';
-import { AssetHashService } from './lib/infra/crypto/asset-hash.service';
-import { BrowserHashService } from './lib/infra/crypto/browser-hash.service';
 import { AssetsUploaderAdapter } from './lib/infra/assets-uploader.adapter';
 import { BackgroundThrottleMonitorAdapter } from './lib/infra/background-throttle-monitor.adapter';
 import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
+import { AssetHashService } from './lib/infra/crypto/asset-hash.service';
+import { BrowserHashService } from './lib/infra/crypto/browser-hash.service';
 import { EventLoopMonitorAdapter } from './lib/infra/event-loop-monitor.adapter';
 import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
 import { NotesUploaderAdapter } from './lib/infra/notes-uploader.adapter';
@@ -107,21 +107,40 @@ async function computePipelineSignature(
 ): Promise<{ version: string; renderSettingsHash: string }> {
   const hashService = new BrowserHashService();
 
-  // Create stable JSON representation (sorted keys)
+  // Create stable JSON representation with SORTED KEYS at all levels
+  // 1. Sort calloutStyles keys (critical for stability)
+  const sortedCalloutStyles: Record<string, string> = {};
+  Object.keys(renderSettings.calloutStyles)
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((key) => {
+      sortedCalloutStyles[key] = renderSettings.calloutStyles[key];
+    });
+
+  // 2. Sort array elements by id for stability
+  const sortedCleanupRules = [...renderSettings.cleanupRules]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((r) => ({
+      id: r.id,
+      isEnabled: r.isEnabled,
+      regex: r.regex,
+      replace: r.replace,
+    }));
+
+  // 3. Build stable object with sorted keys
+  const stableObj = {
+    calloutStyles: sortedCalloutStyles,
+    cleanupRules: sortedCleanupRules,
+    ignoredTags: [...renderSettings.ignoredTags].sort((a, b) => a.localeCompare(b)),
+  };
+
+  // 4. Stringify with sorted root keys
   const stable = JSON.stringify(
-    {
-      calloutStyles: renderSettings.calloutStyles,
-      cleanupRules: renderSettings.cleanupRules.map((r) => ({
-        id: r.id,
-        isEnabled: r.isEnabled,
-        regex: r.regex,
-        replace: r.replace,
-      })),
-      ignoredTags: [...renderSettings.ignoredTags].sort(),
-    },
-    // Sort keys alphabetically
-    Object.keys(renderSettings).sort()
+    stableObj,
+    Object.keys(stableObj).sort((a, b) => a.localeCompare(b))
   );
+
+  // DEBUG: Log stable representation to verify stability
+  console.log('🔐 Pipeline signature input (first 500 chars):', stable.substring(0, 500));
 
   const renderSettingsHash = await hashService.computeHash(stable);
 
@@ -132,7 +151,7 @@ async function computePipelineSignature(
 }
 
 function cloneSettings(settings: PluginSettings): PluginSettings {
-  return JSON.parse(JSON.stringify(settings));
+  return structuredClone(settings);
 }
 
 function withEncryptedApiKeys(settings: PluginSettings): PluginSettings {
@@ -861,16 +880,36 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
       trace.checkpoint('6-session-start', 'computing-pipeline-signature');
 
+      // Transform calloutStyles array to Record for pipeline signature
+      const calloutStylesRecord: Record<string, string> = calloutStyles.reduce(
+        (acc, { path, css }) => {
+          acc[path] = css;
+          return acc;
+        },
+        {} as Record<string, string>
+      );
+
+      // Transform cleanupRules to match expected signature (rename 'replacement' to 'replace')
+      const transformedCleanupRules = validCleanupRules.map((rule) => ({
+        id: rule.id,
+        isEnabled: rule.isEnabled,
+        regex: rule.regex,
+        replace: rule.replacement,
+      }));
+
       // Compute pipeline signature for note deduplication
       const pipelineSignature = await computePipelineSignature(this.manifest.version, {
-        calloutStyles,
-        cleanupRules: validCleanupRules,
+        calloutStyles: calloutStylesRecord,
+        cleanupRules: transformedCleanupRules,
         ignoredTags: settings.frontmatterTagsToExclude || [],
       });
 
-      this.logger.debug('Pipeline signature computed', {
+      this.logger.info('🔑 Pipeline signature computed', {
         version: pipelineSignature.version,
         renderSettingsHash: pipelineSignature.renderSettingsHash,
+        calloutStylesCount: Object.keys(calloutStylesRecord).length,
+        cleanupRulesCount: transformedCleanupRules.length,
+        ignoredTagsCount: (settings.frontmatterTagsToExclude || []).length,
       });
 
       trace.checkpoint('6-session-start', 'calling-startSession-api');
@@ -1096,11 +1135,18 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // PHASE 6.1: Extract all routes collected from vault (for deleted page detection)
       const allCollectedRoutes = deduplicated.map((note) => note.routing.fullPath);
 
-      await sessionClient.finishSession(sessionId, {
+      const finishResult = await sessionClient.finishSession(sessionId, {
         notesProcessed: stats.notesUploaded,
         assetsProcessed: stats.assetsUploaded,
         allCollectedRoutes, // PHASE 6.1: send to backend for deleted page detection
       });
+
+      // Capture promotion stats from finalization
+      if (finishResult.promotionStats) {
+        stats.notesDeduplicated = finishResult.promotionStats.notesDeduplicated;
+        stats.assetsDeduplicated = finishResult.promotionStats.assetsDeduplicated;
+        stats.notesDeleted = finishResult.promotionStats.notesDeleted;
+      }
 
       stepProgressManager.advanceStep(ProgressStepId.FINALIZE_SESSION, 1);
       stepProgressManager.completeStep(ProgressStepId.FINALIZE_SESSION);
@@ -1172,6 +1218,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       if (enablePerfDebug) {
         const traceData = trace.getStructuredData();
         const topSteps = traceData.steps
+          .slice()
           .sort((a, b) => b.durationSec - a.durationSec)
           .slice(0, 3)
           .map((step) => `${step.name}: ${step.durationSec.toFixed(2)}s`)
@@ -1194,6 +1241,22 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       new Notice(summary + perfDebugInfo + perfHint, 10000); // Afficher pendant 10 secondes
 
       this.logger.debug('Publishing completed successfully', { stats });
+
+      // Log deduplication statistics if available
+      if (
+        stats.notesDeduplicated !== undefined ||
+        stats.assetsDeduplicated !== undefined ||
+        stats.notesDeleted !== undefined
+      ) {
+        scopedLogger.info('📊 Deduplication Statistics', {
+          uploadRunId,
+          notesDeduplicated: stats.notesDeduplicated ?? 0,
+          assetsDeduplicated: stats.assetsDeduplicated ?? 0,
+          notesDeleted: stats.notesDeleted ?? 0,
+          notesPublished: stats.notesUploaded,
+          assetsPublished: stats.assetsUploaded,
+        });
+      }
     } catch (err) {
       // Check if error is a cancellation
       const isCancellation = err instanceof CancellationError;

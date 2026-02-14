@@ -161,7 +161,15 @@ export class SessionApiClient {
       assetsProcessed: number;
       allCollectedRoutes?: string[]; // PHASE 6.1: detect deleted pages
     }
-  ): Promise<void> {
+  ): Promise<{
+    promotionStats?: {
+      notesPublished: number;
+      notesDeduplicated: number;
+      notesDeleted: number;
+      assetsPublished: number;
+      assetsDeduplicated: number;
+    };
+  }> {
     const result = await this.postJson(`/api/session/${sessionId}/finish`, payload);
     if (result.isError) {
       const errorMsg = this.translations
@@ -169,6 +177,10 @@ export class SessionApiClient {
         : 'finishSession failed';
       throw result.error ?? new Error(errorMsg);
     }
+    const parsed = JSON.parse(result.text ?? '{}');
+    return {
+      promotionStats: parsed.promotionStats,
+    };
   }
 
   async abortSession(sessionId: string): Promise<void> {

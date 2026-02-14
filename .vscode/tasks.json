@@ -43,14 +43,14 @@
       "label": "Launch site",
       "type": "shell",
       "command": "npx",
-      "args": ["nx", "serve", "site"],
+      "args": ["nx", "serve", "site", "--skip-nx-cache"],
       "problemMatcher": []
     },
     {
       "label": "Launch node",
       "type": "shell",
       "command": "npx",
-      "args": ["nx", "serve", "node"],
+      "args": ["nx", "serve", "node", "--skip-nx-cache"],
       "problemMatcher": []
     },
     {
@@ -70,7 +70,7 @@
       "label": "Plugin: build",
       "type": "shell",
       "command": "npx",
-      "args": ["nx", "run", "obsidian-vps-publish:build", "--tui false"],
+      "args": ["nx", "run", "obsidian-vps-publish:build", "--tui false", "--skip-nx-cache"],
       "problemMatcher": []
     },
     {
@@ -91,7 +91,7 @@
       "label": "Build all",
       "type": "shell",
       "command": "npm",
-      "args": ["run build"],
+      "args": ["run", "build", "--", "--skip-nx-cache"],
       "problemMatcher": []
     },
     {

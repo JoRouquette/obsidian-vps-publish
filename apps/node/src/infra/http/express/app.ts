@@ -4,10 +4,10 @@ import {
   AbortSessionHandler,
   CreateSessionHandler,
   FinishSessionHandler,
-  NoteHashService,
   UploadAssetsHandler,
   UploadNotesHandler,
 } from '@core-application';
+import { NoteHashService } from '@core-application/publishing/services/note-hash.service';
 import { type LoggerPort, type Manifest } from '@core-domain';
 import compression from 'compression';
 import express from 'express';

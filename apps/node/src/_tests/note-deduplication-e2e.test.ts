@@ -10,12 +10,8 @@
  * - Publish after renaming (stable route): Note skipped (hash match)
  */
 
-import {
-  CreateSessionHandler,
-  FinishSessionHandler,
-  NoteHashService,
-  UploadNotesHandler,
-} from '@core-application';
+import { CreateSessionHandler, FinishSessionHandler, UploadNotesHandler } from '@core-application';
+import { NoteHashService } from '@core-application/publishing/services/note-hash.service';
 import { type Manifest, type PublishableNote, type Session } from '@core-domain';
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 import { promises as fs } from 'fs';
