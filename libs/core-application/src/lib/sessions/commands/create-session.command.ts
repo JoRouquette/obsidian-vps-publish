@@ -1,4 +1,4 @@
-import type { CustomIndexConfig } from '@core-domain';
+import type { CustomIndexConfig, PipelineSignature } from '@core-domain';
 
 export interface CreateSessionCommand {
   notesPlanned: number;
@@ -9,4 +9,5 @@ export interface CreateSessionCommand {
   customIndexConfigs?: CustomIndexConfig[];
   ignoredTags?: string[];
   folderDisplayNames?: Record<string, string>;
+  pipelineSignature?: PipelineSignature;
 }

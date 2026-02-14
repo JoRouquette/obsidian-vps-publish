@@ -30,7 +30,7 @@ const BASE_DEFINITIONS: CalloutDefinition[] = [
   { type: 'abstract', label: 'Abstract', icon: 'description', aliases: ['summary', 'tldr'] },
   { type: 'info', label: 'Info', icon: 'info' },
   { type: 'todo', label: 'Todo', icon: 'task_alt' },
-  { type: 'tip', label: 'Tip', icon: 'lightbulb' },
+  { type: 'tip', label: 'Tip', icon: 'lightbulb', aliases: ['hint', 'important'] },
   { type: 'success', label: 'Success', icon: 'check_circle', aliases: ['check', 'done'] },
   { type: 'question', label: 'Question', icon: 'help', aliases: ['help', 'faq'] },
   { type: 'warning', label: 'Warning', icon: 'warning', aliases: ['caution', 'attention'] },

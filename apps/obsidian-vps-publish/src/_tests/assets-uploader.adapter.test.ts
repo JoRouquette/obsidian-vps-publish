@@ -14,6 +14,11 @@ const makeGuidGenerator = () =>
     generateGuid: jest.fn().mockReturnValue('test-guid-123'),
   }) as any;
 
+const makeAssetHasher = () =>
+  ({
+    computeHash: jest.fn().mockResolvedValue('mock-hash-abc123'),
+  }) as any;
+
 describe('AssetsUploaderAdapter', () => {
   const sessionClient = {
     uploadAssets: jest.fn(),
@@ -29,6 +34,7 @@ describe('AssetsUploaderAdapter', () => {
       sessionClient,
       's1',
       makeGuidGenerator(),
+      makeAssetHasher(),
       makeLogger(),
       1024
     );
@@ -41,6 +47,7 @@ describe('AssetsUploaderAdapter', () => {
       sessionClient,
       's1',
       makeGuidGenerator(),
+      makeAssetHasher(),
       makeLogger(),
       200
     );
@@ -66,6 +73,7 @@ describe('AssetsUploaderAdapter', () => {
       sessionClient,
       's1',
       makeGuidGenerator(),
+      makeAssetHasher(),
       makeLogger(),
       200
     );

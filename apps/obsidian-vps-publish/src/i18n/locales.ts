@@ -18,6 +18,7 @@ type NoticeTranslations = {
   dataviewNotDetected: string;
   completedIn: string;
   debugModeHint: string;
+  keepFocusWarning: string;
 };
 
 type PublishingStatsTranslations = {
@@ -824,6 +825,8 @@ export const en: Translations = {
       '⚠️ Dataview plugin not detected. Dataview blocks will show as errors on the site.',
     completedIn: 'completed in',
     debugModeHint: '\n\n💡 Enable debug logging to see detailed performance metrics.',
+    keepFocusWarning:
+      '⚠️ Keep this window focused during publishing to avoid delays. Switching tabs or minimizing may slow down the process.',
   },
   publishingStats: {
     summary: '📊 Publishing Summary',
@@ -1322,6 +1325,8 @@ export const fr: Translations = {
     completedIn: 'terminé en',
     debugModeHint:
       '\n\n💡 Activez le mode debug pour voir les métriques de performance détaillées.',
+    keepFocusWarning:
+      "⚠️ Gardez cette fenêtre au premier plan pendant la publication pour éviter les ralentissements. Changer d'onglet ou minimiser peut ralentir le processus.",
   },
   publishingStats: {
     summary: '📊 Résumé de la publication',

@@ -59,6 +59,7 @@ export function createSessionController(
       customIndexConfigs,
       ignoredTags,
       folderDisplayNames,
+      pipelineSignature,
     } = parsed.data;
     if (typeof notesPlanned !== 'number' || typeof assetsPlanned !== 'number') {
       routeLogger?.warn('Missing required fields for session creation', {
@@ -79,6 +80,7 @@ export function createSessionController(
       customIndexConfigs,
       ignoredTags,
       folderDisplayNames,
+      pipelineSignature,
     };
 
     try {
@@ -96,6 +98,9 @@ export function createSessionController(
         sessionId: result.sessionId,
         success: result.success,
         maxBytesPerRequest: BYTES_LIMIT,
+        existingAssetHashes: result.existingAssetHashes ?? [],
+        existingNoteHashes: result.existingNoteHashes ?? {},
+        pipelineChanged: result.pipelineChanged,
       });
     } catch (err) {
       routeLogger?.error('Error while creating session', {
@@ -219,21 +224,28 @@ export function createSessionController(
       const result = await finishSessionHandler.handle(command);
       routeLogger?.debug('Session finished', { sessionId: result.sessionId });
 
-      // Queue heavy finalization work (returns immediately)
+      // Queue heavy finalization work
       const jobId = await finalizationJobService.queueFinalization(req.params.sessionId);
 
-      routeLogger?.info('Session finalization queued', {
+      routeLogger?.info('Session finalization queued, waiting for completion', {
         sessionId: req.params.sessionId,
         jobId,
       });
 
-      // Return 202 Accepted with job ID for status polling
-      return res.status(202).json({
+      // Wait for job to complete (with 2 minutes timeout)
+      const completedJob = await finalizationJobService.waitForJob(jobId, 120000);
+
+      routeLogger?.info('Session finalization completed', {
+        sessionId: req.params.sessionId,
+        jobId,
+        promotionStats: completedJob.result?.promotionStats,
+      });
+
+      // Return 200 OK with promotion stats
+      return res.status(200).json({
         sessionId: result.sessionId,
         success: true,
-        jobId,
-        message: 'Session finalization in progress',
-        statusUrl: `/api/session/${req.params.sessionId}/status`,
+        promotionStats: completedJob.result?.promotionStats,
       });
     } catch (err) {
       if (err instanceof SessionNotFoundError) {

@@ -87,6 +87,50 @@ export class EnvConfig {
   }
 
   /**
+   * Maximum allowed asset size in bytes.
+   * Default: 10MB (10 * 1024 * 1024 bytes)
+   */
+  static maxAssetSizeBytes(): number {
+    const val = Number(this.norm(process.env.MAX_ASSET_SIZE_BYTES));
+    return Number.isFinite(val) && val > 0 ? val : 10 * 1024 * 1024;
+  }
+
+  /**
+   * Enable virus scanning for uploaded assets (requires ClamAV daemon)
+   * Default: false (uses NoopAssetScanner)
+   */
+  static virusScannerEnabled(): boolean {
+    const val = this.norm(process.env.VIRUS_SCANNER_ENABLED).toLowerCase();
+    return val === 'true' || val === '1';
+  }
+
+  /**
+   * ClamAV daemon host (when virus scanning is enabled)
+   * Default: localhost
+   */
+  static clamavHost(): string {
+    return this.norm(process.env.CLAMAV_HOST) || 'localhost';
+  }
+
+  /**
+   * ClamAV daemon port (when virus scanning is enabled)
+   * Default: 3310 (standard clamd port)
+   */
+  static clamavPort(): number {
+    const val = Number(this.norm(process.env.CLAMAV_PORT));
+    return Number.isFinite(val) && val > 0 ? val : 3310;
+  }
+
+  /**
+   * ClamAV scan timeout in milliseconds
+   * Default: 10000 (10 seconds)
+   */
+  static clamavTimeout(): number {
+    const val = Number(this.norm(process.env.CLAMAV_TIMEOUT));
+    return Number.isFinite(val) && val > 0 ? val : 10000;
+  }
+
+  /**
    * Base URL for the public site (used for SEO: sitemap, canonical URLs)
    * Example: https://example.com
    */

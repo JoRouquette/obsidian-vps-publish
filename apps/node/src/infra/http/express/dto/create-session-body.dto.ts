@@ -24,4 +24,11 @@ export const CreateSessionBodyDto = z.object({
   customIndexConfigs: z.array(CustomIndexConfigDto).optional(),
   ignoredTags: z.array(z.string()).optional(),
   folderDisplayNames: z.record(z.string(), z.string()).optional(),
+  pipelineSignature: z
+    .object({
+      version: z.string(),
+      renderSettingsHash: z.string(),
+      gitCommit: z.string().optional(),
+    })
+    .optional(),
 });

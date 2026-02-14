@@ -1,4 +1,7 @@
+import { type Manifest, type PipelineSignature, Slug } from '@core-domain';
+
 import { type IdGeneratorPort } from '../../../ports/id-generator.port';
+import { type ManifestPort } from '../../../publishing/ports/manifest-storage.port';
 import { type CreateSessionCommand } from '../../../sessions/commands/create-session.command';
 import { CreateSessionHandler } from '../../../sessions/handlers/create-session.handler';
 import { type SessionRepository } from '../../../sessions/ports/session.repository';
@@ -14,7 +17,7 @@ describe('CreateSessionHandler', () => {
     idGenerator = { generateId: jest.fn().mockReturnValue('session-123') } as any;
     sessionRepository = { create: jest.fn() } as any;
     logger = new FakeLogger();
-    handler = new CreateSessionHandler(idGenerator, sessionRepository, logger);
+    handler = new CreateSessionHandler(idGenerator, sessionRepository, undefined, logger);
   });
 
   it('should create a session and return success', async () => {
@@ -49,7 +52,7 @@ describe('CreateSessionHandler', () => {
   });
 
   it('should handle missing logger gracefully', async () => {
-    handler = new CreateSessionHandler(idGenerator, sessionRepository);
+    handler = new CreateSessionHandler(idGenerator, sessionRepository, undefined);
     const command: CreateSessionCommand = {
       notesPlanned: 1,
       assetsPlanned: 1,
@@ -89,5 +92,221 @@ describe('CreateSessionHandler', () => {
     const result2 = await handler.handle(command);
     expect(result1.sessionId).toBe('id-1');
     expect(result2.sessionId).toBe('id-2');
+  });
+
+  describe('Pipeline signature and note deduplication', () => {
+    let manifestStorage: jest.Mocked<ManifestPort>;
+
+    beforeEach(() => {
+      manifestStorage = {
+        load: jest.fn(),
+        save: jest.fn(),
+        rebuildIndex: jest.fn(),
+      } as any;
+      handler = new CreateSessionHandler(idGenerator, sessionRepository, manifestStorage, logger);
+    });
+
+    it('should return existingNoteHashes when pipeline signature is identical', async () => {
+      const signature: PipelineSignature = {
+        version: '1.0.0',
+        renderSettingsHash: 'abc123',
+      };
+
+      const manifest: Manifest = {
+        sessionId: 'prev-session',
+        createdAt: new Date('2024-01-01'),
+        lastUpdatedAt: new Date('2024-01-01'),
+        pipelineSignature: signature,
+        pages: [
+          {
+            id: 'p1',
+            title: 'Note 1',
+            slug: Slug.from('note-1'),
+            route: '/note-1',
+            publishedAt: new Date('2024-01-01'),
+            sourceHash: 'hash1',
+          },
+          {
+            id: 'p2',
+            title: 'Note 2',
+            slug: Slug.from('note-2'),
+            route: '/dir/note-2',
+            publishedAt: new Date('2024-01-01'),
+            sourceHash: 'hash2',
+          },
+        ],
+      };
+
+      manifestStorage.load.mockResolvedValue(manifest);
+
+      const command: CreateSessionCommand = {
+        notesPlanned: 2,
+        assetsPlanned: 0,
+        batchConfig: { maxBytesPerRequest: 10 },
+        pipelineSignature: signature,
+      };
+
+      const result = await handler.handle(command);
+
+      expect(result.pipelineChanged).toBe(false);
+      expect(result.existingNoteHashes).toEqual({
+        '/note-1': 'hash1',
+        '/dir/note-2': 'hash2',
+      });
+    });
+
+    it('should set pipelineChanged=true when version differs', async () => {
+      const manifest: Manifest = {
+        sessionId: 'prev-session',
+        createdAt: new Date('2024-01-01'),
+        lastUpdatedAt: new Date('2024-01-01'),
+        pipelineSignature: {
+          version: '1.0.0',
+          renderSettingsHash: 'abc123',
+        },
+        pages: [
+          {
+            id: 'p1',
+            title: 'Note 1',
+            slug: Slug.from('note-1'),
+            route: '/note-1',
+            publishedAt: new Date('2024-01-01'),
+            sourceHash: 'hash1',
+          },
+        ],
+      };
+
+      manifestStorage.load.mockResolvedValue(manifest);
+
+      const command: CreateSessionCommand = {
+        notesPlanned: 1,
+        assetsPlanned: 0,
+        batchConfig: { maxBytesPerRequest: 10 },
+        pipelineSignature: {
+          version: '2.0.0', // Version changed
+          renderSettingsHash: 'abc123',
+        },
+      };
+
+      const result = await handler.handle(command);
+
+      expect(result.pipelineChanged).toBe(true);
+      expect(result.existingNoteHashes).toBeUndefined();
+    });
+
+    it('should set pipelineChanged=true when renderSettingsHash differs', async () => {
+      const manifest: Manifest = {
+        sessionId: 'prev-session',
+        createdAt: new Date('2024-01-01'),
+        lastUpdatedAt: new Date('2024-01-01'),
+        pipelineSignature: {
+          version: '1.0.0',
+          renderSettingsHash: 'abc123',
+        },
+        pages: [
+          {
+            id: 'p1',
+            title: 'Note 1',
+            slug: Slug.from('note-1'),
+            route: '/note-1',
+            publishedAt: new Date('2024-01-01'),
+            sourceHash: 'hash1',
+          },
+        ],
+      };
+
+      manifestStorage.load.mockResolvedValue(manifest);
+
+      const command: CreateSessionCommand = {
+        notesPlanned: 1,
+        assetsPlanned: 0,
+        batchConfig: { maxBytesPerRequest: 10 },
+        pipelineSignature: {
+          version: '1.0.0',
+          renderSettingsHash: 'xyz789', // Settings changed
+        },
+      };
+
+      const result = await handler.handle(command);
+
+      expect(result.pipelineChanged).toBe(true);
+      expect(result.existingNoteHashes).toBeUndefined();
+    });
+
+    it('should handle manifest without pipelineSignature gracefully', async () => {
+      const manifest: Manifest = {
+        sessionId: 'prev-session',
+        createdAt: new Date('2024-01-01'),
+        lastUpdatedAt: new Date('2024-01-01'),
+        pages: [],
+      };
+
+      manifestStorage.load.mockResolvedValue(manifest);
+
+      const command: CreateSessionCommand = {
+        notesPlanned: 1,
+        assetsPlanned: 0,
+        batchConfig: { maxBytesPerRequest: 10 },
+        pipelineSignature: {
+          version: '1.0.0',
+          renderSettingsHash: 'abc123',
+        },
+      };
+
+      const result = await handler.handle(command);
+
+      expect(result.pipelineChanged).toBe(true); // One side missing => changed
+      expect(result.existingNoteHashes).toBeUndefined();
+    });
+
+    it('should skip pages without sourceHash when extracting hashes', async () => {
+      const manifest: Manifest = {
+        sessionId: 'prev-session',
+        createdAt: new Date('2024-01-01'),
+        lastUpdatedAt: new Date('2024-01-01'),
+        pipelineSignature: {
+          version: '1.0.0',
+          renderSettingsHash: 'abc123',
+        },
+        pages: [
+          {
+            id: 'p1',
+            title: 'Note with hash',
+            slug: Slug.from('note-1'),
+            route: '/note-1',
+            publishedAt: new Date('2024-01-01'),
+            sourceHash: 'hash1',
+          },
+          {
+            id: 'p2',
+            title: 'Note without hash',
+            slug: Slug.from('note-2'),
+            route: '/note-2',
+            publishedAt: new Date('2024-01-01'),
+            // No sourceHash
+          },
+        ],
+      };
+
+      manifestStorage.load.mockResolvedValue(manifest);
+
+      const command: CreateSessionCommand = {
+        notesPlanned: 2,
+        assetsPlanned: 0,
+        batchConfig: { maxBytesPerRequest: 10 },
+        pipelineSignature: {
+          version: '1.0.0',
+          renderSettingsHash: 'abc123',
+        },
+      };
+
+      const result = await handler.handle(command);
+
+      expect(result.pipelineChanged).toBe(false);
+      expect(result.existingNoteHashes).toEqual({
+        '/note-1': 'hash1',
+        // note-2 skipped (no sourceHash)
+      });
+    });
   });
 });

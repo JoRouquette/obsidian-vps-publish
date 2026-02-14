@@ -48,6 +48,7 @@ export class FinishSessionHandler implements CommandHandler<
     // Règles métier minimales (à toi de les durcir si besoin)
     session.notesProcessed = command.notesProcessed;
     session.assetsProcessed = command.assetsProcessed;
+    session.allCollectedRoutes = command.allCollectedRoutes; // PHASE 6.1
     session.status = 'finished';
     session.updatedAt = new Date();
 

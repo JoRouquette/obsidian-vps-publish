@@ -13,6 +13,7 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
   let service: SessionFinalizationJobService;
   let mockFinalizer: jest.Mocked<SessionFinalizerService>;
   let mockStagingManager: jest.Mocked<StagingManager>;
+  let mockSessionRepository: any;
   let mockLogger: jest.Mocked<LoggerPort>;
 
   beforeEach(() => {
@@ -30,6 +31,12 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
       promoteSession: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<StagingManager>;
 
+    mockSessionRepository = {
+      findById: jest.fn().mockResolvedValue({ allCollectedRoutes: [] }),
+      save: jest.fn().mockResolvedValue(undefined),
+      create: jest.fn(),
+    };
+
     mockLogger = {
       child: jest.fn().mockReturnThis(),
       debug: jest.fn(),
@@ -45,6 +52,7 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
       service = new SessionFinalizationJobService(
         mockFinalizer,
         mockStagingManager,
+        mockSessionRepository,
         mockLogger,
         maxConcurrentJobs
       );
@@ -78,6 +86,7 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
       const sequentialService = new SessionFinalizationJobService(
         mockFinalizer,
         mockStagingManager,
+        mockSessionRepository,
         mockLogger,
         1
       );
@@ -93,6 +102,7 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
       const parallelService = new SessionFinalizationJobService(
         mockFinalizer,
         mockStagingManager,
+        mockSessionRepository,
         mockLogger,
         5
       );
@@ -114,7 +124,13 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
         .mockRejectedValueOnce(new Error('Rebuild failed'))
         .mockResolvedValueOnce(undefined);
 
-      service = new SessionFinalizationJobService(mockFinalizer, mockStagingManager, mockLogger, 2);
+      service = new SessionFinalizationJobService(
+        mockFinalizer,
+        mockStagingManager,
+        mockSessionRepository,
+        mockLogger,
+        2
+      );
 
       const job1 = await service.queueFinalization('session-1');
       const job2 = await service.queueFinalization('session-2');
@@ -141,6 +157,7 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
       service = new SessionFinalizationJobService(
         mockFinalizer,
         mockStagingManager,
+        mockSessionRepository,
         mockLogger,
         2 // Only 2 concurrent jobs allowed
       );
@@ -176,7 +193,13 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
 
   describe('getQueueStats', () => {
     it('should return correct activeJobs and maxConcurrentJobs', () => {
-      service = new SessionFinalizationJobService(mockFinalizer, mockStagingManager, mockLogger, 7);
+      service = new SessionFinalizationJobService(
+        mockFinalizer,
+        mockStagingManager,
+        mockSessionRepository,
+        mockLogger,
+        7
+      );
 
       const stats = service.getQueueStats();
       expect(stats.maxConcurrentJobs).toBe(7);
@@ -184,7 +207,13 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
     });
 
     it('should track activeJobs count during execution', async () => {
-      service = new SessionFinalizationJobService(mockFinalizer, mockStagingManager, mockLogger, 3);
+      service = new SessionFinalizationJobService(
+        mockFinalizer,
+        mockStagingManager,
+        mockSessionRepository,
+        mockLogger,
+        3
+      );
 
       // Queue 6 jobs
       for (let i = 0; i < 6; i++) {

@@ -45,7 +45,10 @@ import { type DataviewApi, DataviewExecutor } from './lib/dataview/dataview-exec
 import { processDataviewBlocks } from './lib/dataview/process-dataview-blocks.service';
 import { AbortCancellationAdapter } from './lib/infra/abort-cancellation.adapter';
 import { AssetsUploaderAdapter } from './lib/infra/assets-uploader.adapter';
+import { BackgroundThrottleMonitorAdapter } from './lib/infra/background-throttle-monitor.adapter';
 import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
+import { AssetHashService } from './lib/infra/crypto/asset-hash.service';
+import { BrowserHashService } from './lib/infra/crypto/browser-hash.service';
 import { EventLoopMonitorAdapter } from './lib/infra/event-loop-monitor.adapter';
 import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
 import { NotesUploaderAdapter } from './lib/infra/notes-uploader.adapter';
@@ -81,14 +84,74 @@ const defaultSettings: PluginSettings = {
   maxConcurrentFileReads: 5,
   // Performance debugging
   enablePerformanceDebug: false,
+  enableBackgroundThrottleDebug: false,
 };
 
 // -----------------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------------
 
+/**
+ * Compute PipelineSignature for inter-publication note deduplication
+ * @param version - Plugin version from manifest
+ * @param renderSettings - Settings affecting rendering output
+ * @returns PipelineSignature with version and renderSettingsHash
+ */
+async function computePipelineSignature(
+  version: string,
+  renderSettings: {
+    calloutStyles: Record<string, string>;
+    cleanupRules: Array<{ id: string; isEnabled: boolean; regex: string; replace: string }>;
+    ignoredTags: string[];
+  }
+): Promise<{ version: string; renderSettingsHash: string }> {
+  const hashService = new BrowserHashService();
+
+  // Create stable JSON representation with SORTED KEYS at all levels
+  // 1. Sort calloutStyles keys (critical for stability)
+  const sortedCalloutStyles: Record<string, string> = {};
+  Object.keys(renderSettings.calloutStyles)
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((key) => {
+      sortedCalloutStyles[key] = renderSettings.calloutStyles[key];
+    });
+
+  // 2. Sort array elements by id for stability
+  const sortedCleanupRules = [...renderSettings.cleanupRules]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((r) => ({
+      id: r.id,
+      isEnabled: r.isEnabled,
+      regex: r.regex,
+      replace: r.replace,
+    }));
+
+  // 3. Build stable object with sorted keys
+  const stableObj = {
+    calloutStyles: sortedCalloutStyles,
+    cleanupRules: sortedCleanupRules,
+    ignoredTags: [...renderSettings.ignoredTags].sort((a, b) => a.localeCompare(b)),
+  };
+
+  // 4. Stringify with sorted root keys
+  const stable = JSON.stringify(
+    stableObj,
+    Object.keys(stableObj).sort((a, b) => a.localeCompare(b))
+  );
+
+  // DEBUG: Log stable representation to verify stability
+  console.log('🔐 Pipeline signature input (first 500 chars):', stable.substring(0, 500));
+
+  const renderSettingsHash = await hashService.computeHash(stable);
+
+  return {
+    version,
+    renderSettingsHash,
+  };
+}
+
 function cloneSettings(settings: PluginSettings): PluginSettings {
-  return JSON.parse(JSON.stringify(settings));
+  return structuredClone(settings);
 }
 
 function withEncryptedApiKeys(settings: PluginSettings): PluginSettings {
@@ -154,6 +217,41 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           },
           t
         );
+      },
+    });
+
+    this.addCommand({
+      id: 'vps-publish-debug',
+      name: t.plugin.commandPublish + ' (Debug: Background Throttle)',
+      callback: async () => {
+        if (!this.settings.vpsConfigs || this.settings.vpsConfigs.length === 0) {
+          new Notice(t.settings.errors?.missingVpsConfig ?? 'No VPS configured');
+          return;
+        }
+        // Temporarily enable debug flags for this run
+        const originalPerfDebug = this.settings.enablePerformanceDebug;
+        const originalBgThrottleDebug = this.settings.enableBackgroundThrottleDebug;
+        this.settings.enablePerformanceDebug = true;
+        this.settings.enableBackgroundThrottleDebug = true;
+
+        try {
+          new Notice(
+            '🔍 Debug mode enabled: Background throttle monitoring active.\nSwitch tabs or minimize window during publishing to test.',
+            8000
+          );
+          selectVpsOrAuto(
+            this.app,
+            this.settings.vpsConfigs,
+            async (vps) => {
+              await this.uploadToVps(vps);
+            },
+            t
+          );
+        } finally {
+          // Restore original settings
+          this.settings.enablePerformanceDebug = originalPerfDebug;
+          this.settings.enableBackgroundThrottleDebug = originalBgThrottleDebug;
+        }
       },
     });
 
@@ -470,6 +568,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     // Enable performance debug mode if configured
     const enablePerfDebug = settings.enablePerformanceDebug ?? false;
+    const enableBgThrottleDebug = settings.enableBackgroundThrottleDebug ?? false;
 
     // Initialize publishing trace service
     const trace = new PublishingTraceService(uploadRunId, scopedLogger);
@@ -478,11 +577,20 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       vpsId: vps.id,
       vpsName: vps.name,
       perfDebugEnabled: enablePerfDebug,
+      bgThrottleDebugEnabled: enableBgThrottleDebug,
     });
 
     // Start event loop lag monitor
     const eventLoopMonitor = new EventLoopMonitorAdapter(scopedLogger, 100);
     eventLoopMonitor.start();
+
+    // Start background throttle monitor (if enabled)
+    let backgroundThrottleMonitor: BackgroundThrottleMonitorAdapter | null = null;
+    if (enableBgThrottleDebug) {
+      backgroundThrottleMonitor = new BackgroundThrottleMonitorAdapter(scopedLogger, 250);
+      backgroundThrottleMonitor.start();
+      scopedLogger.info('🔍 Background throttle monitoring enabled (heartbeat: 250ms)');
+    }
 
     // Initialize performance tracker
     // Debug mode enabled if logLevel is 'debug'
@@ -516,6 +624,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     // Start progress bar immediately (at 0%)
     totalProgressAdapter.start(0);
+
+    // Warn user to keep focus (browser throttling mitigation)
+    notificationAdapter.info(translate(t, 'notice.keepFocusWarning'));
 
     let sessionId: string | null = null;
     let sessionClient: SessionApiClient | null = null;
@@ -750,37 +861,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         displayNames: folderDisplayNames,
       });
 
-      trace.checkpoint('6-session-start', 'calling-startSession-api');
-
-      const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
-      const started = await sessionClient.startSession({
-        notesPlanned: publishableCount,
-        assetsPlanned: assetsPlanned,
-        maxBytesPerRequest: defaultNginxLimit,
-        calloutStyles,
-        customIndexConfigs,
-        ignoredTags: settings.frontmatterTagsToExclude || [],
-        folderDisplayNames, // Send displayNames upfront
-      });
-
-      sessionId = started.sessionId;
-      const serverRequestLimit = started.maxBytesPerRequest;
-
-      trace.endStep('6-session-start', {
-        sessionId,
-        maxBytesPerRequest: serverRequestLimit,
-      });
-
-      this.logger.debug('Session started', { sessionId, maxBytesPerRequest: serverRequestLimit });
-
-      // ====================================================================
-      // ÉTAPE 2: UPLOAD_NOTES - Upload des notes
-      // ====================================================================
-      trace.startStep('7-upload-notes');
-
-      const uploadNotesSpan = perfTracker.startSpan('upload-notes');
-
       // Filtrer les règles de nettoyage : ne garder que celles activées avec regex valide
+      // (Moved before startSession for pipeline signature computation)
       const validCleanupRules = (vps.cleanupRules ?? []).filter(
         (rule) => rule.isEnabled && rule.regex && rule.regex.trim().length > 0
       );
@@ -796,6 +878,134 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         })),
       });
 
+      trace.checkpoint('6-session-start', 'computing-pipeline-signature');
+
+      // Transform calloutStyles array to Record for pipeline signature
+      const calloutStylesRecord: Record<string, string> = calloutStyles.reduce(
+        (acc, { path, css }) => {
+          acc[path] = css;
+          return acc;
+        },
+        {} as Record<string, string>
+      );
+
+      // Transform cleanupRules to match expected signature (rename 'replacement' to 'replace')
+      const transformedCleanupRules = validCleanupRules.map((rule) => ({
+        id: rule.id,
+        isEnabled: rule.isEnabled,
+        regex: rule.regex,
+        replace: rule.replacement,
+      }));
+
+      // Compute pipeline signature for note deduplication
+      const pipelineSignature = await computePipelineSignature(this.manifest.version, {
+        calloutStyles: calloutStylesRecord,
+        cleanupRules: transformedCleanupRules,
+        ignoredTags: settings.frontmatterTagsToExclude || [],
+      });
+
+      this.logger.info('🔑 Pipeline signature computed', {
+        version: pipelineSignature.version,
+        renderSettingsHash: pipelineSignature.renderSettingsHash,
+        calloutStylesCount: Object.keys(calloutStylesRecord).length,
+        cleanupRulesCount: transformedCleanupRules.length,
+        ignoredTagsCount: (settings.frontmatterTagsToExclude || []).length,
+      });
+
+      trace.checkpoint('6-session-start', 'calling-startSession-api');
+
+      const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
+      const started = await sessionClient.startSession({
+        notesPlanned: publishableCount,
+        assetsPlanned: assetsPlanned,
+        maxBytesPerRequest: defaultNginxLimit,
+        calloutStyles,
+        customIndexConfigs,
+        ignoredTags: settings.frontmatterTagsToExclude || [],
+        folderDisplayNames, // Send displayNames upfront
+        pipelineSignature, // Include pipeline signature for inter-publication deduplication
+      });
+
+      sessionId = started.sessionId;
+      const serverRequestLimit = started.maxBytesPerRequest;
+      const existingAssetHashes = started.existingAssetHashes ?? [];
+      const existingNoteHashes = started.existingNoteHashes ?? {};
+      const pipelineChanged = started.pipelineChanged ?? true;
+
+      trace.endStep('6-session-start', {
+        sessionId,
+        maxBytesPerRequest: serverRequestLimit,
+        existingAssetHashesCount: existingAssetHashes.length,
+        existingNoteHashesCount: Object.keys(existingNoteHashes).length,
+        pipelineChanged,
+      });
+
+      this.logger.debug('Session started', {
+        sessionId,
+        maxBytesPerRequest: serverRequestLimit,
+        existingNoteHashesCount: Object.keys(existingNoteHashes).length,
+        pipelineChanged,
+      });
+
+      // ====================================================================
+      // ÉTAPE 2: UPLOAD_NOTES - Upload des notes
+      // ====================================================================
+      trace.startStep('7-upload-notes');
+
+      const uploadNotesSpan = perfTracker.startSpan('upload-notes');
+
+      // ====================================================================
+      // 2a: FILTER UNCHANGED NOTES (inter-publication deduplication)
+      // ====================================================================
+      let notesToUpload = deduplicated;
+
+      if (!pipelineChanged && Object.keys(existingNoteHashes).length > 0) {
+        trace.checkpoint('7-upload-notes', 'filtering-unchanged-notes');
+        const hashService = new BrowserHashService();
+        const filteredNotes: PublishableNote[] = [];
+        let skippedCount = 0;
+
+        for (const note of deduplicated) {
+          const route = note.routing.fullPath;
+          const existingHash = existingNoteHashes[route];
+
+          if (existingHash) {
+            // Compute hash of current note content
+            const currentHash = await hashService.computeHash(note.content);
+
+            if (currentHash === existingHash) {
+              // Note unchanged, skip
+              this.logger.debug('Note unchanged, skipping', {
+                route,
+                hash: currentHash,
+              });
+              skippedCount++;
+              continue;
+            }
+          }
+
+          // Note changed or new, include for upload
+          filteredNotes.push(note);
+        }
+
+        notesToUpload = filteredNotes;
+
+        this.logger.info('Notes filtered by inter-publication deduplication', {
+          totalNotes: deduplicated.length,
+          toUpload: notesToUpload.length,
+          skipped: skippedCount,
+        });
+
+        trace.checkpoint('7-upload-notes', 'filtering-complete', {
+          skippedCount,
+          uploadCount: notesToUpload.length,
+        });
+      } else if (pipelineChanged) {
+        this.logger.info('Pipeline changed, uploading all notes (full re-render)', {
+          totalNotes: deduplicated.length,
+        });
+      }
+
       const notesUploader = new NotesUploaderAdapter(
         sessionClient,
         sessionId,
@@ -808,13 +1018,13 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       );
 
       // Calculer le nombre de batchs
-      const notesBatchInfo = notesUploader.getBatchInfo(deduplicated);
+      const notesBatchInfo = notesUploader.getBatchInfo(notesToUpload);
       stats.notesBatchCount = notesBatchInfo.batchCount;
 
       stepProgressManager.startStep(
         ProgressStepId.UPLOAD_NOTES,
         getStepLabel(t, ProgressStepId.UPLOAD_NOTES),
-        publishableCount
+        notesToUpload.length
       );
 
       notificationAdapter.info(
@@ -824,9 +1034,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         })
       );
 
-      await notesUploader.upload(deduplicated);
+      await notesUploader.upload(notesToUpload);
 
-      stats.notesUploaded = publishableCount;
+      stats.notesUploaded = notesToUpload.length;
 
       perfTracker.endSpan(uploadNotesSpan, {
         notesUploaded: stats.notesUploaded,
@@ -848,15 +1058,18 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
         const uploadAssetsSpan = perfTracker.startSpan('upload-assets');
 
+        const assetHasher = new AssetHashService();
         const assetsVault = new ObsidianAssetsVaultAdapter(this.app, this.logger);
         const assetsUploader = new AssetsUploaderAdapter(
           sessionClient,
           sessionId,
           new GuidGeneratorAdapter(),
+          assetHasher,
           this.logger,
           serverRequestLimit,
           stepProgressManager,
-          settings.maxConcurrentUploads || 3
+          settings.maxConcurrentUploads || 3,
+          existingAssetHashes
         );
 
         const resolvedAssets = await assetsVault.resolveAssetsFromNotes(
@@ -919,10 +1132,21 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         1
       );
 
-      await sessionClient.finishSession(sessionId, {
+      // PHASE 6.1: Extract all routes collected from vault (for deleted page detection)
+      const allCollectedRoutes = deduplicated.map((note) => note.routing.fullPath);
+
+      const finishResult = await sessionClient.finishSession(sessionId, {
         notesProcessed: stats.notesUploaded,
         assetsProcessed: stats.assetsUploaded,
+        allCollectedRoutes, // PHASE 6.1: send to backend for deleted page detection
       });
+
+      // Capture promotion stats from finalization
+      if (finishResult.promotionStats) {
+        stats.notesDeduplicated = finishResult.promotionStats.notesDeduplicated;
+        stats.assetsDeduplicated = finishResult.promotionStats.assetsDeduplicated;
+        stats.notesDeleted = finishResult.promotionStats.notesDeleted;
+      }
 
       stepProgressManager.advanceStep(ProgressStepId.FINALIZE_SESSION, 1);
       stepProgressManager.completeStep(ProgressStepId.FINALIZE_SESSION);
@@ -942,6 +1166,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ========================================================================
       // Stop event loop monitor
       const eventLoopStats = eventLoopMonitor.stop();
+
+      // Stop background throttle monitor (if enabled)
+      let backgroundThrottleStats = null;
+      if (backgroundThrottleMonitor) {
+        backgroundThrottleStats = backgroundThrottleMonitor.stop();
+      }
 
       // End performance tracking
       perfTracker.endSpan(sessionPerfSpan, {
@@ -974,6 +1204,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const uiPressureSummary = uiMonitor.generateSummary();
       scopedLogger.info('🎯 ' + uiPressureSummary);
 
+      // Generate and log background throttle summary (if enabled)
+      if (backgroundThrottleStats) {
+        const bgThrottleSummary = backgroundThrottleMonitor!.generateSummary();
+        scopedLogger.info('🔍 ' + bgThrottleSummary);
+      }
+
       // Afficher les stats finales
       const summary = formatPublishingStats(stats, t.publishingStats);
 
@@ -982,12 +1218,18 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       if (enablePerfDebug) {
         const traceData = trace.getStructuredData();
         const topSteps = traceData.steps
+          .slice()
           .sort((a, b) => b.durationSec - a.durationSec)
           .slice(0, 3)
           .map((step) => `${step.name}: ${step.durationSec.toFixed(2)}s`)
           .join(', ');
 
         perfDebugInfo = `\n\n🔍 Performance Debug:\nTotal: ${traceData.totalDurationSec.toFixed(2)}s\nTop steps: ${topSteps}\nEvent loop p95 lag: ${eventLoopStats.p95LagMs.toFixed(0)}ms`;
+      }
+
+      // Add background throttle debug summary if enabled
+      if (enableBgThrottleDebug && backgroundThrottleStats) {
+        perfDebugInfo += `\n\n🔍 Background Throttle Debug:\nStalled heartbeats: ${backgroundThrottleStats.stalledHeartbeats}\nMax drift: ${backgroundThrottleStats.maxHeartbeatDriftMs.toFixed(0)}ms\nTime in background: ${(backgroundThrottleStats.timeInBackgroundMs / 1000).toFixed(1)}s`;
       }
 
       // Add performance hint if debug mode is off
@@ -999,6 +1241,22 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       new Notice(summary + perfDebugInfo + perfHint, 10000); // Afficher pendant 10 secondes
 
       this.logger.debug('Publishing completed successfully', { stats });
+
+      // Log deduplication statistics if available
+      if (
+        stats.notesDeduplicated !== undefined ||
+        stats.assetsDeduplicated !== undefined ||
+        stats.notesDeleted !== undefined
+      ) {
+        scopedLogger.info('📊 Deduplication Statistics', {
+          uploadRunId,
+          notesDeduplicated: stats.notesDeduplicated ?? 0,
+          assetsDeduplicated: stats.assetsDeduplicated ?? 0,
+          notesDeleted: stats.notesDeleted ?? 0,
+          notesPublished: stats.notesUploaded,
+          assetsPublished: stats.assetsUploaded,
+        });
+      }
     } catch (err) {
       // Check if error is a cancellation
       const isCancellation = err instanceof CancellationError;
@@ -1200,7 +1458,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         },
         {
           concurrency: settings.maxConcurrentDataviewNotes || 5, // Configurable
-          yieldEveryN: 5, // Yield to UI every 5 notes
+          yieldEveryN: 2,
           onProgress: (current, total) => {
             logger.debug('Dataview processing progress', {
               current,

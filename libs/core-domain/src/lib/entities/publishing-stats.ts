@@ -44,6 +44,15 @@ export interface PublishingStats {
 
   /** Timestamp de fin */
   completedAt?: Date;
+
+  /** Notes dédupliquées (skipped car identiques à la production) */
+  notesDeduplicated?: number;
+
+  /** Assets dédupliqués (skipped car identiques à la production) */
+  assetsDeduplicated?: number;
+
+  /** Notes supprimées (présentes en production, absentes du vault) */
+  notesDeleted?: number;
 }
 
 /**
@@ -63,6 +72,9 @@ export function createPublishingStats(): PublishingStats {
     assetsBatchCount: 0,
     currentNotesBatch: 0,
     currentAssetsBatch: 0,
+    notesDeduplicated: 0,
+    assetsDeduplicated: 0,
+    notesDeleted: 0,
   };
 }
 

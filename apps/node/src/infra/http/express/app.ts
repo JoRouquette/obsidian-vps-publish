@@ -7,6 +7,7 @@ import {
   UploadAssetsHandler,
   UploadNotesHandler,
 } from '@core-application';
+import { NoteHashService } from '@core-application/publishing/services/note-hash.service';
 import { type LoggerPort, type Manifest } from '@core-domain';
 import compression from 'compression';
 import express from 'express';
@@ -21,8 +22,12 @@ import { StagingManager } from '../../filesystem/staging-manager';
 import { UuidIdGenerator } from '../../id/uuid-id.generator';
 import { CalloutRendererService } from '../../markdown/callout-renderer.service';
 import { MarkdownItRenderer } from '../../markdown/markdown-it.renderer';
+import { ClamAVAssetScanner } from '../../security/clamav-asset-scanner';
+import { NoopAssetScanner } from '../../security/noop-asset-scanner';
 import { SessionFinalizationJobService } from '../../sessions/session-finalization-job.service';
 import { SessionFinalizerService } from '../../sessions/session-finalizer.service';
+import { AssetHashService } from '../../utils/asset-hash.service';
+import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
 import { createHealthCheckController } from './controllers/health-check.controller';
 import { createMaintenanceController } from './controllers/maintenance-controller';
 import { createPingController } from './controllers/ping.controller';
@@ -162,19 +167,52 @@ export function createApp(rootLogger?: LoggerPort) {
     new NotesFileSystemStorage(stagingManager.contentStagingPath(sessionId), rootLogger);
   const manifestFileSystem = (sessionId: string) =>
     new ManifestFileSystem(stagingManager.contentStagingPath(sessionId), rootLogger);
+  // Production manifest (for reading existing asset hashes in CreateSessionHandler)
+  const productionManifest = new ManifestFileSystem(EnvConfig.contentRoot(), rootLogger);
   const assetStorage = (sessionId: string) =>
     new AssetsFileSystemStorage(stagingManager.assetsStagingPath(sessionId), rootLogger);
   const sessionRepository = new FileSystemSessionRepository(EnvConfig.contentRoot());
   const idGenerator = new UuidIdGenerator();
+  const noteHashService = new NoteHashService();
   const uploadNotesHandler = new UploadNotesHandler(
     markdownRenderer,
     noteStorage,
     manifestFileSystem,
     rootLogger,
-    sessionNotesStorage
+    sessionNotesStorage,
+    undefined, // ignoredTags (set dynamically per session)
+    noteHashService
   );
-  const uploadAssetsHandler = new UploadAssetsHandler(assetStorage, rootLogger);
-  const createSessionHandler = new CreateSessionHandler(idGenerator, sessionRepository, rootLogger);
+
+  // Initialize asset scanner (Noop by default, ClamAV if enabled)
+  const assetScanner = EnvConfig.virusScannerEnabled()
+    ? new ClamAVAssetScanner(
+        {
+          host: EnvConfig.clamavHost(),
+          port: EnvConfig.clamavPort(),
+          timeout: EnvConfig.clamavTimeout(),
+        },
+        rootLogger
+      )
+    : new NoopAssetScanner(rootLogger);
+
+  const assetValidator = new FileTypeAssetValidator(assetScanner, rootLogger);
+  const assetHasher = new AssetHashService();
+  const maxAssetSizeBytes = EnvConfig.maxAssetSizeBytes();
+  const uploadAssetsHandler = new UploadAssetsHandler(
+    assetStorage,
+    manifestFileSystem,
+    assetHasher,
+    assetValidator,
+    maxAssetSizeBytes,
+    rootLogger
+  );
+  const createSessionHandler = new CreateSessionHandler(
+    idGenerator,
+    sessionRepository,
+    productionManifest,
+    rootLogger
+  );
   const finishSessionHandler = new FinishSessionHandler(sessionRepository, rootLogger);
   const abortSessionHandler = new AbortSessionHandler(sessionRepository, rootLogger);
   const sessionFinalizer = new SessionFinalizerService(
@@ -190,6 +228,7 @@ export function createApp(rootLogger?: LoggerPort) {
   const finalizationJobService = new SessionFinalizationJobService(
     sessionFinalizer,
     stagingManager,
+    sessionRepository, // PHASE 6.1: needed to load allCollectedRoutes
     rootLogger,
     EnvConfig.maxConcurrentFinalizationJobs()
   );

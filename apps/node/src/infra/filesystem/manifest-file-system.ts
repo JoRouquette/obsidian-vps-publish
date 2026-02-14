@@ -1,7 +1,14 @@
+import { promises as fs } from 'node:fs';
+import * as path from 'node:path';
+
 import { type ManifestPort } from '@core-application';
-import { type LoggerPort, type Manifest, type ManifestPage } from '@core-domain';
-import { promises as fs } from 'fs';
-import * as path from 'path';
+import {
+  type LoggerPort,
+  type Manifest,
+  type ManifestAsset,
+  type ManifestPage,
+  type PipelineSignature,
+} from '@core-domain';
 
 import { renderFolderIndex, renderRootIndex } from './site-index-templates';
 
@@ -24,6 +31,8 @@ export class ManifestFileSystem implements ManifestPort {
         createdAt?: string;
         lastUpdatedAt?: string;
         folderDisplayNames?: Record<string, string>;
+        assets?: unknown;
+        pipelineSignature?: unknown;
       };
 
       const pages: ManifestPage[] = Array.isArray(parsed.pages)
@@ -36,12 +45,24 @@ export class ManifestFileSystem implements ManifestPort {
           })
         : [];
 
+      const assets = Array.isArray(parsed.assets)
+        ? parsed.assets.map((a) => {
+            const asset = a as ManifestAsset & { uploadedAt?: string | Date };
+            return {
+              ...asset,
+              uploadedAt: new Date(asset.uploadedAt ?? 0),
+            };
+          })
+        : undefined;
+
       const manifest: Manifest = {
         sessionId: parsed.sessionId ?? '',
         createdAt: new Date(parsed.createdAt ?? 0),
         lastUpdatedAt: new Date(parsed.lastUpdatedAt ?? 0),
         pages,
         folderDisplayNames: parsed.folderDisplayNames || undefined,
+        assets,
+        pipelineSignature: parsed.pipelineSignature as PipelineSignature | undefined, // PHASE 7: Load pipelineSignature
       };
 
       this._logger?.debug('Manifest loaded', {

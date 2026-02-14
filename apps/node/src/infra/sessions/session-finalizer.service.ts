@@ -14,6 +14,7 @@ import {
   type SessionRepository,
   UploadNotesHandler,
 } from '@core-application';
+import { NoteHashService } from '@core-application/publishing/services/note-hash.service';
 import { type CustomIndexConfig, type LoggerPort, LogLevel } from '@core-domain';
 
 import { type StagingManager } from '../filesystem/staging-manager';
@@ -153,13 +154,15 @@ export class SessionFinalizerService {
 
     // STEP 8: Render markdown to HTML
     stepStart = performance.now();
+    const noteHashService = new NoteHashService();
     const renderer = new UploadNotesHandler(
       this.markdownRenderer,
       this.contentStorage,
       this.manifestStorage,
       this.logger,
       undefined, // notesStorage not needed here
-      session?.ignoredTags // Pass ignoredTags from session
+      session?.ignoredTags, // Pass ignoredTags from session
+      noteHashService
     );
 
     // Publier toutes les notes avec folderDisplayNames

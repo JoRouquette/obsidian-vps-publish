@@ -16,6 +16,20 @@ Le backend Node.js/Express :
 
 ## 📄 Documentation disponible
 
+### Sécurité
+
+- **[Asset Security](./asset-security.md)** - Validation des assets : détection MIME, limites de taille, scanning antivirus (ClamAV)
+
+### Gestion des assets
+
+- **[Asset Deduplication & Lifecycle Management](./asset-deduplication.md)** - Déduplication par hash SHA256, promotion sélective, cleanup automatique des assets obsolètes
+
+### Déploiement et production
+
+- **[CDN Deployment Guide](./cdn-deployment.md)** - Déploiement avec CDN (Cloudflare, CloudFront, Fastly) : configuration cache, stratégies de purge, optimisation performance
+- **[Thumbnail Generation Guide](./thumbnail-generation-guide.md)** - ⏳ Guide d'implémentation : génération automatique de miniatures, optimisation des images, stratégie de cache (LOW priority, non implémenté)
+- **[Streaming Refactor Guide](./streaming-refactor-guide.md)** - ⏳ Guide d'implémentation : uploads streaming (multipart/form-data), optimisation mémoire, support fichiers volumineux (LOW priority, non implémenté)
+
 ### Rendu de contenu
 
 - **[Link Normalization](./link-normalization.md)** - Normalisation des liens pour uniformité du routing et du style
@@ -83,6 +97,16 @@ Le backend utilise des variables d'environnement :
 
 - **`LOGGER_LEVEL`** (défaut `info`) : Niveau de log (`debug`, `info`, `warn`, `error`)
 - **`NODE_ENV`** : Environnement (`development`, `production`)
+
+### Variables de sécurité (assets)
+
+- **`MAX_ASSET_SIZE_BYTES`** (défaut `10485760` = 10MB) : Taille maximale par asset
+- **`VIRUS_SCANNER_ENABLED`** (défaut `false`) : Activer le scanning antivirus via ClamAV
+- **`CLAMAV_HOST`** (défaut `localhost`) : Hôte du daemon ClamAV
+- **`CLAMAV_PORT`** (défaut `3310`) : Port du daemon ClamAV
+- **`CLAMAV_TIMEOUT`** (défaut `10000`) : Timeout de scan en millisecondes
+
+Voir [Asset Security](./asset-security.md) pour la configuration détaillée.
 
 Voir `.env.dev.example` et `.env.prod.example` pour les templates complets.
 

@@ -2,6 +2,7 @@ import { ChunkedUploadService } from '@core-application/publishing/services/chun
 import { processWithControlledConcurrency } from '@core-application/utils/concurrency.util';
 import { ProgressStepId } from '@core-domain/entities/progress-step';
 import type { ResolvedAssetFile } from '@core-domain/entities/resolved-asset-file';
+import type { AssetHashPort } from '@core-domain/ports/asset-hash-port';
 import type { GuidGeneratorPort } from '@core-domain/ports/guid-generator-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import type { ProgressPort } from '@core-domain/ports/progress-port';
@@ -27,19 +28,29 @@ export class AssetsUploaderAdapter implements UploaderPort {
   private readonly _logger: LoggerPort;
   private readonly chunkedUploadService: ChunkedUploadService;
   private readonly concurrencyLimit: number;
+  private readonly existingAssetHashes: Set<string>;
 
   constructor(
     private readonly sessionClient: SessionApiClient,
     private readonly sessionId: string,
     private readonly guidGenerator: GuidGeneratorPort,
+    private readonly assetHasher: AssetHashPort,
     logger: LoggerPort,
     private readonly maxBytesPerRequest: number,
     private readonly progress?: ProgressPort | StepProgressManagerPort,
-    concurrencyLimit?: number
+    concurrencyLimit?: number,
+    existingAssetHashes?: string[]
   ) {
     this._logger = logger.child({ adapter: 'AssetsUploaderAdapter' });
     this._logger.debug('AssetsUploaderAdapter initialized');
     this.concurrencyLimit = concurrencyLimit || 3; // Default to 3
+    this.existingAssetHashes = new Set(existingAssetHashes ?? []);
+
+    if (this.existingAssetHashes.size > 0) {
+      this._logger.debug('Client-side deduplication enabled', {
+        existingAssetHashesCount: this.existingAssetHashes.size,
+      });
+    }
 
     // Initialize dependencies (infrastructure adapters)
     const compression = new ObsidianCompressionAdapter();
@@ -86,7 +97,49 @@ export class AssetsUploaderAdapter implements UploaderPort {
       throw err;
     }
 
-    const batches = await batchByBytesAsync(apiAssets, this.maxBytesPerRequest, (batch) => ({
+    // Client-side deduplication: filter out assets that already exist on server
+    let filteredAssets = apiAssets;
+    let skippedCount = 0;
+
+    if (this.existingAssetHashes.size > 0) {
+      this._logger.debug('Computing asset hashes for client-side deduplication');
+      const assetsWithHashes = await Promise.all(
+        apiAssets.map(async (apiAsset, index) => {
+          const assetBuffer = Buffer.from(apiAsset.contentBase64, 'base64');
+          const hash = await this.assetHasher.computeHash(assetBuffer);
+          return { apiAsset, hash, originalIndex: index };
+        })
+      );
+
+      // Filter out assets whose hash exists on server
+      const newAssets = assetsWithHashes.filter((item) => {
+        const exists = this.existingAssetHashes.has(item.hash);
+        if (exists) {
+          this._logger.debug('Asset already exists on server, skipping', {
+            fileName: item.apiAsset.fileName,
+            hash: item.hash,
+          });
+        }
+        return !exists;
+      });
+
+      skippedCount = apiAssets.length - newAssets.length;
+      filteredAssets = newAssets.map((item) => item.apiAsset);
+
+      this._logger.info('Client-side deduplication completed', {
+        totalAssets: apiAssets.length,
+        skippedAssets: skippedCount,
+        newAssets: filteredAssets.length,
+      });
+
+      // If all assets are duplicates, we're done
+      if (filteredAssets.length === 0) {
+        this._logger.debug('All assets already exist on server, nothing to upload');
+        return true;
+      }
+    }
+
+    const batches = await batchByBytesAsync(filteredAssets, this.maxBytesPerRequest, (batch) => ({
       assets: batch,
     }));
 

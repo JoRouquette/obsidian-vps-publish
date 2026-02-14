@@ -4,7 +4,8 @@
  * Returns 202 Accepted immediately, allowing clients to poll for status
  */
 
-import { type LoggerPort } from '@core-domain';
+import { type SessionRepository } from '@core-application';
+import { type LoggerPort, type PromotionStats } from '@core-domain';
 import { randomUUID } from 'crypto';
 
 import { type StagingManager } from '../filesystem/staging-manager';
@@ -22,6 +23,7 @@ export interface FinalizationJob {
   result?: {
     notesProcessed: number;
     assetsProcessed: number;
+    promotionStats?: PromotionStats;
   };
 }
 
@@ -34,6 +36,7 @@ export class SessionFinalizationJobService {
   constructor(
     private readonly sessionFinalizer: SessionFinalizerService,
     private readonly stagingManager: StagingManager,
+    private readonly sessionRepository: SessionRepository, // PHASE 6.1
     private readonly logger?: LoggerPort,
     maxConcurrentJobs?: number
   ) {
@@ -87,6 +90,47 @@ export class SessionFinalizationJobService {
       }
     }
     return undefined;
+  }
+
+  /**
+   * Wait for job completion (blocking call with timeout)
+   * Polls job status every 500ms until completed/failed or timeout
+   * @param jobId - Job identifier
+   * @param timeoutMs - Timeout in milliseconds (default: 120000 = 2 minutes)
+   * @returns Completed job
+   * @throws Error if job not found, timed out, or failed
+   */
+  async waitForJob(jobId: string, timeoutMs = 120000): Promise<FinalizationJob> {
+    const job = this.jobs.get(jobId);
+    if (!job) {
+      throw new Error(`Job not found: ${jobId}`);
+    }
+
+    const startTime = Date.now();
+    const pollIntervalMs = 500;
+
+    while (true) {
+      const currentJob = this.jobs.get(jobId);
+      if (!currentJob) {
+        throw new Error(`Job lost during wait: ${jobId}`);
+      }
+
+      if (currentJob.status === 'completed') {
+        return currentJob;
+      }
+
+      if (currentJob.status === 'failed') {
+        throw new Error(`Job failed: ${currentJob.error ?? 'Unknown error'}`);
+      }
+
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= timeoutMs) {
+        throw new Error(`Job timeout after ${timeoutMs}ms: ${jobId}`);
+      }
+
+      // Wait before next poll
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    }
   }
 
   /**
@@ -150,6 +194,11 @@ export class SessionFinalizationJobService {
     });
 
     try {
+      // STEP 0: Load session to get allCollectedRoutes and pipelineSignature (PHASE 6.1, PHASE 7)
+      const session = await this.sessionRepository.findById(job.sessionId);
+      const allCollectedRoutes = session?.allCollectedRoutes;
+      const pipelineSignature = session?.pipelineSignature;
+
       // STEP 1: Rebuild from stored notes (heaviest operation)
       job.progress = 20;
       const rebuildStart = Date.now();
@@ -157,16 +206,25 @@ export class SessionFinalizationJobService {
       timings.rebuildFromStored = Date.now() - rebuildStart;
       job.progress = 80;
 
-      // STEP 2: Promote staging to production
+      // STEP 2: Promote staging to production (with deleted page detection and pipelineSignature injection)
       job.progress = 85;
       const promoteStart = Date.now();
-      await this.stagingManager.promoteSession(job.sessionId);
+      const promotionStats = await this.stagingManager.promoteSession(
+        job.sessionId,
+        allCollectedRoutes,
+        pipelineSignature
+      );
       timings.promoteSession = Date.now() - promoteStart;
       job.progress = 100;
 
       // Mark as completed
       job.status = 'completed';
       job.completedAt = new Date();
+      job.result = {
+        notesProcessed: session?.notesProcessed ?? 0,
+        assetsProcessed: session?.assetsProcessed ?? 0,
+        promotionStats,
+      };
 
       const totalDuration = Date.now() - startTime;
       this.logger?.info('[JOB] Finalization job completed', {
