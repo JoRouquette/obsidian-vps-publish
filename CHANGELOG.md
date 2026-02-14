@@ -1,3 +1,7 @@
+## <small>6.5.1 (2026-02-14)</small>
+
+* fix(node): downgrade file-type to v16.5.4 for Node.js 16 compatibility ([84572bc](https://github.com/JoRouquette/obsidian-vps-publish/commit/84572bc))
+
 ## 6.5.0 (2026-02-14)
 
 * test: increase timeout and relax assertions in session finalization test ([1c32f51](https://github.com/JoRouquette/obsidian-vps-publish/commit/1c32f51))
