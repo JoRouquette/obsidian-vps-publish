@@ -1,3 +1,9 @@
+## 6.6.0 (2026-02-14)
+
+* Merge branch 'feat/better-vault-explorer-filtering' ([bd4b9d9](https://github.com/JoRouquette/obsidian-vps-publish/commit/bd4b9d9))
+* fix(plugin): use publishables instead of deduplicated for complete route collection ([87f5235](https://github.com/JoRouquette/obsidian-vps-publish/commit/87f5235))
+* feat(site): enhance vault explorer filtering with debounce and result counter ([77c0a8a](https://github.com/JoRouquette/obsidian-vps-publish/commit/77c0a8a))
+
 ## <small>6.5.2 (2026-02-14)</small>
 
 * Merge branch 'fix/mobile-image-style' ([c09cbb4](https://github.com/JoRouquette/obsidian-vps-publish/commit/c09cbb4))

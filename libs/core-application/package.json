@@ -1,6 +1,6 @@
 {
   "name": "core-application",
-  "version": "6.5.2",
+  "version": "6.6.0",
   "private": true,
   "type": "commonjs",
   "main": "./src/index.js",
