@@ -707,7 +707,7 @@
       }
     }
 
-    // Mobile: Stack floating assets
+    // Mobile: Stack floating assets and center all images
     .content .markdown-body .md-asset.align-left,
     .content .markdown-body .md-asset.align-right {
       float: none !important;
@@ -718,6 +718,22 @@
       margin-right: auto !important;
       shape-outside: none !important;
       clear: none;
+    }
+
+    // Ensure all images are centered on mobile
+    .content .markdown-body figure.md-asset {
+      display: block;
+      margin-inline: auto;
+      text-align: center;
+    }
+
+    .content .markdown-body figure.md-asset img,
+    .content .markdown-body figure.md-asset video {
+      margin-inline: auto;
+    }
+
+    .content .markdown-body img {
+      margin-inline: auto;
     }
   }
 
