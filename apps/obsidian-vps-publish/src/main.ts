@@ -1133,7 +1133,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       );
 
       // PHASE 6.1: Extract all routes collected from vault (for deleted page detection)
-      const allCollectedRoutes = deduplicated.map((note) => note.routing.fullPath);
+      // CRITICAL: Use publishables (all eligible notes) not deduplicated (only unique ones)
+      // to ensure backend receives complete list of vault routes for manifest merge
+      const allCollectedRoutes = publishables.map((note) => note.routing.fullPath);
 
       const finishResult = await sessionClient.finishSession(sessionId, {
         notesProcessed: stats.notesUploaded,
