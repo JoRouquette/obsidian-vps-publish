@@ -1,3 +1,8 @@
+## <small>6.5.2 (2026-02-14)</small>
+
+* Merge branch 'fix/mobile-image-style' ([c09cbb4](https://github.com/JoRouquette/obsidian-vps-publish/commit/c09cbb4))
+* fix(site): center all images on mobile devices ([cce43bd](https://github.com/JoRouquette/obsidian-vps-publish/commit/cce43bd))
+
 ## <small>6.5.1 (2026-02-14)</small>
 
 * fix(node): downgrade file-type to v16.5.4 for Node.js 16 compatibility ([84572bc](https://github.com/JoRouquette/obsidian-vps-publish/commit/84572bc))
