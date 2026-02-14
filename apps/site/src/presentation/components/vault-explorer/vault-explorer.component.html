@@ -6,6 +6,11 @@
         [value]="q()"
         (queryChange)="onInputQuery($event)"
       ></app-search-bar>
+      @if (hasQuery() && !noResult()) {
+        <div class="result-count" aria-live="polite">
+          {{ resultCount() }} résultat{{ resultCount() > 1 ? 's' : '' }}
+        </div>
+      }
     </div>
 
     <button
@@ -33,7 +38,13 @@
       <div class="empty-state" aria-live="polite">
         <mat-icon aria-hidden="true">search_off</mat-icon>
         <p class="title">Aucun résultat</p>
-        <p class="hint">Aucun dossier, fichier ou tag ne correspond à cette recherche.</p>
+        <p class="hint">
+          Aucun dossier, fichier ou tag ne correspond à cette recherche.<br />
+          <small
+            >Astuce : La recherche fonctionne sans accents et trouve les sous-chaînes (ex: "ebr"
+            trouve "Ténébra").</small
+          >
+        </p>
       </div>
     }
 
