@@ -141,14 +141,47 @@ describe('EventLoopMonitorAdapter', () => {
       const monitor = new EventLoopMonitorAdapter(logger, 20);
 
       monitor.start();
-      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Wait with CPU work to ensure samples are collected
+      // Use active waiting to guarantee at least one sample is collected
+      let attempts = 0;
+      const maxAttempts = 20; // 20 attempts × 50ms = 1 second max
+
+      while (attempts < maxAttempts) {
+        await new Promise((resolve) => {
+          setTimeout(() => {
+            // Add CPU-bound work to create measurable lag
+            const start = Date.now();
+            while (Date.now() - start < 10) {
+              Math.random();
+            }
+            resolve(undefined);
+          }, 50);
+        });
+
+        const currentStats = monitor.getStats();
+        if (currentStats.samples > 0) {
+          break;
+        }
+        attempts++;
+      }
 
       const stats1 = monitor.getStats();
       expect(stats1.samples).toBeGreaterThan(0);
 
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Second check: wait for more samples
+      await new Promise((resolve) => {
+        setTimeout(() => {
+          const start = Date.now();
+          while (Date.now() - start < 10) {
+            Math.random();
+          }
+          resolve(undefined);
+        }, 100);
+      });
 
       const stats2 = monitor.getStats();
+      // Stats2 should have at least as many samples as stats1 (monitor keeps running)
       expect(stats2.samples).toBeGreaterThanOrEqual(stats1.samples);
 
       monitor.stop();

@@ -140,7 +140,7 @@ async function computePipelineSignature(
   );
 
   // DEBUG: Log stable representation to verify stability
-  console.log('🔐 Pipeline signature input (first 500 chars):', stable.substring(0, 500));
+  console.debug('🔐 Pipeline signature input (first 500 chars):', stable.substring(0, 500));
 
   const renderSettingsHash = await hashService.computeHash(stable);
 
