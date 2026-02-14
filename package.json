@@ -134,7 +134,7 @@
     "compression": "^1.8.1",
     "dotenv": "^17.2.3",
     "express": "^4.19.2",
-    "file-type": "^19.6.0",
+    "file-type": "16.5.4",
     "leaflet": "^1.9.4",
     "leaflet.fullscreen": "^5.1.1",
     "markdown-it": "^14.1.0",

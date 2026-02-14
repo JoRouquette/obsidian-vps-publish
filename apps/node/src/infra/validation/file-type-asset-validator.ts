@@ -6,7 +6,7 @@ import {
   type AssetValidatorPort,
   type LoggerPort,
 } from '@core-domain';
-import { fileTypeFromBuffer } from 'file-type';
+import fileType from 'file-type';
 
 /**
  * Asset validator that detects real MIME types from file bytes using file-type library.
@@ -41,7 +41,7 @@ export class FileTypeAssetValidator implements AssetValidatorPort {
     // Check 2: Detect MIME type from actual bytes
     let detectedMimeType: string;
     try {
-      const fileTypeResult = await fileTypeFromBuffer(buffer);
+      const fileTypeResult = await fileType.fromBuffer(buffer);
 
       if (fileTypeResult) {
         detectedMimeType = fileTypeResult.mime;
