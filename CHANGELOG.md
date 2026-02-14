@@ -1,3 +1,15 @@
+## 6.5.0 (2026-02-14)
+
+* test: increase timeout and relax assertions in session finalization test ([1c32f51](https://github.com/JoRouquette/obsidian-vps-publish/commit/1c32f51))
+* Merge branch 'feat/better-callouts-in-site' ([3a25778](https://github.com/JoRouquette/obsidian-vps-publish/commit/3a25778))
+* feat(assets): add MIME detection and size validation for uploaded assets ([518b132](https://github.com/JoRouquette/obsidian-vps-publish/commit/518b132))
+* feat(callout): add support for Obsidian callout type aliases ([6238a0b](https://github.com/JoRouquette/obsidian-vps-publish/commit/6238a0b))
+* feat(deduplication): add promotion statistics tracking ([9593799](https://github.com/JoRouquette/obsidian-vps-publish/commit/9593799))
+* feat(plugin): add background throttle monitoring and diagnostics ([0bf12f1](https://github.com/JoRouquette/obsidian-vps-publish/commit/0bf12f1))
+* feat(publishing): implement inter-publication note deduplication ([74ff595](https://github.com/JoRouquette/obsidian-vps-publish/commit/74ff595))
+* feat(security): add virus scanning for uploaded assets ([d4a9242](https://github.com/JoRouquette/obsidian-vps-publish/commit/d4a9242))
+* fix(assets): implement SHA256 deduplication and selective promotion ([9e197fa](https://github.com/JoRouquette/obsidian-vps-publish/commit/9e197fa))
+
 ## 6.4.0 (2026-02-13)
 
 * Merge branch 'feat/wikilinks_and_vault_explorer' ([1a51a22](https://github.com/JoRouquette/obsidian-vps-publish/commit/1a51a22))
