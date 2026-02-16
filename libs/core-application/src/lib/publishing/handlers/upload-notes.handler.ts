@@ -72,6 +72,15 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       pagesCount: manifest?.pages.length ?? 0,
     });
 
+    // Load callout styles for this session (enables style isolation)
+    const calloutStyles = this.notesStorage
+      ? await this.notesStorage.loadCalloutStyles(sessionId)
+      : [];
+    logger?.debug('Callout styles loaded for session', {
+      sessionId,
+      count: calloutStyles.length,
+    });
+
     // Process notes in parallel with controlled concurrency
     // Using Promise.allSettled to handle both successes and failures
     const CONCURRENCY = 10;
@@ -87,9 +96,45 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
             const bodyHtml = await this.markdownRenderer.render(note, {
               ignoredTags: this.ignoredTags,
               manifest: manifest ?? undefined,
+              calloutStyles, // Session-scoped styles (isolation)
             });
+
+            console.log(
+              '🔍 [TRACE UploadNotesHandler] bodyHtml from renderer - length:',
+              bodyHtml.length
+            );
+            console.log(
+              '🔍 [TRACE UploadNotesHandler] bodyHtml contains <link>:',
+              bodyHtml.includes('<link')
+            );
+            console.log(
+              '🔍 [TRACE UploadNotesHandler] bodyHtml contains <style data-callout-styles>:',
+              bodyHtml.includes('<style data-callout-styles>')
+            );
+            console.log(
+              '🔍 [TRACE UploadNotesHandler] bodyHtml first 500 chars:',
+              bodyHtml.substring(0, 500)
+            );
+
             noteLogger?.debug('Building HTML page');
             const fullHtml = this.buildHtmlPage(note, bodyHtml);
+
+            console.log(
+              '🔍 [TRACE UploadNotesHandler] fullHtml after buildHtmlPage - length:',
+              fullHtml.length
+            );
+            console.log(
+              '🔍 [TRACE UploadNotesHandler] fullHtml contains <link>:',
+              fullHtml.includes('<link')
+            );
+            console.log(
+              '🔍 [TRACE UploadNotesHandler] fullHtml contains <style data-callout-styles>:',
+              fullHtml.includes('<style data-callout-styles>')
+            );
+            console.log(
+              '🔍 [TRACE UploadNotesHandler] fullHtml first 500 chars:',
+              fullHtml.substring(0, 500)
+            );
 
             noteLogger?.debug('Saving content to storage', { route: note.routing?.routeBase });
             await contentStorage.save({

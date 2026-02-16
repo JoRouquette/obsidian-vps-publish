@@ -38,6 +38,16 @@ describe('sessionController', () => {
     }),
   };
 
+  const sessionNotesStorage = {
+    saveCalloutStyles: jest.fn().mockResolvedValue(undefined),
+    loadCalloutStyles: jest.fn().mockResolvedValue([]),
+    append: jest.fn(),
+    loadAll: jest.fn(),
+    clear: jest.fn(),
+    saveCleanupRules: jest.fn(),
+    loadCleanupRules: jest.fn(),
+  };
+
   const buildApp = () => {
     const app = express();
     app.use(express.json());
@@ -75,7 +85,8 @@ describe('sessionController', () => {
         stagingManager as any,
         calloutRenderer as any,
         finalizationJobService,
-        sessionRepository as any
+        sessionRepository as any,
+        sessionNotesStorage as any
       )
     );
     return app;

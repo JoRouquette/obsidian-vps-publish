@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 import {
   type AbortSessionHandler,
   type CreateSessionCommand,
   type CreateSessionHandler,
   type FinishSessionHandler,
+  type SessionNotesStoragePort,
   type SessionRepository,
   type UploadAssetsCommand,
   type UploadAssetsHandler,
@@ -35,6 +35,7 @@ export function createSessionController(
   calloutRenderer: CalloutRendererService,
   finalizationJobService: SessionFinalizationJobService,
   sessionRepository: SessionRepository,
+  sessionNotesStorage: SessionNotesStoragePort,
   logger?: LoggerPort
 ): Router {
   const router = Router();
@@ -84,15 +85,25 @@ export function createSessionController(
     };
 
     try {
+      const result = await createSessionHandler.handle(command);
+      routeLogger?.debug('Session created', { sessionId: result.sessionId });
+
+      // Persist callout styles for this session (enables rebuild)
       if (calloutStyles?.length) {
-        calloutRenderer.extendFromStyles(calloutStyles);
-        routeLogger?.debug('Custom callout styles registered', {
+        await sessionNotesStorage.saveCalloutStyles(result.sessionId, calloutStyles);
+        routeLogger?.debug('Callout styles persisted for session', {
+          sessionId: result.sessionId,
           count: calloutStyles.length,
         });
       }
 
-      const result = await createSessionHandler.handle(command);
-      routeLogger?.debug('Session created', { sessionId: result.sessionId });
+      // LEGACY: Also register in global singleton (temporary until render context is used)
+      if (calloutStyles?.length) {
+        calloutRenderer.extendFromStyles(calloutStyles);
+        routeLogger?.debug('Custom callout styles registered (singleton)', {
+          count: calloutStyles.length,
+        });
+      }
 
       return res.status(201).json({
         sessionId: result.sessionId,

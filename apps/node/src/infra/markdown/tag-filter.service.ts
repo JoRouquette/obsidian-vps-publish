@@ -83,7 +83,18 @@ export class TagFilterService {
     const root = $('body').length > 0 ? $('body') : $.root();
     processTextInElement(root);
 
-    // Return only body content to avoid re-wrapping in html/head/body structure
-    return $('body').html() ?? $.html();
+    // CRITICAL FIX: Preserve <link> and <style> tags that are outside <body>
+    // These are injected by markdown-it.renderer.ts for callout styles and icon fonts
+    // Cheerio moves them to <head>, but we need to return them as part of the body HTML
+    const headElements = $('head > link, head > style').toArray();
+    const bodyContent = $('body').html() ?? $.html();
+
+    if (headElements.length > 0) {
+      // Extract head elements and prepend to body content
+      const headHtml = headElements.map((el) => $.html(el)).join('\n');
+      return headHtml + '\n' + bodyContent;
+    }
+
+    return bodyContent;
   }
 }

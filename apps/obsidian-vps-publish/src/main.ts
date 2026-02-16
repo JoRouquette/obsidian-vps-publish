@@ -133,11 +133,9 @@ async function computePipelineSignature(
     ignoredTags: [...renderSettings.ignoredTags].sort((a, b) => a.localeCompare(b)),
   };
 
-  // 4. Stringify with sorted root keys
-  const stable = JSON.stringify(
-    stableObj,
-    Object.keys(stableObj).sort((a, b) => a.localeCompare(b))
-  );
+  // 4. Stringify WITHOUT replacer to include all nested properties
+  // Note: Object key order is already stable because of JS object insertion order
+  const stable = JSON.stringify(stableObj);
 
   // DEBUG: Log stable representation to verify stability
   console.debug('🔐 Pipeline signature input (first 500 chars):', stable.substring(0, 500));
@@ -816,7 +814,17 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
       trace.checkpoint('6-session-start', 'loading-callout-styles');
 
+      this.logger.debug('Loading callout styles from settings', {
+        paths: settings.calloutStylePaths,
+        count: settings.calloutStylePaths?.length ?? 0,
+      });
+
       const calloutStyles = await this.loadCalloutStyles(settings.calloutStylePaths ?? []);
+
+      this.logger.info('📤 Callout styles loaded for upload', {
+        count: calloutStyles.length,
+        paths: calloutStyles.map((s) => s.path),
+      });
 
       trace.checkpoint('6-session-start', 'building-custom-index-configs');
 
@@ -1313,6 +1321,11 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     const styles: Array<{ path: string; css: string }> = [];
     const adapter: DataAdapter = this.app.vault.adapter;
 
+    this.logger.debug('loadCalloutStyles called', {
+      pathsCount: paths.length,
+      paths: paths,
+    });
+
     for (const raw of paths ?? []) {
       const path = raw.trim();
       if (!path) continue;
@@ -1324,6 +1337,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           continue;
         }
         const css = await adapter.read(path);
+        this.logger.debug('Callout style file loaded', { path, cssLength: css.length });
         styles.push({ path, css });
       } catch (err) {
         this.logger.error('Failed to read callout style', { path, err });
@@ -1332,6 +1346,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     if (styles.length) {
       this.logger.debug('Loaded callout styles', { count: styles.length });
+    } else {
+      this.logger.debug('No callout styles loaded (paths array was empty or files not found)');
     }
 
     return styles;

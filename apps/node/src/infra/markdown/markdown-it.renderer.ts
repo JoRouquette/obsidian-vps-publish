@@ -184,7 +184,13 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       '<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />',
       '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />',
     ].join('\n');
-    const userCss = this.calloutRenderer.getUserCss();
+
+    // Build CSS from context-provided callout styles (isolated by session)
+    // Falls back to singleton getUserCss() for backwards compatibility (will be removed)
+    const userCss = context?.calloutStyles?.length
+      ? context.calloutStyles.map((s) => s.css).join('\n/* internal */\n')
+      : this.calloutRenderer.getUserCss(); // LEGACY: fallback to global singleton
+
     const inlineCalloutCss =
       `.material-symbols-outlined,.material-icons{font-family:'Material Symbols Outlined','Material Icons';font-weight:400;font-style:normal;font-size:1.1em;line-height:1;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;display:inline-flex;vertical-align:text-bottom;}` +
       `.callout-icon{font-family:'Material Symbols Outlined','Material Icons';}`;
@@ -308,8 +314,18 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       this.processLinkElement($(element), manifest);
     });
 
-    // Return body content only to avoid html/head/body wrapper tags
-    return $('body').html() ?? $.html();
+    // CRITICAL FIX: Preserve <link> and <style> tags from <head>
+    // When Cheerio parses HTML with <link>/<style> at the root, it auto-moves them to <head>
+    // We must extract and prepend them to body content to preserve callout styles and icon fonts
+    const headElements = $('head > link, head > style').toArray();
+    const bodyContent = $('body').html() ?? $.html();
+
+    if (headElements.length > 0) {
+      const headHtml = headElements.map((el) => $.html(el)).join('\n');
+      return headHtml + '\n' + bodyContent;
+    }
+
+    return bodyContent;
   }
 
   /**

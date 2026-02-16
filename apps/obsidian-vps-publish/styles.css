@@ -627,6 +627,45 @@
 }
 
 /* ============================================================================
+   Callout Snippets Selection UI
+   ============================================================================ */
+
+.ptpv-callout-snippets {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: var(--background-secondary);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+}
+
+.ptpv-callout-snippets .ptpv-help {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  background: var(--background-primary-alt);
+  border-radius: var(--radius-s);
+  font-size: 0.9em;
+}
+
+.ptpv-callout-snippets .setting-item {
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding: 0.5rem 0;
+}
+
+.ptpv-callout-snippets .setting-item:last-child {
+  border-bottom: none;
+}
+
+.ptpv-callout-snippets .setting-item-name {
+  font-weight: 500;
+}
+
+.ptpv-callout-snippets .setting-item-description {
+  font-size: 0.85em;
+  opacity: 0.7;
+  font-family: var(--font-monospace);
+}
+
+/* ============================================================================
    Folders Settings UI - Enhanced UX
    ============================================================================
    

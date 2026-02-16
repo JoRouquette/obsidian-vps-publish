@@ -1,9 +1,8 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { type SessionNotesStoragePort } from '@core-application';
-import { type LoggerPort } from '@core-domain';
-import { type PublishableNote, type SanitizationRules } from '@core-domain';
+import { type CalloutStylePayload, type SessionNotesStoragePort } from '@core-application';
+import { type LoggerPort, type PublishableNote, type SanitizationRules } from '@core-domain';
 
 export class SessionNotesFileStorage implements SessionNotesStoragePort {
   constructor(
@@ -17,6 +16,10 @@ export class SessionNotesFileStorage implements SessionNotesStoragePort {
 
   private cleanupRulesPath(sessionId: string): string {
     return path.join(this.contentRoot, '.staging', sessionId, '_cleanup-rules.json');
+  }
+
+  private calloutStylesPath(sessionId: string): string {
+    return path.join(this.contentRoot, '.staging', sessionId, '_callout-styles.json');
   }
 
   async append(sessionId: string, notes: PublishableNote[]): Promise<void> {
@@ -113,6 +116,43 @@ export class SessionNotesFileStorage implements SessionNotesStoragePort {
         return [];
       }
       this.logger?.error('Failed to load cleanup rules', { sessionId, filePath, error: err });
+      throw err;
+    }
+  }
+
+  async saveCalloutStyles(sessionId: string, styles: CalloutStylePayload[]): Promise<void> {
+    const filePath = this.calloutStylesPath(sessionId);
+    const dir = path.dirname(filePath);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(filePath, JSON.stringify(styles, null, 2), 'utf8');
+    this.logger?.debug('Saved callout styles for session', {
+      sessionId,
+      count: styles.length,
+      filePath,
+    });
+  }
+
+  async loadCalloutStyles(sessionId: string): Promise<CalloutStylePayload[]> {
+    const filePath = this.calloutStylesPath(sessionId);
+    try {
+      const raw = await fs.readFile(filePath, 'utf8');
+      const styles = JSON.parse(raw) as CalloutStylePayload[];
+      this.logger?.debug('Loaded callout styles for session', {
+        sessionId,
+        count: styles.length,
+        filePath,
+      });
+      return styles;
+    } catch (err: unknown) {
+      const code = (err as { code?: string } | undefined)?.code;
+      if (code === 'ENOENT') {
+        this.logger?.debug('No callout styles found for session (using defaults)', {
+          sessionId,
+          filePath,
+        });
+        return [];
+      }
+      this.logger?.error('Failed to load callout styles', { sessionId, filePath, error: err });
       throw err;
     }
   }
