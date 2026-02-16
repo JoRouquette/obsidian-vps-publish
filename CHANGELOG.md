@@ -1,3 +1,8 @@
+## 6.7.0 (2026-02-16)
+
+* Merge branch 'feat/better-search-on-vault-explorer' ([a70dda5](https://github.com/JoRouquette/obsidian-vps-publish/commit/a70dda5))
+* feat(site): improve vault explorer search to filter only on basename ([83b8521](https://github.com/JoRouquette/obsidian-vps-publish/commit/83b8521))
+
 ## 6.6.0 (2026-02-14)
 
 * Merge branch 'feat/better-vault-explorer-filtering' ([bd4b9d9](https://github.com/JoRouquette/obsidian-vps-publish/commit/bd4b9d9))
