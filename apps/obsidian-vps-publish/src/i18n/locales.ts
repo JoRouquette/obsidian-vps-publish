@@ -315,6 +315,8 @@ export type AdvancedTranslations = {
   calloutStylesLabel: string;
   calloutStylesDescription: string;
   calloutStylesPlaceholder: string;
+  calloutStylesManualLabel: string;
+  calloutStylesManualDescription: string;
   cleanup: {
     title: string;
     description: string;
@@ -374,6 +376,7 @@ export type HelpTranslations = {
     dataview: HelpSection;
     leaflet: HelpSection;
     markdown: HelpSection;
+    calloutStyles: HelpSection;
   };
   footer: {
     docsText: string;
@@ -635,10 +638,13 @@ export const en: Translations = {
       logLevelInfo: 'Info',
       logLevelWarn: 'Warning (default)',
       logLevelError: 'Error only',
-      calloutStylesLabel: 'Callout styles (CSS paths)',
+      calloutStylesLabel: 'Callout styles (CSS snippets)',
       calloutStylesDescription:
-        'Paths (one per line or comma separated) to CSS files in the vault. They will be uploaded, parsed and used to extend callout definitions on the server.',
+        'Select CSS snippets from .obsidian/snippets folder to customize callout appearance. Selected files are uploaded and applied to published content.',
       calloutStylesPlaceholder: '.obsidian/snippets/callouts.css',
+      calloutStylesManualLabel: 'Manual paths (optional)',
+      calloutStylesManualDescription:
+        'Add custom CSS paths (one per line) outside .obsidian/snippets folder.',
       cleanup: {
         title: 'VPS cleanup',
         description:
@@ -797,6 +803,21 @@ export const en: Translations = {
           {
             code: '# Title #todo\n> #note Quote text',
             description: 'Tags listed in Settings > Ignore Rules are removed (e.g., #todo, #note)',
+          },
+        ],
+      },
+      calloutStyles: {
+        title: 'Custom Callout Styles',
+        content:
+          'Customize callout appearance by selecting CSS snippets from .obsidian/snippets folder.\n\nSelected CSS files are uploaded with your notes and applied to published callouts on the server.\n\nYou can create custom callout types or override default styles.',
+        examples: [
+          {
+            code: '/* In .obsidian/snippets/my-callouts.css */\n.callout[data-callout="red"] {\n  --callout-color: 255, 0, 0;\n}',
+            description: 'Define a custom "red" callout type',
+          },
+          {
+            code: '> [!red] Custom Callout\n> Content with custom styling',
+            description: 'Use the custom callout in your notes',
           },
         ],
       },
@@ -1133,10 +1154,13 @@ export const fr: Translations = {
       logLevelInfo: 'Info',
       logLevelWarn: 'Warning (défaut)',
       logLevelError: 'Error uniquement',
-      calloutStylesLabel: 'Styles de callouts (chemins CSS)',
+      calloutStylesLabel: 'Styles de callouts (snippets CSS)',
       calloutStylesDescription:
-        'Chemins (un par ligne ou séparés par des virgules) vers des fichiers CSS du vault. Ils seront envoyés, parsés et utilisés pour étendre la configuration des callouts côté serveur.',
+        "Sélectionnez les snippets CSS du dossier .obsidian/snippets pour personnaliser l'apparence des callouts. Les fichiers sélectionnés sont envoyés et appliqués au contenu publié.",
       calloutStylesPlaceholder: '.obsidian/snippets/callouts.css',
+      calloutStylesManualLabel: 'Chemins manuels (optionnel)',
+      calloutStylesManualDescription:
+        'Ajoutez des chemins CSS personnalisés (un par ligne) en dehors du dossier .obsidian/snippets.',
       cleanup: {
         title: 'Nettoyage du VPS',
         description:
@@ -1295,6 +1319,21 @@ export const fr: Translations = {
           {
             code: '# Titre #todo\n> #note Texte de citation',
             description: `Les tags listés dans Paramètres > Règles d'Ignorance sont supprimés (ex : #todo, #note)`,
+          },
+        ],
+      },
+      calloutStyles: {
+        title: 'Styles de Callouts Personnalisés',
+        content:
+          "Personnalisez l'apparence des callouts en sélectionnant des snippets CSS depuis le dossier .obsidian/snippets.\n\nLes fichiers CSS sélectionnés sont envoyés avec vos notes et appliqués aux callouts publiés sur le serveur.\n\nVous pouvez créer des types de callouts personnalisés ou modifier les styles par défaut.",
+        examples: [
+          {
+            code: '/* Dans .obsidian/snippets/mes-callouts.css */\n.callout[data-callout="rouge"] {\n  --callout-color: 255, 0, 0;\n}',
+            description: 'Définir un callout personnalisé "rouge"',
+          },
+          {
+            code: '> [!rouge] Callout Personnalisé\n> Contenu avec style personnalisé',
+            description: 'Utiliser le callout personnalisé dans vos notes',
           },
         ],
       },

@@ -66,25 +66,96 @@ export function renderAdvancedSection(root: HTMLElement, ctx: SettingsViewContex
   new Setting(inner)
     .setName(t.settings.advanced.calloutStylesLabel)
     .setDesc(t.settings.advanced.calloutStylesDescription)
-    .addTextArea((text) => {
-      text
-        .setPlaceholder(t.settings.advanced.calloutStylesPlaceholder)
-        .setValue(settings.calloutStylePaths.join('\n'))
-        .onChange((value) => {
-          const paths = value
-            .split(/[\n,]/)
-            .map((p) => p.trim())
-            .filter(Boolean);
-          settings.calloutStylePaths = paths;
-          logger.debug('Callout style paths updated', { paths });
-          void ctx.save();
-        });
+    .setHeading();
 
-      // Add CSS class for styling instead of direct style manipulation
-      text.inputEl.addClass('ptpv-textarea-large');
-    });
+  renderCalloutStylesSelection(inner, ctx);
 
   renderCleanupSetting(inner, ctx);
+}
+
+/**
+ * Render callout styles selection with checkboxes for snippets
+ */
+async function renderCalloutStylesSelection(
+  container: HTMLElement,
+  ctx: SettingsViewContext
+): Promise<void> {
+  const { app, settings, logger } = ctx;
+  const snippetsFolder = '.obsidian/snippets';
+
+  const snippetsContainer = container.createDiv({ cls: 'ptpv-callout-snippets' });
+
+  // Use adapter.list() to access .obsidian/ system folder
+  let cssFiles: string[] = [];
+  let folderExists = false;
+  try {
+    folderExists = await app.vault.adapter.exists(snippetsFolder);
+    if (folderExists) {
+      const listResult = await app.vault.adapter.list(snippetsFolder);
+      cssFiles = listResult.files
+        .filter((path) => path.endsWith('.css'))
+        .sort((a, b) => a.localeCompare(b));
+    }
+  } catch (error) {
+    logger.warn('Failed to list snippets folder', { error });
+  }
+
+  if (cssFiles.length === 0) {
+    const message = folderExists
+      ? '📁 No CSS snippets found in .obsidian/snippets/ (folder is empty)'
+      : '📁 Folder .obsidian/snippets/ does not exist. Create it and add CSS files to customize callouts.';
+
+    snippetsContainer.createDiv({
+      cls: 'ptpv-help',
+      text: message,
+    });
+
+    return;
+  }
+
+  snippetsContainer.createDiv({
+    cls: 'ptpv-help',
+    text: `📁 Found ${cssFiles.length} CSS snippet${cssFiles.length > 1 ? 's' : ''} in .obsidian/snippets/`,
+  });
+
+  // Render checkbox for each CSS file
+  cssFiles.forEach((filePath) => {
+    const fileName = filePath.replace(`${snippetsFolder}/`, '');
+    const isSelected = settings.calloutStylePaths.includes(filePath);
+
+    new Setting(snippetsContainer)
+      .setName(fileName)
+      .setDesc(filePath)
+      .addToggle((toggle) => {
+        toggle.setValue(isSelected).onChange(async (value) => {
+          await handleSnippetToggle(filePath, value, settings, logger, ctx);
+        });
+      });
+  });
+}
+
+/**
+ * Handle snippet toggle (add/remove from selection)
+ */
+async function handleSnippetToggle(
+  filePath: string,
+  value: boolean,
+  settings: any,
+  logger: any,
+  ctx: SettingsViewContext
+): Promise<void> {
+  if (value) {
+    // Add to selection
+    if (!settings.calloutStylePaths.includes(filePath)) {
+      settings.calloutStylePaths.push(filePath);
+      logger.debug('Callout snippet added', { filePath });
+    }
+  } else {
+    // Remove from selection
+    settings.calloutStylePaths = settings.calloutStylePaths.filter((p: string) => p !== filePath);
+    logger.debug('Callout snippet removed', { filePath });
+  }
+  await ctx.save();
 }
 
 function renderCleanupSetting(inner: HTMLElement, ctx: SettingsViewContext): void {

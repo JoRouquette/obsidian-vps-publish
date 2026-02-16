@@ -318,7 +318,79 @@ Callouts Obsidian sont supportés avec styles personnalisables :
 
 Les aliases sont automatiquement convertis vers leur type canonique pour le rendu (couleur, icône, classes CSS).
 
-**Configuration** : Vous pouvez ajouter des CSS custom dans Settings → Advanced → Callout styles.
+### Styles personnalisés
+
+Vous pouvez personnaliser l'apparence des callouts en sélectionnant des snippets CSS depuis votre vault.
+
+**Configuration** : Settings → Advanced → Callout styles (CSS snippets)
+
+#### Interface utilisateur
+
+Le plugin liste tous les fichiers CSS dans `.obsidian/snippets/` avec des checkboxes pour sélectionner ceux à utiliser.
+
+#### Fonctionnement
+
+Les fichiers CSS sélectionnés sont :
+
+1. **Uploadés** avec vos notes lors de la publication
+2. **Parsés** côté serveur pour extraire les règles CSS de callouts
+3. **Appliqués** au HTML publié (session-scopé, isolation entre utilisateurs)
+
+#### Exemple : Créer un callout personnalisé
+
+**1. Créer le snippet CSS** (`.obsidian/snippets/mes-callouts.css`) :
+
+```css
+/* Callout rouge custom */
+.callout[data-callout='red'] {
+  --callout-color: 255, 0, 0;
+  --callout-icon: lucide-flame;
+}
+
+/* Callout bleu custom */
+.callout[data-callout='blue'] {
+  --callout-color: 0, 100, 255;
+  --callout-icon: lucide-droplet;
+}
+
+/* Override du callout "note" par défaut */
+.callout[data-callout='note'] {
+  --callout-color: 100, 200, 100;
+}
+```
+
+**2. Activer dans Settings**
+
+→ Settings → Advanced → Callout styles  
+→ Cocher `mes-callouts.css`
+
+**3. Utiliser dans vos notes**
+
+```markdown
+> [!red] Danger !
+> Ceci est un callout rouge personnalisé.
+
+> [!blue] Info
+> Callout bleu avec icône droplet.
+
+> [!note] Note Custom
+> Note avec couleur verte custom.
+```
+
+#### Variables CSS supportées
+
+Vous pouvez utiliser les variables Obsidian standard :
+
+- `--callout-color: R, G, B;` (RGB sans alpha)
+- `--callout-icon: lucide-icon-name;` (icônes Lucide)
+- Toute autre propriété CSS standard (border, padding, font, etc.)
+
+#### Limites
+
+- Les snippets doivent être des **fichiers CSS valides**
+- Seules les règles ciblant `.callout[data-callout="..."]` sont appliquées
+- Les chemins relatifs dans les CSS (images, fonts) ne sont **pas supportés**
+- Les styles sont **session-scopés** : pas de pollution entre utilisateurs
 
 ## Configuration des règles d'exclusion
 

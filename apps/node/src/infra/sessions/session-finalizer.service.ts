@@ -108,6 +108,15 @@ export class SessionFinalizerService {
       })),
     });
 
+    // STEP 2bis: Load callout styles (session-scoped CSS for custom callouts)
+    stepStart = performance.now();
+    const calloutStyles = await this.notesStorage.loadCalloutStyles(sessionId);
+    timings.loadCalloutStyles = performance.now() - stepStart;
+    log.debug('Loaded callout styles for session', {
+      count: calloutStyles.length,
+      paths: calloutStyles.map((s) => s.path),
+    });
+
     // STEP 3: Detect plugin blocks (Leaflet) BEFORE sanitization
     // Note: Dataview blocks are now pre-serialized by the plugin and included in serializedDataviewBlocks.
     // The server no longer attempts to detect or execute Dataview queries.
@@ -160,7 +169,7 @@ export class SessionFinalizerService {
       this.contentStorage,
       this.manifestStorage,
       this.logger,
-      undefined, // notesStorage not needed here
+      this.notesStorage, // Pass notesStorage to enable callout styles loading during rebuild
       session?.ignoredTags, // Pass ignoredTags from session
       noteHashService
     );

@@ -278,6 +278,7 @@ export function createApp(rootLogger?: LoggerPort) {
       calloutRenderer,
       finalizationJobService,
       sessionRepository,
+      sessionNotesStorage,
       rootLogger
     )
   );
