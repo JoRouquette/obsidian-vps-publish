@@ -34,8 +34,6 @@ import { SearchBarComponent } from '../search-bar/search-bar.component';
   styleUrls: ['./vault-explorer.component.scss'],
 })
 export class VaultExplorerComponent implements OnInit, OnDestroy {
-  private visible = new WeakMap<TreeNode, TreeNode[]>();
-  private matches = new WeakMap<TreeNode, boolean>();
   tree = signal<TreeNode>(defaultTreeNode);
   q = signal<string>('');
   private searchDebounceTimer?: ReturnType<typeof setTimeout>;
@@ -43,19 +41,46 @@ export class VaultExplorerComponent implements OnInit, OnDestroy {
   private readonly DEBOUNCE_MS = 200; // Wait 200ms after last keystroke before filtering
   private readonly buildTree = new BuildTreeHandler();
   hasQuery = computed(() => this.q().trim().length > 0);
-  rootChildren = computed(() => {
-    const root = this.filteredRoot();
-    if (!root) return this.EMPTY;
-    if (!this.q().trim()) return root.children ?? [];
-    return this.visible.get(root) ?? this.EMPTY;
+
+  /**
+   * Filtered tree: rebuilds the entire tree structure with only matching nodes.
+   * If no query, returns the original tree. If query, returns a new tree with only matches.
+   */
+  filteredTree = computed(() => {
+    const root = this.tree();
+    if (!root) return defaultTreeNode;
+    const query = this.q().trim();
+    if (!query) return root;
+
+    // Special case for root: filter its children, not the root itself
+    const children = root.children ?? [];
+    const filteredChildren: TreeNode[] = [];
+
+    for (const child of children) {
+      const filtered = this.buildFilteredTree(child, query);
+      if (filtered !== null) {
+        filteredChildren.push(filtered);
+      }
+    }
+
+    return {
+      ...root,
+      children: filteredChildren,
+      count: filteredChildren.length,
+    };
   });
+
+  rootChildren = computed(() => {
+    const root = this.filteredTree();
+    return root.children ?? this.EMPTY;
+  });
+
   noResult = computed(() => {
     if (!this.hasQuery()) return false;
-    const root = this.filteredRoot();
-    if (!root) return false;
-    const visibles = this.visible.get(root) ?? [];
-    return visibles.length === 0;
+    const root = this.filteredTree();
+    return (root.children?.length ?? 0) === 0;
   });
+
   noData = computed(() => {
     const root = this.tree();
     if (!root) return true;
@@ -69,9 +94,8 @@ export class VaultExplorerComponent implements OnInit, OnDestroy {
    */
   resultCount = computed(() => {
     if (!this.hasQuery()) return 0;
-    const root = this.filteredRoot();
-    if (!root) return 0;
-    return this.countVisibleNodes(root);
+    const root = this.filteredTree();
+    return this.countNodes(root);
   });
 
   @ViewChild('treeScroller', { static: false })
@@ -85,21 +109,15 @@ export class VaultExplorerComponent implements OnInit, OnDestroy {
   // Track if any folder is expanded
   hasExpandedFolders = signal<boolean>(false);
 
-  childrenOf = (n: TreeNode) => (this.q() ? (this.visible.get(n) ?? []) : (n.children ?? []));
+  childrenOf = (n: TreeNode) => n.children ?? [];
   isFolder = (_: number, n: TreeNode) => n.kind === 'folder';
   isFile = (_: number, n: TreeNode) => n.kind === 'file';
-  trackByPath = (_: number, n: TreeNode) => n.path ?? (n.label || n.name);
-
-  filteredRoot = computed(() => {
-    const root = this.tree();
-    if (!root) return null;
-    const query = this.q().trim().toLowerCase();
-    this.visible = new WeakMap<TreeNode, TreeNode[]>();
-    this.matches = new WeakMap<TreeNode, boolean>();
-    if (!query) return root;
-    this.markVisible(root, query);
-    return root;
-  });
+  trackByPath = (_: number, n: TreeNode) => {
+    const base = n.path ?? (n.label || n.name);
+    // Force new identity when filtering so Angular re-renders nodes correctly
+    // Without this, mat-tree keeps old expanded node references with unfiltered children
+    return this.hasQuery() ? `filtered-${base}` : base;
+  };
 
   constructor(private readonly facade: CatalogFacade) {
     effect(() => {
@@ -156,10 +174,24 @@ export class VaultExplorerComponent implements OnInit, OnDestroy {
   }
 
   shouldAutoExpand(node: TreeNode): boolean {
-    if (!this.hasQuery() || node.kind !== 'folder') return false;
-    const hasVisibleChildren = (this.visible.get(node)?.length ?? 0) > 0;
-    const selfMatch = this.matches.get(node) ?? false;
-    return hasVisibleChildren || selfMatch;
+    // When filtering, auto-expand all folders to show matches
+    return this.hasQuery() && node.kind === 'folder';
+  }
+
+  /**
+   * Extract the basename (last segment) from a path.
+   * Handles both forward slashes (/) and backslashes (\\).
+   * Examples:
+   *   'regles/sens-et-capacites' → 'sens-et-capacites'
+   *   'regles\\sens-et-capacites' → 'sens-et-capacites'
+   *   'sens-et-capacites' → 'sens-et-capacites'
+   */
+  private getBaseName(path: string): string {
+    if (!path) return '';
+    // Normalize path separators to forward slashes
+    const normalized = path.replaceAll('\\', '/');
+    const segments = normalized.split('/');
+    return segments.at(-1) ?? '';
   }
 
   /**
@@ -194,50 +226,59 @@ export class VaultExplorerComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Count all visible nodes (files and folders) recursively.
-   * Used to display result count during search.
+   * Count all nodes (files and folders) recursively in a filtered tree.
+   * Does NOT count the root node itself.
    */
-  private countVisibleNodes(node: TreeNode): number {
+  private countNodes(node: TreeNode): number {
     let count = 0;
+    const children = node.children ?? [];
 
-    // Count this node if it matches
-    if (this.matches.get(node)) {
-      count++;
-    }
-
-    // Recursively count visible children
-    const visibleChildren = this.visible.get(node) ?? [];
-    for (const child of visibleChildren) {
-      count += this.countVisibleNodes(child);
+    for (const child of children) {
+      count++; // Count this child
+      if (child.kind === 'folder') {
+        count += this.countNodes(child); // Recursively count children
+      }
     }
 
     return count;
   }
 
-  private markVisible(node: TreeNode, q: string): boolean {
-    const label = node.label || node.name;
-    const tags = node.tags ?? [];
+  /**
+   * Build a filtered tree containing only nodes that match the query.
+   * Returns a new tree structure with only matching files/folders.
+   * Parent folders are included if they have matching descendants.
+   * Returns null if the node and its descendants don't match.
+   */
+  private buildFilteredTree(node: TreeNode, query: string): TreeNode | null {
+    const basename = this.getBaseName(node.name);
+    const selfMatch = this.matchesQuery(basename, query);
 
-    // Check if label matches query (with normalization and substring support)
-    const labelMatch = this.matchesQuery(label, q);
-
-    // Check if any tag matches query
-    const tagsMatch = tags.some((t) => this.matchesQuery(t, q));
-
-    const selfMatch = labelMatch || tagsMatch;
-    this.matches.set(node, selfMatch);
-
-    if (node.kind === 'file') return selfMatch;
-
-    const kids = node.children ?? [];
-    const vis: TreeNode[] = [];
-    for (const c of kids) if (this.markVisible(c, q)) vis.push(c);
-
-    if (selfMatch || vis.length) {
-      this.visible.set(node, vis);
-      return true;
+    // For files: include if basename matches
+    if (node.kind === 'file') {
+      return selfMatch ? { ...node } : null;
     }
-    return false;
+
+    // For folders: filter children recursively
+    const children = node.children ?? [];
+    const filteredChildren: TreeNode[] = [];
+
+    for (const child of children) {
+      const filtered = this.buildFilteredTree(child, query);
+      if (filtered !== null) {
+        filteredChildren.push(filtered);
+      }
+    }
+
+    // Include folder if it matches OR has matching children
+    if (selfMatch || filteredChildren.length > 0) {
+      return {
+        ...node,
+        children: filteredChildren,
+        count: filteredChildren.length,
+      };
+    }
+
+    return null;
   }
 
   toggleAllFolders(): void {
