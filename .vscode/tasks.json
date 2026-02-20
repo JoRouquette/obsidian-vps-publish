@@ -138,6 +138,126 @@
       "command": "bash",
       "args": ["-c", "npm run docs:check && npm run lint && npm run build && npm run test"],
       "problemMatcher": []
+    },
+    {
+      "label": "SSR: Build Angular",
+      "type": "shell",
+      "command": "npx",
+      "args": ["nx", "build", "site", "--configuration=production", "--skip-nx-cache"],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "SSR: Copy index.html",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c",
+        "cp dist/apps/site/browser/index.csr.html dist/apps/site/browser/index.html && echo '✅ index.html created for CSR fallback'"
+      ],
+      "problemMatcher": [],
+      "dependsOn": ["SSR: Build Angular"]
+    },
+    {
+      "label": "SSR: Launch Server",
+      "type": "shell",
+      "command": "npx",
+      "args": ["nx", "serve", "node", "--skip-nx-cache"],
+      "problemMatcher": [],
+      "isBackground": true,
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "dependsOn": ["SSR: Copy index.html"]
+    },
+    {
+      "label": "SSR: Test HTML Output",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c",
+        "echo '🔍 Testing SSR HTML output...' && sleep 2 && curl -s http://localhost:3000/ | head -100 | grep -E '<title>|<meta name=|<meta property=' || echo '⚠️  No meta tags found (SSR might not be working)'"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "SSR: Validate SEO",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c",
+        "echo '📊 SEO Validation Report' && echo '========================' && echo '' && echo '1. Testing robots.txt:' && curl -s http://localhost:3000/robots.txt | head -10 && echo '' && echo '2. Testing sitemap.xml:' && curl -s http://localhost:3000/sitemap.xml | head -15 && echo '' && echo '3. Testing meta tags:' && curl -s http://localhost:3000/ | grep -E '<title>|<meta name=\"description\"|<link rel=\"canonical\"' || echo '⚠️  Meta tags not found' && echo '' && echo '4. Testing JSON-LD:' && curl -s http://localhost:3000/ | grep -o 'application/ld+json' && echo '✅ Validation complete'"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "SSR: Complete Setup",
+      "dependsOn": ["SSR: Build Angular", "SSR: Copy index.html"],
+      "dependsOrder": "sequence",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "SSR: Full Restart",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c",
+        "echo '🔄 Full SSR Restart...' && npx nx reset && rm -rf dist/apps/site && npx nx build site --configuration=production --skip-nx-cache && cp dist/apps/site/browser/index.csr.html dist/apps/site/browser/index.html && npx nx build node --skip-nx-cache && echo '✅ Build complete. Now run: SSR: Launch Server'"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "SSR: Quick Test (no rebuild)",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c",
+        "echo '⚡ Quick SSR Test' && echo '=================' && echo '' && curl -s http://localhost:3000/ 2>&1 | head -80 | grep -E '<title>|<meta|<h1|<link rel=\"canonical\"' || echo '❌ Server not running or SSR disabled'"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
     }
   ]
 }
