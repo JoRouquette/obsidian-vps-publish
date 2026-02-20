@@ -40,6 +40,7 @@ import { createCorsMiddleware } from './middleware/cors.middleware';
 import { PerformanceMonitoringMiddleware } from './middleware/performance-monitoring.middleware';
 import { createRedirectMiddleware } from './middleware/redirect.middleware';
 import { RequestCorrelationMiddleware } from './middleware/request-correlation.middleware';
+import { createAngularSSRService } from '../../ssr/angular-ssr.service';
 
 export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
 
@@ -324,14 +325,24 @@ export function createApp(rootLogger?: LoggerPort) {
     });
   });
 
-  app.get('*', (req, res) => {
-    rootLogger?.debug('Serving Angular index.html for unmatched route', {
-      url: req.originalUrl,
-    });
+  // SEO redirects: /robots.txt and /sitemap.xml to /seo/ endpoints
+  app.get('/robots.txt', (req, res) => res.redirect(301, '/seo/robots.txt'));
+  app.get('/sitemap.xml', (req, res) => res.redirect(301, '/seo/sitemap.xml'));
 
-    const indexPath = path.join(ANGULAR_DIST, 'index.html'); // maintenant absolu
-    res.sendFile(indexPath);
-  });
+  // Angular SSR for all other routes
+  // Initialize SSR service (lazy loading on first request)
+  const ssrService = createAngularSSRService(
+    EnvConfig.uiServerRoot(),
+    ANGULAR_DIST,
+    EnvConfig.ssrEnabled(),
+    rootLogger,
+    EnvConfig.contentRoot(), // For cache invalidation based on manifest changes
+    true // Enable SSR caching
+  );
+
+  const staticIndexPath = path.join(ANGULAR_DIST, 'index.html');
+
+  app.get('*', ssrService.middleware(staticIndexPath));
 
   // Log app ready
   rootLogger?.debug('Express app initialized');
