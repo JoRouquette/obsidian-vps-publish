@@ -26,6 +26,7 @@ import { ClamAVAssetScanner } from '../../security/clamav-asset-scanner';
 import { NoopAssetScanner } from '../../security/noop-asset-scanner';
 import { SessionFinalizationJobService } from '../../sessions/session-finalization-job.service';
 import { SessionFinalizerService } from '../../sessions/session-finalizer.service';
+import { createAngularSSRService } from '../../ssr/angular-ssr.service';
 import { AssetHashService } from '../../utils/asset-hash.service';
 import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
 import { createHealthCheckController } from './controllers/health-check.controller';
@@ -40,7 +41,6 @@ import { createCorsMiddleware } from './middleware/cors.middleware';
 import { PerformanceMonitoringMiddleware } from './middleware/performance-monitoring.middleware';
 import { createRedirectMiddleware } from './middleware/redirect.middleware';
 import { RequestCorrelationMiddleware } from './middleware/request-correlation.middleware';
-import { createAngularSSRService } from '../../ssr/angular-ssr.service';
 
 export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
 
@@ -290,7 +290,7 @@ export function createApp(rootLogger?: LoggerPort) {
 
   // SEO routes (sitemap.xml, robots.txt)
   const manifestLoader = async (): Promise<Manifest> => {
-    const fs = await import('fs/promises');
+    const fs = await import('node:fs/promises');
     const manifestPath = path.join(EnvConfig.contentRoot(), '_manifest.json');
     const raw = await fs.readFile(manifestPath, 'utf-8');
     return JSON.parse(raw) as Manifest;
@@ -342,7 +342,9 @@ export function createApp(rootLogger?: LoggerPort) {
 
   const staticIndexPath = path.join(ANGULAR_DIST, 'index.html');
 
-  app.get('*', ssrService.middleware(staticIndexPath));
+  app.get('*', (req, res, next) => {
+    ssrService.middleware(staticIndexPath)(req, res, next).catch(next);
+  });
 
   // Log app ready
   rootLogger?.debug('Express app initialized');

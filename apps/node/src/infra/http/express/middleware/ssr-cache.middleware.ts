@@ -14,9 +14,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { NextFunction, Request, Response } from 'express';
-
 import type { LoggerPort } from '@core-domain';
+import type { NextFunction, Request, Response } from 'express';
 
 interface CacheEntry {
   html: string;
@@ -195,7 +194,7 @@ export class SSRCacheMiddleware {
         cached && cacheAge > this.config.maxAgeSeconds + this.config.staleWhileRevalidateSeconds;
 
       // Build ID mismatch means entry is invalid
-      const buildIdValid = cached && cached.buildId === this.currentBuildId;
+      const buildIdValid = cached?.buildId === this.currentBuildId;
 
       // Handle 304 Not Modified
       if (cached && buildIdValid && ifNoneMatch === cached.etag) {
@@ -251,8 +250,7 @@ export class SSRCacheMiddleware {
         const html = await renderFn(req);
         const renderDuration = Number(process.hrtime.bigint() - renderStart) / 1e6;
 
-        serverTimings.push(`ssr;dur=${renderDuration.toFixed(1)}`);
-        serverTimings.push('ssr_cache;desc=MISS');
+        serverTimings.push(`ssr;dur=${renderDuration.toFixed(1)}`, 'ssr_cache;desc=MISS');
 
         const etag = this.generateEtag(html);
 
@@ -302,7 +300,7 @@ export class SSRCacheMiddleware {
     renderFn: (req: Request) => Promise<string>
   ): void {
     // Fire and forget
-    (async () => {
+    void (async () => {
       try {
         const html = await renderFn(req);
         const etag = this.generateEtag(html);
