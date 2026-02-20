@@ -10,11 +10,11 @@ import { ConsoleLogger } from './infra/logging/console-logger';
 const envFile = process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.dev';
 const envPath = path.resolve(process.cwd(), envFile);
 
-loadEnv({ path: envPath });
+loadEnv({ path: envPath, override: true });
 
 // Fallback to .env if specific file doesn't exist
 if (!process.env.API_KEY) {
-  loadEnv(); // Try default .env file
+  loadEnv({ override: true }); // Try default .env file
 }
 
 async function bootstrap() {

@@ -142,4 +142,26 @@ export class EnvConfig {
       })()
     );
   }
+
+  /**
+   * Enable Angular SSR (Server-Side Rendering).
+   * When enabled, the server will render Angular pages server-side for better SEO.
+   * Default: true in production, false in development
+   */
+  static ssrEnabled(): boolean {
+    const val = this.norm(process.env.SSR_ENABLED).toLowerCase();
+    if (val === 'false' || val === '0') return false;
+    if (val === 'true' || val === '1') return true;
+    // Default: enabled in production
+    return this.nodeEnv() === 'production';
+  }
+
+  /**
+   * Path to Angular SSR server dist folder.
+   * Contains: main.server.mjs, index.server.html
+   * Default: /ui-server (Docker) or ./tmp/ui-server (local)
+   */
+  static uiServerRoot(): string {
+    return path.resolve(this.norm(process.env.UI_SERVER_ROOT) || './tmp/ui-server');
+  }
 }
