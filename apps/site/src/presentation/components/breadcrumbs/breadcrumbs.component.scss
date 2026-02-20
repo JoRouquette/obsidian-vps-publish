@@ -1,0 +1,43 @@
+.breadcrumbs {
+  padding: 0.5rem 0;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+
+  &__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 0.25rem;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  &__link {
+    color: var(--color-link-default, #5599d0);
+    text-decoration: none;
+    transition: color 0.2s ease;
+
+    &:hover,
+    &:focus {
+      color: var(--color-link-hover, #cd2626);
+      text-decoration: underline;
+    }
+  }
+
+  &__separator {
+    color: var(--color-text-tertiary, #4e5b6f);
+    margin: 0 0.25rem;
+  }
+
+  &__current {
+    color: var(--color-text-secondary, #697580);
+    font-weight: 500;
+  }
+}

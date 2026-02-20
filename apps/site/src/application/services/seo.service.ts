@@ -17,6 +17,13 @@ export interface SeoMetadata {
   siteName?: string;
 }
 
+export interface BreadcrumbItem {
+  name: string;
+  url: string;
+  route: string;
+  isLast: boolean;
+}
+
 /**
  * Service pour gérer les meta tags SEO dynamiques.
  * Utilisé par SeoResolver pour injecter les métadonnées sur chaque route.
@@ -43,6 +50,19 @@ export class SeoService {
     const config = this.configFacade.config();
     this.baseUrl = config?.baseUrl || 'http://localhost:4200';
     this.siteName = config?.siteName || "Scribe d'Ektaron";
+  }
+
+  /**
+   * Get breadcrumbs for visual display in components.
+   * Useful for rendering HTML breadcrumbs in the UI.
+   */
+  getBreadcrumbs(route: string): BreadcrumbItem[] {
+    const items = this.buildBreadcrumbs(route);
+    return items.map((item, index) => ({
+      ...item,
+      route: item.url.replace(this.baseUrl, '') || '/',
+      isLast: index === items.length - 1,
+    }));
   }
 
   /**
@@ -166,13 +186,13 @@ export class SeoService {
   /**
    * Génère et injecte le JSON-LD pour les rich snippets Google.
    * Format: Article schema avec auteur, dates, tags.
+   * Works in both SSR and browser modes.
    */
   private updateJsonLd(page: ManifestPage, meta: SeoMetadata): void {
-    if (!isPlatformBrowser(this.platformId)) {
-      return; // Skip JSON-LD en SSR (pas supporté par tous les crawlers)
-    }
+    const doc = isPlatformBrowser(this.platformId) ? document : this.document;
 
-    const jsonLd = {
+    // Build Article JSON-LD
+    const articleJsonLd: Record<string, unknown> = {
       '@context': 'https://schema.org',
       '@type': 'Article',
       headline: page.title,
@@ -188,23 +208,95 @@ export class SeoService {
       keywords: meta.tags?.join(', '),
     };
 
-    // Supprimer les propriétés undefined
-    Object.keys(jsonLd).forEach((key) => {
-      if (jsonLd[key as keyof typeof jsonLd] === undefined) {
-        delete jsonLd[key as keyof typeof jsonLd];
-      }
-    });
+    // Build BreadcrumbList JSON-LD
+    const breadcrumbs = this.buildBreadcrumbs(page.route);
+    const breadcrumbJsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: breadcrumbs.map((crumb, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: crumb.name,
+        item: crumb.url,
+      })),
+    };
 
-    // Injecter ou mettre à jour le script JSON-LD
-    let script = document.querySelector<HTMLScriptElement>('script[type="application/ld+json"]');
+    // Clean undefined values
+    this.cleanUndefinedValues(articleJsonLd);
 
-    if (!script) {
-      script = document.createElement('script');
-      script.type = 'application/ld+json';
-      document.head.appendChild(script);
+    // Remove existing JSON-LD scripts
+    const existingScripts = doc.querySelectorAll('script[type="application/ld+json"]');
+    existingScripts.forEach((script) => script.remove());
+
+    // Inject Article JSON-LD
+    const articleScript = doc.createElement('script');
+    articleScript.type = 'application/ld+json';
+    articleScript.textContent = JSON.stringify(articleJsonLd);
+    doc.head.appendChild(articleScript);
+
+    // Inject Breadcrumb JSON-LD (only if more than 1 breadcrumb)
+    if (breadcrumbs.length > 1) {
+      const breadcrumbScript = doc.createElement('script');
+      breadcrumbScript.type = 'application/ld+json';
+      breadcrumbScript.textContent = JSON.stringify(breadcrumbJsonLd);
+      doc.head.appendChild(breadcrumbScript);
+    }
+  }
+
+  /**
+   * Build breadcrumbs from route path.
+   * Ex: /ektaron/divinites/tenebra → [Home, Ektaron, Divinités, Tenebra]
+   */
+  private buildBreadcrumbs(route: string): Array<{ name: string; url: string }> {
+    const breadcrumbs: Array<{ name: string; url: string }> = [
+      { name: 'Accueil', url: this.baseUrl },
+    ];
+
+    if (!route || route === '/') {
+      return breadcrumbs;
     }
 
-    script.textContent = JSON.stringify(jsonLd, null, 2);
+    const segments = route
+      .replace(/^\/+|\/+$/g, '')
+      .split('/')
+      .filter(Boolean);
+    let currentPath = '';
+
+    for (const segment of segments) {
+      currentPath += '/' + segment;
+      // Capitalize and humanize segment name
+      const name = this.humanizeSegment(segment);
+      breadcrumbs.push({
+        name,
+        url: `${this.baseUrl}${currentPath}`,
+      });
+    }
+
+    return breadcrumbs;
+  }
+
+  /**
+   * Humanize a URL segment into a readable name.
+   * Ex: "ma-page-cool" → "Ma page cool"
+   */
+  private humanizeSegment(segment: string): string {
+    return segment
+      .replace(/-/g, ' ')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  /**
+   * Recursively clean undefined values from an object.
+   */
+  private cleanUndefinedValues(obj: Record<string, unknown>): void {
+    Object.keys(obj).forEach((key) => {
+      if (obj[key] === undefined) {
+        delete obj[key];
+      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+        this.cleanUndefinedValues(obj[key] as Record<string, unknown>);
+      }
+    });
   }
 
   /**

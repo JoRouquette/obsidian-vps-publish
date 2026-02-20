@@ -100,9 +100,90 @@ jobs:
   #         path: apps/site/playwright-report
   #         retention-days: 7
 
+  performance:
+    name: Performance budget validation
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --ignore-scripts
+        env:
+          HUSKY: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli@0.14.x
+
+      - name: Create test content
+        run: |
+          mkdir -p tmp/site-content tmp/assets
+          echo '{"version":"1.0.0","generatedAt":"'$(date -Iseconds)'","pages":[{"id":"index","title":"Home","slug":"index","route":"/","description":"Homepage","publishedAt":"'$(date -Iseconds)'","isCustomIndex":true},{"id":"test","title":"Test Page","slug":"test","route":"/test","description":"Test content page","publishedAt":"'$(date -Iseconds)'"}],"canonicalMap":{}}' > tmp/site-content/_manifest.json
+          echo '<!DOCTYPE html><html><head><title>Home</title><meta name="description" content="Homepage"></head><body><h1>Welcome</h1><p>Content site homepage.</p></body></html>' > tmp/site-content/index.html
+          echo '<!DOCTYPE html><html><head><title>Test Page</title><meta name="description" content="Test content page"></head><body><h1>Test Page</h1><p>Lorem ipsum dolor sit amet.</p></body></html>' > tmp/site-content/test.html
+
+      - name: Run Lighthouse CI
+        env:
+          BASE_URL: http://localhost:3000
+          API_KEY: ci-test-key
+          CONTENT_ROOT: ${{ github.workspace }}/tmp/site-content
+          ASSETS_ROOT: ${{ github.workspace }}/tmp/assets
+          UI_ROOT: ${{ github.workspace }}/dist/apps/site/browser
+          UI_SERVER_ROOT: ${{ github.workspace }}/dist/apps/site/server
+          SSR_ENABLED: 'true'
+          LOGGER_LEVEL: warn
+          LHCI_COLLECT__URL: 'http://localhost:3000/,http://localhost:3000/test'
+        run: |
+          # Start server in background
+          node dist/apps/node/main.js &
+          SERVER_PID=$!
+
+          # Wait for server to be ready
+          for i in {1..30}; do
+            if curl -s http://localhost:3000/health > /dev/null 2>&1; then
+              echo "Server is ready"
+              break
+            fi
+            sleep 1
+          done
+
+          # Run Lighthouse CI
+          lhci autorun --collect.startServerCommand="" || LHCI_EXIT=$?
+
+          # Cleanup
+          kill $SERVER_PID 2>/dev/null || true
+
+          exit ${LHCI_EXIT:-0}
+
+      - name: Upload Lighthouse report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-report
+          path: .lighthouseci/
+          retention-days: 7
+
   semantic-release:
     name: Semantic release
-    needs: [quality]
+    needs: [quality, performance]
     runs-on: ubuntu-latest
     permissions:
       contents: write

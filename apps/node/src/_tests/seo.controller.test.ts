@@ -184,6 +184,104 @@ describe('SEO Controller', () => {
       expect(response.text).toContain('&amp;');
       expect(response.text).not.toContain('&foo'); // Should be &amp;foo
     });
+
+    it('should handle string dates from JSON.parse (ISO format)', async () => {
+      // Simulate manifest loaded via JSON.parse where dates are strings
+      const jsonParsedManifest = {
+        sessionId: 'test-session',
+        createdAt: '2026-01-01T00:00:00Z', // String, not Date
+        lastUpdatedAt: '2026-01-12T10:00:00Z', // String, not Date
+        pages: [
+          {
+            id: 'page-1',
+            title: 'Test Page',
+            slug: { value: 'test' }, // Slug object from JSON
+            route: '/test',
+            publishedAt: '2026-01-10T00:00:00Z', // String, not Date
+          },
+        ],
+      };
+      const stringDateLoader = jest.fn().mockResolvedValue(jsonParsedManifest);
+      const stringDateApp = express();
+      const stringDateRouter = createSeoController(stringDateLoader, baseUrl, mockLogger as any);
+      stringDateApp.use('/seo', stringDateRouter);
+
+      const response = await request(stringDateApp).get('/seo/sitemap.xml').expect(200);
+
+      expect(response.text).toContain('<loc>https://example.com/test</loc>');
+      expect(response.text).toContain('<lastmod>2026-01-10</lastmod>');
+    });
+
+    it('should handle missing dates gracefully', async () => {
+      const noDateManifest = {
+        sessionId: 'test-session',
+        createdAt: null,
+        lastUpdatedAt: null,
+        pages: [
+          {
+            id: 'page-1',
+            title: 'No Date Page',
+            slug: { value: 'nodate' },
+            route: '/nodate',
+            publishedAt: null, // Missing date
+          },
+        ],
+      };
+      const noDateLoader = jest.fn().mockResolvedValue(noDateManifest);
+      const noDateApp = express();
+      const noDateRouter = createSeoController(noDateLoader, baseUrl, mockLogger as any);
+      noDateApp.use('/seo', noDateRouter);
+
+      const response = await request(noDateApp).get('/seo/sitemap.xml').expect(200);
+
+      expect(response.text).toContain('<loc>https://example.com/nodate</loc>');
+      // Should NOT have lastmod since dates are missing
+      expect(response.text).not.toContain('<lastmod>');
+    });
+
+    it('should normalize routes with double slashes', async () => {
+      const doubleSlashManifest = {
+        sessionId: 'test-session',
+        createdAt: new Date(),
+        lastUpdatedAt: new Date(),
+        pages: [
+          {
+            id: 'page-1',
+            title: 'Double Slash',
+            slug: { value: 'test' },
+            route: '//double//slash//',
+            publishedAt: new Date('2026-01-10T00:00:00Z'),
+          },
+        ],
+      };
+      const doubleSlashLoader = jest.fn().mockResolvedValue(doubleSlashManifest);
+      const doubleSlashApp = express();
+      const doubleSlashRouter = createSeoController(doubleSlashLoader, baseUrl, mockLogger as any);
+      doubleSlashApp.use('/seo', doubleSlashRouter);
+
+      const response = await request(doubleSlashApp).get('/seo/sitemap.xml').expect(200);
+
+      // Route should be normalized to /double/slash
+      expect(response.text).toContain('<loc>https://example.com/double/slash</loc>');
+    });
+
+    it('should handle trailing slash in baseUrl', async () => {
+      const trailingSlashApp = express();
+      // baseUrl with trailing slash
+      const trailingSlashRouter = createSeoController(
+        manifestLoader,
+        'https://example.com/',
+        mockLogger as any
+      );
+      trailingSlashApp.use('/seo', trailingSlashRouter);
+
+      const response = await request(trailingSlashApp).get('/seo/sitemap.xml').expect(200);
+
+      // Should not have double slashes in URLs
+      expect(response.text).toContain('<loc>https://example.com/</loc>');
+      expect(response.text).toContain('<loc>https://example.com/about</loc>');
+      expect(response.text).not.toContain('example.com//');
+    });
   });
 
   describe('GET /seo/robots.txt', () => {
@@ -212,10 +310,11 @@ describe('SEO Controller', () => {
       expect(response.text).toContain('Disallow: /search?*');
     });
 
-    it('should reference sitemap', async () => {
+    it('should reference sitemap at canonical URL', async () => {
       const response = await request(app).get('/seo/robots.txt').expect(200);
 
-      expect(response.text).toContain('Sitemap: https://example.com/seo/sitemap.xml');
+      // Sitemap URL should be canonical (without /seo/ prefix)
+      expect(response.text).toContain('Sitemap: https://example.com/sitemap.xml');
     });
 
     it('should set proper cache headers', async () => {

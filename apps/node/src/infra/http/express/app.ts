@@ -26,6 +26,7 @@ import { ClamAVAssetScanner } from '../../security/clamav-asset-scanner';
 import { NoopAssetScanner } from '../../security/noop-asset-scanner';
 import { SessionFinalizationJobService } from '../../sessions/session-finalization-job.service';
 import { SessionFinalizerService } from '../../sessions/session-finalizer.service';
+import { createAngularSSRService } from '../../ssr/angular-ssr.service';
 import { AssetHashService } from '../../utils/asset-hash.service';
 import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
 import { createHealthCheckController } from './controllers/health-check.controller';
@@ -289,7 +290,7 @@ export function createApp(rootLogger?: LoggerPort) {
 
   // SEO routes (sitemap.xml, robots.txt)
   const manifestLoader = async (): Promise<Manifest> => {
-    const fs = await import('fs/promises');
+    const fs = await import('node:fs/promises');
     const manifestPath = path.join(EnvConfig.contentRoot(), '_manifest.json');
     const raw = await fs.readFile(manifestPath, 'utf-8');
     return JSON.parse(raw) as Manifest;
@@ -324,13 +325,25 @@ export function createApp(rootLogger?: LoggerPort) {
     });
   });
 
-  app.get('*', (req, res) => {
-    rootLogger?.debug('Serving Angular index.html for unmatched route', {
-      url: req.originalUrl,
-    });
+  // SEO redirects: /robots.txt and /sitemap.xml to /seo/ endpoints
+  app.get('/robots.txt', (req, res) => res.redirect(301, '/seo/robots.txt'));
+  app.get('/sitemap.xml', (req, res) => res.redirect(301, '/seo/sitemap.xml'));
 
-    const indexPath = path.join(ANGULAR_DIST, 'index.html'); // maintenant absolu
-    res.sendFile(indexPath);
+  // Angular SSR for all other routes
+  // Initialize SSR service (lazy loading on first request)
+  const ssrService = createAngularSSRService(
+    EnvConfig.uiServerRoot(),
+    ANGULAR_DIST,
+    EnvConfig.ssrEnabled(),
+    rootLogger,
+    EnvConfig.contentRoot(), // For cache invalidation based on manifest changes
+    true // Enable SSR caching
+  );
+
+  const staticIndexPath = path.join(ANGULAR_DIST, 'index.html');
+
+  app.get('*', (req, res, next) => {
+    ssrService.middleware(staticIndexPath)(req, res, next).catch(next);
   });
 
   // Log app ready

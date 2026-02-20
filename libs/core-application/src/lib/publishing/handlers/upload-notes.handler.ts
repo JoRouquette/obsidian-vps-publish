@@ -149,6 +149,9 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
               }
             }
 
+            // Extract SEO fields from frontmatter (robust extraction)
+            const seoFields = this.extractSeoFields(n, logger);
+
             return {
               id: n.noteId,
               title: n.title,
@@ -161,6 +164,8 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
               leafletBlocks: n.leafletBlocks,
               sourceHash,
               sourceSize,
+              // SEO fields
+              ...seoFields,
             };
           } catch (err) {
             logger?.error('Invalid slug for note', {
@@ -505,5 +510,168 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
 
   private escapeAttribute(input: string): string {
     return this.escapeHtml(input).replace(/`/g, '&#96;');
+  }
+
+  /**
+   * Extract SEO-related fields from note frontmatter.
+   * Robust extraction: missing/invalid fields return undefined, never throws.
+   */
+  private extractSeoFields(
+    note: PublishableNote,
+    logger?: LoggerPort
+  ): {
+    description?: string;
+    coverImage?: string;
+    noIndex?: boolean;
+    canonicalSlug?: string;
+    lastModifiedAt?: Date;
+    isCustomIndex?: boolean;
+  } {
+    const flat = note.frontmatter.flat ?? {};
+    const result: {
+      description?: string;
+      coverImage?: string;
+      noIndex?: boolean;
+      canonicalSlug?: string;
+      lastModifiedAt?: Date;
+      isCustomIndex?: boolean;
+    } = {};
+
+    try {
+      // Description: string, max ~160 chars (trimmed intelligently)
+      const rawDesc = flat['description'] ?? flat['desc'] ?? flat['summary'];
+      if (typeof rawDesc === 'string' && rawDesc.trim()) {
+        result.description = this.trimDescription(rawDesc.trim());
+      }
+
+      // Cover image: resolve to public URL path
+      const rawCover = flat['coverimage'] ?? flat['cover'] ?? flat['image'] ?? flat['thumbnail'];
+      if (typeof rawCover === 'string' && rawCover.trim()) {
+        result.coverImage = this.resolveImagePath(rawCover.trim());
+      }
+
+      // noIndex: boolean - page should not be indexed by search engines
+      const rawNoIndex = flat['noindex'] ?? flat['draft'] ?? flat['private'];
+      if (rawNoIndex === true || rawNoIndex === 'true') {
+        result.noIndex = true;
+      } else if (rawNoIndex === false || rawNoIndex === 'false') {
+        result.noIndex = false;
+      }
+
+      // canonicalSlug: for redirect management when slug changes
+      const rawCanonical = flat['canonicalslug'] ?? flat['canonical'] ?? flat['alias'];
+      if (typeof rawCanonical === 'string' && rawCanonical.trim()) {
+        result.canonicalSlug = rawCanonical.trim();
+      } else if (Array.isArray(rawCanonical) && rawCanonical.length > 0) {
+        // If alias is an array (common in Obsidian), take the first one
+        const first = rawCanonical[0];
+        if (typeof first === 'string' && first.trim()) {
+          result.canonicalSlug = first.trim();
+        }
+      }
+
+      // lastModifiedAt: from frontmatter or use publishedAt
+      const rawModified =
+        flat['lastmodified'] ?? flat['lastmodifiedat'] ?? flat['updated'] ?? flat['modified'];
+      if (rawModified) {
+        const date = this.parseDate(rawModified);
+        if (date) {
+          result.lastModifiedAt = date;
+        }
+      }
+
+      // isCustomIndex: detect index files that serve as folder pages
+      if (note.vaultPath) {
+        const filename = note.vaultPath.split('/').pop() ?? '';
+        const basename = filename.replace(/\.md$/i, '').toLowerCase();
+        if (basename === 'index' || basename === '_index' || basename === 'readme') {
+          result.isCustomIndex = true;
+        }
+      }
+
+      logger?.debug('Extracted SEO fields from frontmatter', {
+        noteId: note.noteId,
+        route: note.routing.fullPath,
+        hasDescription: !!result.description,
+        hasCoverImage: !!result.coverImage,
+        noIndex: result.noIndex,
+        hasCanonicalSlug: !!result.canonicalSlug,
+        hasLastModified: !!result.lastModifiedAt,
+        isCustomIndex: result.isCustomIndex,
+      });
+    } catch (err) {
+      logger?.warn('Failed to extract SEO fields from frontmatter', {
+        noteId: note.noteId,
+        route: note.routing.fullPath,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Trim description to ~160 chars intelligently (at word boundary).
+   */
+  private trimDescription(text: string): string {
+    const MAX_LENGTH = 160;
+    if (text.length <= MAX_LENGTH) {
+      return text;
+    }
+
+    // Find last space before MAX_LENGTH
+    const truncated = text.slice(0, MAX_LENGTH);
+    const lastSpace = truncated.lastIndexOf(' ');
+
+    if (lastSpace > MAX_LENGTH * 0.6) {
+      // Cut at word boundary if reasonable
+      return truncated.slice(0, lastSpace) + '...';
+    }
+
+    // Otherwise just truncate
+    return truncated.slice(0, MAX_LENGTH - 3) + '...';
+  }
+
+  /**
+   * Resolve image path to public URL.
+   */
+  private resolveImagePath(path: string): string {
+    // Already absolute URL
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+
+    // Clean up path
+    let cleaned = path.replace(/^!\[\[/, '').replace(/\]\]$/, ''); // Remove ![[...]] wrapper
+    cleaned = cleaned.split('|')[0].trim(); // Remove alias part
+
+    // Ensure proper path format for assets
+    if (!cleaned.startsWith('/')) {
+      cleaned = '/' + cleaned;
+    }
+
+    // If not already in /assets/, prepend it
+    if (!cleaned.startsWith('/assets/')) {
+      // Check if it looks like a relative asset path
+      if (cleaned.match(/\.(png|jpg|jpeg|gif|webp|svg|avif)$/i) && !cleaned.includes('/content/')) {
+        cleaned = '/assets' + cleaned;
+      }
+    }
+
+    return cleaned;
+  }
+
+  /**
+   * Parse various date formats to Date object.
+   */
+  private parseDate(value: unknown): Date | null {
+    if (value instanceof Date) {
+      return isNaN(value.getTime()) ? null : value;
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      const date = new Date(value);
+      return isNaN(date.getTime()) ? null : date;
+    }
+    return null;
   }
 }

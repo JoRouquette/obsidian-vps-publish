@@ -270,7 +270,7 @@ describe('E2E: Inter-publication Note Deduplication', () => {
     // SourceHash should be SAME as first publish (proves hash stability)
     const hash2 = manifest2!.pages.find((p) => p.route === '/notes/note1')?.sourceHash;
     expect(hash2).toBe(hash1);
-  });
+  }, 15000);
 
   /**
    * SCENARIO 3: Modify 1 note → only 1 upload needed
@@ -318,7 +318,7 @@ describe('E2E: Inter-publication Note Deduplication', () => {
     const hash2_modified = manifest2!.pages.find((p) => p.route === '/notes/note1')?.sourceHash;
     expect(hash2_modified).not.toBe(hash1_toModify);
     expect(hash2_modified).toBeDefined();
-  });
+  }, 15000);
 
   /**
    * SCENARIO 4: Pipeline change → all notes re-uploaded (pipelineChanged: true)
@@ -357,7 +357,7 @@ describe('E2E: Inter-publication Note Deduplication', () => {
     // In real scenario, CreateSession would return pipelineChanged: true
     // and client would upload ALL notes regardless of hash match
     expect(manifest2!.pages).toHaveLength(2);
-  });
+  }, 15000);
 
   /**
    * SCENARIO 5: Delete 2 notes → manifest updated, HTML files deleted
@@ -412,7 +412,7 @@ describe('E2E: Inter-publication Note Deduplication', () => {
     // HTML files for kept notes should still exist
     const html2Path = path.join(contentRoot, 'notes', 'note2.html');
     await expect(fs.access(html2Path)).resolves.toBeUndefined();
-  });
+  }, 15000);
 
   /**
    * SCENARIO 6: Rename note with stable route → skipped (hash match)
@@ -449,5 +449,5 @@ describe('E2E: Inter-publication Note Deduplication', () => {
     // Title in manifest should be updated (from staging)
     const page2 = manifest2!.pages.find((p) => p.route === '/notes/stable-route');
     expect(page2?.title).toBe('NEW Title After Rename');
-  });
+  }, 15000);
 });

@@ -3,7 +3,11 @@ import type { ApplicationConfig } from '@angular/core';
 import { ANIMATION_MODULE_TYPE } from '@angular/core';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
-import { provideClientHydration } from '@angular/platform-browser';
+import {
+  provideClientHydration,
+  withEventReplay,
+  withIncrementalHydration,
+} from '@angular/platform-browser';
 import { provideRouter, withInMemoryScrolling, withViewTransitions } from '@angular/router';
 
 import {
@@ -29,7 +33,8 @@ export const appConfig: ApplicationConfig = {
       withViewTransitions({ skipInitialTransition: true })
     ),
     provideHttpClient(withFetch()),
-    provideClientHydration(),
+    // Optimized hydration: event replay for better INP, incremental for reduced JS cost
+    provideClientHydration(withEventReplay(), withIncrementalHydration()),
     { provide: MAT_ICON_DEFAULT_OPTIONS, useValue: { fontSet: 'material-symbols-rounded' } },
     { provide: MANIFEST_REPOSITORY, useClass: HttpManifestRepository },
     { provide: CONFIG_REPOSITORY, useClass: HttpConfigRepository },

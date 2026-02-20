@@ -1,0 +1,25 @@
+<nav class="breadcrumbs" aria-label="Fil d'Ariane" *ngIf="breadcrumbs().length > 1">
+  <ol class="breadcrumbs__list" itemscope itemtype="https://schema.org/BreadcrumbList">
+    @for (crumb of breadcrumbs(); track crumb.route; let i = $index) {
+      <li
+        class="breadcrumbs__item"
+        itemprop="itemListElement"
+        itemscope
+        itemtype="https://schema.org/ListItem"
+      >
+        @if (!crumb.isLast) {
+          <a class="breadcrumbs__link" [routerLink]="crumb.route" itemprop="item">
+            <span itemprop="name">{{ crumb.name }}</span>
+          </a>
+          <meta itemprop="position" [content]="(i + 1).toString()" />
+          <span class="breadcrumbs__separator" aria-hidden="true">/</span>
+        } @else {
+          <span class="breadcrumbs__current" itemprop="name" aria-current="page">
+            {{ crumb.name }}
+          </span>
+          <meta itemprop="position" [content]="(i + 1).toString()" />
+        }
+      </li>
+    }
+  </ol>
+</nav>
