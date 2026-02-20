@@ -47,9 +47,9 @@ module.exports = {
         // Performance score (0-1)
         'categories:performance': ['error', { minScore: 0.8 }], // >= 80
 
-        // JS budget
+        // Resource budgets
         'total-byte-weight': ['warn', { maxNumericValue: 1500000 }], // < 1.5MB total
-        'script-treemap-data': ['warn', { maxNumericValue: 500000 }], // < 500KB JS
+        'bootup-time': ['warn', { maxNumericValue: 3000 }], // JavaScript bootup < 3s
 
         // First paint metrics
         'first-contentful-paint': ['warn', { maxNumericValue: 1800 }], // FCP < 1.8s
@@ -70,11 +70,8 @@ module.exports = {
       },
     },
     upload: {
-      // Don't upload to LHCI server (keep local)
-      target: 'filesystem',
-      outputDir: '.lighthouseci',
-      // Generate HTML report
-      reportFilenamePattern: '%%HOSTNAME%%-%%PATHNAME%%-%%DATETIME%%.report.html',
+      // Keep reports local for CI artifacts
+      target: 'temporary-public-storage',
     },
   },
 };

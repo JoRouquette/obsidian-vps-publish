@@ -193,6 +193,10 @@ jobs:
           # Cleanup
           kill $SERVER_PID 2>/dev/null || true
 
+          # Debug: List generated reports
+          echo "Checking for Lighthouse reports..."
+          ls -la .lighthouseci/ || echo "No .lighthouseci directory found"
+
           exit ${LHCI_EXIT:-0}
 
       - name: Upload Lighthouse report
