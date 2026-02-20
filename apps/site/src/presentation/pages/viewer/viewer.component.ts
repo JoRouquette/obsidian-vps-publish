@@ -48,6 +48,9 @@ export class ViewerComponent implements OnDestroy {
   // Signal pour les blocs Leaflet de la page actuelle
   leafletBlocks = signal<LeafletBlock[]>([]);
 
+  // Signal pour la route actuelle (utilisé pour les breadcrumbs)
+  currentRoute = signal<string>('/');
+
   // Signal pour indiquer qu'on attend un scroll vers un fragment
   private readonly pendingScrollFragment = signal<string | null>(null);
 
@@ -63,6 +66,9 @@ export class ViewerComponent implements OnDestroy {
         const normalized = routePath.replace(/\/+$/, '') || '/';
         const htmlUrl = normalized === '/' ? '/index.html' : `${normalized}.html`;
         const manifest = this.catalog.manifest();
+
+        // Update currentRoute for breadcrumbs
+        this.currentRoute.set(normalized);
 
         if (manifest.pages.length > 0) {
           const p = manifest.pages.find((x) => x.route === normalized);

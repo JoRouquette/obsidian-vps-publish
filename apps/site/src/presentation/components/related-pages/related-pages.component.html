@@ -1,0 +1,23 @@
+@if (hasRelated()) {
+  <nav class="related-pages" aria-label="Pages connexes">
+    @for (section of sections(); track section.title) {
+      @if (section.pages.length > 0) {
+        <section class="related-section">
+          <h3 class="related-section-title">{{ section.title }}</h3>
+          <ul class="related-list">
+            @for (page of section.pages; track page.id) {
+              <li class="related-item">
+                <a [routerLink]="page.route" class="related-link">
+                  {{ page.title }}
+                </a>
+                @if (page.description) {
+                  <span class="related-description">{{ page.description }}</span>
+                }
+              </li>
+            }
+          </ul>
+        </section>
+      }
+    }
+  </nav>
+}
