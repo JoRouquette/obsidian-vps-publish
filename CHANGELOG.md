@@ -1,3 +1,25 @@
+## 6.8.0 (2026-02-20)
+
+* fix: ssr seo pipeline ([a949ab0](https://github.com/JoRouquette/obsidian-vps-publish/commit/a949ab0))
+* Merge branch 'fix/seo-support' ([f79bb81](https://github.com/JoRouquette/obsidian-vps-publish/commit/f79bb81))
+* chore: lint and test fixes ([fbf5640](https://github.com/JoRouquette/obsidian-vps-publish/commit/fbf5640))
+* chore(tools): add SEO and performance validation scripts ([98d86ee](https://github.com/JoRouquette/obsidian-vps-publish/commit/98d86ee))
+* chore(vscode): add 8 specialized SSR development tasks ([b6bf4e8](https://github.com/JoRouquette/obsidian-vps-publish/commit/b6bf4e8))
+* ci: add Lighthouse CI performance validation ([40965e9](https://github.com/JoRouquette/obsidian-vps-publish/commit/40965e9))
+* docs(ssr): document SSR infrastructure and known issues ([ce45117](https://github.com/JoRouquette/obsidian-vps-publish/commit/ce45117))
+* feat(config): add SSR environment variables and dotenv override ([49b1902](https://github.com/JoRouquette/obsidian-vps-publish/commit/49b1902))
+* feat(docker): add Angular SSR server bundle to container ([9bdf28b](https://github.com/JoRouquette/obsidian-vps-publish/commit/9bdf28b))
+* feat(domain): extract SEO fields from note frontmatter ([5565d92](https://github.com/JoRouquette/obsidian-vps-publish/commit/5565d92))
+* feat(seo): add breadcrumbs and related pages components ([93ef8fe](https://github.com/JoRouquette/obsidian-vps-publish/commit/93ef8fe))
+* feat(seo): improve sitemap and robots.txt robustness ([f2fe187](https://github.com/JoRouquette/obsidian-vps-publish/commit/f2fe187))
+* feat(ssr): implement Angular SSR with caching middleware ([52a3a1c](https://github.com/JoRouquette/obsidian-vps-publish/commit/52a3a1c))
+* perf(site): optimize font loading and hydration strategy ([16d3a0f](https://github.com/JoRouquette/obsidian-vps-publish/commit/16d3a0f))
+
+
+### BREAKING CHANGE
+
+* UI_ROOT default changed from ./tmp/ui to ./dist/apps/site/browser
+
 ## 6.7.0 (2026-02-16)
 
 * Merge branch 'feat/better-search-on-vault-explorer' ([a70dda5](https://github.com/JoRouquette/obsidian-vps-publish/commit/a70dda5))
