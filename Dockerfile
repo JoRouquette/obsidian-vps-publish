@@ -29,6 +29,8 @@ ENV NODE_ENV=production \
     CONTENT_ROOT=/content \
     ASSETS_ROOT=/assets \
     UI_ROOT=/ui \
+    UI_SERVER_ROOT=/ui-server \
+    SSR_ENABLED=true \
     NODE_OPTIONS=--enable-source-maps
 
 # Utilitaires pour le healthcheck (wget)
@@ -81,6 +83,30 @@ RUN set -eux; \
 
 
 ################################
+#   ANGULAR SSR (Server)       #
+################################
+# Copy Angular SSR server bundle for server-side rendering
+RUN set -eux; \
+    mkdir -p "${UI_SERVER_ROOT}"; \
+    SDIR="$(find /app/dist/apps/site -type d -name server -print -quit || true)"; \
+    if [ -n "$SDIR" ]; then \
+    cp -r "$SDIR/"* "${UI_SERVER_ROOT}/"; \
+    echo "Angular SSR server bundle copied to ${UI_SERVER_ROOT}"; \
+    ls -la "${UI_SERVER_ROOT}" || true; \
+    else \
+    echo "WARNING: Angular SSR server bundle not found (dist/apps/site/**/server)."; \
+    echo "SSR will be disabled. Tree:"; \
+    ls -R /app/dist/apps/site || true; \
+    fi; \
+    # Verify SSR files exist (optional - SSR can be disabled)
+    if [ -f "${UI_SERVER_ROOT}/main.server.mjs" ] && [ -f "${UI_SERVER_ROOT}/index.server.html" ]; then \
+    echo "SSR files verified: main.server.mjs and index.server.html present"; \
+    else \
+    echo "WARNING: SSR files missing. SSR will fall back to CSR."; \
+    fi
+
+
+################################
 #   CONTENT / ASSETS           #
 ################################
 RUN mkdir -p "${CONTENT_ROOT}" "${ASSETS_ROOT}"
@@ -102,7 +128,7 @@ RUN printf '#!/bin/sh\n\
     \n\
     # Sinon, on est root (dev local) : fixer les permissions puis basculer sur node\n\
     echo "Running as root - fixing permissions for mounted volumes..."\n\
-    for dir in "${CONTENT_ROOT}" "${ASSETS_ROOT}" "${UI_ROOT}"; do\n\
+    for dir in "${CONTENT_ROOT}" "${ASSETS_ROOT}" "${UI_ROOT}" "${UI_SERVER_ROOT}"; do\n\
     if [ -d "$dir" ]; then\n\
     chown -R node:node "$dir" 2>/dev/null || {\n\
     echo "Warning: Could not change ownership of $dir (may be expected on some systems)"\n\
