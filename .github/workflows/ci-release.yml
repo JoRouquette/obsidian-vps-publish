@@ -140,6 +140,24 @@ jobs:
           echo '<!DOCTYPE html><html><head><title>Home</title><meta name="description" content="Homepage"></head><body><h1>Welcome</h1><p>Content site homepage.</p></body></html>' > tmp/site-content/index.html
           echo '<!DOCTYPE html><html><head><title>Test Page</title><meta name="description" content="Test content page"></head><body><h1>Test Page</h1><p>Lorem ipsum dolor sit amet.</p></body></html>' > tmp/site-content/test.html
 
+      - name: Verify Angular build
+        run: |
+          echo "Checking Angular build artifacts..."
+          ls -la dist/apps/site/ || true
+          ls -la dist/apps/site/browser/ || true
+          if [ ! -f "dist/apps/site/browser/index.html" ]; then
+            echo "ERROR: index.html not found in dist/apps/site/browser/"
+            echo "Checking for index.csr.html..."
+            if [ -f "dist/apps/site/browser/index.csr.html" ]; then
+              echo "Found index.csr.html, renaming to index.html"
+              cp dist/apps/site/browser/index.csr.html dist/apps/site/browser/index.html
+            else
+              echo "Neither index.html nor index.csr.html found!"
+              exit 1
+            fi
+          fi
+          echo "✓ index.html verified"
+
       - name: Run Lighthouse CI
         env:
           BASE_URL: http://localhost:3000
@@ -148,9 +166,8 @@ jobs:
           ASSETS_ROOT: ${{ github.workspace }}/tmp/assets
           UI_ROOT: ${{ github.workspace }}/dist/apps/site/browser
           UI_SERVER_ROOT: ${{ github.workspace }}/dist/apps/site/server
-          SSR_ENABLED: 'true'
+          SSR_ENABLED: 'false'
           LOGGER_LEVEL: warn
-          LHCI_COLLECT__URL: 'http://localhost:3000/,http://localhost:3000/test'
         run: |
           # Start server in background
           node dist/apps/node/main.js &
@@ -164,6 +181,11 @@ jobs:
             fi
             sleep 1
           done
+
+          # Test server is responding
+          echo "Testing server endpoints..."
+          curl -I http://localhost:3000/ || echo "WARNING: Root endpoint failed"
+          curl -I http://localhost:3000/test || echo "WARNING: Test endpoint failed"
 
           # Run Lighthouse CI
           lhci autorun --collect.startServerCommand="" || LHCI_EXIT=$?

@@ -20,7 +20,7 @@ module.exports = {
       // URL patterns to test (relative to startServerCommand)
       url: [
         'http://localhost:3000/', // Homepage
-        'http://localhost:3000/test-content', // Deep content page (requires test content)
+        'http://localhost:3000/test', // Test content page
       ],
       // Start the server before tests
       startServerCommand: 'node dist/apps/node/main.js',
