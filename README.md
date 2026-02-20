@@ -86,15 +86,17 @@ This project implements comprehensive **search engine optimization** to ensure p
 
 ### Key SEO Capabilities
 
-| Feature                   | Description                                     | Implementation                                                   |
-| ------------------------- | ----------------------------------------------- | ---------------------------------------------------------------- |
-| **Dynamic Meta Tags**     | OG tags, Twitter Cards, canonical links         | [PR #3: Frontend SEO Service](docs/PR-3-FRONTEND-SEO-SERVICE.md) |
-| **Sitemap.xml**           | Auto-generated XML sitemap with ETag caching    | [PR #2: Backend SEO API](docs/PR-2-BACKEND-SEO-API.md)           |
-| **Robots.txt**            | Search engine crawl directives                  | [PR #2: Backend SEO API](docs/PR-2-BACKEND-SEO-API.md)           |
-| **301 Redirects**         | Automatic slug change detection and redirection | [PR #4: Redirections 301](docs/PR-4-REDIRECTIONS-301.md)         |
-| **Cache Optimization**    | ETag-based conditional caching for performance  | [PR #5: Cache Optimizations](docs/PR-5-CACHE-OPTIMIZATIONS.md)   |
-| **JSON-LD**               | Structured data for rich snippets               | [PR #3: Frontend SEO Service](docs/PR-3-FRONTEND-SEO-SERVICE.md) |
-| **Server-Side Rendering** | Pre-rendered HTML for search engine crawlers    | [docs/site/ssr.md](docs/site/ssr.md)                             |
+| Feature                   | Description                                     | Status | Implementation                           |
+| ------------------------- | ----------------------------------------------- | ------ | ---------------------------------------- |
+| **Dynamic Meta Tags**     | OG tags, Twitter Cards, canonical links         | ✅     | [docs/site/seo.md](docs/site/seo.md)     |
+| **Sitemap.xml**           | Auto-generated XML sitemap with ETag caching    | ✅     | [docs/api/README.md](docs/api/README.md) |
+| **Robots.txt**            | Search engine crawl directives                  | ✅     | [docs/api/README.md](docs/api/README.md) |
+| **301 Redirects**         | Automatic slug change detection and redirection | ✅     | [docs/site/seo.md](docs/site/seo.md)     |
+| **Cache Optimization**    | ETag-based conditional caching for performance  | ✅     | [docs/site/seo.md](docs/site/seo.md)     |
+| **JSON-LD**               | Structured data for rich snippets               | ✅     | [docs/site/seo.md](docs/site/seo.md)     |
+| **Server-Side Rendering** | Pre-rendered HTML for search engine crawlers    | ⚠️     | [docs/site/ssr.md](docs/site/ssr.md)     |
+
+⚠️ **Known Issue**: Angular 20 SSR has a JIT compilation error ("PlatformLocation needs JIT compiler"). SSR gracefully falls back to CSR mode. Application remains fully functional with client-side rendering. See [docs/site/ssr.md](docs/site/ssr.md#known-issue-angular-20-jit-compilation-error) for details.
 
 ### SEO Configuration
 

@@ -23,7 +23,36 @@ SSR implementation uses **Angular Universal** with the following components:
 
 ## Development
 
-### Running SSR Dev Server
+### VS Code Tasks (Recommended)
+
+The project includes specialized tasks for SSR workflows (`.vscode/tasks.json`):
+
+| Task                    | Description                                             |
+| ----------------------- | ------------------------------------------------------- |
+| **SSR: Full Restart**   | Clean + rebuild Angular SSR + backend, ready for launch |
+| **SSR: Launch Server**  | Start Node backend with SSR (auto-builds if needed)     |
+| **SSR: Quick Test**     | curl localhost:3000 to verify meta tags (no rebuild)    |
+| **SSR: Validate SEO**   | Test robots.txt, sitemap.xml, meta tags, JSON-LD        |
+| **SSR: Complete Setup** | Build Angular + copy index.html (no server launch)      |
+
+**Typical workflow:**
+
+```bash
+# First launch
+Ctrl+Shift+P → "Run Task" → "SSR: Full Restart"
+Ctrl+Shift+P → "Run Task" → "SSR: Launch Server"
+Ctrl+Shift+P → "Run Task" → "SSR: Quick Test"
+
+# After frontend changes
+Ctrl+C in server terminal
+Ctrl+Shift+P → "Run Task" → "SSR: Complete Setup"
+Ctrl+Shift+P → "Run Task" → "SSR: Launch Server"
+
+# Quick verification
+Ctrl+Shift+P → "Run Task" → "SSR: Quick Test (no rebuild)"
+```
+
+### Running SSR Dev Server (Manual)
 
 ```bash
 # Start SSR development server
@@ -266,6 +295,62 @@ server {
 ```
 
 ## Troubleshooting
+
+### Known Issue: Angular 20 JIT Compilation Error
+
+**Symptom**: SSR server logs error on startup:
+
+```
+The injectable 'PlatformLocation' needs to be compiled using the JIT compiler,
+but '@angular/compiler' is not available.
+
+JIT compilation is discouraged for production use-cases!
+```
+
+**Impact**:
+
+- SSR initialization fails
+- Server gracefully falls back to CSR mode
+- Application remains functional (client-side rendering)
+- SEO meta tags still work (client-side)
+- No user-facing errors
+
+**Root Cause**: Angular 20 SSR bundles have incorrect dependency on JIT compiler in production build.
+
+**Current Status**: Under investigation. Suspected runtime issue with `darwin_arm64-fastbuild` paths in error stack trace.
+
+**Workarounds**:
+
+1. **Use CSR mode (recommended for now)**:
+
+   ```bash
+   # .env.dev or .env.prod
+   SSR_ENABLED=false
+   ```
+
+2. **Test SSR locally with tasks**:
+
+   ```
+   Run Task: "SSR: Full Restart"  # Clean build
+   Run Task: "SSR: Launch Server" # Start server
+   Run Task: "SSR: Quick Test"    # Verify output
+   ```
+
+   Server will log SSR error but continue serving CSR.
+
+3. **Check server logs**:
+   ```bash
+   # Look for SSR initialization logs
+   npx nx serve node --skip-nx-cache
+   # Should see: "SSR service initialization failed, falling back to CSR"
+   ```
+
+**Next Steps**:
+
+- Investigate Angular Linker configuration
+- Check if `@angular/compiler` should be in runtime dependencies
+- Consider downgrading to Angular 19 if issue persists
+- Monitor Angular GitHub issues for similar reports
 
 ### "window is not defined" Error
 

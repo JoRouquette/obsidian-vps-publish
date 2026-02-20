@@ -26,6 +26,7 @@
 - Key environment variables (see `.env.dev.example` / `.env.prod.example`):
   - `API_KEY` (required), `ALLOWED_ORIGINS`, `LOGGER_LEVEL`, `PORT`, `NODE_ENV`.
   - Roots: `CONTENT_ROOT` (rendered HTML + `_manifest.json`, default `/content`), `ASSETS_ROOT` (default `/assets`), `UI_ROOT` (default `/ui`).
+  - SSR: `SSR_ENABLED` (default `false` in dev, `true` in production), `UI_SERVER_ROOT` (default `./dist/apps/site/server`).
   - Metadata: `SITE_NAME`, `AUTHOR`, `REPO_URL`, `REPORT_ISSUES_URL`.
   - Asset security: `MAX_ASSET_SIZE_BYTES` (default 10MB), `VIRUS_SCANNER_ENABLED` (default false), `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_TIMEOUT` (see [Asset Security](./api/asset-security.md)).
 - Asset validation pipeline:
@@ -40,6 +41,13 @@
   - **Manifest tracking** - Each asset in manifest includes `{ path, hash, size, mimeType, uploadedAt }`.
   - Clean Architecture: `AssetHashPort` in `core-domain`, `AssetHashService` (SHA256) in `node/infra`, deduplication logic in `UploadAssetsHandler` (application layer).
   - See [Asset Deduplication](./api/asset-deduplication.md) for detailed workflow and troubleshooting.
+- **Server-Side Rendering (SSR)** infrastructure:
+  - **AngularSSRService** (280 lines): Loads Angular Universal server bundle (`main.server.mjs`), renders routes to HTML.
+  - **SSR cache middleware** (364 lines): In-memory cache with TTL and size limits for pre-rendered HTML.
+  - **Graceful fallback**: If SSR initialization fails, serves CSR version (`index.html` from `UI_ROOT`).
+  - **Known issue**: Angular 20 JIT compilation error ("PlatformLocation needs JIT compiler") causes SSR to fall back to CSR.
+  - **Integration**: `apps/node/src/infra/http/express/app.ts` conditionally applies `ssrService.middleware()` when `SSR_ENABLED=true`.
+  - See [SSR Guide](./site/ssr.md) for configuration and deployment details.
 
 ## Frontend (`apps/site`)
 
