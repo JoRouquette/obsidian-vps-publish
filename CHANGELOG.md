@@ -1,3 +1,21 @@
+## [6.9.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.8.0...6.9.0) (2026-03-03)
+
+### ⚠ BREAKING CHANGES
+
+* **pwa:** PWA cache invalidation now relies on content versioning; offline fallback
+page added
+
+### Features
+
+* **pwa:** add multi-locale PWA support with dynamic manifest and site locale ([4f2fa62](https://github.com/JoRouquette/obsidian-vps-publish/commit/4f2fa62a298be3b7b3af1e8fd2ee21fef0a2972b))
+* **pwa:** implement robust content versioning and offline support ([484c0b3](https://github.com/JoRouquette/obsidian-vps-publish/commit/484c0b31a343f93fe441a128fd9965af79241da8))
+* **site:** add PWA support with Angular Service Worker ([6c4daf8](https://github.com/JoRouquette/obsidian-vps-publish/commit/6c4daf8e92ef53ee49a75fafe035b4cae233244d))
+* **ssr:** add SSR enable/disable tests and prevent index.html from being served statically ([463ca7c](https://github.com/JoRouquette/obsidian-vps-publish/commit/463ca7c3f745c4318a44217574397f82734fd7ce))
+
+### Bug Fixes
+
+* **ci:** add legacy-peer-deps flag to npm install commands ([9203b87](https://github.com/JoRouquette/obsidian-vps-publish/commit/9203b87b59fef09797d39242173e70375dabb12a))
+
 ## 6.8.0 (2026-02-20)
 
 * fix: ssr seo pipeline ([a949ab0](https://github.com/JoRouquette/obsidian-vps-publish/commit/a949ab0))
