@@ -13,7 +13,7 @@ COPY apps ./apps
 COPY libs ./libs
 
 RUN --mount=type=cache,target=/root/.npm \
-    npm install --no-audit --no-fund
+    npm install --no-audit --no-fund --legacy-peer-deps
 
 RUN npm run build
 
@@ -46,8 +46,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 RUN --mount=type=cache,target=/root/.npm \
-    npm install --omit=dev --omit=optional --no-audit --no-fund --ignore-scripts \
-    && npm cache clean --force
+    npm install --omit=dev --omit=optional --no-audit --no-fund --ignore-scripts --legacy-peer-deps
 
 
 ################################
