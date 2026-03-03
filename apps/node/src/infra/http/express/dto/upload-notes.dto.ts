@@ -28,22 +28,50 @@ export const LeafletTileServerDto = z.object({
   maxZoom: z.number().optional(),
 });
 
-// LeafletBlock
-export const LeafletBlockDto = z.object({
+// LeafletBlockDtoV1: versionné, extensible, validable
+export const LeafletBlockDtoV1 = z.object({
+  version: z.literal(1),
   id: z.string(),
-  height: z.string().optional(),
-  width: z.string().optional(),
+  type: z.enum(['image', 'tile']),
   lat: z.number().optional(),
   long: z.number().optional(),
+  height: z.string().optional(),
+  width: z.string().optional(),
+  defaultZoom: z.number().optional(),
   minZoom: z.number().optional(),
   maxZoom: z.number().optional(),
-  defaultZoom: z.number().optional(),
-  unit: z.string().optional(),
-  scale: z.number().optional(),
   darkMode: z.boolean().optional(),
-  imageOverlays: z.array(LeafletImageOverlayDto).optional(),
+  unit: z.string().optional(),
+  image: z
+    .object({
+      assetRef: z.string(),
+      bounds: z
+        .tuple([z.tuple([z.number(), z.number()]), z.tuple([z.number(), z.number()])])
+        .optional(),
+      alias: z.string().optional(),
+    })
+    .optional(),
   tileServer: LeafletTileServerDto.optional(),
   markers: z.array(LeafletMarkerDto).optional(),
+  geojson: z
+    .array(
+      z.object({
+        assetRef: z.string(),
+        style: z.record(z.string(), z.unknown()).optional(),
+      })
+    )
+    .optional(),
+  overlays: z
+    .array(
+      z.object({
+        type: z.literal('circle'),
+        lat: z.number(),
+        long: z.number(),
+        radius: z.number(),
+        color: z.string().optional(),
+      })
+    )
+    .optional(),
   rawContent: z.string().optional(),
 });
 
@@ -154,7 +182,7 @@ export const PublishableNoteDto = NoteCoreDto.extend({
   assets: z.array(AssetRefDto).optional(),
   wikilinks: z.array(WikilinkRefDto).optional(),
   resolvedWikilinks: z.array(ResolvedWikilinkDto).optional(),
-  leafletBlocks: z.array(LeafletBlockDto).optional(),
+  leafletBlocks: z.array(LeafletBlockDtoV1).optional(),
 });
 
 // NoteWithAssets

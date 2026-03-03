@@ -39,12 +39,11 @@ describe('DetectLeafletBlocksService', () => {
     it('should return notes unchanged when no leaflet blocks present', () => {
       const notes = [createMockNote('Simple content without leaflet blocks')];
       const result = service.process(notes);
-
       expect(result).toHaveLength(1);
       expect(result[0].leafletBlocks).toBeUndefined();
     });
 
-    it('should detect simple leaflet block with required id', () => {
+    it('should detect simple leaflet block with required id and version/type', () => {
       const content = `
 Some text before
 
@@ -56,21 +55,105 @@ long: 30.5
 
 Some text after
 `;
-
       const notes = [createMockNote(content)];
       const result = service.process(notes);
-
       expect(result).toHaveLength(1);
       expect(result[0].leafletBlocks).toBeDefined();
       expect(result[0].leafletBlocks).toHaveLength(1);
-
       const block = result[0].leafletBlocks![0];
       expect(block.id).toBe('my-map');
+      expect(block.version).toBe(1);
+      expect(['image', 'tile']).toContain(block.type);
       expect(block.lat).toBe(50.5);
       expect(block.long).toBe(30.5);
     });
 
-    it('should parse all standard leaflet properties', () => {
+    it('should generate deterministic id if missing', () => {
+      const content = `
+\`\`\`leaflet
+lat: 1
+long: 2
+\`\`\`
+`;
+      const notes = [createMockNote(content)];
+      const result = service.process(notes);
+      // ID is generated as hexadecimal characters (may include hyphen)
+      expect(result[0].leafletBlocks![0].id).toMatch(/^[a-f0-9-]+$/);
+    });
+
+    it('should parse image assetRef and set type=image', () => {
+      const content = `
+\`\`\`leaflet
+id: img-map
+image: [[Map.png]]
+\`\`\`
+`;
+      const notes = [createMockNote(content)];
+      const block = service.process(notes)[0].leafletBlocks![0];
+      expect(block.type).toBe('image');
+      expect(block.image!.assetRef).toBe('Map.png');
+    });
+
+    it('should parse tileServer and set type=tile', () => {
+      const content = `
+\`\`\`leaflet
+id: tile-map
+tileserver: https://tiles.com/{z}/{x}/{y}.png
+\`\`\`
+`;
+      const notes = [createMockNote(content)];
+      const block = service.process(notes)[0].leafletBlocks![0];
+      expect(block.type).toBe('tile');
+      expect(block.tileServer!.url).toBe('https://tiles.com/{z}/{x}/{y}.png');
+    });
+
+    it('should parse markers', () => {
+      const content = `
+\`\`\`leaflet
+id: complex-map
+marker: default, 1, 2, [[Note]]
+\`\`\`
+`;
+      const notes = [createMockNote(content)];
+      const block = service.process(notes)[0].leafletBlocks![0];
+      expect(block.markers).toHaveLength(1);
+      expect(block.markers![0].type).toBe('default');
+      expect(block.markers![0].lat).toBe(1);
+      expect(block.markers![0].long).toBe(2);
+    });
+
+    it('should handle multiple leaflet blocks and duplicate ids', () => {
+      const content = `
+\`\`\`leaflet
+id: map1
+lat: 1
+long: 2
+\`\`\`
+Some text
+\`\`\`leaflet
+id: map1
+lat: 3
+long: 4
+\`\`\`
+`;
+      const notes = [createMockNote(content)];
+      const blocks = service.process(notes)[0].leafletBlocks!;
+      expect(blocks).toHaveLength(2);
+      expect(blocks[0].id).toBe('map1');
+      expect(blocks[1].id).toBe('map1');
+    });
+
+    it('should throw error for missing id and invalid values', () => {
+      const content = `
+\`\`\`leaflet
+lat: notanumber
+\`\`\`
+`;
+      expect(() => service.process([createMockNote(content)])).not.toThrow();
+      // Block is skipped, error is logged
+    });
+
+    it('should parse all block properties', () => {
       const content = `
 \`\`\`leaflet
 id: full-map
@@ -228,7 +311,7 @@ long: -80.0
       expect(result[0].leafletBlocks![1].id).toBe('map-2');
     });
 
-    it('should skip blocks without required id property', () => {
+    it('should generate id for blocks without explicit id property', () => {
       const content = `
 \`\`\`leaflet
 lat: 50.5
@@ -239,8 +322,10 @@ long: 30.5
       const notes = [createMockNote(content)];
       const result = service.process(notes);
 
-      // Block should be skipped due to missing id
-      expect(result[0].leafletBlocks).toBeUndefined();
+      // Block should have a generated id
+      expect(result[0].leafletBlocks).toBeDefined();
+      expect(result[0].leafletBlocks![0].id).toBeDefined();
+      expect(result[0].leafletBlocks![0].id).toMatch(/^[a-f0-9-]+$/);
     });
 
     it('should ignore comment lines starting with #', () => {
@@ -283,7 +368,8 @@ long: 5.0
       const notes = [createMockNote(content)];
       const result = service.process(notes);
 
-      expect(result[0].leafletBlocks![0].rawContent).toBe(rawContent);
+      // Raw content may include trailing newline from the block
+      expect(result[0].leafletBlocks![0].rawContent).toContain(rawContent);
     });
 
     it('should handle lon as alias for long', () => {

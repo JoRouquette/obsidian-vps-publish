@@ -23,80 +23,66 @@ import type { LeafletTileServer } from './leaflet-tile-server';
  * ```
  */
 export interface LeafletBlock {
-  /**
-   * Identifiant unique du bloc Leaflet (obligatoire)
-   */
+  /** Version du schéma (DTO v1) */
+  version: 1;
+
+  /** Identifiant unique du bloc Leaflet (obligatoire ou généré) */
   id: string;
 
-  /**
-   * Hauteur de la carte (ex: "500px", "100%")
-   */
-  height?: string;
+  /** Mode principal : 'image' (CRS.Simple + ImageOverlay) ou 'tile' (TileLayer) */
+  type: 'image' | 'tile';
 
-  /**
-   * Largeur de la carte (ex: "100%", "800px")
-   */
-  width?: string;
-
-  /**
-   * Latitude du centre de la carte
-   */
+  /** Latitude du centre de la carte (mode tile) */
   lat?: number;
-
-  /**
-   * Longitude du centre de la carte
-   */
+  /** Longitude du centre de la carte (mode tile) */
   long?: number;
 
-  /**
-   * Zoom minimum
-   */
-  minZoom?: number;
+  /** Hauteur de la carte (ex: "500px", "100%") */
+  height?: string;
+  /** Largeur de la carte (ex: "100%", "800px") */
+  width?: string;
 
-  /**
-   * Zoom maximum
-   */
+  /** Zooms */
+  defaultZoom?: number;
+  minZoom?: number;
   maxZoom?: number;
 
-  /**
-   * Zoom par défaut au chargement
-   */
-  defaultZoom?: number;
-
-  /**
-   * Unité de mesure (ex: "meters", "feet", "miles", "km")
-   */
+  /** Mode sombre */
+  darkMode?: boolean;
+  /** Unité de mesure (ex: "meters", "px", etc.) */
   unit?: string;
 
-  /**
-   * Échelle de la carte en pixels (pour les overlays d'images)
-   * Définit la largeur en pixels de l'image pour calculer les distances
-   */
-  scale?: number;
+  /** Image map mode : assetRef publié, bounds, alias */
+  image?: {
+    assetRef: string;
+    bounds?: [[number, number], [number, number]];
+    alias?: string;
+  };
 
-  /**
-   * Mode sombre activé
-   */
-  darkMode?: boolean;
-
-  /**
-   * Image overlay(s) pour la carte
-   * Peut être une seule image ou une liste d'images
-   */
-  imageOverlays?: LeafletImageOverlay[];
-
-  /**
-   * Configuration du serveur de tuiles personnalisé
-   */
+  /** Tile map mode : configuration du serveur de tuiles */
   tileServer?: LeafletTileServer;
 
-  /**
-   * Liste des marqueurs sur la carte
-   */
+  /** Markers : type, lat, long, lien, description, minZoom/maxZoom */
   markers?: LeafletMarker[];
 
-  /**
-   * Contenu brut du bloc (pour debug/traçabilité)
-   */
+  /** GeoJSON overlays : assetRef ou URL, style */
+  geojson?: Array<{
+    assetRef: string;
+    style?: Record<string, unknown>;
+  }>;
+
+  /** Overlays (cercles, etc.) */
+  overlays?: Array<{
+    type: 'circle';
+    lat: number;
+    long: number;
+    radius: number;
+    color?: string;
+  }>;
+
+  /** Image overlays pour cartes personnalisées */
+  imageOverlays?: LeafletImageOverlay[];
+
+  /** Contenu brut du bloc (pour debug/traçabilité) */
   rawContent?: string;
 }

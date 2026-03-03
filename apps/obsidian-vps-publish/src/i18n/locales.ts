@@ -1271,12 +1271,19 @@ export const fr: Translations = {
       },
       leaflet: {
         title: 'Cartes Leaflet',
-        content:
-          'Les blocs de code Leaflet sont détectés et préservés pour le rendu côté client.\n\nLes cartes seront interactives sur le site publié.',
+        content: `Les blocs de code Leaflet sont détectés, parsés et publiés sous forme de carte interactive sur le site.\n\nLe schéma publié est versionné (DTO v1), validé et sécurisé :\n\n• Modes supportés :\n  - "image" : carte basée sur une image locale (CRS.Simple + ImageOverlay)\n  - "tile" : carte basée sur un serveur de tuiles (OSM ou custom)\n• Propriétés principales : id (obligatoire ou généré), lat/long, height/width, zooms, darkMode, unit\n• Markers : type, lat, long, lien, description\n• GeoJSON : un ou plusieurs fichiers/URLs, style par défaut\n• Overlays : cercles (type, lat, long, radius, couleur)\n• Assets : les images et geojson sont résolus en assetRef publié\n• Erreurs : si le bloc est invalide, un message explicite est affiché sur le site\n\nAucune logique Leaflet n'est exécutée côté backend, seul le DTO circule.`,
         examples: [
           {
-            code: '```leaflet\nid: carte-1\nlat: 48.8566\nlong: 2.3522\n```',
-            description: 'Configuration de carte Leaflet',
+            code: '```leaflet\nid: map-1\nimage: [[Carte.png]]\nlat: 0\nlong: 0\n```',
+            description: 'Carte image locale (mode image)',
+          },
+          {
+            code: '```leaflet\nid: map-2\ntileserver: https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png\nlat: 48.8566\nlong: 2.3522\n```',
+            description: 'Carte tuilée OSM (mode tile)',
+          },
+          {
+            code: '```leaflet\nid: map-3\nmarker: default, 48.8566, 2.3522, [[Paris]]\ngeojson: [[data.geojson]]\noverlay: circle, 48.8566, 2.3522, 100, red\n```',
+            description: 'Carte avec marker, geojson et overlay',
           },
         ],
       },

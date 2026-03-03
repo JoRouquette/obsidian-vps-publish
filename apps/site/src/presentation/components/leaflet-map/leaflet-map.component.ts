@@ -82,26 +82,24 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     try {
       // Import dynamique pour éviter les erreurs SSR
       const leafletModule = await import('leaflet');
-
-      // Extraire L depuis le module (support ESM avec .default)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const L = (leafletModule as any).default || leafletModule;
-
-      // Importer le plugin fullscreen (side-effect: ajoute L.Control.Fullscreen)
       await import('leaflet.fullscreen');
-
-      if (L.Icon && L.Icon.Default) {
+      if (L.Icon?.Default) {
         L.Icon.Default.mergeOptions({
-          iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-          iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-          shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+          iconRetinaUrl: '/assets/leaflet/marker-icon-2x.png',
+          iconUrl: '/assets/leaflet/marker-icon.png',
+          shadowUrl: '/assets/leaflet/marker-shadow.png',
         });
       }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this.initializeMap(L as any);
+      // Validation du bloc DTO v1
+      if (!this.block?.version || !this.block?.id || !this.block?.type) {
+        this.displayError('Bloc Leaflet invalide ou non supporté');
+        return;
+      }
+      this.initializeMap(L);
     } catch {
-      // Failed to load Leaflet, component will not initialize
+      this.displayError('Erreur d’initialisation Leaflet');
     }
   }
 
@@ -120,11 +118,10 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private initializeMapOutsideZone(L: any): void {
-    // Vérifier si on a des images overlays
-    const hasImageOverlays = this.block.imageOverlays && this.block.imageOverlays.length > 0;
+    // DTO v1 : type 'image' ou 'tile'
+    const isImage = this.block.type === 'image' && this.block.image?.assetRef;
+    const isTile = this.block.type === 'tile' && this.block.tileServer?.url;
 
-    // Pour les images overlays, utiliser un CRS simple (coordonnées pixels)
-    // pour préserver les proportions de l'image
     interface LeafletMapOptions {
       crs?: unknown;
       center?: [number, number];
@@ -145,65 +142,54 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     }
 
     const mapOptions: LeafletMapOptions = {
-      minZoom: this.block.minZoom ?? (hasImageOverlays ? -5 : undefined),
-      maxZoom: this.block.maxZoom ?? (hasImageOverlays ? 2 : undefined),
+      minZoom: this.block.minZoom ?? (isImage ? -5 : undefined),
+      maxZoom: this.block.maxZoom ?? (isImage ? 2 : undefined),
       zoomControl: true,
-      attributionControl: false, // Désactiver l'attribution Leaflet par défaut
+      attributionControl: false,
       scrollWheelZoom: true,
       doubleClickZoom: true,
       boxZoom: true,
       keyboard: true,
       dragging: true,
-      // Désactiver les animations pour une navigation plus fluide
       zoomAnimation: false,
       fadeAnimation: false,
       markerZoomAnimation: false,
-      // Activer le contrôle fullscreen (le plugin est maintenant chargé)
       fullscreenControl: true,
     };
 
-    // Si on a une image overlay, utiliser CRS.Simple pour coordonnées pixels
-    if (hasImageOverlays && !this.block.tileServer) {
+    if (isImage) {
       mapOptions.crs = L.CRS.Simple;
       mapOptions.center = [0, 0];
       mapOptions.zoom = this.block.defaultZoom ?? 0;
-    } else {
-      // Sinon, utiliser les coordonnées géographiques normales
+    } else if (isTile) {
       mapOptions.center = [this.block.lat ?? 0, this.block.long ?? 0];
       mapOptions.zoom = this.block.defaultZoom ?? 13;
+    } else {
+      this.displayError('Bloc Leaflet incomplet ou non supporté');
+      return;
     }
 
-    // Création de la carte
     this.map = L.map(this.mapContainer.nativeElement, mapOptions);
-
-    // Forcer le recalcul de la taille après initialisation
-    // pour éviter les problèmes d'affichage
     setTimeout(() => {
-      if (this.map) {
-        this.map.invalidateSize();
-      }
+      if (this.map) this.map.invalidateSize();
     }, 100);
 
-    // N'ajouter la couche de tuiles OSM QUE si on n'a pas d'image overlay
-    // (pour éviter d'afficher une carte du monde réel derrière une carte fantasy)
-    if (!hasImageOverlays || this.block.tileServer) {
+    if (isTile) {
       this.addTileLayer(L);
     }
-
-    // Ajout des images overlays si présentes
-    if (hasImageOverlays) {
-      this.addImageOverlays(L);
-      // Marquer comme ayant des images pour désactiver le filtre sombre sur les tuiles
+    if (isImage) {
+      this.addImageOverlayDTO(L);
       this.mapContainer.nativeElement.classList.add('has-image-overlay');
     }
-
-    // Ajout des marqueurs si présents
     if (this.block.markers && this.block.markers.length > 0) {
       this.addMarkers(L);
     }
-
-    // Application du mode sombre si spécifié dans le bloc
-    // (force le mode sombre indépendamment du thème du site)
+    if (this.block.geojson && this.block.geojson.length > 0) {
+      this.addGeoJsonOverlays(L);
+    }
+    if (this.block.overlays && this.block.overlays.length > 0) {
+      this.addCircleOverlays(L);
+    }
     if (this.block.darkMode) {
       this.mapContainer.nativeElement.classList.add('leaflet-dark-mode');
     }
@@ -228,81 +214,62 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private addImageOverlays(L: any): void {
-    this.totalOverlays = this.block.imageOverlays?.length ?? 0;
-    this.overlaysLoaded = 0;
+  private addImageOverlayDTO(L: any): void {
+    if (!this.block.image?.assetRef) return;
+    const imageUrl = `/assets/${this.block.image.assetRef}`;
+    const bounds = this.block.image.bounds ?? [
+      [0, 0],
+      [512, 512],
+    ];
+    try {
+      const overlay = L.imageOverlay(imageUrl, bounds, {
+        interactive: false,
+        className: 'leaflet-image-overlay-no-animation',
+      });
+      overlay.addTo(this.map);
+      this.map.fitBounds(bounds, {
+        padding: [20, 20],
+        animate: false,
+        duration: 0,
+      });
+    } catch {
+      // Ignore errors silently
+    }
+  }
 
-    // Stocker tous les bounds pour calculer la vue globale
-    const allBounds: [[number, number], [number, number]][] = [];
-
-    this.block.imageOverlays?.forEach((overlay) => {
-      // Construire l'URL de l'image via l'API d'assets
-      const imageUrl = `/assets/${overlay.path}`;
-
-      // Charger l'image pour obtenir ses dimensions réelles
-      const img = new Image();
-      img.onload = () => {
-        const width = img.naturalWidth;
-        const height = img.naturalHeight;
-
-        // Utiliser les dimensions réelles de l'image comme bounds
-        // Dans CRS.Simple, les coordonnées sont des pixels
-        // On centre l'image à [0, 0]
-        const bounds: [[number, number], [number, number]] = [
-          [0, 0], // coin supérieur gauche
-          [height, width], // coin inférieur droit (attention: [y, x] en Leaflet)
-        ];
-
-        try {
-          const overlay = L.imageOverlay(imageUrl, bounds, {
-            interactive: false, // Désactiver les interactions sur l'image
-            className: 'leaflet-image-overlay-no-animation', // Classe pour CSS custom
-          });
-          overlay.addTo(this.map);
-          allBounds.push(bounds);
-
-          this.overlaysLoaded++;
-
-          // Ajuster la vue UNE SEULE FOIS après que TOUTES les images sont chargées
-          if (
-            this.overlaysLoaded === this.totalOverlays &&
-            allBounds.length > 0 &&
-            !this.viewAdjusted
-          ) {
-            this.viewAdjusted = true; // Marquer pour ne jamais refaire le fit
-            // Utiliser le premier bounds (ou on pourrait calculer l'union de tous)
-            const finalBounds = allBounds[0];
-
-            // Attendre un peu pour laisser les overlays se positionner
-            setTimeout(() => {
-              if (this.map) {
-                // Désactiver temporairement les interactions pendant le fit
-                this.map.dragging.disable();
-                this.map.scrollWheelZoom.disable();
-
-                this.map.fitBounds(finalBounds, {
-                  padding: [20, 20],
-                  animate: false,
-                  duration: 0, // Pas d'animation du tout
-                });
-
-                // Réactiver les interactions après un court délai
-                setTimeout(() => {
-                  if (this.map) {
-                    this.map.dragging.enable();
-                    this.map.scrollWheelZoom.enable();
-                  }
-                }, 50);
-              }
-            }, 150);
-          }
-        } catch {
-          // Ignore errors silently in production
-        }
-      };
-
-      img.src = imageUrl;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private addGeoJsonOverlays(L: any): void {
+    this.block.geojson?.forEach((geo) => {
+      const url = geo.assetRef.startsWith('http') ? geo.assetRef : `/assets/${geo.assetRef}`;
+      fetch(url)
+        .then((res) => res.json())
+        .then((data) => {
+          const layer = L.geoJSON(data, { style: geo.style ?? {} });
+          layer.addTo(this.map);
+        })
+        .catch(() => {
+          // Ignore errors silently
+        });
     });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private addCircleOverlays(L: any): void {
+    this.block.overlays?.forEach((ov) => {
+      if (ov.type === 'circle') {
+        L.circle([ov.lat, ov.long], {
+          radius: ov.radius,
+          color: ov.color ?? 'blue',
+          fillOpacity: 0.2,
+        }).addTo(this.map);
+      }
+    });
+  }
+
+  private displayError(msg: string): void {
+    if (this.mapContainer?.nativeElement) {
+      this.mapContainer.nativeElement.innerHTML = `<div class="leaflet-error">${msg}</div>`;
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -326,7 +293,7 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
       if (marker.link) {
         // Résoudre le lien wikilink en route Angular
         // Format: [[Page Name]] ou juste le nom de la page
-        const cleanLink = marker.link.replace(/^\[\[|\]\]$/g, '').trim();
+        const cleanLink = marker.link.replaceAll('[[', '').replaceAll(']]', '').trim();
         const route = `/viewer/${encodeURIComponent(cleanLink)}`;
         const linkHtml = `<a href="${route}">${cleanLink}</a>`;
         popupContent = popupContent ? `${popupContent}<br>${linkHtml}` : linkHtml;

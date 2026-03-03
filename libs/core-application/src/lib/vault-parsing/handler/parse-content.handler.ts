@@ -131,9 +131,10 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
       await yieldScheduler.maybeYield();
     }
 
-    // Step 6: Leaflet blocks
+    // Step 6: Leaflet blocks (extraction temporaire)
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('detect-leaflet-blocks');
+    // Extraction des tokens (remplacement par tokens)
     publishableNotes = this.leafletBlocksDetector.process(publishableNotes);
     this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
@@ -174,6 +175,10 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
     this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
     await yieldScheduler.maybeYield();
+
+    // Step 10b: Réinjection des blocs leaflet (remplacement tokens → placeholders)
+    // On repasse par leafletBlocksDetector pour la réinjection
+    publishableNotes = this.leafletBlocksDetector.process(publishableNotes);
 
     // Step 11: Compute routing
     this.cancellation?.throwIfCancelled();

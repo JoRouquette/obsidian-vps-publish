@@ -221,20 +221,56 @@ for (const page of pages) {
 
 ## Cartes Leaflet
 
-### Configuration de carte
+### Schéma publié (DTO v1)
 
-```markdown
-\`\`\`leaflet
+Les blocs Leaflet sont extraits, parsés et publiés sous forme de DTO versionné, validé et sécurisé. Aucun HTML/JS inline n'est publié.
+
+**Principales propriétés :**
+
+- `id` : identifiant unique (obligatoire ou généré)
+- `type` : "image" ou "tile"
+- `lat`, `long` : centre de la carte
+- `height`, `width` : dimensions
+- `defaultZoom`, `minZoom`, `maxZoom`
+- `darkMode`, `unit`
+- `image.assetRef` : référence d'asset publiée
+- `tileServer.url` : serveur de tuiles
+- `markers[]` : type, lat, long, lien, description
+- `geojson[]` : assetRef ou URL, style
+- `overlays[]` : cercles (type, lat, long, radius, couleur)
+
+### Exemples
+
+Carte image locale :
+
+```leaflet
 id: map-1
-lat: 48.8566
-long: 2.3522
-zoom: 12
-\`\`\`
+image: [[Carte.png]]
+lat: 0
+long: 0
 ```
 
-→ Les blocs Leaflet sont **préservés** et rendus côté client sur le site publié.
+Carte tuilée OSM :
 
-**Note** : L'`id` est obligatoire.
+```leaflet
+id: map-2
+tileserver: https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+lat: 48.8566
+long: 2.3522
+```
+
+Carte avec marker, geojson et overlay :
+
+```leaflet
+id: map-3
+marker: default, 48.8566, 2.3522, [[Paris]]
+geojson: [[data.geojson]]
+overlay: circle, 48.8566, 2.3522, 100, red
+```
+
+→ Les blocs Leaflet sont **préservés** et rendus côté client sur le site publié. Si le bloc est invalide, un message explicite est affiché.
+
+**Note** : L'`id` est obligatoire (généré si absent).
 
 ## Markdown avancé
 

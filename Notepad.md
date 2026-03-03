@@ -1,6 +1,9 @@
 # ToDo list
 
 - Site web PWA
+- Système de notification de nouvelle publication.
+- Conflict lorsque les pages utilisé en tant qu'index sont aussi disponible dans l'arborescence.\*
+- Suivre les changements de chemin dans le vault pour la configuration du plugin ?
 
 ## Corriger les erreurs console angular
 

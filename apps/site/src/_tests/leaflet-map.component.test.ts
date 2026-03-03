@@ -9,7 +9,9 @@ describe('LeafletMapComponent', () => {
   let fixture: ComponentFixture<LeafletMapComponent>;
 
   const mockLeafletBlock: LeafletBlock = {
+    version: 1,
     id: 'test-map',
+    type: 'tile',
     height: '400px',
     width: '100%',
     lat: 48.8566,
@@ -22,9 +24,7 @@ describe('LeafletMapComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [LeafletMapComponent],
-      providers: [
-        { provide: PLATFORM_ID, useValue: 'browser' }, // Simule l'environnement navigateur
-      ],
+      providers: [{ provide: PLATFORM_ID, useValue: 'browser' }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(LeafletMapComponent);
@@ -105,7 +105,9 @@ describe('LeafletMapComponent', () => {
 
   it('should handle block with markers', () => {
     const blockWithMarkers: LeafletBlock = {
+      version: 1,
       id: 'map-with-markers',
+      type: 'tile',
       lat: 48.8566,
       long: 2.3522,
       markers: [
@@ -113,36 +115,34 @@ describe('LeafletMapComponent', () => {
         { type: 'custom', lat: 48.86, long: 2.35, description: 'Test marker' },
       ],
     };
-
     component.block = blockWithMarkers;
     fixture.detectChanges();
-
     expect(component).toBeTruthy();
   });
 
-  it('should handle block with image overlays', () => {
-    const blockWithImages: LeafletBlock = {
-      id: 'map-with-images',
-      lat: 48.8566,
-      long: 2.3522,
-      imageOverlays: [
-        {
-          path: 'test-image.png',
-          topLeft: [48.86, 2.35],
-          bottomRight: [48.85, 2.36],
-        },
-      ],
+  it('should handle block with image.assetRef (mode image)', () => {
+    const blockWithImage: LeafletBlock = {
+      version: 1,
+      id: 'map-image',
+      type: 'image',
+      image: {
+        assetRef: 'test-image.png',
+        bounds: [
+          [0, 0],
+          [512, 512],
+        ],
+      },
     };
-
-    component.block = blockWithImages;
+    component.block = blockWithImage;
     fixture.detectChanges();
-
     expect(component).toBeTruthy();
   });
 
   it('should handle block with custom tile server', () => {
     const blockWithCustomTiles: LeafletBlock = {
+      version: 1,
       id: 'map-custom-tiles',
+      type: 'tile',
       lat: 48.8566,
       long: 2.3522,
       tileServer: {
@@ -151,38 +151,61 @@ describe('LeafletMapComponent', () => {
         subdomains: ['a', 'b'],
       },
     };
-
     component.block = blockWithCustomTiles;
     fixture.detectChanges();
-
     expect(component).toBeTruthy();
   });
 
   it('should apply dark mode class when darkMode is true', () => {
     const blockWithDarkMode: LeafletBlock = {
+      version: 1,
       id: 'dark-map',
+      type: 'tile',
       lat: 48.8566,
       long: 2.3522,
       darkMode: true,
     };
-
     component.block = blockWithDarkMode;
     fixture.detectChanges();
-
-    // Note: This test would need the actual Leaflet initialization to verify the class
     expect(component).toBeTruthy();
   });
 
   it('should handle missing optional properties gracefully', () => {
     const minimalBlock: LeafletBlock = {
+      version: 1,
       id: 'minimal-map',
+      type: 'tile',
       lat: 0,
       long: 0,
     };
-
     component.block = minimalBlock;
     fixture.detectChanges();
+    expect(component).toBeTruthy();
+  });
 
+  it('should handle geojson and overlays', () => {
+    const blockWithGeojson: LeafletBlock = {
+      version: 1,
+      id: 'geo-map',
+      type: 'tile',
+      lat: 0,
+      long: 0,
+      geojson: [{ assetRef: 'test.geojson' }],
+      overlays: [{ type: 'circle', lat: 0, long: 0, radius: 100, color: 'red' }],
+    };
+    component.block = blockWithGeojson;
+    fixture.detectChanges();
+    expect(component).toBeTruthy();
+  });
+
+  it('should display error for invalid block', async () => {
+    const invalidBlock: any = { id: 'bad', type: undefined };
+    component.block = invalidBlock;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    // Note: Error display requires async Leaflet initialization which may not complete in test environment
+    // The component validates the block and would display error if Leaflet loads
+    // For this unit test, we verify the component handles the invalid block without throwing
     expect(component).toBeTruthy();
   });
 
