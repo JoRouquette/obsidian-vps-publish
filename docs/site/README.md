@@ -25,6 +25,7 @@ Le frontend Angular est une Single Page Application (SPA) qui :
 ### SEO et optimisation
 
 - **[SEO](./seo.md)** - Stratégie SEO complète : meta tags, sitemap, redirections 301, cache HTTP (106 tests)
+- **[PWA](./pwa.md)** - Progressive Web App : service worker, cache offline, installation
 
 ### Design et thème
 

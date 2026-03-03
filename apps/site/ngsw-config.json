@@ -1,0 +1,83 @@
+{
+  "$schema": "./node_modules/@angular/service-worker/config/schema.json",
+  "index": "/index.html",
+  "assetGroups": [
+    {
+      "name": "app",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": ["/favicon.ico", "/index.html", "/manifest.webmanifest", "/*.css", "/*.js"]
+      }
+    },
+    {
+      "name": "assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": ["/assets/**", "/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"]
+      }
+    }
+  ],
+  "dataGroups": [
+    {
+      "name": "api-config",
+      "urls": ["/api/config", "/api/config/**"],
+      "cacheConfig": {
+        "maxSize": 5,
+        "maxAge": "1h",
+        "strategy": "freshness",
+        "timeout": "5s"
+      }
+    },
+    {
+      "name": "manifest",
+      "urls": ["/_manifest.json", "/manifest.json"],
+      "cacheConfig": {
+        "maxSize": 1,
+        "maxAge": "5m",
+        "strategy": "freshness",
+        "timeout": "3s"
+      }
+    },
+    {
+      "name": "content-pages",
+      "urls": ["/content/**/*.html", "/content/**"],
+      "cacheConfig": {
+        "maxSize": 100,
+        "maxAge": "10m",
+        "strategy": "freshness",
+        "timeout": "5s"
+      }
+    },
+    {
+      "name": "backend-assets",
+      "urls": ["/assets/**"],
+      "cacheConfig": {
+        "maxSize": 200,
+        "maxAge": "1d",
+        "strategy": "freshness",
+        "timeout": "10s"
+      }
+    },
+    {
+      "name": "search-index",
+      "urls": ["/api/search/**", "/search-index.json"],
+      "cacheConfig": {
+        "maxSize": 5,
+        "maxAge": "30m",
+        "strategy": "freshness",
+        "timeout": "5s"
+      }
+    }
+  ],
+  "navigationUrls": [
+    "/**",
+    "!/**/*.*",
+    "!/**/*__*",
+    "!/**/*__*/**",
+    "!/api/**",
+    "!/content/**",
+    "!/assets/**"
+  ]
+}

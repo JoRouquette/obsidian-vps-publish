@@ -1,6 +1,6 @@
 import { provideHttpClient, withFetch } from '@angular/common/http';
 import type { ApplicationConfig } from '@angular/core';
-import { ANIMATION_MODULE_TYPE } from '@angular/core';
+import { ANIMATION_MODULE_TYPE, isDevMode } from '@angular/core';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
 import {
@@ -9,6 +9,7 @@ import {
   withIncrementalHydration,
 } from '@angular/platform-browser';
 import { provideRouter, withInMemoryScrolling, withViewTransitions } from '@angular/router';
+import { provideServiceWorker } from '@angular/service-worker';
 
 import {
   CONFIG_REPOSITORY,
@@ -35,6 +36,11 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withFetch()),
     // Optimized hydration: event replay for better INP, incremental for reduced JS cost
     provideClientHydration(withEventReplay(), withIncrementalHydration()),
+    // PWA Service Worker: enabled only in production mode, automatically guards for browser platform
+    provideServiceWorker('ngsw-worker.js', {
+      enabled: !isDevMode(),
+      registrationStrategy: 'registerWhenStable:30000',
+    }),
     { provide: MAT_ICON_DEFAULT_OPTIONS, useValue: { fontSet: 'material-symbols-rounded' } },
     { provide: MANIFEST_REPOSITORY, useClass: HttpManifestRepository },
     { provide: CONFIG_REPOSITORY, useClass: HttpConfigRepository },
