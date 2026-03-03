@@ -132,9 +132,11 @@ export function createApp(rootLogger?: LoggerPort) {
   );
 
   // UI files with moderate caching (versioned via deployment)
+  // Do NOT serve index.html from static - SSR middleware handles all HTML routes
   const ANGULAR_DIST = EnvConfig.uiRoot();
   app.use(
     express.static(ANGULAR_DIST, {
+      index: false, // Prevent serving index.html for '/' - handled by SSR
       etag: true,
       lastModified: true,
       maxAge: '1h', // Cache UI for 1 hour
