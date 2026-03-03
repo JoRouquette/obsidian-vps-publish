@@ -221,7 +221,8 @@ export class SessionFinalizationJobService {
       const promotionStats = await this.stagingManager.promoteSession(
         job.sessionId,
         allCollectedRoutes,
-        pipelineSignature
+        pipelineSignature,
+        session?.locale
       );
       timings.promoteSession = Date.now() - promoteStart;
       job.progress = 100;

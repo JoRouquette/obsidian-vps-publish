@@ -3,7 +3,15 @@ import type { ConfigRepository, PublicConfig } from '../domain/ports/config-repo
 
 describe('ConfigFacade', () => {
   it('loads config only once', async () => {
-    const cfg: PublicConfig = { siteName: 'Site', author: 'Me', repoUrl: '', reportIssuesUrl: '' };
+    const cfg: PublicConfig = {
+      baseUrl: 'http://localhost',
+      siteName: 'Site',
+      author: 'Me',
+      repoUrl: '',
+      reportIssuesUrl: '',
+      homeWelcomeTitle: 'Welcome',
+      locale: 'en',
+    };
     const repo: jest.Mocked<ConfigRepository> = { load: jest.fn().mockResolvedValue(cfg) };
 
     const facade = new ConfigFacade(repo);

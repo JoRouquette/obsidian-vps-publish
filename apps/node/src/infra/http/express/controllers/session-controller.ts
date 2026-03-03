@@ -60,6 +60,7 @@ export function createSessionController(
       ignoredTags,
       folderDisplayNames,
       pipelineSignature,
+      locale,
     } = parsed.data;
     if (typeof notesPlanned !== 'number' || typeof assetsPlanned !== 'number') {
       routeLogger?.warn('Missing required fields for session creation', {
@@ -81,6 +82,7 @@ export function createSessionController(
       ignoredTags,
       folderDisplayNames,
       pipelineSignature,
+      locale,
     };
 
     try {

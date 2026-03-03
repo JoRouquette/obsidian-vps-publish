@@ -65,6 +65,7 @@ export class SessionApiClient {
     ignoredTags?: string[];
     folderDisplayNames?: Record<string, string>;
     pipelineSignature?: { version: string; renderSettingsHash: string };
+    locale?: 'en' | 'fr';
   }): Promise<StartSessionResponse> {
     const result = await this.postJson('/api/session/start', {
       notesPlanned: payload.notesPlanned,
@@ -75,6 +76,7 @@ export class SessionApiClient {
       ignoredTags: payload.ignoredTags ?? [],
       folderDisplayNames: payload.folderDisplayNames ?? {},
       pipelineSignature: payload.pipelineSignature,
+      locale: payload.locale,
     });
 
     if (result.isError) {

@@ -2,6 +2,12 @@ import type { ManifestPage } from './manifest-page';
 import type { PipelineSignature } from './pipeline-signature';
 
 /**
+ * Supported site locales for PWA and HTML lang attribute.
+ * Sent from the plugin settings and stored in the manifest.
+ */
+export type SiteLocale = 'en' | 'fr';
+
+/**
  * Represents an asset entry in the manifest with hash for deduplication
  */
 export interface ManifestAsset {
@@ -22,6 +28,14 @@ export interface Manifest {
   createdAt: Date;
   lastUpdatedAt: Date;
   pages: ManifestPage[];
+
+  /**
+   * Site locale for HTML lang attribute and PWA manifest.
+   * Sent from the plugin settings (en, fr, or resolved from system).
+   * Defaults to 'fr' if not specified.
+   */
+  locale?: SiteLocale;
+
   /**
    * Optional mapping of route paths to their display names
    * Used to preserve display names for folders even when no pages exist directly in them

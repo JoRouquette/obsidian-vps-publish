@@ -8,6 +8,7 @@ import {
   type ManifestPage,
   type PipelineSignature,
   type PromotionStats,
+  type SiteLocale,
 } from '@core-domain';
 import { Mutex } from 'async-mutex';
 
@@ -46,18 +47,21 @@ export class StagingManager {
    * - HTML cleanup: deleted pages' HTML files are removed
    * - Asset sync: new assets copied, referenced assets kept, obsolete deleted
    * - Pipeline signature: updated from session or staging manifest
+   * - Site locale: injected for HTML lang and PWA
    *
    * CRITICAL: Mutex protects the entire promotion sequence to prevent race conditions.
    *
    * @param sessionId - Session identifier
    * @param allCollectedRoutes - All routes collected from vault (PHASE 6.1), used to detect deleted pages
    * @param pipelineSignature - Pipeline signature from session (PHASE 7 fix)
+   * @param locale - Site locale from plugin settings (en/fr)
    * @returns PromotionStats with deduplication metrics
    */
   async promoteSession(
     sessionId: string,
     allCollectedRoutes?: string[],
-    pipelineSignature?: unknown
+    pipelineSignature?: unknown,
+    locale?: SiteLocale
   ): Promise<PromotionStats> {
     const stagingContent = this.contentStagingPath(sessionId);
     const stagingAssets = this.assetsStagingPath(sessionId);
@@ -115,6 +119,8 @@ export class StagingManager {
         pipelineSignature: (pipelineSignature ?? stagingManifest.pipelineSignature) as
           | PipelineSignature
           | undefined,
+        // Site locale from plugin settings (for HTML lang and PWA)
+        locale: locale ?? stagingManifest.locale ?? productionManifest?.locale,
       };
 
       this.logger?.debug('Manifest merge prepared', {

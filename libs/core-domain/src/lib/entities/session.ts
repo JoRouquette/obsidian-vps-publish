@@ -1,4 +1,5 @@
 import type { CustomIndexConfig } from './custom-index-config';
+import type { SiteLocale } from './manifest';
 import type { PipelineSignature } from './pipeline-signature';
 import type { SanitizationRules } from './sanitization-rules';
 
@@ -17,6 +18,11 @@ export interface Session {
   customIndexConfigs?: CustomIndexConfig[];
   ignoredTags?: string[];
   folderDisplayNames?: Record<string, string>;
+  /**
+   * Site locale for HTML lang attribute and PWA.
+   * Resolved from plugin settings before sending.
+   */
+  locale?: SiteLocale;
   /**
    * All routes collected from vault during publish (PHASE 6.1)
    * Used to detect deleted pages: production pages not in this set were deleted
