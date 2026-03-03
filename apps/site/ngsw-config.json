@@ -22,7 +22,7 @@
   "dataGroups": [
     {
       "name": "api-config",
-      "urls": ["/api/config", "/api/config/**"],
+      "urls": ["/api/config", "/api/config/**", "/public-config"],
       "cacheConfig": {
         "maxSize": 5,
         "maxAge": "1h",
@@ -32,20 +32,20 @@
     },
     {
       "name": "manifest",
-      "urls": ["/_manifest.json", "/manifest.json"],
+      "urls": ["/content/_manifest.json*"],
       "cacheConfig": {
-        "maxSize": 1,
-        "maxAge": "5m",
+        "maxSize": 10,
+        "maxAge": "7d",
         "strategy": "freshness",
         "timeout": "3s"
       }
     },
     {
       "name": "content-pages",
-      "urls": ["/content/**/*.html", "/content/**"],
+      "urls": ["/content/**/*.html*", "/content/**"],
       "cacheConfig": {
-        "maxSize": 100,
-        "maxAge": "10m",
+        "maxSize": 200,
+        "maxAge": "30d",
         "strategy": "freshness",
         "timeout": "5s"
       }
@@ -54,8 +54,8 @@
       "name": "backend-assets",
       "urls": ["/assets/**"],
       "cacheConfig": {
-        "maxSize": 200,
-        "maxAge": "1d",
+        "maxSize": 500,
+        "maxAge": "365d",
         "strategy": "freshness",
         "timeout": "10s"
       }
@@ -78,6 +78,7 @@
     "!/**/*__*/**",
     "!/api/**",
     "!/content/**",
-    "!/assets/**"
+    "!/assets/**",
+    "!/events/**"
   ]
 }

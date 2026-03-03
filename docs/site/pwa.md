@@ -53,17 +53,79 @@ Le support PWA permet à l'application Angular de fonctionner comme une applicat
 
 ### Stratégies de cache
 
-| Groupe           | Stratégie | TTL    | Usage                                 |
-| ---------------- | --------- | ------ | ------------------------------------- |
-| `app`            | prefetch  | ∞      | Shell de l'app (JS/CSS hashés)        |
-| `assets`         | lazy      | ∞      | Images, fonts statiques               |
-| `manifest`       | freshness | 5min   | `/_manifest.json` - contenu dynamique |
-| `content-pages`  | freshness | 10min  | `/content/**` - pages HTML            |
-| `backend-assets` | freshness | 1 jour | `/assets/**` - médias publiés         |
-| `api-config`     | freshness | 1h     | `/api/config`                         |
+| Groupe           | Stratégie | TTL      | Usage                                 |
+| ---------------- | --------- | -------- | ------------------------------------- |
+| `app`            | prefetch  | ∞        | Shell de l'app (JS/CSS hashés)        |
+| `assets`         | lazy      | ∞        | Images, fonts statiques               |
+| `manifest`       | freshness | 7 jours  | `/content/_manifest.json` - dynamique |
+| `content-pages`  | freshness | 30 jours | `/content/**` - pages HTML            |
+| `backend-assets` | freshness | 365 j    | `/assets/**` - médias publiés         |
+| `api-config`     | freshness | 1h       | `/api/config`, `/public-config`       |
 
 **Pourquoi `freshness` pour le contenu ?**  
 Le contenu publié peut changer à tout moment. La stratégie `freshness` essaie le réseau d'abord, puis tombe sur le cache si offline. Cela évite de "figer" du contenu périmé.
+
+### Content Versioning (Cache Invalidation)
+
+Pour invalider les caches lors d'une mise à jour de contenu sans hack (suppression de caches ngsw), le système utilise un paramètre de version dans les URLs :
+
+```
+/content/_manifest.json?cv=abc123def456
+/content/my-page.html?cv=abc123def456
+```
+
+**Composants impliqués :**
+
+| Composant                   | Rôle                                               |
+| --------------------------- | -------------------------------------------------- |
+| `ContentVersionService`     | Maintient la version actuelle (localStorage + SSE) |
+| `contentVersionInterceptor` | Ajoute `?cv=version` aux requêtes de contenu       |
+| `/_content-version.json`    | Endpoint backend retournant la version courante    |
+| `/events/content`           | SSE pour les mises à jour en temps réel            |
+
+**Flux de mise à jour :**
+
+```
+1. Publication (FinishSession)
+   ↓
+2. Backend calcule nouvelle version (SHA256 du manifest)
+   ↓
+3. Mise à jour de _content-version.json
+   ↓
+4. Broadcast SSE vers tous les clients connectés
+   ↓
+5. Client reçoit nouvelle version
+   ↓
+6. Prochaines requêtes utilisent ?cv=nouvelleVersion
+   ↓
+7. Nouvelles entrées de cache créées (URLs différentes)
+```
+
+**Note :** Les assets Angular (JS/CSS) NE sont PAS versionnés par ce système car ils sont déjà fingerprinted par Angular.
+
+### Offline Support
+
+Le système implémente un mode offline gracieux avec les fonctionnalités suivantes :
+
+**Services impliqués :**
+
+| Service                   | Rôle                                           |
+| ------------------------- | ---------------------------------------------- |
+| `OfflineDetectionService` | Détection réactive du statut online/offline    |
+| `VisitedPagesService`     | Tracking des pages consultées (localStorage)   |
+| `/offline` route          | Page de fallback avec liste des pages en cache |
+
+**Comportement :**
+
+1. **Pages visitées** : Chaque page consultée est automatiquement mise en cache par ngsw ET enregistrée dans `VisitedPagesService`
+2. **Navigation offline** : Si une page échoue à charger et que l'utilisateur est offline, redirection vers `/offline`
+3. **Page /offline** : Affiche un message clair + liste des pages récemment consultées (potentiellement disponibles en cache)
+
+**Limitations :**
+
+- Les pages non visitées ne sont pas disponibles offline
+- Le cache ngsw a des limites de taille (`maxSize` dans dataGroups)
+- Les pages très anciennes peuvent être évincées du cache
 
 ## Configuration
 

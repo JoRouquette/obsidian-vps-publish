@@ -1,4 +1,4 @@
-import { provideHttpClient, withFetch } from '@angular/common/http';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import type { ApplicationConfig } from '@angular/core';
 import { ANIMATION_MODULE_TYPE, isDevMode } from '@angular/core';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
@@ -17,6 +17,7 @@ import {
   MANIFEST_REPOSITORY,
   SEARCH_INDEX_REPOSITORY,
 } from '../domain/ports/tokens';
+import { contentVersionInterceptor } from '../infrastructure/content-version';
 import { HttpConfigRepository } from '../infrastructure/http/http-config.repository';
 import { HttpContentRepository } from '../infrastructure/http/http-content.repository';
 import { HttpManifestRepository } from '../infrastructure/http/http-manifest.repository';
@@ -33,7 +34,7 @@ export const appConfig: ApplicationConfig = {
       }),
       withViewTransitions({ skipInitialTransition: true })
     ),
-    provideHttpClient(withFetch()),
+    provideHttpClient(withFetch(), withInterceptors([contentVersionInterceptor])),
     // Optimized hydration: event replay for better INP, incremental for reduced JS cost
     provideClientHydration(withEventReplay(), withIncrementalHydration()),
     // PWA Service Worker: enabled only in production mode, automatically guards for browser platform

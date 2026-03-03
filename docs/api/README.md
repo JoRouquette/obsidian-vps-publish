@@ -116,6 +116,12 @@ Voir `.env.dev.example` et `.env.prod.example` pour les templates complets.
 
 - **`GET /health`** : Healthcheck (retourne `{ status: 'ok' }`)
 - **`GET /public-config`** : Configuration publique (siteName, author, repoUrl, reportIssuesUrl)
+- **`GET /_content-version.json`** : Version du contenu pour invalidation de cache PWA
+  - Retour : `{ version: "abc123", generatedAt: "2026-03-03T12:00:00Z" }`
+  - Headers : `Cache-Control: no-store`
+- **`GET /events/content`** : SSE stream pour mises à jour de version en temps réel
+  - Event `contentVersion` : `{ type: "contentVersion", version, generatedAt }`
+  - Event `heartbeat` : envoyé toutes les 30 secondes
 
 ### Sécurisés (header `x-api-key` requis)
 

@@ -13,6 +13,7 @@ import compression from 'compression';
 import express from 'express';
 
 import { EnvConfig } from '../../config/env-config';
+import { ContentVersionService } from '../../content-version/content-version.service';
 import { AssetsFileSystemStorage } from '../../filesystem/assets-file-system.storage';
 import { FileSystemSessionRepository } from '../../filesystem/file-system-session.repository';
 import { ManifestFileSystem } from '../../filesystem/manifest-file-system';
@@ -29,6 +30,7 @@ import { SessionFinalizerService } from '../../sessions/session-finalizer.servic
 import { createAngularSSRService } from '../../ssr/angular-ssr.service';
 import { AssetHashService } from '../../utils/asset-hash.service';
 import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
+import { createContentVersionController } from './controllers/content-version.controller';
 import { createHealthCheckController } from './controllers/health-check.controller';
 import { createMaintenanceController } from './controllers/maintenance-controller';
 import { createPingController } from './controllers/ping.controller';
@@ -236,6 +238,14 @@ export function createApp(rootLogger?: LoggerPort) {
     EnvConfig.maxConcurrentFinalizationJobs()
   );
 
+  // Content version service for PWA cache invalidation
+  const contentVersionService = new ContentVersionService(EnvConfig.contentRoot(), rootLogger);
+
+  // Hook finalization completion to update content version
+  finalizationJobService.onJobCompleted(async () => {
+    await contentVersionService.updateVersion();
+  });
+
   // Cleanup old jobs every 10 minutes
   setInterval(
     () => {
@@ -289,6 +299,11 @@ export function createApp(rootLogger?: LoggerPort) {
   });
 
   app.use('/api', apiRouter);
+
+  // Content version endpoints (public, no API key required)
+  // These must be before static file handlers to ensure they're handled by Express
+  const contentVersionRouter = createContentVersionController(contentVersionService, rootLogger);
+  app.use(contentVersionRouter);
 
   // SEO routes (sitemap.xml, robots.txt)
   const manifestLoader = async (): Promise<Manifest> => {

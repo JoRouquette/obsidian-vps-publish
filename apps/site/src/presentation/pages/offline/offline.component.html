@@ -1,0 +1,58 @@
+<div class="offline-container">
+  <mat-card class="offline-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar class="offline-icon">cloud_off</mat-icon>
+      <mat-card-title>Vous êtes hors ligne</mat-card-title>
+      <mat-card-subtitle>La page demandée n'est pas disponible</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <p class="offline-message">
+        Vous n'êtes pas connecté à Internet et la page que vous avez demandée n'est pas disponible
+        dans le cache.
+      </p>
+
+      @if (visitedPages().length > 0) {
+        <div class="cached-pages">
+          <h3>Pages consultées récemment</h3>
+          <p class="cached-hint">Ces pages sont peut-être disponibles hors ligne :</p>
+
+          <mat-nav-list>
+            @for (page of visitedPages(); track page.slug) {
+              <a mat-list-item [routerLink]="page.url">
+                <mat-icon matListItemIcon>article</mat-icon>
+                <span matListItemTitle>{{ page.title }}</span>
+                <span matListItemLine class="visit-date">
+                  Consulté le {{ formatDate(page.lastVisited) }}
+                </span>
+              </a>
+            }
+          </mat-nav-list>
+        </div>
+      } @else {
+        <p class="no-cache-hint">
+          Naviguez sur le site lorsque vous êtes connecté pour que les pages soient mises en cache
+          et disponibles hors ligne.
+        </p>
+      }
+    </mat-card-content>
+
+    <mat-card-actions>
+      <a mat-raised-button color="primary" routerLink="/">
+        <mat-icon>home</mat-icon>
+        Retour à l'accueil
+      </a>
+      <button mat-button (click)="retry()">
+        <mat-icon>refresh</mat-icon>
+        Réessayer
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+  @if (isOnline()) {
+    <div class="online-banner">
+      <mat-icon>wifi</mat-icon>
+      <span>Connexion rétablie ! Vous pouvez naviguer normalement.</span>
+    </div>
+  }
+</div>
