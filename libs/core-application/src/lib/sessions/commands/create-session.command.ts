@@ -1,4 +1,4 @@
-import type { CustomIndexConfig, PipelineSignature } from '@core-domain';
+import type { CustomIndexConfig, PipelineSignature, SiteLocale } from '@core-domain';
 
 export interface CreateSessionCommand {
   notesPlanned: number;
@@ -10,4 +10,9 @@ export interface CreateSessionCommand {
   ignoredTags?: string[];
   folderDisplayNames?: Record<string, string>;
   pipelineSignature?: PipelineSignature;
+  /**
+   * Site locale for HTML lang attribute and PWA.
+   * Resolved from plugin settings (en/fr/system → en/fr).
+   */
+  locale?: SiteLocale;
 }

@@ -8,6 +8,7 @@ import {
   ElementRef,
   EnvironmentInjector,
   Inject,
+  inject,
   OnDestroy,
   signal,
   ViewChild,
@@ -19,11 +20,12 @@ import { MatTooltip, MatTooltipModule } from '@angular/material/tooltip';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { NavigationEnd, Router } from '@angular/router';
 import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
-import { distinctUntilChanged, filter, map, switchMap } from 'rxjs';
+import { catchError, distinctUntilChanged, filter, from, map, of, switchMap, tap } from 'rxjs';
 
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
 import { HttpContentRepository } from '../../../infrastructure/http/http-content.repository';
+import { OfflineDetectionService, VisitedPagesService } from '../../../infrastructure/offline';
 import { ImageOverlayComponent } from '../../components/image-overlay/image-overlay.component';
 import { LeafletMapComponent } from '../../components/leaflet-map/leaflet-map.component';
 
@@ -57,6 +59,10 @@ export class ViewerComponent implements OnDestroy {
   private readonly cleanupFns: Array<() => void> = [];
   private readonly leafletComponentRefs: ComponentRef<LeafletMapComponent>[] = [];
 
+  // Injected services for offline support
+  private readonly visitedPagesService = inject(VisitedPagesService);
+  private readonly offlineService = inject(OfflineDetectionService);
+
   // Flux réactif moderne avec toSignal (Angular 20 pattern)
   private readonly rawHtml = toSignal(
     this.router.events.pipe(
@@ -70,10 +76,12 @@ export class ViewerComponent implements OnDestroy {
         // Update currentRoute for breadcrumbs
         this.currentRoute.set(normalized);
 
+        let pageTitle = '';
         if (manifest.pages.length > 0) {
           const p = manifest.pages.find((x) => x.route === normalized);
           if (p) {
-            this.title.set(this.capitalize(p.title) ?? '');
+            pageTitle = this.capitalize(p.title) ?? '';
+            this.title.set(pageTitle);
             // Mettre à jour les blocs Leaflet si présents
             const leafletBlocks = p.leafletBlocks ?? [];
             this.leafletBlocks.set(leafletBlocks);
@@ -84,7 +92,25 @@ export class ViewerComponent implements OnDestroy {
           this.leafletBlocks.set([]);
         }
 
-        return this.contentRepository.fetch(htmlUrl);
+        return from(this.contentRepository.fetch(htmlUrl)).pipe(
+          tap(() => {
+            // Record successful page visit for offline access
+            if (pageTitle && normalized !== '/') {
+              this.visitedPagesService.recordVisit(normalized.slice(1), pageTitle, normalized);
+            }
+          }),
+          catchError(() => {
+            // If offline and fetch fails, redirect to offline page
+            if (this.offlineService.isOffline) {
+              void this.router.navigate(['/offline']);
+              return of('');
+            }
+            // If online but fetch failed, show error
+            return of(
+              '<div class="error-container"><p>Impossible de charger cette page.</p></div>'
+            );
+          })
+        );
       })
     ),
     { initialValue: 'Chargement...' }

@@ -42,6 +42,7 @@ export class CreateSessionHandler implements CommandHandler<
       ignoredTags: command.ignoredTags,
       folderDisplayNames: command.folderDisplayNames,
       pipelineSignature: command.pipelineSignature, // PHASE 7: Store for later injection into manifest
+      locale: command.locale, // Store locale for manifest generation
     };
 
     await this.sessionRepository.create(session);

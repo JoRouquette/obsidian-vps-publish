@@ -18,7 +18,11 @@
         "polyfills": ["zone.js"],
         "tsConfig": "apps/site/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
-        "assets": ["apps/site/src/favicon.ico", "apps/site/src/assets"],
+        "assets": [
+          "apps/site/src/favicon.ico",
+          "apps/site/src/assets",
+          "apps/site/src/manifest.webmanifest"
+        ],
         "styles": [
           "apps/site/src/styles.scss",
           "node_modules/leaflet.fullscreen/dist/Control.FullScreen.css"
@@ -39,7 +43,8 @@
               "maximumError": "1Mb"
             }
           ],
-          "outputHashing": "all"
+          "outputHashing": "all",
+          "serviceWorker": "apps/site/ngsw-config.json"
         },
         "development": {
           "optimization": false,

@@ -9,6 +9,10 @@ module.exports = {
 
   testEnvironment: 'node',
 
+  // Limit parallel workers to reduce memory pressure
+  maxWorkers: '50%',
+  workerIdleMemoryLimit: '512MB',
+
   transform: {
     '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },

@@ -13,6 +13,7 @@ import compression from 'compression';
 import express from 'express';
 
 import { EnvConfig } from '../../config/env-config';
+import { ContentVersionService } from '../../content-version/content-version.service';
 import { AssetsFileSystemStorage } from '../../filesystem/assets-file-system.storage';
 import { FileSystemSessionRepository } from '../../filesystem/file-system-session.repository';
 import { ManifestFileSystem } from '../../filesystem/manifest-file-system';
@@ -29,6 +30,7 @@ import { SessionFinalizerService } from '../../sessions/session-finalizer.servic
 import { createAngularSSRService } from '../../ssr/angular-ssr.service';
 import { AssetHashService } from '../../utils/asset-hash.service';
 import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
+import { createContentVersionController } from './controllers/content-version.controller';
 import { createHealthCheckController } from './controllers/health-check.controller';
 import { createMaintenanceController } from './controllers/maintenance-controller';
 import { createPingController } from './controllers/ping.controller';
@@ -132,9 +134,11 @@ export function createApp(rootLogger?: LoggerPort) {
   );
 
   // UI files with moderate caching (versioned via deployment)
+  // Do NOT serve index.html from static - SSR middleware handles all HTML routes
   const ANGULAR_DIST = EnvConfig.uiRoot();
   app.use(
     express.static(ANGULAR_DIST, {
+      index: false, // Prevent serving index.html for '/' - handled by SSR
       etag: true,
       lastModified: true,
       maxAge: '1h', // Cache UI for 1 hour
@@ -234,6 +238,14 @@ export function createApp(rootLogger?: LoggerPort) {
     EnvConfig.maxConcurrentFinalizationJobs()
   );
 
+  // Content version service for PWA cache invalidation
+  const contentVersionService = new ContentVersionService(EnvConfig.contentRoot(), rootLogger);
+
+  // Hook finalization completion to update content version
+  finalizationJobService.onJobCompleted(async () => {
+    await contentVersionService.updateVersion();
+  });
+
   // Cleanup old jobs every 10 minutes
   setInterval(
     () => {
@@ -288,6 +300,11 @@ export function createApp(rootLogger?: LoggerPort) {
 
   app.use('/api', apiRouter);
 
+  // Content version endpoints (public, no API key required)
+  // These must be before static file handlers to ensure they're handled by Express
+  const contentVersionRouter = createContentVersionController(contentVersionService, rootLogger);
+  app.use(contentVersionRouter);
+
   // SEO routes (sitemap.xml, robots.txt)
   const manifestLoader = async (): Promise<Manifest> => {
     const fs = await import('node:fs/promises');
@@ -314,15 +331,138 @@ export function createApp(rootLogger?: LoggerPort) {
   );
 
   app.get('/public-config', (req, res) => {
-    rootLogger?.debug('Serving public config');
-    res.json({
-      baseUrl: EnvConfig.baseUrl(),
-      siteName: EnvConfig.siteName(),
-      author: EnvConfig.author(),
-      repoUrl: EnvConfig.repoUrl(),
-      reportIssuesUrl: EnvConfig.reportIssuesUrl(),
-      homeWelcomeTitle: EnvConfig.homeWelcomeTitle(),
-    });
+    void (async (): Promise<void> => {
+      rootLogger?.debug('Serving public config');
+      let locale: 'en' | 'fr' = 'fr';
+      try {
+        const manifest = await manifestLoader();
+        locale = manifest.locale ?? 'fr';
+      } catch {
+        rootLogger?.debug('Could not load manifest for locale, using default');
+      }
+      res.json({
+        baseUrl: EnvConfig.baseUrl(),
+        siteName: EnvConfig.siteName(),
+        author: EnvConfig.author(),
+        repoUrl: EnvConfig.repoUrl(),
+        reportIssuesUrl: EnvConfig.reportIssuesUrl(),
+        homeWelcomeTitle: EnvConfig.homeWelcomeTitle(),
+        locale,
+      });
+    })();
+  });
+
+  // PWA: Dynamic Web App Manifest with SITE_NAME and locale from config
+  app.get('/manifest.webmanifest', (req, res) => {
+    void (async (): Promise<void> => {
+      const siteName = EnvConfig.siteName();
+      const shortName = siteName.length > 12 ? siteName.slice(0, 12) : siteName;
+
+      let locale: 'en' | 'fr' = 'fr';
+      try {
+        const manifest = await manifestLoader();
+        locale = manifest.locale ?? 'fr';
+      } catch {
+        rootLogger?.debug('Could not load manifest for locale, using default');
+      }
+
+      // i18n for PWA texts
+      const i18n = {
+        en: {
+          description: `Browse published content from ${siteName}`,
+          shortcuts: { home: 'Home', search: 'Search' },
+        },
+        fr: {
+          description: `Explorez le contenu publié de ${siteName}`,
+          shortcuts: { home: 'Accueil', search: 'Recherche' },
+        },
+      };
+      const texts = i18n[locale];
+
+      rootLogger?.debug('Serving dynamic manifest.webmanifest', { locale });
+      res.setHeader('Content-Type', 'application/manifest+json');
+      res.json({
+        name: siteName,
+        short_name: shortName,
+        description: texts.description,
+        lang: locale,
+        dir: 'ltr',
+        theme_color: '#1a1e24',
+        background_color: '#1a1e24',
+        display: 'standalone',
+        orientation: 'any',
+        scope: '/',
+        start_url: '/',
+        id: '/',
+        categories: ['books', 'education', 'productivity'],
+        icons: [
+          { src: 'assets/icons/icon-72x72.png', sizes: '72x72', type: 'image/png', purpose: 'any' },
+          { src: 'assets/icons/icon-96x96.png', sizes: '96x96', type: 'image/png', purpose: 'any' },
+          {
+            src: 'assets/icons/icon-128x128.png',
+            sizes: '128x128',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'assets/icons/icon-144x144.png',
+            sizes: '144x144',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'assets/icons/icon-152x152.png',
+            sizes: '152x152',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'assets/icons/icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'assets/icons/icon-384x384.png',
+            sizes: '384x384',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'assets/icons/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'assets/icons/icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          {
+            src: 'assets/icons/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+        shortcuts: [
+          {
+            name: texts.shortcuts.home,
+            short_name: texts.shortcuts.home,
+            url: '/',
+            icons: [{ src: 'assets/icons/icon-96x96.png', sizes: '96x96', type: 'image/png' }],
+          },
+          {
+            name: texts.shortcuts.search,
+            short_name: texts.shortcuts.search,
+            url: '/search',
+            icons: [{ src: 'assets/icons/icon-96x96.png', sizes: '96x96', type: 'image/png' }],
+          },
+        ],
+      });
+    })();
   });
 
   // SEO redirects: /robots.txt and /sitemap.xml to /seo/ endpoints

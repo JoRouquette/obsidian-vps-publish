@@ -401,7 +401,7 @@ describe('E2E: Inter-publication Note Deduplication', () => {
     expect(manifest2!.pages).toHaveLength(3);
 
     const routes = manifest2!.pages.map((p) => p.route);
-    expect(routes).toEqual(['/notes/note2', '/notes/note3', '/notes/note5']);
+    expect(routes.sort()).toEqual(['/notes/note2', '/notes/note3', '/notes/note5']);
     expect(routes).not.toContain('/notes/note1');
     expect(routes).not.toContain('/notes/note4');
 

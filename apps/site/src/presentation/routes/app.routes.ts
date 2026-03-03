@@ -5,6 +5,11 @@ import { ShellComponent } from '../shell/shell.component';
 
 export const APP_ROUTES: Routes = [
   {
+    path: 'offline',
+    loadComponent: () =>
+      import('../pages/offline/offline.component').then((m) => m.OfflineComponent),
+  },
+  {
     path: '',
     component: ShellComponent,
     children: [

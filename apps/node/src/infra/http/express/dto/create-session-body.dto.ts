@@ -31,4 +31,9 @@ export const CreateSessionBodyDto = z.object({
       gitCommit: z.string().optional(),
     })
     .optional(),
+  /**
+   * Site locale for HTML lang attribute and PWA manifest.
+   * Resolved from plugin settings (en/fr/system → en/fr).
+   */
+  locale: z.enum(['en', 'fr']).optional(),
 });

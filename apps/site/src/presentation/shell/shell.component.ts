@@ -20,6 +20,7 @@ import { filter } from 'rxjs/operators';
 import { CatalogFacade } from '../../application/facades/catalog-facade';
 import { ConfigFacade } from '../../application/facades/config-facade';
 import { SearchFacade } from '../../application/facades/search-facade';
+import { PwaMetaService } from '../../infrastructure/pwa/pwa-meta.service';
 import { SearchBarComponent } from '../components/search-bar/search-bar.component';
 import { LogoComponent } from '../pages/logo/logo.component';
 import { TopbarComponent } from '../pages/topbar/topbar.component';
@@ -51,6 +52,7 @@ export class ShellComponent implements OnInit {
     private readonly router: Router,
     public searchFacade: SearchFacade,
     private readonly destroyRef: DestroyRef,
+    private readonly pwaMeta: PwaMetaService,
     @Inject(PLATFORM_ID) private platformId: object
   ) {}
 
@@ -90,6 +92,9 @@ export class ShellComponent implements OnInit {
     this.theme.init();
     this.loadSidebarState();
     void this.config.ensure().then(async () => {
+      // Initialize PWA meta tags with site name from config
+      this.pwaMeta.init();
+
       await this.catalog.ensureManifest();
       await this.loadVaultExplorer();
       this.hydrateManifestCache();

@@ -32,6 +32,7 @@ export class SessionFinalizationJobService {
   private processingQueue: string[] = [];
   private activeJobs = 0;
   private maxConcurrentJobs: number;
+  private completionCallbacks: Array<() => Promise<void>> = [];
 
   constructor(
     private readonly sessionFinalizer: SessionFinalizerService,
@@ -41,6 +42,14 @@ export class SessionFinalizationJobService {
     maxConcurrentJobs?: number
   ) {
     this.maxConcurrentJobs = maxConcurrentJobs ?? 5;
+  }
+
+  /**
+   * Register a callback to be called when a job completes successfully.
+   * Used for content version updates after publication.
+   */
+  onJobCompleted(callback: () => Promise<void>): void {
+    this.completionCallbacks.push(callback);
   }
 
   /**
@@ -212,7 +221,8 @@ export class SessionFinalizationJobService {
       const promotionStats = await this.stagingManager.promoteSession(
         job.sessionId,
         allCollectedRoutes,
-        pipelineSignature
+        pipelineSignature,
+        session?.locale
       );
       timings.promoteSession = Date.now() - promoteStart;
       job.progress = 100;
@@ -234,6 +244,9 @@ export class SessionFinalizationJobService {
         timings,
         activeJobs: this.activeJobs,
       });
+
+      // Trigger completion callbacks (e.g., content version update)
+      await this.triggerCompletionCallbacks();
     } catch (error) {
       job.status = 'failed';
       job.error = error instanceof Error ? error.message : 'Unknown error';
@@ -271,6 +284,30 @@ export class SessionFinalizationJobService {
         cleaned,
         remaining: this.jobs.size,
       });
+    }
+  }
+
+  /**
+   * Trigger all registered completion callbacks.
+   * Called after successful job completion.
+   */
+  private async triggerCompletionCallbacks(): Promise<void> {
+    if (this.completionCallbacks.length === 0) {
+      return;
+    }
+
+    this.logger?.debug('[JOB] Triggering completion callbacks', {
+      callbackCount: this.completionCallbacks.length,
+    });
+
+    for (const callback of this.completionCallbacks) {
+      try {
+        await callback();
+      } catch (error) {
+        this.logger?.error('[JOB] Error in completion callback', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }
 

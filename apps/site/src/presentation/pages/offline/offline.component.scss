@@ -1,0 +1,236 @@
+:host {
+  display: block;
+  padding: clamp(12px, 3vw, 24px);
+  color: var(--color-text-primary);
+}
+
+.offline-page {
+  /* Normalized ITS theme tokens (60/30/10) */
+  --c-surface: var(--color-bg-secondary);
+  --c-surface-variant: var(--color-surface-default);
+  --c-on-surface: var(--color-text-primary);
+  --c-outline: var(--color-border-default);
+  --c-primary: var(--color-accent-header);
+  --c-secondary: var(--color-accent-secondary);
+  --c-error: var(--color-error-bg);
+
+  max-width: 720px;
+  margin: 0 auto;
+  display: grid;
+  gap: 24px;
+  color: var(--c-on-surface);
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 12px;
+  background: color-mix(in oklab, var(--c-error) 25%, transparent);
+  border-radius: 12px;
+  border: 1px solid color-mix(in oklab, var(--c-error) 40%, transparent);
+
+  .status-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: var(--c-primary);
+    flex-shrink: 0;
+  }
+
+  .eyebrow {
+    margin: 0;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+
+  h1 {
+    margin: 4px 0 8px;
+    font-size: clamp(1.25rem, 2.8vw, 1.6rem);
+    line-height: 1.2;
+    color: var(--c-primary);
+  }
+
+  .description {
+    margin: 0;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+  }
+}
+
+.cached-section {
+  h2 {
+    margin: 0 0 4px;
+    font-size: 1.1rem;
+    color: var(--c-primary);
+  }
+
+  .hint {
+    margin: 0 0 12px;
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+  }
+}
+
+.visited-list {
+  display: grid;
+  gap: 8px;
+}
+
+.visited-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--c-surface-variant);
+  border-radius: 10px;
+  border: 1px solid var(--c-outline);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover {
+    background: color-mix(in oklab, var(--c-surface-variant) 80%, var(--c-primary) 20%);
+    border-color: var(--c-primary);
+  }
+
+  .mat-icon {
+    color: var(--c-secondary);
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+  }
+
+  .visited-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .visited-title {
+    font-weight: 500;
+    color: var(--c-on-surface);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .visited-date {
+    font-size: 0.8rem;
+    color: var(--color-text-tertiary);
+  }
+}
+
+.state {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  color: color-mix(in oklab, var(--c-on-surface) 75%, transparent);
+
+  &.info {
+    background: color-mix(in oklab, var(--c-surface-variant) 60%, transparent);
+    border: 1px solid var(--c-outline);
+  }
+
+  .mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  p {
+    margin: 0;
+    line-height: 1.5;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid var(--c-outline);
+  background: var(--c-surface-variant);
+  color: var(--c-on-surface);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover {
+    background: color-mix(in oklab, var(--c-surface-variant) 80%, var(--c-primary) 20%);
+    border-color: var(--c-primary);
+  }
+
+  &.primary {
+    background: var(--c-primary);
+    border-color: var(--c-primary);
+    color: var(--color-text-on-accent);
+
+    &:hover {
+      background: var(--color-accent-light);
+      border-color: var(--color-accent-light);
+    }
+  }
+
+  .mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.online-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: color-mix(in oklab, var(--color-success-bg) 40%, transparent);
+  border: 1px solid color-mix(in oklab, var(--color-success-bg) 60%, transparent);
+  border-radius: 10px;
+  color: var(--c-on-surface);
+
+  .mat-icon {
+    color: #4caf50;
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .page-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .actions {
+    flex-direction: column;
+
+    .action-btn {
+      justify-content: center;
+      width: 100%;
+    }
+  }
+}

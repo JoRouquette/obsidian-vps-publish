@@ -529,7 +529,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
   // ---------------------------------------------------------------------------
   async publishToSiteAsync() {
     const settings = this.settings;
-    const { t } = getTranslations(this.app, this.settings);
+    const { t, locale } = getTranslations(this.app, this.settings);
 
     if (!settings.vpsConfigs || settings.vpsConfigs.length === 0) {
       this.logger.error('No VPS config defined');
@@ -924,6 +924,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         ignoredTags: settings.frontmatterTagsToExclude || [],
         folderDisplayNames, // Send displayNames upfront
         pipelineSignature, // Include pipeline signature for inter-publication deduplication
+        locale, // Site language from plugin settings
       });
 
       sessionId = started.sessionId;
