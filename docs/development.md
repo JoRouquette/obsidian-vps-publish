@@ -101,3 +101,96 @@ The project includes specialized tasks for SSR workflows (see `.vscode/tasks.jso
 - Branch from `main`, keep changes scoped, and add tests where it makes sense (`npm test`).
 - Keep `manifest.json` (root) and `apps/obsidian-vps-publish/versions.json` aligned with releases/tags.
 - Before committing SSR changes, run `SSR: Validate SEO` to ensure meta tags are correct.
+
+## Lighthouse CI (Performance Testing)
+
+The project includes comprehensive Lighthouse CI integration for performance budget validation. It is **blocking** in CI/CD: performance regressions prevent releases.
+
+### Quick Start
+
+```bash
+# Build the project first
+npm run build
+
+# Run Lighthouse locally (non-blocking)
+npm run lighthouse
+
+# Run in CI mode (blocking, fails on budget violations)
+npm run lighthouse:ci
+
+# Test CSR mode instead of SSR
+npm run lighthouse:csr
+
+# Verbose output for debugging
+npm run lighthouse:verbose
+```
+
+### What Gets Tested
+
+| Page                                 | Description                    |
+| ------------------------------------ | ------------------------------ |
+| `/`                                  | Homepage (custom index)        |
+| `/search`                            | Search functionality           |
+| `/test-page`                         | Standard note page             |
+| `/test-page-with-image`              | Note with embedded image asset |
+| `/test-page-with-sections#section-2` | Deep link to anchor            |
+
+### Performance Budgets (Blocking)
+
+| Metric              | Threshold | Level |
+| ------------------- | --------- | ----- |
+| LCP                 | < 2.5s    | error |
+| CLS                 | < 0.1     | error |
+| TBT                 | < 300ms   | error |
+| Performance Score   | >= 80%    | error |
+| SEO Score           | >= 90%    | error |
+| Accessibility Score | >= 85%    | warn  |
+
+### Adjusting Budgets
+
+Edit `lighthouserc.cjs` to adjust thresholds:
+
+```javascript
+assertions: {
+  // Core Web Vitals
+  'largest-contentful-paint': ['error', { maxNumericValue: 2500 }],
+  'cumulative-layout-shift': ['error', { maxNumericValue: 0.1 }],
+  'total-blocking-time': ['error', { maxNumericValue: 300 }],
+  // ...
+}
+```
+
+- Change `'error'` to `'warn'` for non-blocking assertions
+- Adjust `maxNumericValue` or `minScore` as needed
+- Run `npm run lighthouse:ci` to test new thresholds
+
+### Reports
+
+After running, reports are saved to `.lighthouseci/`:
+
+```bash
+# View HTML reports
+open .lighthouseci/*.html    # macOS
+start .lighthouseci\*.html   # Windows
+```
+
+### CI/CD Integration
+
+The `performance` job in `.github/workflows/ci-release.yml`:
+
+1. Runs after `quality` job (lint, test, build)
+2. Uses deterministic test fixtures (no external dependencies)
+3. Runs Lighthouse against 5 pages
+4. Fails the pipeline if budgets are exceeded
+5. Uploads reports as artifacts (14-day retention)
+
+The `semantic-release` job depends on `performance`, ensuring **no release if Lighthouse fails**.
+
+### Nx Target
+
+You can also run via Nx:
+
+```bash
+npx nx lighthouse node                  # Local mode
+npx nx lighthouse node --configuration=ci    # CI mode (blocking)
+```

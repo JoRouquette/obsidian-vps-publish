@@ -107,6 +107,25 @@
         "fix": true
       }
     },
+    "lighthouse": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build", "^build"],
+      "options": {
+        "command": "node tools/lighthouse-ci.mjs",
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "ci": {
+          "command": "node tools/lighthouse-ci.mjs --ci"
+        },
+        "csr": {
+          "command": "node tools/lighthouse-ci.mjs --csr"
+        },
+        "verbose": {
+          "command": "node tools/lighthouse-ci.mjs --verbose"
+        }
+      }
+    },
     "format": {
       "executor": "nx:run-commands",
       "options": {

@@ -122,7 +122,7 @@ jobs:
           retention-days: 7
 
   performance:
-    name: Performance budget validation
+    name: Performance budget validation (Lighthouse CI)
     needs: quality
     runs-on: ubuntu-latest
     permissions:
@@ -151,77 +151,38 @@ jobs:
           name: dist
           path: dist
 
-      - name: Install Lighthouse CI
+      - name: Install Lighthouse CI globally
         run: npm install -g @lhci/cli@0.14.x
 
-      - name: Create test content
+      - name: Prepare Angular CSR fallback
         run: |
-          mkdir -p tmp/site-content tmp/assets
-          echo '{"version":"1.0.0","generatedAt":"'$(date -Iseconds)'","pages":[{"id":"index","title":"Home","slug":"index","route":"/","description":"Homepage","publishedAt":"'$(date -Iseconds)'","isCustomIndex":true},{"id":"test","title":"Test Page","slug":"test","route":"/test","description":"Test content page","publishedAt":"'$(date -Iseconds)'"}],"canonicalMap":{}}' > tmp/site-content/_manifest.json
-          echo '<!DOCTYPE html><html><head><title>Home</title><meta name="description" content="Homepage"></head><body><h1>Welcome</h1><p>Content site homepage.</p></body></html>' > tmp/site-content/index.html
-          echo '<!DOCTYPE html><html><head><title>Test Page</title><meta name="description" content="Test content page"></head><body><h1>Test Page</h1><p>Lorem ipsum dolor sit amet.</p></body></html>' > tmp/site-content/test.html
-
-      - name: Verify Angular build
-        run: |
-          echo "Checking Angular build artifacts..."
-          ls -la dist/apps/site/ || true
-          ls -la dist/apps/site/browser/ || true
-          if [ ! -f "dist/apps/site/browser/index.html" ]; then
-            echo "ERROR: index.html not found in dist/apps/site/browser/"
-            echo "Checking for index.csr.html..."
-            if [ -f "dist/apps/site/browser/index.csr.html" ]; then
-              echo "Found index.csr.html, renaming to index.html"
-              cp dist/apps/site/browser/index.csr.html dist/apps/site/browser/index.html
-            else
-              echo "Neither index.html nor index.csr.html found!"
-              exit 1
-            fi
+          if [ -f "dist/apps/site/browser/index.csr.html" ] && [ ! -f "dist/apps/site/browser/index.html" ]; then
+            cp dist/apps/site/browser/index.csr.html dist/apps/site/browser/index.html
+            echo "✓ Created index.html from index.csr.html"
           fi
-          echo "✓ index.html verified"
 
-      - name: Run Lighthouse CI
+      - name: Run Lighthouse CI (SSR mode)
+        id: lighthouse-ssr
+        run: npm run lighthouse:ci
         env:
-          BASE_URL: http://localhost:3000
-          API_KEY: ci-test-key
-          CONTENT_ROOT: ${{ github.workspace }}/tmp/site-content
-          ASSETS_ROOT: ${{ github.workspace }}/tmp/assets
-          UI_ROOT: ${{ github.workspace }}/dist/apps/site/browser
-          UI_SERVER_ROOT: ${{ github.workspace }}/dist/apps/site/server
-          SSR_ENABLED: 'false'
-          LOGGER_LEVEL: warn
-        run: |
-          # Start server in background
-          node dist/apps/node/main.js &
-          SERVER_PID=$!
+          CI: true
 
-          # Wait for server to be ready
-          for i in {1..30}; do
-            if curl -s http://localhost:3000/health > /dev/null 2>&1; then
-              echo "Server is ready"
-              break
-            fi
-            sleep 1
-          done
-
-          # Test server is responding
-          echo "Testing server endpoints..."
-          curl -I http://localhost:3000/ || echo "WARNING: Root endpoint failed"
-          curl -I http://localhost:3000/test || echo "WARNING: Test endpoint failed"
-
-          # Run Lighthouse CI
-          lhci autorun --collect.startServerCommand="" || LHCI_EXIT=$?
-
-          # Cleanup
-          kill $SERVER_PID 2>/dev/null || true
-
-          exit ${LHCI_EXIT:-0}
-
-      - name: Upload Lighthouse report
+      - name: Upload Lighthouse reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: lighthouse-report
-          path: .lighthouseci/
+          path: |
+            .lighthouseci/
+            tmp/lighthouse-fixtures/
+          retention-days: 14
+
+      - name: Upload server logs on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: lighthouse-server-logs
+          path: .lighthouseci/server.log
           retention-days: 7
 
   semantic-release:
