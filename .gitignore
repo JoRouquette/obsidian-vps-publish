@@ -12,6 +12,10 @@ report.html
 # Lighthouse CI reports
 .lighthouseci/
 
+# Playwright reports
+**/playwright-report/
+**/test-results/
+
 # Load test reports
 /tools/load-tests/artillery/reports/**/*
 !/tools/load-tests/artillery/reports/.gitkeep

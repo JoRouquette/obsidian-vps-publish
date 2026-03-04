@@ -136,8 +136,74 @@
       "label": "Complete workflow",
       "type": "shell",
       "command": "bash",
-      "args": ["-c", "npm run docs:check && npm run lint && npm run build && npm run test"],
-      "problemMatcher": []
+      "args": ["scripts/ci-pipeline.sh"],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "Complete workflow + Lighthouse",
+      "type": "shell",
+      "command": "bash",
+      "args": ["scripts/ci-pipeline.sh", "--full"],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "Quick CI",
+      "type": "shell",
+      "command": "bash",
+      "args": ["scripts/ci-pipeline.sh", "--quick"],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "E2E tests only",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -e && if [ -f dist/apps/site/browser/index.csr.html ] && [ ! -f dist/apps/site/browser/index.html ]; then cp dist/apps/site/browser/index.csr.html dist/apps/site/browser/index.html; fi && npx playwright install chromium --with-deps && npm run test:e2e:ci"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Lighthouse CI only",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -e && if [ -f dist/apps/site/browser/index.csr.html ] && [ ! -f dist/apps/site/browser/index.html ]; then cp dist/apps/site/browser/index.csr.html dist/apps/site/browser/index.html; fi && npm run lighthouse:ci"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated"
+      }
     },
     {
       "label": "SSR: Build Angular",
