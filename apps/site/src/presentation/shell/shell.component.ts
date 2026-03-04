@@ -21,6 +21,7 @@ import { CatalogFacade } from '../../application/facades/catalog-facade';
 import { ConfigFacade } from '../../application/facades/config-facade';
 import { SearchFacade } from '../../application/facades/search-facade';
 import { PwaMetaService } from '../../infrastructure/pwa/pwa-meta.service';
+import { ScrollToTopComponent } from '../components/scroll-to-top/scroll-to-top.component';
 import { SearchBarComponent } from '../components/search-bar/search-bar.component';
 import { LogoComponent } from '../pages/logo/logo.component';
 import { TopbarComponent } from '../pages/topbar/topbar.component';
@@ -40,6 +41,7 @@ type Crumb = { label: string; url: string };
     MatButtonModule,
     MatTooltipModule,
     SearchBarComponent,
+    ScrollToTopComponent,
   ],
   templateUrl: './shell.component.html',
   styleUrls: ['./shell.component.scss'],

@@ -1,3 +1,4 @@
+import { isPlatformBrowser } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -10,6 +11,7 @@ import {
   Inject,
   inject,
   OnDestroy,
+  PLATFORM_ID,
   signal,
   ViewChild,
   ViewEncapsulation,
@@ -28,6 +30,7 @@ import { HttpContentRepository } from '../../../infrastructure/http/http-content
 import { OfflineDetectionService, VisitedPagesService } from '../../../infrastructure/offline';
 import { ImageOverlayComponent } from '../../components/image-overlay/image-overlay.component';
 import { LeafletMapComponent } from '../../components/leaflet-map/leaflet-map.component';
+import { AnchorScrollService } from '../../services/anchor-scroll.service';
 
 @Component({
   standalone: true,
@@ -62,6 +65,10 @@ export class ViewerComponent implements OnDestroy {
   // Injected services for offline support
   private readonly visitedPagesService = inject(VisitedPagesService);
   private readonly offlineService = inject(OfflineDetectionService);
+
+  // Injected service for anchor scrolling
+  private readonly anchorScrollService = inject(AnchorScrollService);
+  private readonly platformId = inject(PLATFORM_ID);
 
   // Flux réactif moderne avec toSignal (Angular 20 pattern)
   private readonly rawHtml = toSignal(
@@ -230,9 +237,18 @@ export class ViewerComponent implements OnDestroy {
     if (href.startsWith('#')) {
       event.preventDefault();
       const targetId = href.substring(1);
-      this.scrollToElement(targetId);
-      // Update URL without navigation
-      globalThis.history.pushState(null, '', `${globalThis.location.pathname}${href}`);
+      // Use AnchorScrollService for SSR-safe scrolling
+      void this.anchorScrollService.navigateToAnchor(targetId);
+      return;
+    }
+
+    // Check if this is a link to the current page with a different fragment
+    if (this.anchorScrollService.isCurrentPageLink(href)) {
+      event.preventDefault();
+      const [, fragment] = href.split('#');
+      if (fragment) {
+        void this.anchorScrollService.navigateToAnchor(fragment);
+      }
       return;
     }
 
@@ -261,49 +277,31 @@ export class ViewerComponent implements OnDestroy {
   }
 
   /**
-   * Scroll vers un élément par son ID
+   * Scroll vers un élément par son ID (SSR-safe)
    */
   private scrollToElement(elementId: string): void {
-    const targetElement = document.getElementById(elementId);
-    if (targetElement) {
-      targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    if (!isPlatformBrowser(this.platformId)) return;
+    void this.anchorScrollService.scrollToAnchor(elementId);
   }
 
   /**
    * Tente de scroller vers le fragment pending si présent
    * Appelé après que le contenu HTML est injecté dans le DOM
+   * Utilise AnchorScrollService pour une gestion SSR-safe et robuste
    */
   private scrollToFragmentIfPending(): void {
     const fragment = this.pendingScrollFragment();
     if (!fragment) return;
 
-    // Stratégie de retry bornée car le DOM peut ne pas être immédiatement prêt
-    let attempts = 0;
-    const maxAttempts = 5;
+    if (!isPlatformBrowser(this.platformId)) {
+      this.pendingScrollFragment.set(null);
+      return;
+    }
 
-    const tryScroll = () => {
-      attempts++;
-      const targetElement = document.getElementById(fragment);
-
-      if (targetElement) {
-        // Élément trouvé, on scroll
-        targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        this.pendingScrollFragment.set(null);
-        return;
-      }
-
-      // Si pas trouvé et qu'on a encore des tentatives, réessayer après un frame
-      if (attempts < maxAttempts) {
-        requestAnimationFrame(tryScroll);
-      } else {
-        // Abandon après maxAttempts
-        this.pendingScrollFragment.set(null);
-      }
-    };
-
-    // Démarrer la première tentative après un frame (pour laisser le DOM se mettre à jour)
-    requestAnimationFrame(tryScroll);
+    // Use AnchorScrollService which handles MutationObserver and retry logic
+    void this.anchorScrollService.scrollToAnchor(fragment).then(() => {
+      this.pendingScrollFragment.set(null);
+    });
   }
 
   private showTooltip(event: Event): void {
