@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Nested Deep Page - E2E Test Site</title>
+    <meta name="description" content="A nested page in a folder structure" />
+  </head>
+  <body>
+    <div data-testid="viewer-content">
+      <h1>Nested Deep Page</h1>
+      <p>This page is located in a nested folder structure: <code>nested/deep-page</code></p>
+
+      <nav data-testid="breadcrumbs">
+        <a href="/">Home</a> / <span>nested</span> /
+        <span>deep-page</span>
+      </nav>
+
+      <h2>Content</h2>
+      <p>This demonstrates that nested paths work correctly in the application.</p>
+      <p>The route for this page is: <code>/nested/deep-page</code></p>
+
+      <h2>Navigation</h2>
+      <ul>
+        <li><a href="/">Go to Home</a></li>
+        <li><a href="/test-page">Go to Test Page</a></li>
+      </ul>
+    </div>
+  </body>
+</html>

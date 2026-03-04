@@ -1,0 +1,87 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2024-01-01T00:00:00.000Z",
+  "siteMetadata": {
+    "siteName": "E2E Test Site",
+    "author": "E2E Test Author",
+    "repoUrl": "https://github.com/test/test",
+    "reportIssuesUrl": "https://github.com/test/test/issues"
+  },
+  "pages": [
+    {
+      "id": "index",
+      "title": "Home",
+      "slug": "index",
+      "route": "/",
+      "description": "Welcome to the E2E test site homepage",
+      "publishedAt": "2024-01-01T00:00:00.000Z",
+      "isCustomIndex": true,
+      "tags": []
+    },
+    {
+      "id": "test-page",
+      "title": "Test Page",
+      "slug": "test-page",
+      "route": "/test-page",
+      "description": "A test page for E2E testing",
+      "publishedAt": "2024-01-01T00:00:00.000Z",
+      "tags": ["test", "e2e"]
+    },
+    {
+      "id": "page-with-anchor",
+      "title": "Page With Anchors",
+      "slug": "page-with-anchor",
+      "route": "/page-with-anchor",
+      "description": "A page with multiple sections for anchor navigation testing",
+      "publishedAt": "2024-01-01T00:00:00.000Z",
+      "tags": ["anchor", "navigation"]
+    },
+    {
+      "id": "page-with-assets",
+      "title": "Page With Assets",
+      "slug": "page-with-assets",
+      "route": "/page-with-assets",
+      "description": "A page with images and other assets",
+      "publishedAt": "2024-01-01T00:00:00.000Z",
+      "tags": ["assets", "images"]
+    },
+    {
+      "id": "nested/deep-page",
+      "title": "Nested Deep Page",
+      "slug": "nested/deep-page",
+      "route": "/nested/deep-page",
+      "description": "A nested page in a folder structure",
+      "publishedAt": "2024-01-01T00:00:00.000Z",
+      "path": ["nested"],
+      "tags": ["nested"]
+    },
+    {
+      "id": "wikilink-source",
+      "title": "Wikilink Source",
+      "slug": "wikilink-source",
+      "route": "/wikilink-source",
+      "description": "A page that contains wikilinks to other pages",
+      "publishedAt": "2024-01-01T00:00:00.000Z",
+      "tags": ["wikilinks"]
+    }
+  ],
+  "canonicalMap": {
+    "index": "/",
+    "test-page": "/test-page",
+    "page-with-anchor": "/page-with-anchor",
+    "page-with-assets": "/page-with-assets",
+    "nested/deep-page": "/nested/deep-page",
+    "wikilink-source": "/wikilink-source"
+  },
+  "folderStructure": {
+    "name": "root",
+    "children": [
+      {
+        "name": "nested",
+        "children": [],
+        "pages": ["nested/deep-page"]
+      }
+    ],
+    "pages": ["index", "test-page", "page-with-anchor", "page-with-assets", "wikilink-source"]
+  }
+}

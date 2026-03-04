@@ -30,7 +30,9 @@ apps/*/.env.*
 # Ignore build artifacts in the ui app
 coverage/**/*
 **/content/**/*
+!apps/site/e2e/fixtures/content/**/*
 **/assets/**/*
+!apps/site/e2e/fixtures/assets/**/*
 **/build/**/*
 **.angular**
 **.next**

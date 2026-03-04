@@ -5,7 +5,8 @@
 
 import { expect, test } from '@playwright/test';
 
-const BASE_URL = process.env['BASE_URL'] || 'http://localhost:4200';
+// BASE_URL comes from playwright.config.ts (http://localhost:3000)
+const BASE_URL = process.env['BASE_URL'] || 'http://localhost:3000';
 
 test.describe('SEO Meta Tags', () => {
   test('should have correct Open Graph meta tags on home page', async ({ page }) => {
