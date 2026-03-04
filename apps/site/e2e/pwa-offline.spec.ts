@@ -9,7 +9,7 @@ test.describe('PWA and Offline Support', () => {
   test.describe('Service Worker', () => {
     test('should register service worker in production build', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Check if service worker is registered
       const swRegistrations = await page.evaluate(async () => {
@@ -32,7 +32,7 @@ test.describe('PWA and Offline Support', () => {
 
     test('should cache static assets', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Wait for service worker to be ready
       await page.waitForTimeout(1000);
@@ -59,10 +59,10 @@ test.describe('PWA and Offline Support', () => {
     test('should cache visited pages for offline access', async ({ page, context }) => {
       // First, visit pages online to populate cache
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       await page.goto('/test-page');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Wait for service worker caching
       await page.waitForTimeout(2000);
@@ -100,7 +100,7 @@ test.describe('PWA and Offline Support', () => {
 
     test('should show offline indicator when offline', async ({ page, context }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Go offline
       await context.setOffline(true);
@@ -162,7 +162,7 @@ test.describe('PWA and Offline Support', () => {
   test.describe('Install Prompt', () => {
     test('should be installable as PWA', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Check if the app is installable (manifest requirements)
       const isInstallable = await page.evaluate(async () => {

@@ -68,7 +68,7 @@ test.describe('SEO Meta Tags', () => {
 
     // Navigate to search page
     await page.goto(`${BASE_URL}/search`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Title should update (or remain consistent)
     const searchTitle = await page.locator('meta[property="og:title"]').getAttribute('content');
@@ -153,7 +153,7 @@ test.describe('SEO Redirections (301)', () => {
     // Skip if test data doesn't have redirections configured
 
     // Attempt to navigate to an old route
-    const response = await page.goto(`${BASE_URL}/old-route`, { waitUntil: 'networkidle' });
+    const response = await page.goto(`${BASE_URL}/old-route`, { waitUntil: 'domcontentloaded' });
 
     // If canonicalMap has this route, should be 301 redirect
     // Otherwise, should be 200 (normal navigation) or 404
@@ -190,7 +190,7 @@ test.describe('Cache Headers', () => {
 
     // Navigate to a content page (if available)
     // For now, test home page cache headers via network inspection
-    const response = await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const response = await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
 
     const cacheControl = response?.headers()['cache-control'];
     expect(cacheControl).toBeTruthy();

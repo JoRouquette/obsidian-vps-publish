@@ -47,7 +47,7 @@ test.describe('Leaflet Map Integration', () => {
     await page.goto('/test-leaflet');
 
     // Attendre que la page charge
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Vérifier que le conteneur de carte Leaflet existe
     const mapContainer = page.locator('[data-testid="leaflet-map-test-map"]');
@@ -81,7 +81,7 @@ test.describe('Leaflet Map Integration', () => {
     await page.goto('/');
 
     // Attendre que la page soit complètement chargée
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Vérifier qu'il n'y a pas d'erreurs liées à Leaflet
     const leafletErrors = consoleErrors.filter((err) => err.toLowerCase().includes('leaflet'));
@@ -144,7 +144,7 @@ test.describe('Leaflet Map Integration', () => {
     });
 
     await page.goto('/multi-maps');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Vérifier que les deux conteneurs existent
     const map1 = page.locator('[data-testid="leaflet-map-map-1"]');

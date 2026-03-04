@@ -42,7 +42,7 @@ test.describe('Assets Rendering', () => {
       });
 
       await page.goto(pageWithAssets);
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Verify no images failed to load
       expect(brokenImages).toHaveLength(0);
