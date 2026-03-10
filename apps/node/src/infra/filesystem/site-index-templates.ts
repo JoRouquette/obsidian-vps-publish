@@ -18,7 +18,7 @@ export function renderRootIndex(
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(
       (d) =>
-        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(d.displayName ?? humanizePropertyKey(d.name))}</a><span class="index-count">(${d.count})</span></li>`
+        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(d.displayName ?? humanizePropertyKey(d.name))}</a></li>`
     )
     .join('');
 
@@ -48,7 +48,7 @@ export function renderFolderIndex(
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(
       (d) =>
-        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(d.displayName ?? humanizePropertyKey(d.name))}</a><span class="index-count">(${d.count})</span></li>`
+        `<li><a class="index-link" href="${withLeadingSlash(d.link)}/index">${escapeHtml(d.displayName ?? humanizePropertyKey(d.name))}</a></li>`
     )
     .join('');
 

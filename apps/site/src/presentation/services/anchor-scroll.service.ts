@@ -164,22 +164,63 @@ export class AnchorScrollService {
   }
 
   /**
-   * Attempt to scroll to an element
+   * Attempt to scroll to an element.
+   * Handles special cases like scroll containers and URL-encoded IDs.
    */
   private tryScroll(fragmentId: string, options: Required<ScrollOptions>): boolean {
     if (!this.isBrowser) return false;
 
-    const element = document.getElementById(fragmentId);
+    // Decode URL-encoded fragment (e.g., %20 -> space)
+    const decodedId = decodeURIComponent(fragmentId);
+
+    // Try to find element by ID (getElementById handles most cases)
+    let element = document.getElementById(decodedId);
+
+    // Fallback: try with original (non-decoded) ID
+    if (!element && decodedId !== fragmentId) {
+      element = document.getElementById(fragmentId);
+    }
+
+    // Fallback: try querySelector with escaped ID for special characters
+    if (!element) {
+      try {
+        element = document.querySelector(`[id="${CSS.escape(decodedId)}"]`);
+      } catch {
+        // CSS.escape might not be available in all environments
+      }
+    }
+
     if (!element) {
       return false;
     }
 
     // Run outside Angular zone to avoid change detection during scroll
     this.ngZone.runOutsideAngular(() => {
-      element.scrollIntoView({
-        behavior: options.behavior,
-        block: options.block,
-      });
+      // Find the scroll container (.main element) for proper scroll calculation
+      const scrollContainer = document.querySelector('.main');
+
+      if (scrollContainer) {
+        // Calculate target position relative to scroll container
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+        const currentScrollTop = scrollContainer.scrollTop;
+
+        // Calculate the scroll position to bring element to top (with offset for padding)
+        const scrollOffset = 20; // Small offset from top
+        const targetScrollTop =
+          currentScrollTop + (elementRect.top - containerRect.top) - scrollOffset;
+
+        scrollContainer.scrollTo({
+          top: Math.max(0, targetScrollTop),
+          behavior: options.behavior,
+        });
+      } else {
+        // Fallback to scrollIntoView if container not found
+        element.scrollIntoView({
+          behavior: options.behavior,
+          block: options.block,
+        });
+      }
     });
 
     return true;

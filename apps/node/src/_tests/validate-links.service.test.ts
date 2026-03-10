@@ -320,9 +320,9 @@ describe('ValidateLinksService', () => {
         <div class="markdown-body">
           <h1>Dossiers</h1>
           <ul class="index-list">
-            <li><a class="index-link" href="/mundis/index">Mundis</a><span class="index-count">(15)</span></li>
-            <li><a class="index-link" href="/lore/index">Lore</a><span class="index-count">(5)</span></li>
-            <li><a class="index-link" href="/pantheon/index">Panthéon</a><span class="index-count">(26)</span></li>
+            <li><a class="index-link" href="/mundis/index">Mundis</a></li>
+            <li><a class="index-link" href="/lore/index">Lore</a></li>
+            <li><a class="index-link" href="/pantheon/index">Panthéon</a></li>
           </ul>
         </div>
       `;
