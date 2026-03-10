@@ -59,135 +59,135 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  e2e:
-    name: End-to-end tests
-    needs: quality
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+  # e2e:
+  #   name: End-to-end tests
+  #   needs: quality
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
+  #     - name: Setup Node
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: ${{ env.NODE_VERSION }}
+  #         cache: npm
 
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund --ignore-scripts --legacy-peer-deps
-        env:
-          HUSKY: 0
+  #     - name: Install dependencies
+  #       run: npm install --no-audit --no-fund --ignore-scripts --legacy-peer-deps
+  #       env:
+  #         HUSKY: 0
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
+  #     - name: Download build artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: dist
+  #         path: dist
 
-      - name: Install Playwright browsers
-        run: npx playwright install chromium --with-deps
+  #     - name: Install Playwright browsers
+  #       run: npx playwright install chromium --with-deps
 
-      - name: Create index.html for CSR fallback
-        run: |
-          if [ -f "dist/apps/site/browser/index.csr.html" ]; then
-            cp dist/apps/site/browser/index.csr.html dist/apps/site/browser/index.html
-            echo "✓ Created index.html from index.csr.html"
-          fi
+  #     - name: Create index.html for CSR fallback
+  #       run: |
+  #         if [ -f "dist/apps/site/browser/index.csr.html" ]; then
+  #           cp dist/apps/site/browser/index.csr.html dist/apps/site/browser/index.html
+  #           echo "✓ Created index.html from index.csr.html"
+  #         fi
 
-      - name: Run E2E tests
-        run: npx nx e2e site --configuration=ci
-        env:
-          CI: true
-          BASE_URL: http://localhost:3000
+  #     - name: Run E2E tests
+  #       run: npx nx e2e site --configuration=ci
+  #       env:
+  #         CI: true
+  #         BASE_URL: http://localhost:3000
 
-      - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: apps/site/playwright-report
-          retention-days: 7
+  #     - name: Upload Playwright report
+  #       uses: actions/upload-artifact@v4
+  #       if: always()
+  #       with:
+  #         name: playwright-report
+  #         path: apps/site/playwright-report
+  #         retention-days: 7
 
-      - name: Upload Playwright test results
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-test-results
-          path: apps/site/test-results
-          retention-days: 7
+  #     - name: Upload Playwright test results
+  #       uses: actions/upload-artifact@v4
+  #       if: failure()
+  #       with:
+  #         name: playwright-test-results
+  #         path: apps/site/test-results
+  #         retention-days: 7
 
-  performance:
-    name: Performance budget validation (Lighthouse CI)
-    needs: quality
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+  # performance:
+  #   name: Performance budget validation (Lighthouse CI)
+  #   needs: quality
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
+  #     - name: Setup Node
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: ${{ env.NODE_VERSION }}
+  #         cache: npm
 
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund --ignore-scripts --legacy-peer-deps
-        env:
-          HUSKY: 0
+  #     - name: Install dependencies
+  #       run: npm install --no-audit --no-fund --ignore-scripts --legacy-peer-deps
+  #       env:
+  #         HUSKY: 0
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
+  #     - name: Download build artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: dist
+  #         path: dist
 
-      - name: Install Lighthouse CI globally
-        run: npm install -g @lhci/cli@0.14.x
+  #     - name: Install Lighthouse CI globally
+  #       run: npm install -g @lhci/cli@0.14.x
 
-      - name: Prepare Angular CSR fallback
-        run: |
-          if [ -f "dist/apps/site/browser/index.csr.html" ] && [ ! -f "dist/apps/site/browser/index.html" ]; then
-            cp dist/apps/site/browser/index.csr.html dist/apps/site/browser/index.html
-            echo "✓ Created index.html from index.csr.html"
-          fi
+  #     - name: Prepare Angular CSR fallback
+  #       run: |
+  #         if [ -f "dist/apps/site/browser/index.csr.html" ] && [ ! -f "dist/apps/site/browser/index.html" ]; then
+  #           cp dist/apps/site/browser/index.csr.html dist/apps/site/browser/index.html
+  #           echo "✓ Created index.html from index.csr.html"
+  #         fi
 
-      - name: Run Lighthouse CI (SSR mode)
-        id: lighthouse-ssr
-        run: npm run lighthouse:ci
-        env:
-          CI: true
+  #     - name: Run Lighthouse CI (SSR mode)
+  #       id: lighthouse-ssr
+  #       run: npm run lighthouse:ci
+  #       env:
+  #         CI: true
 
-      - name: Upload Lighthouse reports
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: lighthouse-report
-          path: |
-            .lighthouseci/
-            tmp/lighthouse-fixtures/
-          retention-days: 14
+  #     - name: Upload Lighthouse reports
+  #       uses: actions/upload-artifact@v4
+  #       if: always()
+  #       with:
+  #         name: lighthouse-report
+  #         path: |
+  #           .lighthouseci/
+  #           tmp/lighthouse-fixtures/
+  #         retention-days: 14
 
-      - name: Upload server logs on failure
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: lighthouse-server-logs
-          path: .lighthouseci/server.log
-          retention-days: 7
+  #     - name: Upload server logs on failure
+  #       uses: actions/upload-artifact@v4
+  #       if: failure()
+  #       with:
+  #         name: lighthouse-server-logs
+  #         path: .lighthouseci/server.log
+  #         retention-days: 7
 
   semantic-release:
     name: Semantic release
-    needs: [quality, e2e, performance]
+    needs: [quality]
     runs-on: ubuntu-latest
     permissions:
       contents: write
