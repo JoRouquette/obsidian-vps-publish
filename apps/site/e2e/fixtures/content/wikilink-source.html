@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Wikilink Source - E2E Test Site</title>
+    <meta name="description" content="A page that contains wikilinks to other pages" />
+  </head>
+  <body>
+    <div>
+      <h1>Wikilink Source</h1>
+      <p>This page contains various types of wikilinks for testing navigation.</p>
+
+      <h2>Basic Links</h2>
+      <ul>
+        <li><a href="/test-page" class="wikilink">Link to Test Page</a></li>
+        <li><a href="/page-with-anchor" class="wikilink">Link to Page With Anchors</a></li>
+        <li><a href="/nested/deep-page" class="wikilink">Link to Nested Page</a></li>
+      </ul>
+
+      <h2>Links with Anchors</h2>
+      <ul>
+        <li>
+          <a href="/page-with-anchor#section-one" class="wikilink">Section One</a> - Redirects to
+          Section One
+        </li>
+        <li>
+          <a href="/page-with-anchor#section-two" class="wikilink">Section Two</a> - Redirects to
+          Section Two
+        </li>
+        <li>
+          <a href="/page-with-anchor#deep-section" class="wikilink">Deep Section</a> - Redirects to
+          a nested heading
+        </li>
+      </ul>
+
+      <h2>Same Page Anchors</h2>
+      <p id="local-anchor">This paragraph has an ID for local anchor testing.</p>
+      <p><a href="#local-anchor">Jump to local anchor</a></p>
+
+      <h2 id="test-heading">Test Heading</h2>
+      <p>Content under the test heading.</p>
+      <p><a href="#test-heading">Jump to Test Heading</a></p>
+
+      <p><a href="/">Back to Home</a></p>
+    </div>
+  </body>
+</html>

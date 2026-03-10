@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Page With Anchors - E2E Test Site</title>
+    <meta
+      name="description"
+      content="A page with multiple sections for anchor navigation testing"
+    />
+  </head>
+  <body>
+    <div>
+      <h1>Page With Anchors</h1>
+      <p>This page contains multiple sections with anchors for testing anchor navigation.</p>
+
+      <nav>
+        <h2>Table of Contents</h2>
+        <ul>
+          <li><a href="#section-one">Section One</a></li>
+          <li><a href="#section-two">Section Two</a></li>
+          <li><a href="#section-three">Section Three</a></li>
+          <li><a href="#deep-section">Deep Section</a></li>
+        </ul>
+      </nav>
+
+      <h2 id="section-one">Section One</h2>
+      <p>
+        This is the first section. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
+        eiusmod tempor incididunt ut labore et dolore magna aliqua.
+      </p>
+      <p>More content to ensure scrolling is needed.</p>
+      <p>Even more content here for the first section.</p>
+
+      <h2 id="section-two">Section Two</h2>
+      <p>
+        This is the second section. Ut enim ad minim veniam, quis nostrud exercitation ullamco
+        laboris nisi ut aliquip ex ea commodo consequat.
+      </p>
+      <p>This section is referenced from the test-page via a cross-page anchor link.</p>
+      <p>More content for section two.</p>
+
+      <h2 id="section-three">Section Three</h2>
+      <p>
+        This is the third section. Duis aute irure dolor in reprehenderit in voluptate velit esse
+        cillum dolore eu fugiat nulla pariatur.
+      </p>
+      <p>Additional content for the third section.</p>
+
+      <h3 id="deep-section">Deep Section</h3>
+      <p>
+        This is a deeper nested section with an anchor. Excepteur sint occaecat cupidatat non
+        proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+      </p>
+
+      <p><a href="/">Back to Home</a></p>
+    </div>
+  </body>
+</html>

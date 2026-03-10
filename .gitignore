@@ -12,6 +12,10 @@ report.html
 # Lighthouse CI reports
 .lighthouseci/
 
+# Playwright reports
+**/playwright-report/
+**/test-results/
+
 # Load test reports
 /tools/load-tests/artillery/reports/**/*
 !/tools/load-tests/artillery/reports/.gitkeep
@@ -30,7 +34,9 @@ apps/*/.env.*
 # Ignore build artifacts in the ui app
 coverage/**/*
 **/content/**/*
+!apps/site/e2e/fixtures/content/**/*
 **/assets/**/*
+!apps/site/e2e/fixtures/assets/**/*
 **/build/**/*
 **.angular**
 **.next**

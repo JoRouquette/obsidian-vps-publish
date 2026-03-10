@@ -7,14 +7,17 @@ import { createApp } from './infra/http/express/app';
 import { ConsoleLogger } from './infra/logging/console-logger';
 
 // Load environment variables from .env.dev or .env file
+// In test mode (E2E/CI), do NOT override env vars passed externally
+const isTestMode = process.env.NODE_ENV === 'test' || process.env.CI === 'true';
 const envFile = process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.dev';
 const envPath = path.resolve(process.cwd(), envFile);
 
-loadEnv({ path: envPath, override: true });
+// Only override in development mode, not in test/CI
+loadEnv({ path: envPath, override: !isTestMode });
 
-// Fallback to .env if specific file doesn't exist
+// Fallback to .env if specific file doesn't exist (only if API_KEY not set)
 if (!process.env.API_KEY) {
-  loadEnv({ override: true }); // Try default .env file
+  loadEnv({ override: !isTestMode }); // Try default .env file
 }
 
 async function bootstrap() {
