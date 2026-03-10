@@ -1,3 +1,23 @@
+## [6.10.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.9.0...6.10.0) (2026-03-10)
+
+### ⚠ BREAKING CHANGES
+
+* **e2e:** E2E tests now block semantic-release if they fail
+
+### Features
+
+* **e2e:** implement blocking e2e tests in CI/CD pipeline ([a8ce6aa](https://github.com/JoRouquette/obsidian-vps-publish/commit/a8ce6aaa07de56162e24d285df97edbae101a68f))
+* **perf:** add comprehensive Lighthouse CI integration with performance budgets ([5fa1f96](https://github.com/JoRouquette/obsidian-vps-publish/commit/5fa1f9683e826ee55575fd241580bcb7ef2adbbf))
+* **site:** add scroll-to-top button and anchor scroll service ([51f778d](https://github.com/JoRouquette/obsidian-vps-publish/commit/51f778da501d7dc074df21081410c8c34ab427d9))
+
+### Bug Fixes
+
+* **e2e:** adapt tests for desktop viewport and relax Lighthouse budgets ([359b3db](https://github.com/JoRouquette/obsidian-vps-publish/commit/359b3dbfcb4693587e2a43a25d0aa3da3a16026f))
+* **e2e:** correct selectors and expectations for CI compatibility ([4e5fa66](https://github.com/JoRouquette/obsidian-vps-publish/commit/4e5fa664dd9fa61e2c678a105c00573e7728a079))
+* **e2e:** resolve CI test failures ([52555a1](https://github.com/JoRouquette/obsidian-vps-publish/commit/52555a118b591e7f8bab5de5ff18b1912eafc290))
+* **e2e:** resolve test failures in CI ([cc42b95](https://github.com/JoRouquette/obsidian-vps-publish/commit/cc42b959d2c83e92d4960bff83a9021531063fec))
+* **site:** scroll-to-top visibility and navigation scroll reset ([2e4503c](https://github.com/JoRouquette/obsidian-vps-publish/commit/2e4503cea4e300f6df24d376a6a3c49ccb5dccfe))
+
 ## [6.9.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.8.0...6.9.0) (2026-03-03)
 
 ### ⚠ BREAKING CHANGES
