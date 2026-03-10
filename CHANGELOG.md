@@ -1,3 +1,9 @@
+## [6.10.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.10.0...6.10.1) (2026-03-10)
+
+### Bug Fixes
+
+* **site:** improve same-page anchor navigation with scroll containers ([64175b1](https://github.com/JoRouquette/obsidian-vps-publish/commit/64175b110c750d3d97a8b21bfa5d727b2b84b152))
+
 ## [6.10.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.9.0...6.10.0) (2026-03-10)
 
 ### ⚠ BREAKING CHANGES
