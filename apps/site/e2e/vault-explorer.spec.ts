@@ -1,8 +1,24 @@
 import { expect, test, Page } from '@playwright/test';
 
-/** Helper to get the open menu button (topbar burger button) */
-function getOpenMenuButton(page: Page) {
-  return page.getByRole('button', { name: /ouvrir le menu/i });
+/**
+ * Helper to ensure vault explorer is visible.
+ * On desktop (>768px), the vault explorer is always visible in the grid layout.
+ * On mobile (<768px), we need to click the burger button to open it.
+ */
+async function ensureVaultExplorerOpen(page: Page) {
+  const vaultExplorer = page.locator('[data-testid="vault-explorer"]');
+
+  // Check if already visible (desktop mode)
+  if (await vaultExplorer.isVisible()) {
+    return;
+  }
+
+  // Mobile mode: click burger button
+  const menuButton = page.getByRole('button', { name: /ouvrir le menu/i });
+  if (await menuButton.isVisible()) {
+    await menuButton.click();
+    await expect(vaultExplorer).toBeVisible();
+  }
 }
 
 test.describe('Vault Explorer', () => {
@@ -10,21 +26,27 @@ test.describe('Vault Explorer', () => {
     await page.goto('/');
   });
 
-  test('should open vault explorer menu', async ({ page }) => {
-    const menuButton = getOpenMenuButton(page);
-    await menuButton.click();
+  test('should display vault explorer', async ({ page }) => {
+    await ensureVaultExplorerOpen(page);
 
     // Vault explorer should be visible
     const vaultExplorer = page.locator('[data-testid="vault-explorer"]');
     await expect(vaultExplorer).toBeVisible();
   });
 
-  test('should close vault explorer menu', async ({ page }) => {
-    // Open menu
-    const menuButton = getOpenMenuButton(page);
-    await menuButton.click();
+  test('should toggle vault explorer on mobile', async ({ page }) => {
+    // This test is mobile-specific
+    const viewport = page.viewportSize();
+    if (!viewport || viewport.width > 768) {
+      test.skip();
+      return;
+    }
 
     const vaultExplorer = page.locator('[data-testid="vault-explorer"]');
+    const menuButton = page.getByRole('button', { name: /ouvrir le menu/i });
+
+    // Open menu
+    await menuButton.click();
     await expect(vaultExplorer).toBeVisible();
 
     // Close menu (use the close button inside the menu)
@@ -34,8 +56,7 @@ test.describe('Vault Explorer', () => {
   });
 
   test('should display folder structure', async ({ page }) => {
-    const menuButton = getOpenMenuButton(page);
-    await menuButton.click();
+    await ensureVaultExplorerOpen(page);
 
     // Wait for vault explorer to load
     await page.waitForSelector('[data-testid="vault-explorer"]');
@@ -52,8 +73,7 @@ test.describe('Vault Explorer', () => {
   });
 
   test('should expand and collapse folders', async ({ page }) => {
-    const menuButton = getOpenMenuButton(page);
-    await menuButton.click();
+    await ensureVaultExplorerOpen(page);
 
     await page.waitForSelector('[data-testid="vault-explorer"]');
 
@@ -81,8 +101,7 @@ test.describe('Vault Explorer', () => {
   });
 
   test('should navigate to page when clicking on page link', async ({ page }) => {
-    const menuButton = getOpenMenuButton(page);
-    await menuButton.click();
+    await ensureVaultExplorerOpen(page);
 
     await page.waitForSelector('[data-testid="vault-explorer"]');
 
@@ -109,8 +128,7 @@ test.describe('Vault Explorer', () => {
     await page.goto('/test-page'); // Adjust with real slug
 
     // Open vault explorer
-    const menuButton = getOpenMenuButton(page);
-    await menuButton.click();
+    await ensureVaultExplorerOpen(page);
 
     await page.waitForSelector('[data-testid="vault-explorer"]');
 
@@ -130,8 +148,7 @@ test.describe('Vault Explorer', () => {
       return;
     }
 
-    const menuButton = getOpenMenuButton(page);
-    await menuButton.click();
+    await ensureVaultExplorerOpen(page);
 
     const vaultExplorer = page.locator('[data-testid="vault-explorer"]');
     await expect(vaultExplorer).toBeVisible();
@@ -156,8 +173,7 @@ test.describe('Vault Explorer', () => {
   });
 
   test('should clear filter when clicking clear button', async ({ page }) => {
-    const menuButton = getOpenMenuButton(page);
-    await menuButton.click();
+    await ensureVaultExplorerOpen(page);
 
     await page.waitForSelector('[data-testid="vault-explorer"]');
 
@@ -192,8 +208,7 @@ test.describe('Vault Explorer', () => {
   test('should filter ONLY on basename (file/folder name), not on parent path', async ({
     page,
   }) => {
-    const menuButton = getOpenMenuButton(page);
-    await menuButton.click();
+    await ensureVaultExplorerOpen(page);
 
     await page.waitForSelector('[data-testid="vault-explorer"]');
 
@@ -233,8 +248,7 @@ test.describe('Vault Explorer', () => {
   });
 
   test('should match on basename and display correct result count', async ({ page }) => {
-    const menuButton = getOpenMenuButton(page);
-    await menuButton.click();
+    await ensureVaultExplorerOpen(page);
 
     await page.waitForSelector('[data-testid="vault-explorer"]');
 
@@ -276,8 +290,7 @@ test.describe('Vault Explorer', () => {
   });
 
   test('should NOT match on title or tags, only on basename', async ({ page }) => {
-    const menuButton = getOpenMenuButton(page);
-    await menuButton.click();
+    await ensureVaultExplorerOpen(page);
 
     await page.waitForSelector('[data-testid="vault-explorer"]');
 
@@ -300,8 +313,7 @@ test.describe('Vault Explorer', () => {
   });
 
   test('should display updated result count as user types', async ({ page }) => {
-    const menuButton = getOpenMenuButton(page);
-    await menuButton.click();
+    await ensureVaultExplorerOpen(page);
 
     await page.waitForSelector('[data-testid="vault-explorer"]');
 

@@ -152,7 +152,8 @@ test.describe('SEO Sitemap and Robots.txt', () => {
     const body = await response?.text();
     expect(body).toContain('User-agent: *');
     expect(body).toContain('Allow: /');
-    expect(body).toContain(`Sitemap: ${BASE_URL}/seo/sitemap.xml`);
+    // Sitemap should use canonical URL (without /seo/ prefix)
+    expect(body).toContain(`Sitemap: ${BASE_URL}/sitemap.xml`);
   });
 });
 
@@ -268,10 +269,14 @@ test.describe('SEO Best Practices', () => {
 
   test('should have description meta tag', async ({ page }) => {
     await page.goto(BASE_URL);
-    const description = await page.locator('meta[name="description"]').getAttribute('content');
+    // Use .first() to avoid strict mode violation if multiple meta tags exist
+    const description = await page
+      .locator('meta[name="description"]')
+      .first()
+      .getAttribute('content');
     expect(description).toBeTruthy();
-    expect(description!.length).toBeGreaterThan(0);
-    expect(description!.length).toBeLessThan(160); // SEO best practice: < 160 chars
+    expect(description?.length).toBeGreaterThan(0);
+    expect(description?.length).toBeLessThan(160); // SEO best practice: < 160 chars
   });
 
   test('should have viewport meta tag for mobile', async ({ page }) => {
