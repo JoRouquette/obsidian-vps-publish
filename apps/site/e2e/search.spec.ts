@@ -62,9 +62,11 @@ test.describe('Search Page', () => {
     // Look for clear button (if exists in UI)
     const clearButton = page.getByRole('button', { name: /effacer|clear/i });
     if (await clearButton.isVisible()) {
-      // On mobile, the clear button may be outside viewport - scroll it into view first
-      await clearButton.scrollIntoViewIfNeeded();
-      await clearButton.click({ force: true });
+      // Use JavaScript click to bypass viewport/overlay issues
+      await clearButton.evaluate((el) => (el as HTMLButtonElement).click());
+      // Wait for Angular to process the value change
+      await page.waitForTimeout(300);
+      // Verify input is cleared
       await expect(searchInput).toHaveValue('');
     }
   });

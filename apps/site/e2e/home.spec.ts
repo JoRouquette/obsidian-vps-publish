@@ -20,8 +20,10 @@ test.describe('Home Page', () => {
   });
 
   test('should display navigation elements', async ({ page }) => {
-    // Wait for page to fully load
-    await page.waitForLoadState('networkidle');
+    // Wait for DOM to be ready (don't use networkidle as SSE keeps connection active)
+    await page.waitForLoadState('domcontentloaded');
+    // Give Angular time to render
+    await page.waitForTimeout(500);
 
     // Check for basic navigation elements (menu, search, theme toggle, breadcrumb)
     // Use flexible matchers that work across different label variants
