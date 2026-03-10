@@ -323,6 +323,35 @@ function renderRouteNode(
   });
   setIcon(dragHandle, 'grip-vertical');
 
+  // Keyboard move buttons (accessible alternative to drag & drop)
+  const moveControls = item.createDiv({ cls: 'ptpv-route-move-controls' });
+
+  const moveUpBtn = moveControls.createEl('button', {
+    cls: 'ptpv-route-move-btn clickable-icon',
+    attr: {
+      'aria-label': ctx.t.routesKeyboard?.moveUp ?? 'Move up',
+      tabindex: '0',
+    },
+  });
+  setIcon(moveUpBtn, 'chevron-up');
+  moveUpBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    moveNodeUp(uiState, node, ctx);
+  });
+
+  const moveDownBtn = moveControls.createEl('button', {
+    cls: 'ptpv-route-move-btn clickable-icon',
+    attr: {
+      'aria-label': ctx.t.routesKeyboard?.moveDown ?? 'Move down',
+      tabindex: '0',
+    },
+  });
+  setIcon(moveDownBtn, 'chevron-down');
+  moveDownBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    moveNodeDown(uiState, node, ctx);
+  });
+
   // Expand/collapse button (if has children)
   const hasChildren = node.children && node.children.length > 0;
   if (hasChildren) {
@@ -581,4 +610,84 @@ function renderRouteEditor(
         ctx.refresh();
       });
   });
+}
+
+// ---------------------------------------------------------------------------
+// Keyboard Move Helpers
+// ---------------------------------------------------------------------------
+
+interface MoveUIState {
+  tempRouteTree: { roots: RouteNode[] } | null;
+  hasUnsavedChanges: boolean;
+}
+
+interface MoveContext {
+  refresh: () => void;
+}
+
+/**
+ * Get siblings array and current index for a node
+ */
+function getSiblingsAndIndex(
+  routeTree: { roots: RouteNode[] },
+  node: RouteNode
+): { siblings: RouteNode[]; index: number } | null {
+  // Check if it's a root node
+  const rootIndex = routeTree.roots.findIndex((r) => r.id === node.id);
+  if (rootIndex !== -1) {
+    return { siblings: routeTree.roots, index: rootIndex };
+  }
+
+  // Find parent and get siblings
+  const parent = findParentNode(routeTree, node.id);
+  if (parent && parent.children) {
+    const index = parent.children.findIndex((c) => c.id === node.id);
+    if (index !== -1) {
+      return { siblings: parent.children, index };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Move a node up in its siblings array
+ */
+function moveNodeUp(uiState: MoveUIState, node: RouteNode, ctx: MoveContext): void {
+  if (!uiState.tempRouteTree) return;
+
+  const result = getSiblingsAndIndex(uiState.tempRouteTree, node);
+  if (!result) return;
+
+  const { siblings, index } = result;
+
+  // Can't move up if already first
+  if (index === 0) return;
+
+  // Swap with previous sibling
+  [siblings[index - 1], siblings[index]] = [siblings[index], siblings[index - 1]];
+
+  uiState.hasUnsavedChanges = true;
+  ctx.refresh();
+}
+
+/**
+ * Move a node down in its siblings array
+ */
+function moveNodeDown(uiState: MoveUIState, node: RouteNode, ctx: MoveContext): void {
+  if (!uiState.tempRouteTree) return;
+
+  const result = getSiblingsAndIndex(uiState.tempRouteTree, node);
+  if (!result) return;
+
+  const { siblings, index } = result;
+
+  // Can't move down if already last
+  if (index >= siblings.length - 1) return;
+
+  // Swap with next sibling
+  [siblings[index], siblings[index + 1]] = [siblings[index + 1], siblings[index]];
+
+  uiState.hasUnsavedChanges = true;
+  ctx.refresh();
 }

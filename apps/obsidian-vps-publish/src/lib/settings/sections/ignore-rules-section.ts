@@ -81,17 +81,20 @@ function renderIgnoreRule(
   const inputsRow = ruleContainer.createDiv({ cls: 'ptpv-ignore-rule__inputs' });
   const mode = rule.ignoreValues && rule.ignoreValues.length > 0 ? 'values' : 'boolean';
 
-  // Property field
+  // Property field (with proper label association)
+  const propertyInputId = `ptpv-ignore-rule-property-${index}`;
   const propertyField = inputsRow.createDiv({ cls: 'ptpv-ignore-rule__field' });
   propertyField.createEl('label', {
     cls: 'ptpv-ignore-rule__label',
     text: t.settings.ignoreRules.propertyLabel ?? 'Property',
+    attr: { for: propertyInputId },
   });
   const propInput = propertyField.createEl('input', {
     type: 'text',
     value: rule.property ?? '',
     placeholder: t.settings.ignoreRules.propertyLabel ?? 'frontmatter property',
     cls: 'ptpv-input',
+    attr: { id: propertyInputId },
   });
   new FrontmatterPropertySuggester(ctx.app, propInput);
   propInput.addEventListener('input', () => {
@@ -99,13 +102,18 @@ function renderIgnoreRule(
     void ctx.save();
   });
 
-  // Type field (boolean or values)
+  // Type field (boolean or values) - with proper label association
+  const typeSelectId = `ptpv-ignore-rule-type-${index}`;
   const typeField = inputsRow.createDiv({ cls: 'ptpv-ignore-rule__field' });
   typeField.createEl('label', {
     cls: 'ptpv-ignore-rule__label',
     text: 'Type',
+    attr: { for: typeSelectId },
   });
-  const typeSelect = typeField.createEl('select', { cls: 'ptpv-input' });
+  const typeSelect = typeField.createEl('select', {
+    cls: 'ptpv-input',
+    attr: { id: typeSelectId },
+  });
   const addOpt = (value: 'boolean' | 'values', label: string) => {
     const opt = typeSelect.createEl('option', { value, text: label });
     return opt;
@@ -151,15 +159,18 @@ function renderIgnoreRule(
   const valuesField = valuesRow.createDiv({
     cls: 'ptpv-ignore-rule__field ptpv-ignore-rule__field--values',
   });
+  const valuesInputId = `ptpv-ignore-rule-values-${index}`;
   valuesField.createEl('label', {
     cls: 'ptpv-ignore-rule__label',
     text: t.settings.ignoreRules.valueLabel ?? 'Values to ignore',
+    attr: { for: valuesInputId },
   });
   const valuesInput = valuesField.createEl('input', {
     type: 'text',
     placeholder: t.settings.ignoreRules.valueDescription ?? 'val1, val2, val3',
     cls: 'ptpv-input',
     value: '',
+    attr: { id: valuesInputId },
   });
 
   const addValue = (raw: string) => {
