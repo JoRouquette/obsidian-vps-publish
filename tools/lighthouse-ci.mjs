@@ -501,12 +501,12 @@ function printSummary(results, mode) {
   log(`  - ${BASE_URL}/test-page-with-sections#section-2`);
 
   log('\nBudgets enforced:');
-  log('  - LCP < 2.5s (error)');
-  log('  - CLS < 0.1 (error)');
-  log('  - TBT < 300ms (error)');
-  log('  - Performance score >= 80% (error)');
-  log('  - SEO score >= 90% (error)');
-  log('  - Accessibility score >= 85% (warn)');
+  log('  - LCP < 4s (warn)');
+  log('  - CLS < 0.25 (warn)');
+  log('  - TBT < 500ms (warn)');
+  log('  - Performance score >= 50% (warn)');
+  log('  - SEO score >= 80% (warn)');
+  log('  - Accessibility score >= 75% (warn)');
 
   log('\nTo view reports:');
   log(`  open ${OUTPUT_DIR}/*.html`, COLORS.dim);

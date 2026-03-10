@@ -34,7 +34,8 @@ test.describe('Search Page', () => {
       });
 
     // Verify the search doesn't crash - at least the page should be functional
-    await expect(page).toHaveURL('/search');
+    // URL may include query params like /search?q=test
+    await expect(page).toHaveURL(/\/search/);
   });
 
   test('should show empty results for no matches', async ({ page }) => {
@@ -61,7 +62,9 @@ test.describe('Search Page', () => {
     // Look for clear button (if exists in UI)
     const clearButton = page.getByRole('button', { name: /effacer|clear/i });
     if (await clearButton.isVisible()) {
-      await clearButton.click();
+      // On mobile, the clear button may be outside viewport - scroll it into view first
+      await clearButton.scrollIntoViewIfNeeded();
+      await clearButton.click({ force: true });
       await expect(searchInput).toHaveValue('');
     }
   });

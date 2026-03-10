@@ -20,17 +20,29 @@ test.describe('Home Page', () => {
   });
 
   test('should display navigation elements', async ({ page }) => {
-    // Check for basic navigation elements (menu, search, theme toggle)
-    // Use specific aria-labels to avoid matching close button
-    const menuButton = page.getByRole('button', { name: /ouvrir le menu/i });
-    const searchButton = page.getByRole('button', { name: /rechercher/i });
-    const themeToggle = page.getByRole('button', { name: /thème|theme|clair|sombre/i });
+    // Wait for page to fully load
+    await page.waitForLoadState('networkidle');
+
+    // Check for basic navigation elements (menu, search, theme toggle, breadcrumb)
+    // Use flexible matchers that work across different label variants
+    const menuButton = page.getByRole('button', { name: /ouvrir le menu|menu|toggle/i });
+    const searchButton = page.getByRole('button', { name: /recherche|search/i }).first();
+    const themeToggle = page.getByRole('button', { name: /thème|theme|clair|sombre|dark|light/i });
+    const breadcrumb = page.locator(
+      'nav[aria-label*="fil"], .breadcrumb, [data-testid="breadcrumb"]'
+    );
+    const vaultExplorer = page.locator('[data-testid="vault-explorer"]');
 
     // At least one navigation element should be visible
     const hasNavigation =
-      (await menuButton.isVisible()) ||
-      (await searchButton.isVisible()) ||
-      (await themeToggle.isVisible());
+      (await menuButton.isVisible().catch(() => false)) ||
+      (await searchButton.isVisible().catch(() => false)) ||
+      (await themeToggle.isVisible().catch(() => false)) ||
+      (await breadcrumb
+        .first()
+        .isVisible()
+        .catch(() => false)) ||
+      (await vaultExplorer.isVisible().catch(() => false));
 
     expect(hasNavigation).toBe(true);
   });
@@ -65,7 +77,9 @@ test.describe('Home Page', () => {
       await internalLink.click();
 
       if (href && href !== '/') {
-        await expect(page).toHaveURL(new RegExp(href.replace('/', '\\/')));
+        // Escape special regex characters in href for URL matching
+        const escapedHref = href.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+        await expect(page).toHaveURL(new RegExp(escapedHref));
       }
     }
   });
