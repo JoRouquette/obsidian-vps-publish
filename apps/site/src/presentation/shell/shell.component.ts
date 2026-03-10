@@ -102,13 +102,15 @@ export class ShellComponent implements OnInit {
       this.hydrateManifestCache();
       this.router.events
         .pipe(
-          filter((e) => e instanceof NavigationEnd),
+          filter((e): e is NavigationEnd => e instanceof NavigationEnd),
           takeUntilDestroyed(this.destroyRef)
         )
-        .subscribe(() => {
+        .subscribe((event) => {
           this.updateFromUrl();
           // Close menu only when navigating to a file (not a folder/index)
           this.closeMenuIfNavigatingToFile();
+          // Reset scroll position to top unless navigating to a fragment
+          this.resetScrollIfNoFragment(event.urlAfterRedirects);
         });
 
       this.updateFromUrl();
@@ -377,5 +379,26 @@ export class ShellComponent implements OnInit {
 
     // Close menu for actual file pages
     this.closeMenu();
+  }
+
+  /**
+   * Reset scroll position to top when navigating to a page without a fragment.
+   * If URL has a fragment (#anchor), let AnchorScrollService handle scrolling.
+   */
+  private resetScrollIfNoFragment(url: string): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    // Check if URL has a fragment
+    const hasFragment = url.includes('#');
+    if (hasFragment) {
+      // Let AnchorScrollService handle fragment scrolling
+      return;
+    }
+
+    // Find the main scroll container and reset to top
+    const mainContainer = document.querySelector('.main');
+    if (mainContainer) {
+      mainContainer.scrollTo({ top: 0, behavior: 'instant' });
+    }
   }
 }

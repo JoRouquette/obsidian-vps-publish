@@ -56,7 +56,8 @@ test.describe('PWA and Offline Support', () => {
     // Note: Offline testing requires service worker to be active (production build)
     // These tests document expected offline behavior
 
-    test('should cache visited pages for offline access', async ({ page, context }) => {
+    // Skip: requires active service worker (production build only)
+    test.skip('should cache visited pages for offline access', async ({ page, context }) => {
       // First, visit pages online to populate cache
       await page.goto('/');
       await page.waitForLoadState('domcontentloaded');
@@ -151,9 +152,10 @@ test.describe('PWA and Offline Support', () => {
 
       const themeColor = page.locator('meta[name="theme-color"]');
 
-      // Theme color meta tag should exist for PWA
+      // Theme color meta tag should exist for PWA (may have multiple for dark/light modes)
       if ((await themeColor.count()) > 0) {
-        const content = await themeColor.getAttribute('content');
+        // Use .first() as there may be multiple theme-color tags for different color schemes
+        const content = await themeColor.first().getAttribute('content');
         expect(content).toMatch(/^#[0-9a-fA-F]{6}$/);
       }
     });

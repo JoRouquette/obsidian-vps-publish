@@ -1,10 +1,10 @@
 import { isPlatformBrowser } from '@angular/common';
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
   Inject,
-  OnInit,
   PLATFORM_ID,
   signal,
 } from '@angular/core';
@@ -25,6 +25,7 @@ import { fromEvent, throttleTime } from 'rxjs';
  * - Accessible: keyboard support, aria-label, reduced motion support
  * - SSR-safe: all DOM operations guarded with isPlatformBrowser
  * - Throttled scroll listener for performance
+ * - Listens to .main scroll container (not window) for shell layout compatibility
  */
 @Component({
   selector: 'app-scroll-to-top',
@@ -91,17 +92,21 @@ import { fromEvent, throttleTime } from 'rxjs';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ScrollToTopComponent implements OnInit {
+export class ScrollToTopComponent implements AfterViewInit {
   /** Minimum scroll position to show the button */
   private readonly SCROLL_THRESHOLD = 300;
 
   /** Content must be at least this multiple of viewport height to show button */
   private readonly MIN_CONTENT_HEIGHT_RATIO = 2;
 
+  /** CSS selector for the main scrollable container */
+  private readonly MAIN_CONTAINER_SELECTOR = '.main';
+
   /** Whether the button is currently visible */
   readonly isVisible = signal(false);
 
   private readonly isBrowser: boolean;
+  private mainContainer: HTMLElement | null = null;
 
   constructor(
     @Inject(PLATFORM_ID) platformId: object,
@@ -110,14 +115,18 @@ export class ScrollToTopComponent implements OnInit {
     this.isBrowser = isPlatformBrowser(platformId);
   }
 
-  ngOnInit(): void {
+  ngAfterViewInit(): void {
     if (!this.isBrowser) return;
+
+    // Find the main scrollable container
+    this.mainContainer = document.querySelector(this.MAIN_CONTAINER_SELECTOR);
 
     // Initial check
     this.checkScrollPosition();
 
-    // Listen to scroll events with throttling for performance
-    fromEvent(globalThis, 'scroll', { passive: true })
+    // Listen to scroll events on the main container (or fallback to window)
+    const scrollTarget = this.mainContainer ?? globalThis;
+    fromEvent(scrollTarget, 'scroll', { passive: true })
       .pipe(
         throttleTime(100, undefined, { leading: true, trailing: true }),
         takeUntilDestroyed(this.destroyRef)
@@ -126,15 +135,22 @@ export class ScrollToTopComponent implements OnInit {
   }
 
   /**
-   * Scroll smoothly to the top of the page
+   * Scroll smoothly to the top of the main container
    */
   scrollToTop(): void {
     if (!this.isBrowser) return;
 
-    globalThis.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
+    if (this.mainContainer) {
+      this.mainContainer.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    } else {
+      globalThis.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    }
   }
 
   /**
@@ -146,12 +162,22 @@ export class ScrollToTopComponent implements OnInit {
   private checkScrollPosition(): void {
     if (!this.isBrowser) return;
 
-    const scrollY = globalThis.scrollY ?? globalThis.pageYOffset ?? 0;
-    const viewportHeight = globalThis.innerHeight ?? 0;
-    const documentHeight = document.documentElement.scrollHeight ?? 0;
+    let scrollY: number;
+    let viewportHeight: number;
+    let contentHeight: number;
+
+    if (this.mainContainer) {
+      scrollY = this.mainContainer.scrollTop;
+      viewportHeight = this.mainContainer.clientHeight;
+      contentHeight = this.mainContainer.scrollHeight;
+    } else {
+      scrollY = globalThis.scrollY ?? globalThis.pageYOffset ?? 0;
+      viewportHeight = globalThis.innerHeight ?? 0;
+      contentHeight = document.documentElement.scrollHeight ?? 0;
+    }
 
     const hasScrolledEnough = scrollY > this.SCROLL_THRESHOLD;
-    const contentIsTallEnough = documentHeight >= viewportHeight * this.MIN_CONTENT_HEIGHT_RATIO;
+    const contentIsTallEnough = contentHeight >= viewportHeight * this.MIN_CONTENT_HEIGHT_RATIO;
 
     this.isVisible.set(hasScrolledEnough && contentIsTallEnough);
   }

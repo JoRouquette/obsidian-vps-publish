@@ -51,14 +51,19 @@ describe('ScrollToTopComponent', () => {
   let originalScrollY: number;
   let originalScrollTo: typeof globalThis.scrollTo;
   let originalInnerHeight: number;
+  let originalQuerySelector: typeof document.querySelector;
 
   beforeEach(() => {
     originalScrollY = globalThis.scrollY;
     originalScrollTo = globalThis.scrollTo;
     originalInnerHeight = globalThis.innerHeight;
+    originalQuerySelector = document.querySelector.bind(document);
 
     // Mock scrollTo
     globalThis.scrollTo = jest.fn();
+
+    // Mock document.querySelector to return null for .main (tests use window fallback)
+    document.querySelector = jest.fn().mockReturnValue(null);
 
     // Default: small page, no scroll
     setupScrollEnvironment({ scrollY: 0, viewportHeight: 800, documentHeight: 1000 });
@@ -66,6 +71,7 @@ describe('ScrollToTopComponent', () => {
 
   afterEach(() => {
     globalThis.scrollTo = originalScrollTo;
+    document.querySelector = originalQuerySelector;
     Object.defineProperty(globalThis, 'scrollY', {
       value: originalScrollY,
       writable: true,
@@ -85,7 +91,7 @@ describe('ScrollToTopComponent', () => {
       setupScrollEnvironment({ scrollY: 400, viewportHeight: 800, documentHeight: 1000 });
 
       const component = createComponent();
-      component.ngOnInit();
+      component.ngAfterViewInit();
 
       expect(component.isVisible()).toBe(false);
     });
@@ -95,7 +101,7 @@ describe('ScrollToTopComponent', () => {
       setupScrollEnvironment({ scrollY: 0, viewportHeight: 800, documentHeight: 2000 });
 
       const component = createComponent();
-      component.ngOnInit();
+      component.ngAfterViewInit();
 
       expect(component.isVisible()).toBe(false);
     });
@@ -105,7 +111,7 @@ describe('ScrollToTopComponent', () => {
       setupScrollEnvironment({ scrollY: 200, viewportHeight: 800, documentHeight: 2000 });
 
       const component = createComponent();
-      component.ngOnInit();
+      component.ngAfterViewInit();
 
       expect(component.isVisible()).toBe(false);
     });
@@ -115,7 +121,7 @@ describe('ScrollToTopComponent', () => {
       setupScrollEnvironment({ scrollY: 400, viewportHeight: 800, documentHeight: 1600 });
 
       const component = createComponent();
-      component.ngOnInit();
+      component.ngAfterViewInit();
 
       expect(component.isVisible()).toBe(true);
     });
@@ -125,7 +131,7 @@ describe('ScrollToTopComponent', () => {
       setupScrollEnvironment({ scrollY: 500, viewportHeight: 800, documentHeight: 3000 });
 
       const component = createComponent();
-      component.ngOnInit();
+      component.ngAfterViewInit();
 
       expect(component.isVisible()).toBe(true);
     });
@@ -157,7 +163,7 @@ describe('ScrollToTopComponent', () => {
       const component = createComponent(SERVER_PLATFORM_ID);
 
       // Should not throw
-      component.ngOnInit();
+      component.ngAfterViewInit();
 
       expect(component.isVisible()).toBe(false);
     });

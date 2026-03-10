@@ -11,6 +11,14 @@ services:
     env_file:
       - .env.dev
 
+    # Override .env.dev relative paths with Docker absolute paths
+    # (environment section takes precedence over env_file)
+    environment:
+      - CONTENT_ROOT=/content
+      - ASSETS_ROOT=/assets
+      - UI_ROOT=/ui
+      - UI_SERVER_ROOT=/ui-server
+
     volumes:
       - type: volume
         source: content
