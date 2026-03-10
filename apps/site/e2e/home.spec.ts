@@ -21,9 +21,10 @@ test.describe('Home Page', () => {
 
   test('should display navigation elements', async ({ page }) => {
     // Check for basic navigation elements (menu, search, theme toggle)
-    const menuButton = page.getByRole('button', { name: /menu/i });
-    const searchButton = page.getByRole('button', { name: /recherche|search/i });
-    const themeToggle = page.getByRole('button', { name: /thème|theme/i });
+    // Use specific aria-labels to avoid matching close button
+    const menuButton = page.getByRole('button', { name: /ouvrir le menu/i });
+    const searchButton = page.getByRole('button', { name: /rechercher/i });
+    const themeToggle = page.getByRole('button', { name: /thème|theme|clair|sombre/i });
 
     // At least one navigation element should be visible
     const hasNavigation =

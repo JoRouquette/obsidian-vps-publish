@@ -10,13 +10,14 @@ test.describe('Search Page', () => {
   });
 
   test('should display search input', async ({ page }) => {
-    const searchInput = page.getByPlaceholder(/rechercher|search/i);
+    // Use .first() to avoid strict mode violation (multiple search bars may exist)
+    const searchInput = page.getByRole('searchbox', { name: /rechercher/i }).first();
     await expect(searchInput).toBeVisible();
     await expect(searchInput).toBeEditable();
   });
 
   test('should perform search and display results', async ({ page }) => {
-    const searchInput = page.getByPlaceholder(/rechercher|search/i);
+    const searchInput = page.getByRole('searchbox', { name: /rechercher/i }).first();
 
     // Type search query (using term from fixtures)
     await searchInput.fill('test');
@@ -30,7 +31,7 @@ test.describe('Search Page', () => {
   });
 
   test('should show empty results for no matches', async ({ page }) => {
-    const searchInput = page.getByPlaceholder(/rechercher|search/i);
+    const searchInput = page.getByRole('searchbox', { name: /rechercher/i }).first();
 
     // Search for something that doesn't exist
     await searchInput.fill('xyzzyzqqqnonexistent');
@@ -46,7 +47,7 @@ test.describe('Search Page', () => {
   });
 
   test('should clear search input', async ({ page }) => {
-    const searchInput = page.getByPlaceholder(/rechercher|search/i);
+    const searchInput = page.getByRole('searchbox', { name: /rechercher/i }).first();
 
     await searchInput.fill('example query');
     await expect(searchInput).toHaveValue('example query');
