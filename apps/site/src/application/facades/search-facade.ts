@@ -1,8 +1,10 @@
-import { computed, Inject, Injectable, signal } from '@angular/core';
+import { computed, Inject, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import type { ContentSearchIndex, ContentSearchIndexEntry } from '@core-domain';
+import { Subject, takeUntil } from 'rxjs';
 
 import type { SearchIndexRepository } from '../../domain/ports/search-index-repository.port';
 import { SEARCH_INDEX_REPOSITORY } from '../../domain/ports/tokens';
+import { ContentVersionService } from '../../infrastructure/content-version/content-version.service';
 
 export interface SearchResult {
   route: string;
@@ -11,7 +13,9 @@ export interface SearchResult {
 }
 
 @Injectable({ providedIn: 'root' })
-export class SearchFacade {
+export class SearchFacade implements OnDestroy {
+  private readonly destroy$ = new Subject<void>();
+  private readonly contentVersionService = inject(ContentVersionService);
   private inFlight: Promise<void> | null = null;
   index = signal<ContentSearchIndex | null>(null);
   query = signal('');
@@ -35,9 +39,27 @@ export class SearchFacade {
       .filter((r): r is SearchResult => Boolean(r));
   });
 
-  constructor(
-    @Inject(SEARCH_INDEX_REPOSITORY) private readonly repository: SearchIndexRepository
-  ) {}
+  constructor(@Inject(SEARCH_INDEX_REPOSITORY) private readonly repository: SearchIndexRepository) {
+    // Reset index when content version changes (new publication)
+    this.contentVersionService.versionChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.resetIndex();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /**
+   * Reset the search index to force a fresh load on next search.
+   * Called when content version changes (new publication detected).
+   */
+  resetIndex(): void {
+    this.index.set(null);
+    this.inFlight = null;
+    this.error.set(null);
+  }
 
   setQuery(q: string) {
     this.query.set(q ?? '');
