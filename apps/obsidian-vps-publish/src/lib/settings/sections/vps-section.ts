@@ -7,6 +7,7 @@ import { Notice, Setting } from 'obsidian';
 
 import type { Translations } from '../../../i18n';
 import { translate } from '../../../i18n';
+import { PublishConfirmModal } from '../../modals/publish-confirm-modal';
 import { FileSuggest } from '../../suggesters/file-suggester';
 import { defaultSanitizationRules } from '../../utils/create-default-folder-config.util';
 import type { SettingsViewContext } from '../context';
@@ -272,14 +273,17 @@ function renderVpsActions(container: HTMLElement, vps: VpsConfig, ctx: SettingsV
     text: t.settings.vps.uploadButton ?? 'Upload to this VPS',
   });
   uploadBtn.addClass('mod-cta');
-  uploadBtn.onclick = async () => {
-    try {
-      logger.debug('Starting upload to VPS', { vpsId: vps.id, vpsName: vps.name });
-      await ctx.plugin.uploadToVps(vps);
-      logger.debug('Upload to VPS succeeded', { vpsId: vps.id });
-    } catch (e) {
-      logger.error('Upload to VPS failed', { vpsId: vps.id, error: e });
-    }
+  uploadBtn.onclick = () => {
+    logger.debug('Starting upload to VPS', { vpsId: vps.id, vpsName: vps.name });
+    const summary = ctx.plugin.estimatePublishSummary(vps);
+    new PublishConfirmModal(ctx.app, summary, ctx.t, async () => {
+      try {
+        await ctx.plugin.uploadToVps(vps);
+        logger.debug('Upload to VPS succeeded', { vpsId: vps.id });
+      } catch (e) {
+        logger.error('Upload to VPS failed', { vpsId: vps.id, error: e });
+      }
+    }).open();
   };
 }
 

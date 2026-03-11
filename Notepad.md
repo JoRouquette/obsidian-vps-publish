@@ -56,5 +56,3 @@ COMMENCE MAINTENANT
 2. Ensuite, commence la passe fichier par fichier.
 
 -------------------------------------------------------------------------/
-
-P0 du plugin Ok

@@ -345,7 +345,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           this.app,
           this.settings.vpsConfigs,
           async (vps) => {
-            await this.uploadToVps(vps);
+            const summary = this.estimatePublishSummary(vps);
+            new PublishConfirmModal(this.app, summary, t, async () => {
+              await this.uploadToVps(vps);
+            }).open();
           },
           t
         );
@@ -522,7 +525,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
    * Estimate the number of notes and assets to be published for a VPS configuration.
    * This provides a rough count for the confirmation modal without doing a full parse.
    */
-  private estimatePublishSummary(vps: VpsConfig): PublishSummary {
+  estimatePublishSummary(vps: VpsConfig): PublishSummary {
     const allMarkdownFiles = this.app.vault.getMarkdownFiles();
     const allFiles = this.app.vault.getFiles();
 

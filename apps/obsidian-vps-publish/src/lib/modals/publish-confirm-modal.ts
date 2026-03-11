@@ -12,14 +12,14 @@ export interface PublishSummary {
 export class PublishConfirmModal extends Modal {
   private readonly summary: PublishSummary;
   private readonly t: Translations['confirmation'];
-  private readonly onConfirm: () => void;
+  private readonly onConfirm: () => void | Promise<void>;
   private confirmed = false;
 
   constructor(
     app: App,
     summary: PublishSummary,
     translations: Translations,
-    onConfirm: () => void
+    onConfirm: () => void | Promise<void>
   ) {
     super(app);
     this.summary = summary;
@@ -77,7 +77,7 @@ export class PublishConfirmModal extends Modal {
   onClose(): void {
     this.contentEl.empty();
     if (this.confirmed) {
-      this.onConfirm();
+      void this.onConfirm();
     }
   }
 
