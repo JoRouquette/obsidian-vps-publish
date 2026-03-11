@@ -4,11 +4,16 @@
  * Returns 202 Accepted immediately, allowing clients to poll for status
  */
 
-import { type SessionRepository } from '@core-application';
-import { type LoggerPort, type PromotionStats } from '@core-domain';
-import { randomUUID } from 'crypto';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 
+import { type SessionRepository } from '@core-application';
+import { type ContentSearchIndex, type LoggerPort, type PromotionStats } from '@core-domain';
+import { randomUUID } from 'node:crypto';
+
+import { ManifestFileSystem } from '../filesystem/manifest-file-system';
 import { type StagingManager } from '../filesystem/staging-manager';
+import { ContentSearchIndexer } from '../search/content-search-indexer';
 import { type SessionFinalizerService } from './session-finalizer.service';
 
 export interface FinalizationJob {
@@ -225,6 +230,19 @@ export class SessionFinalizationJobService {
         session?.locale
       );
       timings.promoteSession = Date.now() - promoteStart;
+      job.progress = 90;
+
+      // STEP 3: Rebuild search index from PRODUCTION manifest (after merge)
+      // CRITICAL: This must happen AFTER promoteSession to include all pages
+      // (staging pages + unchanged production pages from deduplication)
+      const searchIndexStart = Date.now();
+      await this.rebuildProductionSearchIndex();
+      timings.rebuildSearchIndex = Date.now() - searchIndexStart;
+
+      // STEP 4: Validate post-promotion consistency (manifest vs search index)
+      const validationStart = Date.now();
+      await this.validatePostPromotion();
+      timings.validation = Date.now() - validationStart;
       job.progress = 100;
 
       // Mark as completed
@@ -308,6 +326,77 @@ export class SessionFinalizationJobService {
           error: error instanceof Error ? error.message : String(error),
         });
       }
+    }
+  }
+
+  /**
+   * Rebuild the search index from the PRODUCTION manifest.
+   * Called after promoteSession() to ensure all pages (including dedup'd ones) are indexed.
+   */
+  private async rebuildProductionSearchIndex(): Promise<void> {
+    const contentRoot = this.stagingManager.contentRootPath;
+    const manifestStorage = new ManifestFileSystem(contentRoot, this.logger);
+    const manifest = await manifestStorage.load();
+
+    if (!manifest) {
+      this.logger?.warn('[JOB] No production manifest found; skipping search index rebuild');
+      return;
+    }
+
+    const indexer = new ContentSearchIndexer(contentRoot, this.logger);
+    await indexer.build(manifest);
+    this.logger?.info('[JOB] Production search index rebuilt', {
+      pageCount: manifest.pages.length,
+    });
+  }
+
+  /**
+   * Validate post-promotion consistency between manifest and search index.
+   * Logs a warning if there's a mismatch but doesn't fail the job.
+   */
+  private async validatePostPromotion(): Promise<void> {
+    const contentRoot = this.stagingManager.contentRootPath;
+
+    try {
+      // Load manifest
+      const manifestStorage = new ManifestFileSystem(contentRoot, this.logger);
+      const manifest = await manifestStorage.load();
+
+      if (!manifest) {
+        this.logger?.warn('[JOB] Validation skipped: no production manifest found');
+        return;
+      }
+
+      // Load search index
+      const indexPath = path.join(contentRoot, '_search-index.json');
+      const indexRaw = await fs.readFile(indexPath, 'utf8');
+      const searchIndex = JSON.parse(indexRaw) as ContentSearchIndex;
+
+      // Compare counts
+      const manifestPageCount = manifest.pages.length;
+      const indexEntryCount = searchIndex.entries.length;
+
+      if (manifestPageCount === indexEntryCount) {
+        this.logger?.debug('[JOB] Post-promotion validation passed', {
+          manifestPages: manifestPageCount,
+          indexEntries: indexEntryCount,
+        });
+      } else {
+        this.logger?.warn('[JOB] Post-promotion validation: manifest/index mismatch', {
+          manifestPages: manifestPageCount,
+          indexEntries: indexEntryCount,
+          delta: manifestPageCount - indexEntryCount,
+          missingRoutes: manifest.pages
+            .filter((p) => !searchIndex.entries.some((e) => e.route === p.route))
+            .map((p) => p.route)
+            .slice(0, 10), // Log first 10 missing routes for debugging
+        });
+      }
+    } catch (error) {
+      // Non-fatal: log and continue
+      this.logger?.warn('[JOB] Post-promotion validation failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

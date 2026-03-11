@@ -240,12 +240,11 @@ export class SessionFinalizerService {
       });
     }
 
-    // STEP 11: Rebuild content search index
-    stepStart = performance.now();
-    await this.rebuildContentSearchIndex(sessionId);
-    timings.rebuildSearchIndex = performance.now() - stepStart;
+    // NOTE: Search index is now rebuilt AFTER manifest merge in SessionFinalizationJobService
+    // This ensures the index includes ALL pages (staging + unchanged production pages)
+    // See: session-finalization-job.service.ts executeJob() STEP 3
 
-    // STEP 12: Clear session storage
+    // STEP 11: Clear session storage
     stepStart = performance.now();
     await this.notesStorage.clear(sessionId);
     timings.clearSessionStorage = performance.now() - stepStart;

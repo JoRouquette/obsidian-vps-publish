@@ -230,72 +230,79 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     logger?: LoggerPort,
     providedDisplayNames?: Record<string, string>
   ): Promise<void> {
-    const existing = await manifestStorage.load();
-    const now = new Date();
+    // Use atomicUpdate to prevent race conditions when multiple batches upload concurrently
+    await manifestStorage.atomicUpdate(async (existing) => {
+      const now = new Date();
+      let manifest: Manifest;
 
-    let manifest: Manifest;
+      // If manifest is missing or belongs to another session, start fresh
+      if (!existing || existing.sessionId !== sessionId) {
+        logger?.debug('Starting new manifest for session', { sessionId });
+        manifest = {
+          sessionId,
+          createdAt: now,
+          lastUpdatedAt: now,
+          pages: [],
+          folderDisplayNames: providedDisplayNames || {},
+        };
+      } else {
+        manifest = {
+          ...existing,
+          lastUpdatedAt: now,
+          // Merge existing folderDisplayNames with providedDisplayNames (providedDisplayNames takes precedence)
+          folderDisplayNames: {
+            ...(existing.folderDisplayNames || {}),
+            ...(providedDisplayNames || {}),
+          },
+        };
+      }
 
-    // If manifest is missing or belongs to another session, start fresh
-    if (!existing || existing.sessionId !== sessionId) {
-      logger?.debug('Starting new manifest for session', { sessionId });
-      manifest = {
-        sessionId,
-        createdAt: now,
-        lastUpdatedAt: now,
-        pages: [],
-        folderDisplayNames: providedDisplayNames || {},
-      };
-    } else {
-      manifest = {
-        ...existing,
-        lastUpdatedAt: now,
-        // Merge existing folderDisplayNames with providedDisplayNames (providedDisplayNames takes precedence)
-        folderDisplayNames: {
-          ...(existing.folderDisplayNames || {}),
-          ...(providedDisplayNames || {}),
-        },
-      };
-    }
-
-    // Extract folderDisplayNames from notes' folderConfig
-    for (const note of notes) {
-      if (note.folderConfig.displayName && note.routing?.routeBase) {
-        const routeBase = note.routing.routeBase;
-        // Only set if not already present (first note wins for same route)
-        if (!manifest.folderDisplayNames![routeBase]) {
-          manifest.folderDisplayNames![routeBase] = note.folderConfig.displayName;
+      // Extract folderDisplayNames from notes' folderConfig
+      for (const note of notes) {
+        if (note.folderConfig.displayName && note.routing?.routeBase) {
+          const routeBase = note.routing.routeBase;
+          // Only set if not already present (first note wins for same route)
+          if (!manifest.folderDisplayNames![routeBase]) {
+            manifest.folderDisplayNames![routeBase] = note.folderConfig.displayName;
+          }
         }
       }
-    }
 
-    logger?.debug('Extracted folderDisplayNames from notes', {
-      count: Object.keys(manifest.folderDisplayNames || {}).length,
-      displayNames: manifest.folderDisplayNames,
+      logger?.debug('Extracted folderDisplayNames from notes', {
+        count: Object.keys(manifest.folderDisplayNames || {}).length,
+        displayNames: manifest.folderDisplayNames,
+      });
+
+      // Merge: most recent version of a note wins
+      const byId = new Map<string, ManifestPage>();
+      for (const p of manifest.pages) {
+        byId.set(p.id, p);
+      }
+      for (const p of newPages) {
+        byId.set(p.id, p);
+      }
+
+      manifest.pages = Array.from(byId.values()).sort(
+        (a, b) => b.publishedAt.getTime() - a.publishedAt.getTime()
+      );
+
+      // Clean up empty folderDisplayNames object (don't save if empty)
+      if (manifest.folderDisplayNames && Object.keys(manifest.folderDisplayNames).length === 0) {
+        manifest.folderDisplayNames = undefined;
+      }
+
+      return manifest;
     });
 
-    // Merge: most recent version of a note wins
-    const byId = new Map<string, ManifestPage>();
-    for (const p of manifest.pages) {
-      byId.set(p.id, p);
-    }
-    for (const p of newPages) {
-      byId.set(p.id, p);
+    // Rebuild index after atomic update (outside mutex to allow parallel reads)
+    const updatedManifest = await manifestStorage.load();
+    if (updatedManifest) {
+      await manifestStorage.rebuildIndex(updatedManifest);
     }
 
-    manifest.pages = Array.from(byId.values()).sort(
-      (a, b) => b.publishedAt.getTime() - a.publishedAt.getTime()
-    );
-
-    // Clean up empty folderDisplayNames object (don't save if empty)
-    if (manifest.folderDisplayNames && Object.keys(manifest.folderDisplayNames).length === 0) {
-      manifest.folderDisplayNames = undefined;
-    }
-
-    await manifestStorage.save(manifest);
-    await manifestStorage.rebuildIndex(manifest);
     logger?.debug('Site manifest and indexes updated', {
       sessionId,
-      pageCount: manifest.pages.length,
+      pageCount: updatedManifest?.pages.length ?? 0,
     });
   }
 
