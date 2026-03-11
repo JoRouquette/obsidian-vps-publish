@@ -98,10 +98,10 @@ type SessionErrorsTranslations = {
 
 type ConfirmationTranslations = {
   title: string;
-  description: string;
   vpsLabel: string;
   notesLabel: string;
   assetsLabel: string;
+  estimatedHint: string;
   publishButton: string;
   cancelButton: string;
 };
@@ -941,10 +941,10 @@ export const en: Translations = {
   },
   confirmation: {
     title: 'Confirm Publication',
-    description: 'You are about to publish content to your VPS.',
-    vpsLabel: 'Target VPS',
-    notesLabel: 'Notes to publish',
-    assetsLabel: 'Assets to upload',
+    vpsLabel: 'Target',
+    notesLabel: 'Notes',
+    assetsLabel: 'Assets',
+    estimatedHint: 'Counts are estimated. Actual numbers may differ after parsing.',
     publishButton: 'Publish',
     cancelButton: 'Cancel',
   },
@@ -1470,10 +1470,10 @@ export const fr: Translations = {
   },
   confirmation: {
     title: 'Confirmer la publication',
-    description: 'Vous êtes sur le point de publier du contenu vers votre VPS.',
-    vpsLabel: 'VPS cible',
-    notesLabel: 'Notes à publier',
-    assetsLabel: 'Ressources à envoyer',
+    vpsLabel: 'Cible',
+    notesLabel: 'Notes',
+    assetsLabel: 'Ressources',
+    estimatedHint: 'Les nombres sont estimés. Le total réel peut varier après analyse.',
     publishButton: 'Publier',
     cancelButton: 'Annuler',
   },

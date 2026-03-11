@@ -1436,80 +1436,55 @@
    PUBLISH CONFIRMATION MODAL
    ============================================================================= */
 
-.ptpv-confirm-modal {
-  padding: 1.5rem;
-}
-
-.ptpv-confirm-modal__title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  font-size: 1.25rem;
-  color: var(--text-normal);
-}
-
+/* Icon in the native modal title bar */
 .ptpv-confirm-modal__icon {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  margin-right: 0.35rem;
   color: var(--interactive-accent);
+  vertical-align: middle;
 }
 
-.ptpv-confirm-modal__description {
-  color: var(--text-muted);
-  margin-bottom: 1.5rem;
+.ptpv-confirm-modal__icon svg {
+  width: 18px;
+  height: 18px;
 }
 
-.ptpv-confirm-modal__summary {
-  background: var(--background-secondary);
-  border-radius: var(--radius-s);
-  padding: 1rem;
-  margin-bottom: 1.5rem;
+/* Summary table */
+.ptpv-confirm-modal__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.25rem;
 }
 
-.ptpv-confirm-modal__item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0;
+.ptpv-confirm-modal__table td {
+  padding: 0.4rem 0;
   border-bottom: 1px solid var(--background-modifier-border);
+  vertical-align: baseline;
 }
 
-.ptpv-confirm-modal__item:last-child {
+.ptpv-confirm-modal__table tr:last-child td {
   border-bottom: none;
 }
 
 .ptpv-confirm-modal__label {
   color: var(--text-muted);
   font-weight: 500;
+  white-space: nowrap;
+  padding-right: 1.5rem;
+  width: 1%;
 }
 
 .ptpv-confirm-modal__value {
   color: var(--text-normal);
-  text-align: right;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 60%;
+  word-break: break-word;
 }
 
-.ptpv-confirm-modal__value--count {
-  font-weight: 600;
-  color: var(--interactive-accent);
-}
-
-.ptpv-confirm-modal__buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-}
-
-.ptpv-confirm-modal__btn {
-  min-width: 80px;
-}
-
-.ptpv-confirm-modal__btn--cancel {
-  background: var(--background-modifier-hover);
+/* Estimated hint below the table */
+.ptpv-confirm-modal__hint {
+  color: var(--text-faint);
+  font-size: var(--font-smallest);
+  margin: 0.25rem 0 0;
 }
 
 /* =============================================================================
