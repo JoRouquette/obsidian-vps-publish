@@ -108,7 +108,8 @@
     /* Longueur de ligne lisible pour le texte courant */
     :where(p, ul, ol, dl, blockquote, figcaption) {
       margin-inline: auto;
-      text-align: justify;
+      /* text-align: justify removed for better readability and accessibility */
+      /* Justified text creates uneven word spacing that harms dyslexic readers */
     }
 
     p {

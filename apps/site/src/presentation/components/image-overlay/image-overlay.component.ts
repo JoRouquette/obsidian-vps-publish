@@ -23,6 +23,7 @@ import { MatIconModule } from '@angular/material/icon';
 export class ImageOverlayComponent {
   @ViewChild('imageEl', { static: false }) imageEl?: ElementRef<HTMLImageElement>;
   @ViewChild('dialogEl', { static: false }) dialogEl?: ElementRef<HTMLDialogElement>;
+  @ViewChild('closeBtn', { static: false }) closeBtn?: ElementRef<HTMLButtonElement>;
 
   isOpen = signal(false);
   imageSrc = signal('');
@@ -30,6 +31,9 @@ export class ImageOverlayComponent {
   scale = signal(1);
   translateX = signal(0);
   translateY = signal(0);
+
+  // Focus management for accessibility
+  private previouslyFocusedElement: HTMLElement | null = null;
 
   // Computed signals for template
   imageTransform = computed(
@@ -45,6 +49,9 @@ export class ImageOverlayComponent {
   private lastTranslateY = 0;
 
   open(src: string, alt: string = '') {
+    // Save current focus to restore on close
+    this.previouslyFocusedElement = document.activeElement as HTMLElement;
+
     this.imageSrc.set(src);
     this.altText.set(alt);
     this.isOpen.set(true);
@@ -52,6 +59,8 @@ export class ImageOverlayComponent {
     // Use setTimeout to ensure ViewChild is available after isOpen triggers rendering
     setTimeout(() => {
       this.dialogEl?.nativeElement.showModal();
+      // Focus close button for keyboard users
+      this.closeBtn?.nativeElement.focus();
     });
   }
 
@@ -59,6 +68,14 @@ export class ImageOverlayComponent {
     this.dialogEl?.nativeElement.close();
     this.isOpen.set(false);
     this.resetTransform();
+    // Restore focus to previously focused element
+    if (
+      this.previouslyFocusedElement &&
+      typeof this.previouslyFocusedElement.focus === 'function'
+    ) {
+      this.previouslyFocusedElement.focus();
+      this.previouslyFocusedElement = null;
+    }
   }
 
   zoomIn() {
