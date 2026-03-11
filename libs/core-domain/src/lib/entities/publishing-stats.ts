@@ -80,7 +80,7 @@ export function createPublishingStats(): PublishingStats {
 
 /**
  * Utilitaires pour formater les stats
- * Format stats WITHOUT revealing deductible counts (e.g., if we show analyzed + eligible, ignored is deductible)
+ * Simplified format: single line for quick scanning, details only if errors
  */
 export function formatPublishingStats(
   stats: PublishingStats,
@@ -96,52 +96,52 @@ export function formatPublishingStats(
     notesIgnored: string;
     completedInSeconds: string;
     completedInMinutes: string;
+    simpleSummary?: string;
   }
 ): string {
+  const hasErrors = stats.notesFailed > 0 || stats.assetsFailed > 0;
+
+  // For simple success cases, use compact format
+  if (!hasErrors) {
+    const duration =
+      stats.startedAt && stats.completedAt
+        ? formatDuration(stats.completedAt.getTime() - stats.startedAt.getTime(), t)
+        : '';
+
+    const parts: string[] = [];
+    parts.push(`✅ ${stats.notesUploaded} notes`);
+    if (stats.assetsUploaded > 0) {
+      parts.push(`${stats.assetsUploaded} assets`);
+    }
+    if (duration) {
+      parts.push(`(${duration.replace('Completed in ', '').replace('Terminé en ', '')})`);
+    }
+
+    return parts.join(' • ');
+  }
+
+  // Detailed format only if errors
   const lines: string[] = [];
-
   lines.push(t?.summary ?? '📊 Publishing Summary');
-  lines.push(t?.separator ?? '─────────────────────');
 
-  // Notes published
   lines.push(
     t?.notesPublished.replace('{count}', stats.notesUploaded.toString()) ??
       `✅ ${stats.notesUploaded} notes published`
   );
 
-  // Notes ignored (if any)
-  if (stats.notesIgnored > 0) {
-    lines.push(
-      t?.notesIgnored.replace('{count}', stats.notesIgnored.toString()) ??
-        `ℹ️ ${stats.notesIgnored} notes excluded by ignore rules`
-    );
-  }
-
-  // Errors
   if (stats.notesFailed > 0) {
-    lines.push(
-      `  • ${t?.errors.replace('{count}', stats.notesFailed.toString()) ?? `Errors: ${stats.notesFailed}`}`
-    );
+    lines.push(`❌ ${stats.notesFailed} note errors`);
   }
 
-  // Assets
-  if (stats.assetsUploaded > 0 || stats.assetsPlanned > 0) {
-    lines.push(``);
-    lines.push(t?.contentPublished ?? '📝 Content Published:');
-    lines.push(
-      `  • ${t?.assets.replace('{count}', stats.assetsUploaded.toString()) ?? `Assets: ${stats.assetsUploaded}`}`
-    );
-    if (stats.assetsFailed > 0) {
-      lines.push(
-        `  • ${t?.assetErrors.replace('{count}', stats.assetsFailed.toString()) ?? `Asset errors: ${stats.assetsFailed}`}`
-      );
-    }
+  if (stats.assetsUploaded > 0) {
+    lines.push(`📎 ${stats.assetsUploaded} assets`);
+  }
+  if (stats.assetsFailed > 0) {
+    lines.push(`❌ ${stats.assetsFailed} asset errors`);
   }
 
-  // Duration
   if (stats.startedAt && stats.completedAt) {
     const durationMs = stats.completedAt.getTime() - stats.startedAt.getTime();
-    lines.push(``);
     lines.push(`⏱️ ${formatDuration(durationMs, t)}`);
   }
 

@@ -18,9 +18,29 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
 
   new Setting(ignoreBlock).setName(t.settings.ignoreRules.title).setHeading();
 
-  // Global ignore settings (frontmatter keys/tags)
-  renderFrontmatterKeysExclude(ignoreBlock, ctx);
-  renderFrontmatterTagsExclude(ignoreBlock, ctx);
+  // Global ignore settings section
+  const globalSection = ignoreBlock.createDiv({ cls: 'ptpv-ignore-global-section' });
+  globalSection.createEl('h4', {
+    text: t.settings.ignoreRules.globalTitle ?? 'Global rules (all VPS)',
+    cls: 'ptpv-section-subheading',
+  });
+  globalSection.createEl('p', {
+    text: t.settings.ignoreRules.globalHelp ?? 'These rules apply to all VPS configurations.',
+    cls: 'ptpv-section-help',
+  });
+  renderFrontmatterKeysExclude(globalSection, ctx);
+  renderFrontmatterTagsExclude(globalSection, ctx);
+
+  // Per-VPS rules section
+  const perVpsHeading = ignoreBlock.createDiv({ cls: 'ptpv-ignore-pervps-header' });
+  perVpsHeading.createEl('h4', {
+    text: t.settings.ignoreRules.perVpsTitle ?? 'Per-VPS rules',
+    cls: 'ptpv-section-subheading',
+  });
+  perVpsHeading.createEl('p', {
+    text: t.settings.ignoreRules.perVpsHelp ?? 'Define specific ignore rules for each VPS.',
+    cls: 'ptpv-section-help',
+  });
 
   // Ignore rules per VPS
   settings.vpsConfigs.forEach((vps, vpsIndex) => {

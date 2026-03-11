@@ -187,6 +187,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
   logger = new ConsoleLoggerAdapter({ plugin: 'ObsidianVpsPublish' });
   private currentPublishAbortController: AbortController | null = null;
   private cancelRibbonIcon: HTMLElement | null = null;
+  /** Session flag: show keepFocusWarning only once per session */
+  private hasShownFocusWarning = false;
 
   async onload() {
     await this.loadSettings();
@@ -681,8 +683,11 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     // Start progress bar immediately (at 0%)
     totalProgressAdapter.start(0);
 
-    // Warn user to keep focus (browser throttling mitigation)
-    notificationAdapter.info(translate(t, 'notice.keepFocusWarning'));
+    // Warn user to keep focus (only once per session)
+    if (!this.hasShownFocusWarning) {
+      notificationAdapter.info(translate(t, 'notice.keepFocusWarning'));
+      this.hasShownFocusWarning = true;
+    }
 
     let sessionId: string | null = null;
     let sessionClient: SessionApiClient | null = null;

@@ -36,9 +36,16 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
   new Setting(vpsBlock).setName(t.settings.vps.title).setHeading();
 
   settings.vpsConfigs.forEach((vps, index) => {
-    const vpsFieldset = vpsBlock.createEl('fieldset', { cls: 'ptpv-vps' });
+    // First VPS gets primary styling
+    const isPrimary = index === 0;
+    const vpsFieldset = vpsBlock.createEl('fieldset', {
+      cls: isPrimary ? 'ptpv-vps ptpv-vps--primary' : 'ptpv-vps',
+    });
     const legendText = vps.name || vps.id || `${t.settings.vps.title} #${index + 1}`;
-    vpsFieldset.createEl('legend', { text: legendText });
+    const legend = vpsFieldset.createEl('legend', { text: legendText });
+    if (isPrimary) {
+      legend.createSpan({ cls: 'ptpv-vps-badge', text: t.settings.vps.primaryBadge ?? 'Primary' });
+    }
 
     // Delete VPS button
     const deleteSetting = new Setting(vpsFieldset).setName(

@@ -2,6 +2,12 @@ import { type App, Modal } from 'obsidian';
 
 import type { Translations } from '../../i18n';
 
+type HelpSection = {
+  title: string;
+  content: string;
+  examples?: Array<{ code: string; description: string }>;
+};
+
 export class HelpModal extends Modal {
   private readonly t: Translations;
 
@@ -22,15 +28,41 @@ export class HelpModal extends Modal {
     const intro = contentEl.createDiv({ cls: 'help-section' });
     intro.createEl('p', { text: this.t.help.introduction });
 
-    // Sections
-    this.renderSection(contentEl, this.t.help.sections.publishing);
-    this.renderSection(contentEl, this.t.help.sections.noPublishing);
-    this.renderSection(contentEl, this.t.help.sections.frontmatter);
-    this.renderSection(contentEl, this.t.help.sections.wikilinks);
-    this.renderSection(contentEl, this.t.help.sections.assets);
-    this.renderSection(contentEl, this.t.help.sections.dataview);
-    this.renderSection(contentEl, this.t.help.sections.leaflet);
-    this.renderSection(contentEl, this.t.help.sections.markdown);
+    // Build sections array for TOC and rendering
+    const sections: Array<{ id: string; section: HelpSection }> = [
+      { id: 'publishing', section: this.t.help.sections.publishing },
+      { id: 'noPublishing', section: this.t.help.sections.noPublishing },
+      { id: 'frontmatter', section: this.t.help.sections.frontmatter },
+      { id: 'wikilinks', section: this.t.help.sections.wikilinks },
+      { id: 'assets', section: this.t.help.sections.assets },
+      { id: 'dataview', section: this.t.help.sections.dataview },
+      { id: 'leaflet', section: this.t.help.sections.leaflet },
+      { id: 'markdown', section: this.t.help.sections.markdown },
+    ];
+
+    // Quick navigation (TOC)
+    const toc = contentEl.createDiv({ cls: 'help-toc' });
+    toc.createEl('span', { text: this.t.help.tocLabel ?? 'Jump to: ', cls: 'help-toc-label' });
+    sections.forEach(({ id, section }, i) => {
+      const link = toc.createEl('a', {
+        text: section.title,
+        cls: 'help-toc-link',
+        href: `#help-section-${id}`,
+      });
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = contentEl.querySelector(`#help-section-${id}`);
+        target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      if (i < sections.length - 1) {
+        toc.createSpan({ text: ' • ', cls: 'help-toc-sep' });
+      }
+    });
+
+    // Render sections with IDs for anchor navigation
+    sections.forEach(({ id, section }) => {
+      this.renderSection(contentEl, section, id);
+    });
 
     // Footer with links
     const footer = contentEl.createDiv({ cls: 'help-footer' });
@@ -54,15 +86,9 @@ export class HelpModal extends Modal {
     closeButton.addEventListener('click', () => this.close());
   }
 
-  private renderSection(
-    container: HTMLElement,
-    section: {
-      title: string;
-      content: string;
-      examples?: Array<{ code: string; description: string }>;
-    }
-  ) {
+  private renderSection(container: HTMLElement, section: HelpSection, id: string) {
     const sectionDiv = container.createDiv({ cls: 'help-section' });
+    sectionDiv.id = `help-section-${id}`;
 
     // Title
     sectionDiv.createEl('h3', { text: section.title });

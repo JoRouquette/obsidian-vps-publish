@@ -142,6 +142,7 @@ type VpsTranslations = {
   addButton: string;
   deleteButton: string;
   deleteLastForbidden: string;
+  primaryBadge?: string;
   actionsTitle: string;
   actionsDescription: string;
   uploadButton: string;
@@ -248,6 +249,10 @@ type IgnoreRulesTranslations = {
   title: string;
   description?: string;
   help: string;
+  globalTitle?: string;
+  globalHelp?: string;
+  perVpsTitle?: string;
+  perVpsHelp?: string;
   addButton: string;
   deleteButton: string;
   propertyLabel: string;
@@ -389,6 +394,7 @@ export type HelpSection = {
 
 export type HelpTranslations = {
   title: string;
+  tocLabel?: string;
   introduction: string;
   sections: {
     publishing: HelpSection;
@@ -492,6 +498,7 @@ export const en: Translations = {
       addButton: 'Add VPS',
       deleteButton: 'Delete VPS',
       deleteLastForbidden: 'At least one VPS is required',
+      primaryBadge: 'Primary',
       nameLabel: 'Name',
       nameDescription: 'Internal name for this VPS.',
       nameRequired: 'VPS name is required',
@@ -614,6 +621,10 @@ export const en: Translations = {
       title: 'Ignore rules',
       description: 'Notes with these frontmatter properties will be ignored during publishing.',
       help: 'You can define global rules based on frontmatter properties and values.',
+      globalTitle: 'Global rules (all VPS)',
+      globalHelp: 'These rules apply to all VPS configurations.',
+      perVpsTitle: 'Per-VPS rules',
+      perVpsHelp: 'Define specific ignore rules for each VPS.',
       addButton: 'Add ignore rule',
       deleteButton: 'Delete ignore rule',
       propertyLabel: 'Frontmatter property',
@@ -692,6 +703,7 @@ export const en: Translations = {
   },
   help: {
     title: 'Help & Documentation',
+    tocLabel: 'Jump to: ',
     introduction:
       'This plugin allows you to publish your Obsidian vault content to a self-hosted VPS. Here are the key features and syntax supported.',
     sections: {
@@ -1011,6 +1023,7 @@ export const fr: Translations = {
       addButton: 'Ajouter un VPS',
       deleteButton: 'Supprimer le VPS',
       deleteLastForbidden: 'Au moins un VPS est requis',
+      primaryBadge: 'Principal',
       nameLabel: 'Nom',
       nameDescription: 'Nom interne pour ce VPS.',
       nameRequired: 'Le nom du VPS est requis',
@@ -1135,6 +1148,10 @@ export const fr: Translations = {
       description:
         'Les notes avec ces propriétés de frontmatter seront ignorées lors de la publication.',
       help: 'Vous pouvez définir des règles globales basées sur les propriétés et valeurs du frontmatter.',
+      globalTitle: 'Règles globales (tous les VPS)',
+      globalHelp: "Ces règles s'appliquent à toutes les configurations VPS.",
+      perVpsTitle: 'Règles par VPS',
+      perVpsHelp: "Définissez des règles d'exclusion spécifiques pour chaque VPS.",
       addButton: "Ajouter une règle d'exclusion",
       deleteButton: "Supprimer la règle d'exclusion",
       propertyLabel: 'Propriété du frontmatter',
@@ -1214,6 +1231,7 @@ export const fr: Translations = {
   },
   help: {
     title: 'Aide & Documentation',
+    tocLabel: 'Aller à : ',
     introduction:
       'Ce plugin permet de publier le contenu de votre coffre Obsidian vers un VPS auto-hébergé. Voici les fonctionnalités principales et syntaxes supportées.',
     sections: {
