@@ -47,33 +47,6 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
       legend.createSpan({ cls: 'ptpv-vps-badge', text: t.settings.vps.primaryBadge ?? 'Primary' });
     }
 
-    // Delete VPS button
-    const deleteSetting = new Setting(vpsFieldset).setName(
-      t.settings.vps.deleteButton ?? 'Delete VPS'
-    );
-
-    deleteSetting.addButton((btn) =>
-      btn
-        .setIcon('trash')
-        .setDisabled(settings.vpsConfigs.length <= 1)
-        .setTooltip(
-          settings.vpsConfigs.length <= 1
-            ? (t.settings.vps.deleteLastForbidden ?? 'At least one VPS is required')
-            : ''
-        )
-        .onClick(async () => {
-          if (settings.vpsConfigs.length <= 1) {
-            logger.warn('Attempted to delete last VPS config, forbidden.');
-            new Notice(t.settings.vps.deleteLastForbidden ?? 'At least one VPS is required');
-            return;
-          }
-          logger.debug('VPS config deleted', { index, vpsId: vps.id });
-          settings.vpsConfigs.splice(index, 1);
-          await ctx.save();
-          ctx.refresh();
-        })
-    );
-
     // VPS Name
     new Setting(vpsFieldset)
       .setName(t.settings.vps.nameLabel)
@@ -198,6 +171,34 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
 
     // Cleanup Rules (Sanitization) for this VPS
     renderCleanupRulesSection(vpsFieldset, vps, ctx);
+
+    // Delete VPS button (at the bottom, away from main controls)
+    const deleteSetting = new Setting(vpsFieldset).setName(
+      t.settings.vps.deleteButton ?? 'Delete VPS'
+    );
+
+    deleteSetting.addButton((btn) => {
+      btn
+        .setIcon('trash')
+        .setWarning()
+        .setDisabled(settings.vpsConfigs.length <= 1)
+        .setTooltip(
+          settings.vpsConfigs.length <= 1
+            ? (t.settings.vps.deleteLastForbidden ?? 'At least one VPS is required')
+            : ''
+        )
+        .onClick(async () => {
+          if (settings.vpsConfigs.length <= 1) {
+            logger.warn('Attempted to delete last VPS config, forbidden.');
+            new Notice(t.settings.vps.deleteLastForbidden ?? 'At least one VPS is required');
+            return;
+          }
+          logger.debug('VPS config deleted', { index, vpsId: vps.id });
+          settings.vpsConfigs.splice(index, 1);
+          await ctx.save();
+          ctx.refresh();
+        });
+    });
   });
 
   vpsBlock.createDiv({
