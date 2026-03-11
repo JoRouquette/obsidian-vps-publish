@@ -78,6 +78,7 @@ export function createContentVersionController(
       sendEvent({
         type: 'contentVersion',
         version: version.version,
+        contentRevision: version.contentRevision,
         generatedAt: version.generatedAt,
       });
     });

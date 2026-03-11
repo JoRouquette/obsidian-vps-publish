@@ -29,6 +29,8 @@ export interface FinalizationJob {
     notesProcessed: number;
     assetsProcessed: number;
     promotionStats?: PromotionStats;
+    /** Unique revision identifier for this publication. */
+    contentRevision?: string;
   };
 }
 
@@ -195,6 +197,7 @@ export class SessionFinalizationJobService {
   private async executeJob(job: FinalizationJob): Promise<void> {
     const startTime = Date.now();
     const timings: Record<string, number> = {};
+    const contentRevision = randomUUID();
 
     job.status = 'processing';
     job.startedAt = new Date();
@@ -203,6 +206,7 @@ export class SessionFinalizationJobService {
     this.logger?.info('[JOB] Starting finalization job', {
       jobId: job.jobId,
       sessionId: job.sessionId,
+      contentRevision,
       activeJobs: this.activeJobs,
       queueLength: this.processingQueue.length,
     });
@@ -212,6 +216,21 @@ export class SessionFinalizationJobService {
       const session = await this.sessionRepository.findById(job.sessionId);
       const allCollectedRoutes = session?.allCollectedRoutes;
       const pipelineSignature = session?.pipelineSignature;
+
+      // STEP 0.5: Validate upload completeness (informational, non-blocking)
+      if (session) {
+        const { notesPlanned, notesProcessed, assetsPlanned, assetsProcessed } = session;
+        if (notesProcessed < notesPlanned || assetsProcessed < assetsPlanned) {
+          this.logger?.warn('[JOB] Upload count mismatch detected', {
+            contentRevision,
+            sessionId: job.sessionId,
+            notesPlanned,
+            notesProcessed,
+            assetsPlanned,
+            assetsProcessed,
+          });
+        }
+      }
 
       // STEP 1: Rebuild from stored notes (heaviest operation)
       job.progress = 20;
@@ -227,7 +246,8 @@ export class SessionFinalizationJobService {
         job.sessionId,
         allCollectedRoutes,
         pipelineSignature,
-        session?.locale
+        session?.locale,
+        contentRevision
       );
       timings.promoteSession = Date.now() - promoteStart;
       job.progress = 90;
@@ -236,7 +256,7 @@ export class SessionFinalizationJobService {
       // CRITICAL: This must happen AFTER promoteSession to include all pages
       // (staging pages + unchanged production pages from deduplication)
       const searchIndexStart = Date.now();
-      await this.rebuildProductionSearchIndex();
+      await this.rebuildProductionSearchIndex(contentRevision);
       timings.rebuildSearchIndex = Date.now() - searchIndexStart;
 
       // STEP 4: Validate post-promotion consistency (manifest vs search index)
@@ -252,12 +272,14 @@ export class SessionFinalizationJobService {
         notesProcessed: session?.notesProcessed ?? 0,
         assetsProcessed: session?.assetsProcessed ?? 0,
         promotionStats,
+        contentRevision,
       };
 
       const totalDuration = Date.now() - startTime;
       this.logger?.info('[JOB] Finalization job completed', {
         jobId: job.jobId,
         sessionId: job.sessionId,
+        contentRevision,
         durationMs: totalDuration,
         timings,
         activeJobs: this.activeJobs,
@@ -274,6 +296,7 @@ export class SessionFinalizationJobService {
       this.logger?.error('[JOB] Finalization job failed', {
         jobId: job.jobId,
         sessionId: job.sessionId,
+        contentRevision,
         error: job.error,
         durationMs: totalDuration,
         timings,
@@ -333,7 +356,7 @@ export class SessionFinalizationJobService {
    * Rebuild the search index from the PRODUCTION manifest.
    * Called after promoteSession() to ensure all pages (including dedup'd ones) are indexed.
    */
-  private async rebuildProductionSearchIndex(): Promise<void> {
+  private async rebuildProductionSearchIndex(contentRevision?: string): Promise<void> {
     const contentRoot = this.stagingManager.contentRootPath;
     const manifestStorage = new ManifestFileSystem(contentRoot, this.logger);
     const manifest = await manifestStorage.load();
@@ -344,9 +367,10 @@ export class SessionFinalizationJobService {
     }
 
     const indexer = new ContentSearchIndexer(contentRoot, this.logger);
-    await indexer.build(manifest);
+    await indexer.build(manifest, contentRevision);
     this.logger?.info('[JOB] Production search index rebuilt', {
       pageCount: manifest.pages.length,
+      contentRevision,
     });
   }
 

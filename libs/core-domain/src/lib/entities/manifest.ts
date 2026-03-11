@@ -62,6 +62,14 @@ export interface Manifest {
    * When signature changes, all notes must be re-rendered
    */
   pipelineSignature?: PipelineSignature;
+
+  /**
+   * Unique identifier of the publication that produced this manifest.
+   * Generated once per finalization job (`crypto.randomUUID()`).
+   * Embedded in both manifest and search-index so consumers can verify
+   * they are reading a coherent state.
+   */
+  contentRevision?: string;
 }
 
 export const defaultManifest: Manifest = {

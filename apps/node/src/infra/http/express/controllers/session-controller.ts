@@ -247,6 +247,7 @@ export function createSessionController(
       return res.status(200).json({
         sessionId: result.sessionId,
         success: true,
+        contentRevision: completedJob.result?.contentRevision,
         promotionStats: completedJob.result?.promotionStats,
       });
     } catch (err) {
