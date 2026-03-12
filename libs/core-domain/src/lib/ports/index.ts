@@ -13,3 +13,7 @@ export * from './settings-export-port';
 export * from './step-progress-manager-port';
 export * from './uploader-port';
 export * from './vault-port';
+export * from './asset-hash-port';
+export * from './cancellation-port';
+export * from './compression-port';
+export * from './performance-tracker.port';

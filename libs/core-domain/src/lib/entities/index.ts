@@ -39,3 +39,7 @@ export * from './search-index';
 export * from './session';
 export * from './vps-config';
 export * from './wikilink-ref';
+export * from './chunked-data';
+export * from './promotion-stats';
+export * from './publishing-context';
+export * from './publishing-stats';

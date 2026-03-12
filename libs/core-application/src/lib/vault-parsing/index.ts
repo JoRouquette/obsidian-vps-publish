@@ -13,3 +13,6 @@ export * from './services/remove-no-publishing-marker.service';
 export * from './services/render-inline-dataview.service';
 export * from './services/resolve-custom-index.service';
 export * from './services/resolve-wikilinks.service';
+export * from './handler/parse-content.handler';
+export * from './mappers/notes.mapper';
+export * from './utils/frontmatter-strings.util';
