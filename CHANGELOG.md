@@ -1,3 +1,35 @@
+## [6.11.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.10.1...6.11.0) (2026-03-12)
+
+### ⚠ BREAKING CHANGES
+
+* **pipeline:** ManifestPort now requires atomicUpdate() implementation
+
+Files changed:
+- session-finalization-job.service.ts: STEP 3 index rebuild, STEP 4 validation
+- session-finalizer.service.ts: Remove premature index rebuild
+- manifest-file-system.ts: Add path-keyed mutex and atomicUpdate()
+- upload-notes.handler.ts: Use atomicUpdate() for manifest writes
+- manifest-storage.port.ts: Add atomicUpdate() to interface
+
+### Features
+
+* **plugin:** add publish confirmation modal and improve accessibility ([473f23a](https://github.com/JoRouquette/obsidian-vps-publish/commit/473f23a58e05162cb342ee5384ccceb3fc22d664))
+* **publish:** add contentRevision for atomic publication traceability ([f96a6b2](https://github.com/JoRouquette/obsidian-vps-publish/commit/f96a6b2f323668c6952b75cb0ad40d7b078bb27e))
+
+### Bug Fixes
+
+* **cache:** invalidate search index on content version change ([06e0e84](https://github.com/JoRouquette/obsidian-vps-publish/commit/06e0e84fef24247720323d4bcf73f6eb10463f6d))
+* **libs:** add missing exports to barrel index files ([b68de6a](https://github.com/JoRouquette/obsidian-vps-publish/commit/b68de6a258939ca85132a77ee371c79bc4b4c094))
+* **node:** rebuild HTML indexes from production manifest after promotion ([54da821](https://github.com/JoRouquette/obsidian-vps-publish/commit/54da8213b77bc44e0458383ece2f7df55f2e7cdf))
+* **pipeline:** ensure atomic publishing with correct index rebuild order ([deb98eb](https://github.com/JoRouquette/obsidian-vps-publish/commit/deb98eb43d9da17575fee649dcf9fcff0b559670))
+* **plugin:** polish UX with reduced noise and clearer hierarchy ([f1b74a8](https://github.com/JoRouquette/obsidian-vps-publish/commit/f1b74a82251129b7789240747dc2c270003edf5c))
+* **plugin:** require confirmation before upload from settings and ribbon ([6315e20](https://github.com/JoRouquette/obsidian-vps-publish/commit/6315e202f39566d3f2606b26d3bec48bf42c0699))
+* **settings:** move Delete VPS button to bottom of fieldset with warning style ([b0c9e51](https://github.com/JoRouquette/obsidian-vps-publish/commit/b0c9e5165836520e40ac0b3ad58a9765f8cb00f0))
+* **settings:** scope route UI state per VPS to prevent cross-VPS corruption ([296c3a2](https://github.com/JoRouquette/obsidian-vps-publish/commit/296c3a270c2c8fb751bc7d08b2827d30efacfda7)), closes [#2](https://github.com/JoRouquette/obsidian-vps-publish/issues/2)
+* **site:** improve accessibility with skip link, focus management & semantic markup ([1806474](https://github.com/JoRouquette/obsidian-vps-publish/commit/18064740fedcf3af2c294fef16a8f6b5f4fe9e31))
+* **site:** move Google Fonts imports from SCSS to index.html ([12392f7](https://github.com/JoRouquette/obsidian-vps-publish/commit/12392f7aa11c9670c8cf4cb937ef04b41eb5b7c7))
+* **tests:** add missing atomicUpdate mock to ManifestPort test stubs ([7dfd7cc](https://github.com/JoRouquette/obsidian-vps-publish/commit/7dfd7cc5e7fd7da1bbc993505336c20b097267ca))
+
 ## [6.10.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.10.0...6.10.1) (2026-03-10)
 
 ### Bug Fixes
