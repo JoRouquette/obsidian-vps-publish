@@ -29,6 +29,7 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
 
     mockStagingManager = {
       promoteSession: jest.fn().mockResolvedValue(undefined),
+      contentRootPath: '/tmp/test-content',
     } as unknown as jest.Mocked<StagingManager>;
 
     mockSessionRepository = {

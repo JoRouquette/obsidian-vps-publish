@@ -2,7 +2,6 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
 import { type ManifestPort } from '@core-application';
-import { Mutex } from 'async-mutex';
 import {
   type LoggerPort,
   type Manifest,
@@ -10,6 +9,7 @@ import {
   type ManifestPage,
   type PipelineSignature,
 } from '@core-domain';
+import { Mutex } from 'async-mutex';
 
 import { renderFolderIndex, renderRootIndex } from './site-index-templates';
 

@@ -4,12 +4,12 @@
  * Returns 202 Accepted immediately, allowing clients to poll for status
  */
 
+import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
 import { type SessionRepository } from '@core-application';
 import { type ContentSearchIndex, type LoggerPort, type PromotionStats } from '@core-domain';
-import { randomUUID } from 'node:crypto';
 
 import { ManifestFileSystem } from '../filesystem/manifest-file-system';
 import { type StagingManager } from '../filesystem/staging-manager';
@@ -235,7 +235,7 @@ export class SessionFinalizationJobService {
       // STEP 1: Rebuild from stored notes (heaviest operation)
       job.progress = 20;
       const rebuildStart = Date.now();
-      await this.sessionFinalizer.rebuildFromStored(job.sessionId);
+      const customIndexesHtml = await this.sessionFinalizer.rebuildFromStored(job.sessionId);
       timings.rebuildFromStored = Date.now() - rebuildStart;
       job.progress = 80;
 
@@ -251,6 +251,14 @@ export class SessionFinalizationJobService {
       );
       timings.promoteSession = Date.now() - promoteStart;
       job.progress = 90;
+
+      // STEP 2.5: Rebuild HTML indexes from PRODUCTION manifest (after merge)
+      // CRITICAL: rebuildFromStored writes indexes to staging using only the
+      // current session's pages. After promoteSession merges staging + production
+      // manifests, we must regenerate indexes so they reflect ALL pages.
+      const indexRebuildStart = Date.now();
+      await this.rebuildProductionHtmlIndexes(customIndexesHtml);
+      timings.rebuildHtmlIndexes = Date.now() - indexRebuildStart;
 
       // STEP 3: Rebuild search index from PRODUCTION manifest (after merge)
       // CRITICAL: This must happen AFTER promoteSession to include all pages
@@ -371,6 +379,28 @@ export class SessionFinalizationJobService {
     this.logger?.info('[JOB] Production search index rebuilt', {
       pageCount: manifest.pages.length,
       contentRevision,
+    });
+  }
+
+  /**
+   * Rebuild HTML index files (root + folder indexes) from the PRODUCTION manifest.
+   * Called after promoteSession() so indexes reflect all pages (staging + production merged).
+   */
+  private async rebuildProductionHtmlIndexes(
+    customIndexesHtml?: Map<string, string>
+  ): Promise<void> {
+    const contentRoot = this.stagingManager.contentRootPath;
+    const manifestStorage = new ManifestFileSystem(contentRoot, this.logger);
+    const manifest = await manifestStorage.load();
+
+    if (!manifest) {
+      this.logger?.warn('[JOB] No production manifest found; skipping HTML index rebuild');
+      return;
+    }
+
+    await manifestStorage.rebuildIndex(manifest, customIndexesHtml);
+    this.logger?.info('[JOB] Production HTML indexes rebuilt', {
+      pageCount: manifest.pages.length,
     });
   }
 

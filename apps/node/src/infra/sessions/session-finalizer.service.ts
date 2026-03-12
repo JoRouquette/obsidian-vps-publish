@@ -64,7 +64,7 @@ export class SessionFinalizerService {
     this.logger = logger?.child({ service: 'SessionFinalizerService' }) ?? new NullLogger();
   }
 
-  async rebuildFromStored(sessionId: string): Promise<void> {
+  async rebuildFromStored(sessionId: string): Promise<Map<string, string> | undefined> {
     const startTime = performance.now();
     const log = this.logger.child({ sessionId });
     const timings: Record<string, number> = {};
@@ -76,7 +76,7 @@ export class SessionFinalizerService {
 
     if (rawNotes.length === 0) {
       log.warn('No raw notes found for session; skipping rebuild');
-      return;
+      return undefined;
     }
 
     log.debug('Rebuilding session content from stored notes', { count: rawNotes.length });
@@ -266,6 +266,8 @@ export class SessionFinalizerService {
     });
 
     log.debug('Session rebuild complete');
+
+    return customIndexesHtml;
   }
 
   /**
