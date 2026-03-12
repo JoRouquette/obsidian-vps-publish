@@ -53,15 +53,19 @@
     </button>
   </div>
 
-  <!-- Ligne 2 : Breadcrumbs (fil d Ariane) -->
-  <nav class="breadcrumbs" aria-label="Fil d Ariane" data-testid="breadcrumbs">
-    @for (c of crumbs; track c.url; let last = $last) {
-      <span class="crumb" aria-current="{{ last ? 'page' : undefined }}">
-        <span [class.last]="last">{{ c.label }}</span>
-      </span>
-      @if (!last) {
-        <mat-icon class="sep" aria-hidden="true">chevron_right</mat-icon>
+  <!-- Ligne 2 : Breadcrumbs (fil d'Ariane) -->
+  <nav class="breadcrumbs" aria-label="Fil d'Ariane" data-testid="breadcrumbs">
+    <ol class="breadcrumbs-list">
+      @for (c of crumbs; track c.url; let last = $last; let i = $index) {
+        <li class="crumb">
+          @if (!last) {
+            <a [routerLink]="c.url">{{ c.label }}</a>
+            <mat-icon class="sep" aria-hidden="true">chevron_right</mat-icon>
+          } @else {
+            <span class="current" aria-current="page">{{ c.label }}</span>
+          }
+        </li>
       }
-    }
+    </ol>
   </nav>
 </mat-toolbar>

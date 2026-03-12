@@ -9,14 +9,45 @@ import {
   type ManifestPage,
   type PipelineSignature,
 } from '@core-domain';
+import { Mutex } from 'async-mutex';
 
 import { renderFolderIndex, renderRootIndex } from './site-index-templates';
+
+// Path-keyed mutex map to serialize concurrent writes to the same manifest file
+const manifestMutexes = new Map<string, Mutex>();
 
 export class ManifestFileSystem implements ManifestPort {
   constructor(
     private readonly contentRoot: string,
     private readonly _logger?: LoggerPort
   ) {}
+
+  /**
+   * Get or create a mutex for this manifest's content root.
+   * Ensures concurrent operations on the same manifest are serialized.
+   */
+  private getMutex(): Mutex {
+    const key = this.contentRoot;
+    let mutex = manifestMutexes.get(key);
+    if (!mutex) {
+      mutex = new Mutex();
+      manifestMutexes.set(key, mutex);
+    }
+    return mutex;
+  }
+
+  /**
+   * Atomically update the manifest using a callback.
+   * Ensures exclusive access to prevent concurrent write conflicts.
+   */
+  async atomicUpdate(updater: (current: Manifest | null) => Promise<Manifest>): Promise<void> {
+    const mutex = this.getMutex();
+    await mutex.runExclusive(async () => {
+      const current = await this.load();
+      const updated = await updater(current);
+      await this.save(updated);
+    });
+  }
 
   private manifestPath() {
     return path.join(this.contentRoot, '_manifest.json');

@@ -62,12 +62,12 @@
     },
     {
       "name": "search-index",
-      "urls": ["/api/search/**", "/search-index.json"],
+      "urls": ["/content/_search-index.json*"],
       "cacheConfig": {
         "maxSize": 5,
-        "maxAge": "30m",
+        "maxAge": "1h",
         "strategy": "freshness",
-        "timeout": "5s"
+        "timeout": "3s"
       }
     }
   ],

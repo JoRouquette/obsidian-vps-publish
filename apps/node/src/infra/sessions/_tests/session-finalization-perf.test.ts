@@ -43,6 +43,7 @@ describe.skip('SessionFinalizationJobService - Performance Tests', () => {
 
     mockStagingManager = {
       promoteSession: jest.fn().mockResolvedValue(undefined),
+      contentRootPath: '/tmp/test-content',
     };
 
     mockSessionRepository = {

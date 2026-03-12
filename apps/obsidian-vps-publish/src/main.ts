@@ -60,6 +60,7 @@ import { PublishingTraceService } from './lib/infra/publishing-trace.service';
 import { createStepMessages, getStepLabel } from './lib/infra/step-messages.factory';
 import { StepProgressManagerAdapter } from './lib/infra/step-progress-manager.adapter';
 import { UiPressureMonitorAdapter } from './lib/infra/ui-pressure-monitor.adapter';
+import { PublishConfirmModal, type PublishSummary } from './lib/modals/publish-confirm-modal';
 import { testVpsConnection } from './lib/services/http-connection.service';
 import { SessionApiClient } from './lib/services/session-api.client';
 import { ObsidianVpsPublishSettingTab } from './lib/setting-tab.view';
@@ -186,6 +187,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
   logger = new ConsoleLoggerAdapter({ plugin: 'ObsidianVpsPublish' });
   private currentPublishAbortController: AbortController | null = null;
   private cancelRibbonIcon: HTMLElement | null = null;
+  /** Session flag: show keepFocusWarning only once per session */
+  private hasShownFocusWarning = false;
 
   async onload() {
     await this.loadSettings();
@@ -213,7 +216,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           this.app,
           this.settings.vpsConfigs,
           async (vps) => {
-            await this.uploadToVps(vps);
+            const summary = this.estimatePublishSummary(vps);
+            new PublishConfirmModal(this.app, summary, t, async () => {
+              await this.uploadToVps(vps);
+            }).open();
           },
           t
         );
@@ -339,7 +345,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           this.app,
           this.settings.vpsConfigs,
           async (vps) => {
-            await this.uploadToVps(vps);
+            const summary = this.estimatePublishSummary(vps);
+            new PublishConfirmModal(this.app, summary, t, async () => {
+              await this.uploadToVps(vps);
+            }).open();
           },
           t
         );
@@ -512,6 +521,58 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     }
   }
 
+  /**
+   * Estimate the number of notes and assets to be published for a VPS configuration.
+   * This provides a rough count for the confirmation modal without doing a full parse.
+   */
+  estimatePublishSummary(vps: VpsConfig): PublishSummary {
+    const allMarkdownFiles = this.app.vault.getMarkdownFiles();
+    const allFiles = this.app.vault.getFiles();
+
+    // Get configured vault folders from route tree
+    const vaultFolders: string[] = [];
+    if (vps.routeTree?.roots) {
+      const collectVaultFolders = (nodes: typeof vps.routeTree.roots): void => {
+        for (const node of nodes) {
+          if (node.vaultFolder) {
+            vaultFolders.push(node.vaultFolder);
+          }
+          if (node.children) {
+            collectVaultFolders(node.children);
+          }
+        }
+      };
+      collectVaultFolders(vps.routeTree.roots);
+    }
+
+    // Count markdown files in configured folders
+    let notesCount = 0;
+    if (vaultFolders.length > 0) {
+      notesCount = allMarkdownFiles.filter((f) =>
+        vaultFolders.some((folder) => f.path.startsWith(folder + '/') || f.path === folder)
+      ).length;
+    } else {
+      // Fallback: all markdown files
+      notesCount = allMarkdownFiles.length;
+    }
+
+    // Estimate assets: non-markdown files in assets folder or vault folders
+    const assetsFolder = this.settings.assetsFolder ?? 'assets';
+    const assetsCount = allFiles.filter(
+      (f) =>
+        !f.path.endsWith('.md') &&
+        (f.path.startsWith(assetsFolder + '/') ||
+          vaultFolders.some((folder) => f.path.startsWith(folder + '/')))
+    ).length;
+
+    return {
+      vpsName: vps.name ?? 'Unnamed VPS',
+      vpsUrl: vps.baseUrl ?? '',
+      notesCount,
+      assetsCount,
+    };
+  }
+
   async uploadToVps(vps: VpsConfig): Promise<void> {
     // Temporarily replace first VPS with the selected one for upload
     const originalVpsConfigs = [...this.settings.vpsConfigs];
@@ -625,8 +686,11 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     // Start progress bar immediately (at 0%)
     totalProgressAdapter.start(0);
 
-    // Warn user to keep focus (browser throttling mitigation)
-    notificationAdapter.info(translate(t, 'notice.keepFocusWarning'));
+    // Warn user to keep focus (only once per session)
+    if (!this.hasShownFocusWarning) {
+      notificationAdapter.info(translate(t, 'notice.keepFocusWarning'));
+      this.hasShownFocusWarning = true;
+    }
 
     let sessionId: string | null = null;
     let sessionClient: SessionApiClient | null = null;

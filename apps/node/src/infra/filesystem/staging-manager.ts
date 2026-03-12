@@ -61,7 +61,8 @@ export class StagingManager {
     sessionId: string,
     allCollectedRoutes?: string[],
     pipelineSignature?: unknown,
-    locale?: SiteLocale
+    locale?: SiteLocale,
+    contentRevision?: string
   ): Promise<PromotionStats> {
     const stagingContent = this.contentStagingPath(sessionId);
     const stagingAssets = this.assetsStagingPath(sessionId);
@@ -121,6 +122,8 @@ export class StagingManager {
           | undefined,
         // Site locale from plugin settings (for HTML lang and PWA)
         locale: locale ?? stagingManifest.locale ?? productionManifest?.locale,
+        // Publication revision for traceability and cache coherence
+        contentRevision,
       };
 
       this.logger?.debug('Manifest merge prepared', {

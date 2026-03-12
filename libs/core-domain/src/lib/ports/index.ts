@@ -1,6 +1,9 @@
+export * from './asset-hash-port';
 export * from './asset-scanner-port';
 export * from './asset-validator-port';
 export * from './assets-vault-port';
+export * from './cancellation-port';
+export * from './compression-port';
 export * from './custom-index-resolver-port';
 export * from './dataview-processor-port';
 export * from './guid-generator-port';
@@ -8,6 +11,7 @@ export * from './logger-port';
 export * from './manifest-repository.port';
 export * from './note-hash-port';
 export * from './notification-port';
+export * from './performance-tracker.port';
 export * from './progress-port';
 export * from './settings-export-port';
 export * from './step-progress-manager-port';

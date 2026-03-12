@@ -1431,3 +1431,235 @@
     padding: 0.75rem;
   }
 }
+
+/* =============================================================================
+   PUBLISH CONFIRMATION MODAL
+   ============================================================================= */
+
+/* Icon in the native modal title bar */
+.ptpv-confirm-modal__icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.35rem;
+  color: var(--interactive-accent);
+  vertical-align: middle;
+}
+
+.ptpv-confirm-modal__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Summary table */
+.ptpv-confirm-modal__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.25rem;
+}
+
+.ptpv-confirm-modal__table td {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  vertical-align: baseline;
+}
+
+.ptpv-confirm-modal__table tr:last-child td {
+  border-bottom: none;
+}
+
+.ptpv-confirm-modal__label {
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  padding-right: 1.5rem;
+  width: 1%;
+}
+
+.ptpv-confirm-modal__value {
+  color: var(--text-normal);
+  word-break: break-word;
+}
+
+/* Estimated hint below the table */
+.ptpv-confirm-modal__hint {
+  color: var(--text-faint);
+  font-size: var(--font-smallest);
+  margin: 0.25rem 0 0;
+}
+
+/* =============================================================================
+   ROUTE KEYBOARD MOVE CONTROLS
+   ============================================================================= */
+
+.ptpv-route-move-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-right: 4px;
+}
+
+.ptpv-route-move-btn {
+  padding: 0;
+  width: 16px;
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  opacity: 0.5;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+
+.ptpv-route-move-btn:hover {
+  opacity: 1;
+  background: var(--background-modifier-hover);
+}
+
+.ptpv-route-move-btn:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+.ptpv-route-move-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Hide move controls by default, show on hover */
+.ptpv-route-item .ptpv-route-move-controls {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.ptpv-route-item:hover .ptpv-route-move-controls,
+.ptpv-route-item:focus-within .ptpv-route-move-controls {
+  opacity: 1;
+}
+
+/* ============================================================================
+   VPS Section - Primary VPS styling
+   ============================================================================ */
+
+.obsidian-vps-publish-settings .ptpv-vps {
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+  background-color: var(--background-primary);
+  position: relative;
+  box-sizing: border-box;
+}
+
+.obsidian-vps-publish-settings .ptpv-vps legend {
+  padding: 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-normal);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Primary VPS gets accent left border */
+.obsidian-vps-publish-settings .ptpv-vps--primary {
+  border-left: 3px solid var(--interactive-accent);
+}
+
+/* Primary badge pill */
+.obsidian-vps-publish-settings .ptpv-vps-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+/* ============================================================================
+   Ignore Rules Section - Global vs Per-VPS hierarchy
+   ============================================================================ */
+
+.obsidian-vps-publish-settings .ptpv-section-subheading {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-normal);
+  margin: 0.75rem 0 0.25rem;
+  padding-left: 0.25rem;
+  border-left: 3px solid var(--interactive-accent);
+}
+
+.obsidian-vps-publish-settings .ptpv-section-help {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem 0.5rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-global-section {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px dashed var(--background-modifier-border);
+  margin-bottom: 0.5rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-pervps-header {
+  margin-top: 0.5rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-ignore-vps-section {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background-color: var(--background-secondary-alt);
+}
+
+/* ============================================================================
+   Help Modal - Table of Contents navigation
+   ============================================================================ */
+
+.vps-publish-help-modal .help-toc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  background: var(--background-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.vps-publish-help-modal .help-toc-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.vps-publish-help-modal .help-toc-link {
+  color: var(--text-accent);
+  text-decoration: none;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.vps-publish-help-modal .help-toc-link:hover {
+  text-decoration: underline;
+}
+
+.vps-publish-help-modal .help-toc-sep {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Scroll padding for anchor targets */
+.vps-publish-help-modal .help-section[id] {
+  scroll-margin-top: 1rem;
+}

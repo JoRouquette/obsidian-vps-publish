@@ -21,4 +21,11 @@ export interface ManifestPort {
    * @param customIndexesHtml Optional custom HTML content for indexes, keyed by folder path
    */
   rebuildIndex(manifest: Manifest, customIndexesHtml?: Map<string, string>): Promise<void>;
+
+  /**
+   * Atomically update the manifest using a callback.
+   * Ensures exclusive access to prevent concurrent write conflicts.
+   * @param updater Function that receives current manifest and returns updated manifest
+   */
+  atomicUpdate(updater: (current: Manifest | null) => Promise<Manifest>): Promise<void>;
 }

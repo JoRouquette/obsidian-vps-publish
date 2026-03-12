@@ -6,6 +6,8 @@ export interface ContentSearchIndexEntry {
 
 export interface ContentSearchIndex {
   sessionId?: string;
+  /** Publication revision that produced this index (matches manifest.contentRevision). */
+  contentRevision?: string;
   builtAt: string;
   entries: ContentSearchIndexEntry[];
 }

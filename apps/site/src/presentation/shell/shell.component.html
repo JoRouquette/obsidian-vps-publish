@@ -1,3 +1,6 @@
+<!-- Skip link for keyboard/screen reader users -->
+<a class="skip-link" href="#main-content">Aller au contenu principal</a>
+
 <div class="grid" [class.sidebar-collapsed]="isSidebarCollapsed()">
   <!-- Search overlay (mobile) -->
   @if (isSearchOverlayOpen()) {
@@ -109,7 +112,7 @@
     </div>
   </div>
 
-  <div class="main">
+  <main class="main" id="main-content" tabindex="-1">
     <div class="content-wrapper">
       <router-outlet></router-outlet>
     </div>
@@ -129,7 +132,7 @@
         </a>
       }
     </footer>
-  </div>
+  </main>
 
   <!-- Scroll to top button -->
   <app-scroll-to-top />

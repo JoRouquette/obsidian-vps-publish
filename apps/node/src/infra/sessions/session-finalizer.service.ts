@@ -64,7 +64,7 @@ export class SessionFinalizerService {
     this.logger = logger?.child({ service: 'SessionFinalizerService' }) ?? new NullLogger();
   }
 
-  async rebuildFromStored(sessionId: string): Promise<void> {
+  async rebuildFromStored(sessionId: string): Promise<Map<string, string> | undefined> {
     const startTime = performance.now();
     const log = this.logger.child({ sessionId });
     const timings: Record<string, number> = {};
@@ -76,7 +76,7 @@ export class SessionFinalizerService {
 
     if (rawNotes.length === 0) {
       log.warn('No raw notes found for session; skipping rebuild');
-      return;
+      return undefined;
     }
 
     log.debug('Rebuilding session content from stored notes', { count: rawNotes.length });
@@ -240,12 +240,11 @@ export class SessionFinalizerService {
       });
     }
 
-    // STEP 11: Rebuild content search index
-    stepStart = performance.now();
-    await this.rebuildContentSearchIndex(sessionId);
-    timings.rebuildSearchIndex = performance.now() - stepStart;
+    // NOTE: Search index is now rebuilt AFTER manifest merge in SessionFinalizationJobService
+    // This ensures the index includes ALL pages (staging + unchanged production pages)
+    // See: session-finalization-job.service.ts executeJob() STEP 3
 
-    // STEP 12: Clear session storage
+    // STEP 11: Clear session storage
     stepStart = performance.now();
     await this.notesStorage.clear(sessionId);
     timings.clearSessionStorage = performance.now() - stepStart;
@@ -267,6 +266,8 @@ export class SessionFinalizerService {
     });
 
     log.debug('Session rebuild complete');
+
+    return customIndexesHtml;
   }
 
   /**

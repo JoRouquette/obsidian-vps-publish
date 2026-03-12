@@ -74,16 +74,41 @@ type PlaceholdersTranslations = {
 
 type SessionErrorsTranslations = {
   startFailed: string;
+  startFailedHint: string;
   uploadNotesFailed: string;
+  uploadNotesFailedHint: string;
   uploadAssetsFailed: string;
+  uploadAssetsFailedHint: string;
   finishFailed: string;
+  finishFailedHint: string;
   abortFailed: string;
   cleanupFailed: string;
   missingApiKey: string;
+  missingApiKeyHint: string;
   invalidUrl: string;
+  invalidUrlHint: string;
   missingVpsConfig: string;
   missingVpsName: string;
   confirmationMismatch: string;
+  networkError: string;
+  networkErrorHint: string;
+  timeoutError: string;
+  timeoutErrorHint: string;
+};
+
+type ConfirmationTranslations = {
+  title: string;
+  vpsLabel: string;
+  notesLabel: string;
+  assetsLabel: string;
+  estimatedHint: string;
+  publishButton: string;
+  cancelButton: string;
+};
+
+type RoutesKeyboardTranslations = {
+  moveUp: string;
+  moveDown: string;
 };
 
 type IgnoreRulesDefaults = {
@@ -117,6 +142,7 @@ type VpsTranslations = {
   addButton: string;
   deleteButton: string;
   deleteLastForbidden: string;
+  primaryBadge?: string;
   actionsTitle: string;
   actionsDescription: string;
   uploadButton: string;
@@ -223,6 +249,10 @@ type IgnoreRulesTranslations = {
   title: string;
   description?: string;
   help: string;
+  globalTitle?: string;
+  globalHelp?: string;
+  perVpsTitle?: string;
+  perVpsHelp?: string;
   addButton: string;
   deleteButton: string;
   propertyLabel: string;
@@ -364,6 +394,7 @@ export type HelpSection = {
 
 export type HelpTranslations = {
   title: string;
+  tocLabel?: string;
   introduction: string;
   sections: {
     publishing: HelpSection;
@@ -394,56 +425,58 @@ export type Translations = {
   common: CommonTranslations;
   placeholders: PlaceholdersTranslations;
   sessionErrors: SessionErrorsTranslations;
+  confirmation: ConfirmationTranslations;
+  routesKeyboard: RoutesKeyboardTranslations;
 };
 
 export const en: Translations = {
   plugin: {
     name: 'Publish to VPS',
     commandPublish: 'Launch publishing to VPS',
-    commandCancelPublish: 'Cancel ongoing publishing',
-    commandTestConnection: 'Test VPS connection',
-    commandOpenSettings: 'Open Publish to VPS Settings',
-    commandOpenHelp: 'Open Help & Documentation',
-    commandInsertNoPublishing: 'Insert ^no-publishing marker',
-    publishSuccess: 'Publishing completed.',
-    publishError: 'Error during publishing (see console).',
-    noConfig: 'No VPS or folder configuration defined.',
+    commandCancelPublish: 'Cancel publish',
+    commandTestConnection: 'Test connection',
+    commandOpenSettings: 'Settings',
+    commandOpenHelp: 'Help',
+    commandInsertNoPublishing: 'Mark as do-not-publish',
+    publishSuccess: 'Done! Content published.',
+    publishError: 'Publish failed. Check console for details.',
+    noConfig: 'No VPS configured yet.',
     error: {
-      failureToExportSettings: 'Failed to export settings.',
+      failureToExportSettings: 'Could not export settings.',
     },
     progress: {
       parseVault: {
-        label: 'Parsing vault',
-        start: 'Parsing vault content...',
-        success: 'Vault parsed successfully',
-        error: 'Failed to parse vault',
+        label: 'Reading vault',
+        start: 'Reading your notes...',
+        success: 'Notes ready',
+        error: 'Could not read vault',
       },
       uploadNotes: {
-        label: 'Uploading notes',
-        start: 'Uploading notes...',
-        success: 'Notes uploaded successfully',
-        error: 'Failed to upload notes',
+        label: 'Sending notes',
+        start: 'Sending notes...',
+        success: 'Notes sent',
+        error: 'Could not send notes',
       },
       uploadAssets: {
-        label: 'Uploading assets',
-        start: 'Uploading assets...',
-        success: 'Assets uploaded successfully',
-        error: 'Failed to upload assets',
-        skip: 'No assets to upload',
+        label: 'Sending files',
+        start: 'Sending images and files...',
+        success: 'Files sent',
+        error: 'Could not send files',
+        skip: 'No files to send',
       },
       finalizeSession: {
-        label: 'Finalizing',
-        start: 'Finalizing publication...',
-        success: 'Publication finalized',
-        error: 'Failed to finalize publication',
+        label: 'Finishing up',
+        start: 'Wrapping up...',
+        success: 'All done',
+        error: 'Could not finish',
       },
     },
   },
   settings: {
     tabTitle: 'Publish to VPS',
     errors: {
-      missingVpsConfig: 'VPS configuration not found for folder: ',
-      validationFailed: 'Route tree validation failed:',
+      missingVpsConfig: 'No VPS found for folder: ',
+      validationFailed: 'Route configuration error:',
     },
     defaults: {
       ignoreRules: {
@@ -465,6 +498,7 @@ export const en: Translations = {
       addButton: 'Add VPS',
       deleteButton: 'Delete VPS',
       deleteLastForbidden: 'At least one VPS is required',
+      primaryBadge: 'Primary',
       nameLabel: 'Name',
       nameDescription: 'Internal name for this VPS.',
       nameRequired: 'VPS name is required',
@@ -587,6 +621,10 @@ export const en: Translations = {
       title: 'Ignore rules',
       description: 'Notes with these frontmatter properties will be ignored during publishing.',
       help: 'You can define global rules based on frontmatter properties and values.',
+      globalTitle: 'Global rules (all VPS)',
+      globalHelp: 'These rules apply to all VPS configurations.',
+      perVpsTitle: 'Per-VPS rules',
+      perVpsHelp: 'Define specific ignore rules for each VPS.',
       addButton: 'Add ignore rule',
       deleteButton: 'Delete ignore rule',
       propertyLabel: 'Frontmatter property',
@@ -665,6 +703,7 @@ export const en: Translations = {
   },
   help: {
     title: 'Help & Documentation',
+    tocLabel: 'Jump to: ',
     introduction:
       'This plugin allows you to publish your Obsidian vault content to a self-hosted VPS. Here are the key features and syntax supported.',
     sections: {
@@ -878,67 +917,91 @@ export const en: Translations = {
   },
   sessionErrors: {
     startFailed: 'Failed to start session',
+    startFailedHint: 'Check your VPS URL and ensure the server is running.',
     uploadNotesFailed: 'Failed to upload notes',
+    uploadNotesFailedHint: 'The server rejected the notes. Check your API key and try again.',
     uploadAssetsFailed: 'Failed to upload assets',
+    uploadAssetsFailedHint: 'Some files may be too large or unsupported. Check server logs.',
     finishFailed: 'Failed to finalize session',
+    finishFailedHint:
+      'The server could not complete the publish. Try again or check server status.',
     abortFailed: 'Failed to abort session',
     cleanupFailed: 'Failed to cleanup VPS',
-    missingApiKey: 'Missing API key',
-    invalidUrl: 'Invalid URL',
-    missingVpsConfig: 'Missing VPS configuration',
-    missingVpsName: 'Missing VPS name',
-    confirmationMismatch: 'Confirmation name mismatch',
+    missingApiKey: 'API key is missing',
+    missingApiKeyHint: 'Add your API key in Settings → VPS Configuration.',
+    invalidUrl: 'Invalid VPS URL',
+    invalidUrlHint: 'Check the URL format (e.g., https://notes.example.com).',
+    missingVpsConfig: 'No VPS configured',
+    missingVpsName: 'VPS name is required',
+    confirmationMismatch: 'Confirmation name does not match',
+    networkError: 'Network connection failed',
+    networkErrorHint: 'Check your internet connection and firewall settings.',
+    timeoutError: 'Request timed out',
+    timeoutErrorHint: 'The server took too long to respond. Try again later.',
+  },
+  confirmation: {
+    title: 'Confirm Publication',
+    vpsLabel: 'Target',
+    notesLabel: 'Notes',
+    assetsLabel: 'Assets',
+    estimatedHint: 'Counts are estimated. Actual numbers may differ after parsing.',
+    publishButton: 'Publish',
+    cancelButton: 'Cancel',
+  },
+  routesKeyboard: {
+    moveUp: 'Move up',
+    moveDown: 'Move down',
   },
 };
 
 export const fr: Translations = {
   plugin: {
-    name: 'Publier vers mon VPS personnel',
-    commandPublish: 'Publier vers mon VPS personnel',
-    commandCancelPublish: 'Annuler la publication en cours',
-    commandTestConnection: 'Tester la connexion VPS',
-    commandOpenSettings: 'Ouvrir les parametres du plugin Publier vers mon VPS personnel',
-    commandOpenHelp: "Ouvrir l'aide et la documentation",
-    commandInsertNoPublishing: 'Inserer le marqueur ^no-publishing',
-    publishSuccess: 'Publication terminee.',
-    publishError: 'Erreur lors de la publication (voir la console).',
-    noConfig: 'Aucune configuration VPS ou dossier definie.',
+    name: 'Publier sur mon site',
+    commandPublish: 'Publier',
+    commandCancelPublish: 'Annuler',
+    commandTestConnection: 'Tester la connexion',
+    commandOpenSettings: 'Paramètres',
+    commandOpenHelp: 'Aide',
+    commandInsertNoPublishing: 'Marquer comme non-publiable',
+    publishSuccess: 'Terminé ! Contenu publié.',
+    publishError: 'Échec. Voir la console pour les détails.',
+    noConfig: 'Aucun VPS configuré.',
     error: {
-      failureToExportSettings: "Echec de l'exportation des parametres.",
+      failureToExportSettings: 'Export impossible.',
     },
     progress: {
       parseVault: {
-        label: 'Analyse du vault',
-        start: 'Analyse du vault en cours...',
-        success: 'Vault analyse avec succes',
-        error: "Echec de l'analyse du vault",
+        label: 'Lecture',
+        start: 'Lecture de vos notes...',
+        success: 'Notes prêtes',
+        error: 'Lecture impossible',
       },
       uploadNotes: {
-        label: 'Envoi des notes',
+        label: 'Envoi notes',
         start: 'Envoi des notes...',
-        success: 'Notes envoyees avec succes',
-        error: "Echec de l'envoi des notes",
+        success: 'Notes envoyées',
+        error: 'Envoi impossible',
       },
       uploadAssets: {
-        label: 'Envoi des ressources',
-        start: 'Envoi des ressources...',
-        success: 'Ressources envoyees avec succes',
-        error: "Echec de l'envoi des ressources",
-        skip: 'Aucune ressource a envoyer',
+        label: 'Envoi fichiers',
+        start: 'Envoi des images et fichiers...',
+        success: 'Fichiers envoyés',
+        error: 'Envoi impossible',
+        skip: 'Aucun fichier à envoyer',
       },
       finalizeSession: {
         label: 'Finalisation',
-        start: 'Finalisation de la publication...',
-        success: 'Publication finalisee',
-        error: 'Echec de la finalisation',
+        start: 'Finalisation...',
+        success: 'Terminé',
+        error: 'Finalisation impossible',
       },
     },
   },
   settings: {
-    tabTitle: 'Publier vers mon VPS personnel',
+    tabTitle: 'Publier sur mon site',
     errors: {
-      missingVpsConfig: 'Configuration VPS introuvable pour le dossier : ',
-      validationFailed: "Échec de validation de l'arbre de routes :",
+      missingVpsConfig: 'Aucun VPS pour ce dossier : ',
+      validationFailed: 'Erreur de configuration :',
     },
     defaults: {
       ignoreRules: {
@@ -960,6 +1023,7 @@ export const fr: Translations = {
       addButton: 'Ajouter un VPS',
       deleteButton: 'Supprimer le VPS',
       deleteLastForbidden: 'Au moins un VPS est requis',
+      primaryBadge: 'Principal',
       nameLabel: 'Nom',
       nameDescription: 'Nom interne pour ce VPS.',
       nameRequired: 'Le nom du VPS est requis',
@@ -1084,6 +1148,10 @@ export const fr: Translations = {
       description:
         'Les notes avec ces propriétés de frontmatter seront ignorées lors de la publication.',
       help: 'Vous pouvez définir des règles globales basées sur les propriétés et valeurs du frontmatter.',
+      globalTitle: 'Règles globales (tous les VPS)',
+      globalHelp: "Ces règles s'appliquent à toutes les configurations VPS.",
+      perVpsTitle: 'Règles par VPS',
+      perVpsHelp: "Définissez des règles d'exclusion spécifiques pour chaque VPS.",
       addButton: "Ajouter une règle d'exclusion",
       deleteButton: "Supprimer la règle d'exclusion",
       propertyLabel: 'Propriété du frontmatter',
@@ -1163,6 +1231,7 @@ export const fr: Translations = {
   },
   help: {
     title: 'Aide & Documentation',
+    tocLabel: 'Aller à : ',
     introduction:
       'Ce plugin permet de publier le contenu de votre coffre Obsidian vers un VPS auto-hébergé. Voici les fonctionnalités principales et syntaxes supportées.',
     sections: {
@@ -1378,15 +1447,38 @@ export const fr: Translations = {
   },
   sessionErrors: {
     startFailed: 'Échec du démarrage de la session',
+    startFailedHint: "Vérifiez l'URL du VPS et assurez-vous que le serveur fonctionne.",
     uploadNotesFailed: "Échec de l'envoi des notes",
+    uploadNotesFailedHint: 'Le serveur a refusé les notes. Vérifiez votre clé API.',
     uploadAssetsFailed: "Échec de l'envoi des ressources",
+    uploadAssetsFailedHint: 'Certains fichiers sont peut-être trop volumineux. Consultez les logs.',
     finishFailed: 'Échec de la finalisation',
+    finishFailedHint: "Le serveur n'a pas pu terminer. Réessayez ou vérifiez son état.",
     abortFailed: "Échec de l'annulation de la session",
     cleanupFailed: 'Échec du nettoyage du VPS',
     missingApiKey: 'Clé API manquante',
-    invalidUrl: 'URL invalide',
-    missingVpsConfig: 'Configuration VPS manquante',
-    missingVpsName: 'Nom du VPS manquant',
+    missingApiKeyHint: 'Ajoutez votre clé API dans Paramètres → Configuration VPS.',
+    invalidUrl: 'URL du VPS invalide',
+    invalidUrlHint: "Vérifiez le format de l'URL (ex: https://notes.example.com).",
+    missingVpsConfig: 'Aucun VPS configuré',
+    missingVpsName: 'Un nom de VPS est requis',
     confirmationMismatch: 'Le nom de confirmation ne correspond pas',
+    networkError: 'Connexion réseau impossible',
+    networkErrorHint: 'Vérifiez votre connexion internet et les paramètres de pare-feu.',
+    timeoutError: "Délai d'attente dépassé",
+    timeoutErrorHint: 'Le serveur a mis trop de temps à répondre. Réessayez plus tard.',
+  },
+  confirmation: {
+    title: 'Confirmer la publication',
+    vpsLabel: 'Cible',
+    notesLabel: 'Notes',
+    assetsLabel: 'Ressources',
+    estimatedHint: 'Les nombres sont estimés. Le total réel peut varier après analyse.',
+    publishButton: 'Publier',
+    cancelButton: 'Annuler',
+  },
+  routesKeyboard: {
+    moveUp: 'Monter',
+    moveDown: 'Descendre',
   },
 };

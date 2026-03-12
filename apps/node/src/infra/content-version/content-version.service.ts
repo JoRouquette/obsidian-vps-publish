@@ -9,6 +9,8 @@ import { type LoggerPort } from '@core-domain';
  */
 export interface ContentVersion {
   version: string;
+  /** Publication revision from manifest (matches manifest.contentRevision). */
+  contentRevision?: string;
   generatedAt: string;
 }
 
@@ -102,8 +104,18 @@ export class ContentVersionService {
       const manifestContent = await fs.readFile(this.manifestPath, 'utf-8');
       const hash = createHash('sha256').update(manifestContent).digest('hex').slice(0, 12);
 
+      // Extract contentRevision from manifest for traceability
+      let contentRevision: string | undefined;
+      try {
+        const parsed = JSON.parse(manifestContent) as { contentRevision?: string };
+        contentRevision = parsed.contentRevision;
+      } catch {
+        // Ignore JSON parse errors — hash is sufficient
+      }
+
       const version: ContentVersion = {
         version: hash,
+        contentRevision,
         generatedAt: new Date().toISOString(),
       };
 

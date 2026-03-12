@@ -1,5 +1,7 @@
 export * from './handler/evaluate-ignore-rules.handler';
 export * from './handler/http-response.handler';
+export * from './handler/parse-content.handler';
+export * from './mappers/notes.mapper';
 export * from './requests/http-request.request';
 export * from './services/compute-routing.service';
 export * from './services/content-sanitizer.service';
@@ -13,3 +15,4 @@ export * from './services/remove-no-publishing-marker.service';
 export * from './services/render-inline-dataview.service';
 export * from './services/resolve-custom-index.service';
 export * from './services/resolve-wikilinks.service';
+export * from './utils/frontmatter-strings.util';

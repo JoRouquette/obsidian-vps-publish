@@ -125,6 +125,10 @@ export function createApp(rootLogger?: LoggerPort) {
         if (filePath.endsWith('_manifest.json')) {
           res.setHeader('Cache-Control', 'public, max-age=60, must-revalidate');
         }
+        // Search index: always revalidate to ensure fresh results after publication
+        else if (filePath.endsWith('_search-index.json')) {
+          res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+        }
         // HTML content: moderate cache with revalidation
         else if (filePath.endsWith('.html')) {
           res.setHeader('Cache-Control', 'public, max-age=300, must-revalidate');

@@ -8,6 +8,8 @@ import { takeUntil } from 'rxjs/operators';
  */
 export interface ContentVersionInfo {
   version: string;
+  /** Publication revision from manifest (matches manifest.contentRevision). */
+  contentRevision?: string;
   generatedAt: string;
 }
 
@@ -189,11 +191,13 @@ export class ContentVersionService implements OnDestroy {
             const data = JSON.parse(event.data) as {
               type: string;
               version?: string;
+              contentRevision?: string;
               generatedAt?: string;
             };
             if (data.type === 'contentVersion' && data.version) {
               this.handleVersionUpdate({
                 version: data.version,
+                contentRevision: data.contentRevision,
                 generatedAt: data.generatedAt ?? new Date().toISOString(),
               });
             }

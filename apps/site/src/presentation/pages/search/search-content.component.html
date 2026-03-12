@@ -8,7 +8,7 @@
   </header>
 
   @if (search.loading()) {
-    <div class="state">
+    <div class="state" role="status" aria-live="polite" aria-busy="true">
       <mat-icon aria-hidden="true">refresh</mat-icon>
       <p>Chargement de l'index de recherche…</p>
     </div>
@@ -22,7 +22,7 @@
   }
 
   @if (!search.loading() && !search.error() && search.queryTooShort()) {
-    <div class="state info">
+    <div class="state info" role="status">
       <mat-icon aria-hidden="true">info</mat-icon>
       <p>Entrez au moins 3 caractères pour lancer une recherche.</p>
     </div>
@@ -35,7 +35,7 @@
     !search.queryTooShort() &&
     !hasResults()
   ) {
-    <div class="state muted">
+    <div class="state muted" role="status" aria-live="polite">
       <mat-icon aria-hidden="true">search_off</mat-icon>
       <p>Aucun résultat pour « {{ search.query() }} »</p>
     </div>

@@ -14,7 +14,7 @@ export class ContentSearchIndexer {
     private readonly logger?: LoggerPort
   ) {}
 
-  async build(manifest: Manifest): Promise<void> {
+  async build(manifest: Manifest, contentRevision?: string): Promise<void> {
     const entries: ContentSearchIndexEntry[] = [];
 
     for (const page of manifest.pages) {
@@ -35,6 +35,7 @@ export class ContentSearchIndexer {
 
     const index: ContentSearchIndex = {
       sessionId: manifest.sessionId,
+      contentRevision,
       builtAt: new Date().toISOString(),
       entries,
     };

@@ -31,16 +31,25 @@ interface RoutesUIState {
 }
 
 /**
- * Global UI state (module-level, reset on each render)
+ * Per-VPS UI state (keyed by VPS ID, prevents cross-VPS state corruption)
  */
-let uiState: RoutesUIState = {
-  editingNodeId: null,
-  expandedNodes: new Set<string>(),
-  tempRouteTree: null,
-  hasUnsavedChanges: false,
-  draggedNodeId: null,
-  draggedNodeParentId: null,
-};
+const uiStates = new Map<string, RoutesUIState>();
+
+function getOrCreateUiState(vpsId: string): RoutesUIState {
+  let state = uiStates.get(vpsId);
+  if (!state) {
+    state = {
+      editingNodeId: null,
+      expandedNodes: new Set<string>(),
+      tempRouteTree: null,
+      hasUnsavedChanges: false,
+      draggedNodeId: null,
+      draggedNodeParentId: null,
+    };
+    uiStates.set(vpsId, state);
+  }
+  return state;
+}
 
 /**
  * Render routes section - NEW route-first UI with tree structure
@@ -60,6 +69,8 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
       )
       .setHeading();
 
+    const state = getOrCreateUiState(vps.id);
+
     // Ensure routeTree exists
     if (!vps.routeTree || !vps.routeTree.roots) {
       logger.debug('No route tree found for VPS, creating default', { vpsId: vps.id });
@@ -75,11 +86,11 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
     }
 
     // Initialize temp route tree if not already set
-    if (!uiState.tempRouteTree) {
-      uiState.tempRouteTree = JSON.parse(JSON.stringify(vps.routeTree));
+    if (!state.tempRouteTree) {
+      state.tempRouteTree = JSON.parse(JSON.stringify(vps.routeTree));
     }
 
-    const routeTree = uiState.tempRouteTree!; // Non-null assertion safe here after check
+    const routeTree = state.tempRouteTree!; // Non-null assertion safe here after check
 
     // Ensure at least one root route
     if (routeTree.roots.length === 0) {
@@ -88,7 +99,7 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
         segment: '',
         ignoredCleanupRuleIds: [],
       });
-      uiState.hasUnsavedChanges = true;
+      state.hasUnsavedChanges = true;
     }
 
     // Render tree container
@@ -106,7 +117,15 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
         return segmentA.localeCompare(segmentB);
       });
       sortedRoots.forEach((rootNode, index) => {
-        renderRouteNode(treeContainer, vps, rootNode, ctx, 0, index === sortedRoots.length - 1);
+        renderRouteNode(
+          treeContainer,
+          vps,
+          rootNode,
+          ctx,
+          0,
+          index === sortedRoots.length - 1,
+          state
+        );
       });
     };
 
@@ -129,8 +148,8 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
       };
       // Add to END of list (user requirement)
       routeTree.roots.push(newRoute);
-      uiState.editingNodeId = newRoute.id; // Auto-open editor
-      uiState.hasUnsavedChanges = true;
+      state.editingNodeId = newRoute.id; // Auto-open editor
+      state.hasUnsavedChanges = true;
       ctx.refresh();
     };
 
@@ -141,14 +160,14 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
 
     const btnSave = actionRow.createEl('button', {
       text: t.common.save || 'Sauvegarder',
-      cls: uiState.hasUnsavedChanges ? 'mod-cta' : '',
+      cls: state.hasUnsavedChanges ? 'mod-cta' : '',
     });
-    btnSave.disabled = !uiState.hasUnsavedChanges;
+    btnSave.disabled = !state.hasUnsavedChanges;
     btnSave.onclick = async () => {
       logger.debug('Saving route tree changes', { vpsId: vps.id });
 
       // Validate before saving
-      const validationResult = validateRouteTree(uiState.tempRouteTree!);
+      const validationResult = validateRouteTree(state.tempRouteTree!);
       if (!validationResult.valid) {
         const errorMsg = validationResult.conflicts
           .map((c) => `${c.message} at ${c.path}`)
@@ -158,9 +177,9 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
       }
 
       // Apply temp changes to actual settings
-      vps.routeTree = JSON.parse(JSON.stringify(uiState.tempRouteTree));
-      uiState.hasUnsavedChanges = false;
-      uiState.tempRouteTree = null;
+      vps.routeTree = JSON.parse(JSON.stringify(state.tempRouteTree));
+      state.hasUnsavedChanges = false;
+      state.tempRouteTree = null;
       await ctx.save();
       ctx.refresh();
       new Notice(t.common.saved || 'Sauvegardé');
@@ -169,13 +188,13 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
     const btnCancel = actionRow.createEl('button', {
       text: t.common.cancel || 'Annuler',
     });
-    btnCancel.disabled = !uiState.hasUnsavedChanges;
+    btnCancel.disabled = !state.hasUnsavedChanges;
     btnCancel.onclick = () => {
       logger.debug('Cancelling route tree changes', { vpsId: vps.id });
       // Reset temp state
-      uiState.tempRouteTree = null;
-      uiState.hasUnsavedChanges = false;
-      uiState.editingNodeId = null;
+      state.tempRouteTree = null;
+      state.hasUnsavedChanges = false;
+      state.editingNodeId = null;
       ctx.refresh();
       new Notice(t.common.cancelled || 'Annulé');
     };
@@ -183,8 +202,7 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
 
   // Reset temp state on section unmount
   root.addEventListener('DOMContentLoaded', () => {
-    uiState.tempRouteTree = null;
-    uiState.hasUnsavedChanges = false;
+    uiStates.clear();
   });
 }
 
@@ -197,7 +215,8 @@ function renderRouteNode(
   node: RouteNode,
   ctx: SettingsViewContext,
   depth: number,
-  _isLastSibling: boolean
+  _isLastSibling: boolean,
+  state: RoutesUIState
 ): void {
   const { logger } = ctx;
 
@@ -215,10 +234,10 @@ function renderRouteNode(
 
   // Drag event handlers
   item.ondragstart = (e) => {
-    uiState.draggedNodeId = node.id;
+    state.draggedNodeId = node.id;
     // Find parent
-    const parent = findParentNode(uiState.tempRouteTree!, node.id);
-    uiState.draggedNodeParentId = parent?.id || null;
+    const parent = findParentNode(state.tempRouteTree!, node.id);
+    state.draggedNodeParentId = parent?.id || null;
     item.addClass('is-dragging');
     e.dataTransfer!.effectAllowed = 'move';
   };
@@ -237,7 +256,7 @@ function renderRouteNode(
 
   item.ondragover = (e) => {
     e.preventDefault();
-    if (!uiState.draggedNodeId || uiState.draggedNodeId === node.id) return;
+    if (!state.draggedNodeId || state.draggedNodeId === node.id) return;
 
     const rect = item.getBoundingClientRect();
     const y = e.clientY - rect.top;
@@ -273,13 +292,13 @@ function renderRouteNode(
     item.removeClass('drag-over-bottom');
     item.removeClass('drag-over-child');
 
-    if (!uiState.draggedNodeId || uiState.draggedNodeId === node.id) return;
+    if (!state.draggedNodeId || state.draggedNodeId === node.id) return;
 
     const rect = item.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const height = rect.height;
 
-    const draggedNode = findNodeById(uiState.tempRouteTree!, uiState.draggedNodeId);
+    const draggedNode = findNodeById(state.tempRouteTree!, state.draggedNodeId);
     if (!draggedNode) return;
 
     // Prevent dropping a parent into its own child
@@ -291,25 +310,25 @@ function renderRouteNode(
     }
 
     // Remove from old location
-    removeNodeFromTree(uiState.tempRouteTree!, uiState.draggedNodeId);
+    removeNodeFromTree(state.tempRouteTree!, state.draggedNodeId);
 
     // Determine drop position
     if (y < height * 0.25) {
       // Insert before target
-      insertNodeBefore(uiState.tempRouteTree!, node.id, draggedNode);
+      insertNodeBefore(state.tempRouteTree!, node.id, draggedNode);
     } else if (y > height * 0.75) {
       // Insert after target
-      insertNodeAfter(uiState.tempRouteTree!, node.id, draggedNode);
+      insertNodeAfter(state.tempRouteTree!, node.id, draggedNode);
     } else {
       // Add as child
       if (!node.children) node.children = [];
       node.children.push(draggedNode);
-      uiState.expandedNodes.add(node.id);
+      state.expandedNodes.add(node.id);
     }
 
-    uiState.hasUnsavedChanges = true;
-    uiState.draggedNodeId = null;
-    uiState.draggedNodeParentId = null;
+    state.hasUnsavedChanges = true;
+    state.draggedNodeId = null;
+    state.draggedNodeParentId = null;
     ctx.refresh();
   };
 
@@ -323,20 +342,49 @@ function renderRouteNode(
   });
   setIcon(dragHandle, 'grip-vertical');
 
+  // Keyboard move buttons (accessible alternative to drag & drop)
+  const moveControls = item.createDiv({ cls: 'ptpv-route-move-controls' });
+
+  const moveUpBtn = moveControls.createEl('button', {
+    cls: 'ptpv-route-move-btn clickable-icon',
+    attr: {
+      'aria-label': ctx.t.routesKeyboard?.moveUp ?? 'Move up',
+      tabindex: '0',
+    },
+  });
+  setIcon(moveUpBtn, 'chevron-up');
+  moveUpBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    moveNodeUp(state, node, ctx);
+  });
+
+  const moveDownBtn = moveControls.createEl('button', {
+    cls: 'ptpv-route-move-btn clickable-icon',
+    attr: {
+      'aria-label': ctx.t.routesKeyboard?.moveDown ?? 'Move down',
+      tabindex: '0',
+    },
+  });
+  setIcon(moveDownBtn, 'chevron-down');
+  moveDownBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    moveNodeDown(state, node, ctx);
+  });
+
   // Expand/collapse button (if has children)
   const hasChildren = node.children && node.children.length > 0;
   if (hasChildren) {
-    const isExpanded = uiState.expandedNodes.has(node.id);
+    const isExpanded = state.expandedNodes.has(node.id);
     const btnExpand = item.createEl('span', {
       cls: 'ptpv-route-expand-btn',
       attr: { 'aria-label': isExpanded ? 'Collapse' : 'Expand' },
     });
     setIcon(btnExpand, isExpanded ? 'chevron-down' : 'chevron-right');
     btnExpand.onclick = () => {
-      if (uiState.expandedNodes.has(node.id)) {
-        uiState.expandedNodes.delete(node.id);
+      if (state.expandedNodes.has(node.id)) {
+        state.expandedNodes.delete(node.id);
       } else {
-        uiState.expandedNodes.add(node.id);
+        state.expandedNodes.add(node.id);
       }
       ctx.refresh();
     };
@@ -355,7 +403,7 @@ function renderRouteNode(
   if (node.flattenTree) indicators.push('⬇');
 
   // Check for validation errors
-  const conflicts = getNodeConflicts(uiState.tempRouteTree!, node.id);
+  const conflicts = getNodeConflicts(state.tempRouteTree!, node.id);
   if (conflicts.length > 0) {
     label.addClass('ptpv-route-has-conflicts');
     indicators.push('⚠️');
@@ -379,7 +427,7 @@ function renderRouteNode(
 
   const btnEdit = actions.createEl('button', { text: ctx.t.settings.routes.editRoute });
   btnEdit.onclick = () => {
-    uiState.editingNodeId = node.id;
+    state.editingNodeId = node.id;
     ctx.refresh();
   };
 
@@ -394,29 +442,29 @@ function renderRouteNode(
     if (!node.children) node.children = [];
     // Add to END of children list (user requirement)
     node.children.push(newChild);
-    uiState.expandedNodes.add(node.id); // Auto-expand parent
-    uiState.editingNodeId = newChild.id; // Auto-open editor
-    uiState.hasUnsavedChanges = true;
+    state.expandedNodes.add(node.id); // Auto-expand parent
+    state.editingNodeId = newChild.id; // Auto-open editor
+    state.hasUnsavedChanges = true;
     ctx.refresh();
   };
 
   const btnDelete = actions.createEl('button', { text: ctx.t.settings.routes.deleteRoute });
   btnDelete.onclick = () => {
-    if (!canDeleteNode(uiState.tempRouteTree!, node)) {
+    if (!canDeleteNode(state.tempRouteTree!, node)) {
       new Notice(ctx.t.settings.routes.deleteLastForbidden);
       return;
     }
     logger.debug('Route deleted', { nodeId: node.id });
-    deleteNodeFromTree(uiState.tempRouteTree!, node.id);
-    if (uiState.editingNodeId === node.id) {
-      uiState.editingNodeId = null;
+    deleteNodeFromTree(state.tempRouteTree!, node.id);
+    if (state.editingNodeId === node.id) {
+      state.editingNodeId = null;
     }
-    uiState.hasUnsavedChanges = true;
+    state.hasUnsavedChanges = true;
     ctx.refresh();
   };
 
   // Detailed editor (if this node is being edited)
-  if (uiState.editingNodeId === node.id) {
+  if (state.editingNodeId === node.id) {
     const editorContainer = nodeContainer.createDiv({ cls: 'ptpv-route-editor' });
 
     // Close button in top-right corner
@@ -425,15 +473,15 @@ function renderRouteNode(
     closeBtn.setAttribute('aria-label', ctx.t.settings.folders.closeEditor);
     closeBtn.setAttribute('title', ctx.t.settings.folders.closeEditor);
     closeBtn.onclick = () => {
-      uiState.editingNodeId = null;
+      state.editingNodeId = null;
       ctx.refresh();
     };
 
-    renderRouteEditor(editorContainer, vps, node, ctx);
+    renderRouteEditor(editorContainer, vps, node, ctx, state);
   }
 
   // Render children (if expanded)
-  if (hasChildren && uiState.expandedNodes.has(node.id)) {
+  if (hasChildren && state.expandedNodes.has(node.id)) {
     const childrenContainer = nodeContainer.createDiv({ cls: 'ptpv-route-children' });
     node.children!.forEach((child, index) => {
       renderRouteNode(
@@ -442,7 +490,8 @@ function renderRouteNode(
         child,
         ctx,
         depth + 1,
-        index === node.children!.length - 1
+        index === node.children!.length - 1,
+        state
       );
     });
   }
@@ -455,7 +504,8 @@ function renderRouteEditor(
   container: HTMLElement,
   vps: VpsConfig,
   node: RouteNode,
-  ctx: SettingsViewContext
+  ctx: SettingsViewContext,
+  state: RoutesUIState
 ): void {
   const { t } = ctx;
   container.createEl('h4', { text: t.settings.routes.routeConfiguration });
@@ -467,7 +517,7 @@ function renderRouteEditor(
     .addText((text) => {
       text.setValue(node.segment || '').onChange((value) => {
         node.segment = value;
-        uiState.hasUnsavedChanges = true;
+        state.hasUnsavedChanges = true;
       });
     });
 
@@ -481,7 +531,7 @@ function renderRouteEditor(
         .setValue(node.displayName || '')
         .onChange((value) => {
           node.displayName = value || undefined;
-          uiState.hasUnsavedChanges = true;
+          state.hasUnsavedChanges = true;
         });
     });
 
@@ -498,7 +548,7 @@ function renderRouteEditor(
       .setDisabled(!node.vaultFolder)
       .onChange((value) => {
         node.flattenTree = value;
-        uiState.hasUnsavedChanges = true;
+        state.hasUnsavedChanges = true;
       });
   });
 
@@ -514,7 +564,7 @@ function renderRouteEditor(
         if (flattenToggle) {
           flattenToggle.setDisabled(!value);
         }
-        uiState.hasUnsavedChanges = true;
+        state.hasUnsavedChanges = true;
       });
     });
 
@@ -526,7 +576,7 @@ function renderRouteEditor(
       new FileSuggest(ctx.plugin.app, search.inputEl);
       search.setValue(node.customIndexFile || '').onChange((value) => {
         node.customIndexFile = value || undefined;
-        uiState.hasUnsavedChanges = true;
+        state.hasUnsavedChanges = true;
       });
     });
 
@@ -543,7 +593,7 @@ function renderRouteEditor(
       search.setValue(filePath).onChange((value) => {
         if (!node.additionalFiles) node.additionalFiles = [];
         node.additionalFiles[index] = value;
-        uiState.hasUnsavedChanges = true;
+        state.hasUnsavedChanges = true;
       });
     });
 
@@ -551,7 +601,7 @@ function renderRouteEditor(
       btn.setIcon('trash').onClick(() => {
         if (!node.additionalFiles) return;
         node.additionalFiles.splice(index, 1);
-        uiState.hasUnsavedChanges = true;
+        state.hasUnsavedChanges = true;
         ctx.refresh();
       });
     });
@@ -562,7 +612,7 @@ function renderRouteEditor(
     btn.setButtonText(t.settings.folders.addAdditionalFileButton).onClick(() => {
       if (!node.additionalFiles) node.additionalFiles = [];
       node.additionalFiles.push('');
-      uiState.hasUnsavedChanges = true;
+      state.hasUnsavedChanges = true;
       ctx.refresh();
     });
   });
@@ -577,8 +627,88 @@ function renderRouteEditor(
       .setButtonText(t.settings.folders.closeEditor)
       .setCta()
       .onClick(() => {
-        uiState.editingNodeId = null;
+        state.editingNodeId = null;
         ctx.refresh();
       });
   });
+}
+
+// ---------------------------------------------------------------------------
+// Keyboard Move Helpers
+// ---------------------------------------------------------------------------
+
+interface MoveUIState {
+  tempRouteTree: { roots: RouteNode[] } | null;
+  hasUnsavedChanges: boolean;
+}
+
+interface MoveContext {
+  refresh: () => void;
+}
+
+/**
+ * Get siblings array and current index for a node
+ */
+function getSiblingsAndIndex(
+  routeTree: { roots: RouteNode[] },
+  node: RouteNode
+): { siblings: RouteNode[]; index: number } | null {
+  // Check if it's a root node
+  const rootIndex = routeTree.roots.findIndex((r) => r.id === node.id);
+  if (rootIndex !== -1) {
+    return { siblings: routeTree.roots, index: rootIndex };
+  }
+
+  // Find parent and get siblings
+  const parent = findParentNode(routeTree, node.id);
+  if (parent && parent.children) {
+    const index = parent.children.findIndex((c) => c.id === node.id);
+    if (index !== -1) {
+      return { siblings: parent.children, index };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Move a node up in its siblings array
+ */
+function moveNodeUp(uiState: MoveUIState, node: RouteNode, ctx: MoveContext): void {
+  if (!uiState.tempRouteTree) return;
+
+  const result = getSiblingsAndIndex(uiState.tempRouteTree, node);
+  if (!result) return;
+
+  const { siblings, index } = result;
+
+  // Can't move up if already first
+  if (index === 0) return;
+
+  // Swap with previous sibling
+  [siblings[index - 1], siblings[index]] = [siblings[index], siblings[index - 1]];
+
+  uiState.hasUnsavedChanges = true;
+  ctx.refresh();
+}
+
+/**
+ * Move a node down in its siblings array
+ */
+function moveNodeDown(uiState: MoveUIState, node: RouteNode, ctx: MoveContext): void {
+  if (!uiState.tempRouteTree) return;
+
+  const result = getSiblingsAndIndex(uiState.tempRouteTree, node);
+  if (!result) return;
+
+  const { siblings, index } = result;
+
+  // Can't move down if already last
+  if (index >= siblings.length - 1) return;
+
+  // Swap with next sibling
+  [siblings[index], siblings[index + 1]] = [siblings[index + 1], siblings[index]];
+
+  uiState.hasUnsavedChanges = true;
+  ctx.refresh();
 }

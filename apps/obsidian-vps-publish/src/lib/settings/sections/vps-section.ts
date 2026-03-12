@@ -7,6 +7,7 @@ import { Notice, Setting } from 'obsidian';
 
 import type { Translations } from '../../../i18n';
 import { translate } from '../../../i18n';
+import { PublishConfirmModal } from '../../modals/publish-confirm-modal';
 import { FileSuggest } from '../../suggesters/file-suggester';
 import { defaultSanitizationRules } from '../../utils/create-default-folder-config.util';
 import type { SettingsViewContext } from '../context';
@@ -36,36 +37,16 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
   new Setting(vpsBlock).setName(t.settings.vps.title).setHeading();
 
   settings.vpsConfigs.forEach((vps, index) => {
-    const vpsFieldset = vpsBlock.createEl('fieldset', { cls: 'ptpv-vps' });
+    // First VPS gets primary styling
+    const isPrimary = index === 0;
+    const vpsFieldset = vpsBlock.createEl('fieldset', {
+      cls: isPrimary ? 'ptpv-vps ptpv-vps--primary' : 'ptpv-vps',
+    });
     const legendText = vps.name || vps.id || `${t.settings.vps.title} #${index + 1}`;
-    vpsFieldset.createEl('legend', { text: legendText });
-
-    // Delete VPS button
-    const deleteSetting = new Setting(vpsFieldset).setName(
-      t.settings.vps.deleteButton ?? 'Delete VPS'
-    );
-
-    deleteSetting.addButton((btn) =>
-      btn
-        .setIcon('trash')
-        .setDisabled(settings.vpsConfigs.length <= 1)
-        .setTooltip(
-          settings.vpsConfigs.length <= 1
-            ? (t.settings.vps.deleteLastForbidden ?? 'At least one VPS is required')
-            : ''
-        )
-        .onClick(async () => {
-          if (settings.vpsConfigs.length <= 1) {
-            logger.warn('Attempted to delete last VPS config, forbidden.');
-            new Notice(t.settings.vps.deleteLastForbidden ?? 'At least one VPS is required');
-            return;
-          }
-          logger.debug('VPS config deleted', { index, vpsId: vps.id });
-          settings.vpsConfigs.splice(index, 1);
-          await ctx.save();
-          ctx.refresh();
-        })
-    );
+    const legend = vpsFieldset.createEl('legend', { text: legendText });
+    if (isPrimary) {
+      legend.createSpan({ cls: 'ptpv-vps-badge', text: t.settings.vps.primaryBadge ?? 'Primary' });
+    }
 
     // VPS Name
     new Setting(vpsFieldset)
@@ -191,6 +172,34 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
 
     // Cleanup Rules (Sanitization) for this VPS
     renderCleanupRulesSection(vpsFieldset, vps, ctx);
+
+    // Delete VPS button (at the bottom, away from main controls)
+    const deleteSetting = new Setting(vpsFieldset).setName(
+      t.settings.vps.deleteButton ?? 'Delete VPS'
+    );
+
+    deleteSetting.addButton((btn) => {
+      btn
+        .setIcon('trash')
+        .setWarning()
+        .setDisabled(settings.vpsConfigs.length <= 1)
+        .setTooltip(
+          settings.vpsConfigs.length <= 1
+            ? (t.settings.vps.deleteLastForbidden ?? 'At least one VPS is required')
+            : ''
+        )
+        .onClick(async () => {
+          if (settings.vpsConfigs.length <= 1) {
+            logger.warn('Attempted to delete last VPS config, forbidden.');
+            new Notice(t.settings.vps.deleteLastForbidden ?? 'At least one VPS is required');
+            return;
+          }
+          logger.debug('VPS config deleted', { index, vpsId: vps.id });
+          settings.vpsConfigs.splice(index, 1);
+          await ctx.save();
+          ctx.refresh();
+        });
+    });
   });
 
   vpsBlock.createDiv({
@@ -264,14 +273,17 @@ function renderVpsActions(container: HTMLElement, vps: VpsConfig, ctx: SettingsV
     text: t.settings.vps.uploadButton ?? 'Upload to this VPS',
   });
   uploadBtn.addClass('mod-cta');
-  uploadBtn.onclick = async () => {
-    try {
-      logger.debug('Starting upload to VPS', { vpsId: vps.id, vpsName: vps.name });
-      await ctx.plugin.uploadToVps(vps);
-      logger.debug('Upload to VPS succeeded', { vpsId: vps.id });
-    } catch (e) {
-      logger.error('Upload to VPS failed', { vpsId: vps.id, error: e });
-    }
+  uploadBtn.onclick = () => {
+    logger.debug('Starting upload to VPS', { vpsId: vps.id, vpsName: vps.name });
+    const summary = ctx.plugin.estimatePublishSummary(vps);
+    new PublishConfirmModal(ctx.app, summary, ctx.t, async () => {
+      try {
+        await ctx.plugin.uploadToVps(vps);
+        logger.debug('Upload to VPS succeeded', { vpsId: vps.id });
+      } catch (e) {
+        logger.error('Upload to VPS failed', { vpsId: vps.id, error: e });
+      }
+    }).open();
   };
 }
 

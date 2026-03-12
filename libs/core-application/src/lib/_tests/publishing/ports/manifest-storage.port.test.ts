@@ -25,6 +25,7 @@ describe('ManifestPort', () => {
       load: jest.fn(),
       save: jest.fn(),
       rebuildIndex: jest.fn(),
+      atomicUpdate: jest.fn(),
     };
   });
 
@@ -53,6 +54,14 @@ describe('ManifestPort', () => {
     it('should call rebuildIndex with the provided manifest', async () => {
       await manifestPort.rebuildIndex(mockManifest);
       expect(manifestPort.rebuildIndex).toHaveBeenCalledWith(mockManifest);
+    });
+  });
+
+  describe('atomicUpdate', () => {
+    it('should call atomicUpdate with the provided updater', async () => {
+      const updater = jest.fn().mockResolvedValue(mockManifest);
+      await manifestPort.atomicUpdate(updater);
+      expect(manifestPort.atomicUpdate).toHaveBeenCalledWith(updater);
     });
   });
 });

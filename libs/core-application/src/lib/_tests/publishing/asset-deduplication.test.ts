@@ -39,6 +39,7 @@ describe('Asset Deduplication (B4)', () => {
       load: jest.fn().mockResolvedValue(null),
       save: jest.fn().mockResolvedValue(undefined),
       rebuildIndex: jest.fn().mockResolvedValue(undefined),
+      atomicUpdate: jest.fn().mockResolvedValue(undefined),
     } as jest.Mocked<ManifestPort>;
 
     assetHasher = new MockAssetHasher();
