@@ -14,10 +14,18 @@ describe('UploadNotesHandler', () => {
       render: jest.fn(async (note: PublishableNote) => `<p>${note.content}</p>`),
     };
     contentStorage = { save: jest.fn(async () => {}) };
+    let storedManifest: any = undefined;
     manifestStorage = {
-      load: jest.fn(async () => undefined),
-      save: jest.fn(async () => {}),
+      load: jest.fn(async () => storedManifest),
+      save: jest.fn(async (m: any) => {
+        storedManifest = m;
+      }),
       rebuildIndex: jest.fn(async () => {}),
+      atomicUpdate: jest.fn(async (updater: (current: any) => Promise<any>) => {
+        const current = await manifestStorage.load();
+        const updated = await updater(current);
+        await manifestStorage.save(updated);
+      }),
     };
     logger = {
       child: jest.fn(() => logger),

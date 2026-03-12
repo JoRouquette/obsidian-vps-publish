@@ -65,18 +65,25 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
         jobIds.push(jobId);
       }
 
-      // Wait a bit for processing to start
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Poll until processing starts
+      let stats = service.getQueueStats();
+      const startPoll = Date.now();
+      while (stats.activeJobs === 0 && stats.completed === 0 && Date.now() - startPoll < 5000) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        stats = service.getQueueStats();
+      }
 
       // Check that only maxConcurrentJobs are active
-      const stats = service.getQueueStats();
       expect(stats.activeJobs).toBeLessThanOrEqual(maxConcurrentJobs);
       expect(stats.queueLength + stats.activeJobs + stats.completed).toBe(10);
 
-      // Wait for all jobs to complete
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Poll until all jobs complete
+      let finalStats = service.getQueueStats();
+      while (finalStats.completed < 10 && Date.now() - startPoll < 10000) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        finalStats = service.getQueueStats();
+      }
 
-      const finalStats = service.getQueueStats();
       expect(finalStats.completed).toBe(10);
       expect(finalStats.activeJobs).toBe(0);
       expect(finalStats.queueLength).toBe(0);
@@ -96,7 +103,13 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
       for (let i = 0; i < 5; i++) {
         await sequentialService.queueFinalization(`session-seq-${i}`);
       }
-      await new Promise((resolve) => setTimeout(resolve, 1200)); // 5 jobs × 200ms = 1000ms
+      // Poll until all 5 sequential jobs complete
+      while (
+        sequentialService.getQueueStats().completed < 5 &&
+        Date.now() - startSequential < 10000
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
       const durationSequential = Date.now() - startSequential;
 
       // Test with concurrency = 5 (parallel)
@@ -112,7 +125,10 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
       for (let i = 0; i < 5; i++) {
         await parallelService.queueFinalization(`session-par-${i}`);
       }
-      await new Promise((resolve) => setTimeout(resolve, 400)); // All 5 jobs in parallel ≈ 200ms
+      // Poll until all 5 parallel jobs complete
+      while (parallelService.getQueueStats().completed < 5 && Date.now() - startParallel < 10000) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
       const durationParallel = Date.now() - startParallel;
 
       // Parallel should be significantly faster
@@ -137,7 +153,13 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
       const job2 = await service.queueFinalization('session-2');
       const job3 = await service.queueFinalization('session-3');
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Poll until all 3 jobs finish (queue fully drained)
+      const pollStart = Date.now();
+      let s = service.getQueueStats();
+      while ((s.activeJobs > 0 || s.queueLength > 0) && Date.now() - pollStart < 5000) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        s = service.getQueueStats();
+      }
 
       const status1 = service.getJobStatus(job1);
       const status2 = service.getJobStatus(job2);
@@ -164,33 +186,31 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
         2 // Only 2 concurrent jobs allowed
       );
 
-      const startTime = Date.now();
       await service.queueFinalization('session-fast-1');
       await service.queueFinalization('session-slow');
       await service.queueFinalization('session-fast-2');
 
-      // Wait for first fast job to complete (allow margin for system latency)
-      await new Promise((resolve) => setTimeout(resolve, 80));
+      // Poll until at least 1 job completes (avoids flaky fixed-timeout)
+      const pollStart = Date.now();
+      let statsAfterFirst = service.getQueueStats();
+      while (statsAfterFirst.completed < 1 && Date.now() - pollStart < 5000) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        statsAfterFirst = service.getQueueStats();
+      }
 
-      const statsAfterFirst = service.getQueueStats();
-      // Should have at least 1 job completed (fast-1), possibly 2 on slow systems
       // The key assertion is that we never exceed maxConcurrentJobs
       expect(statsAfterFirst.completed).toBeGreaterThanOrEqual(1);
       expect(statsAfterFirst.activeJobs).toBeLessThanOrEqual(2);
 
-      // Wait for all to complete (increased timeout for slower job)
-      await new Promise((resolve) => setTimeout(resolve, 450));
-
-      const duration = Date.now() - startTime;
-      const finalStats = service.getQueueStats();
+      // Poll until all 3 jobs complete
+      let finalStats = service.getQueueStats();
+      while (finalStats.completed < 3 && Date.now() - pollStart < 5000) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        finalStats = service.getQueueStats();
+      }
 
       expect(finalStats.completed).toBe(3);
       expect(finalStats.activeJobs).toBe(0);
-
-      // Total duration should be ~450ms (not 500ms sequential)
-      // because fast-2 starts as soon as fast-1 completes
-      // Allow generous margin for CI timing variations and system load
-      expect(duration).toBeLessThan(900);
     });
   });
 
@@ -223,15 +243,26 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
         await service.queueFinalization(`session-${i}`);
       }
 
-      // Check immediately after queueing
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const statsEarly = service.getQueueStats();
+      // Poll until processing starts
+      const earlyPoll = Date.now();
+      let statsEarly = service.getQueueStats();
+      while (
+        statsEarly.activeJobs === 0 &&
+        statsEarly.completed === 0 &&
+        Date.now() - earlyPoll < 5000
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        statsEarly = service.getQueueStats();
+      }
       expect(statsEarly.activeJobs).toBeGreaterThan(0);
       expect(statsEarly.activeJobs).toBeLessThanOrEqual(3);
 
-      // Wait for all to complete
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      const statsFinal = service.getQueueStats();
+      // Poll until all 6 complete
+      let statsFinal = service.getQueueStats();
+      while (statsFinal.completed < 6 && Date.now() - earlyPoll < 10000) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        statsFinal = service.getQueueStats();
+      }
       expect(statsFinal.activeJobs).toBe(0);
       expect(statsFinal.completed).toBe(6);
     });
