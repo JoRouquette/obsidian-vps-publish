@@ -11,7 +11,7 @@ import { type BaseService } from '../../common/base-service';
  * Regex pour détecter les blocs de code ```leaflet
  * Capture le contenu entre les backticks
  */
-const LEAFLET_BLOCK_REGEX = /```leaflet\n([\s\S]*?)```/g;
+const LEAFLET_BLOCK_REGEX = /```leaflet[^\S\r\n]*\r?\n([\s\S]*?)\r?\n```[^\S\r\n]*/g;
 
 /**
  * Service de détection et parsing des blocs Leaflet dans les notes.
@@ -37,7 +37,29 @@ export class DetectLeafletBlocksService implements BaseService {
     let notesWithBlocks = 0;
 
     const result = notes.map((note) => {
-      const blocks = this.extractLeafletBlocks(note.content);
+      const blocks: LeafletBlock[] = [];
+
+      // Remplacer les blocs Leaflet valides par des placeholders HTML
+      // et conserver les blocs invalides tels quels dans le contenu.
+      let blockIndex = 0;
+      LEAFLET_BLOCK_REGEX.lastIndex = 0;
+      const processedContent = note.content.replace(LEAFLET_BLOCK_REGEX, (fullMatch, rawBlock) => {
+        blockIndex++;
+        const rawContent = String(rawBlock).trim();
+
+        try {
+          const block = this.parseLeafletBlock(rawContent);
+          blocks.push(block);
+          return `<div class="leaflet-map-placeholder" data-leaflet-map-id="${block.id}"></div>`;
+        } catch (error) {
+          this._logger.warn('Failed to parse Leaflet block', {
+            blockIndex,
+            rawContent,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return fullMatch;
+        }
+      });
 
       if (blocks.length === 0) {
         return note;
@@ -45,21 +67,6 @@ export class DetectLeafletBlocksService implements BaseService {
 
       totalBlocks += blocks.length;
       notesWithBlocks++;
-
-      // Remplacer les blocs Leaflet par des placeholders HTML
-      // Cela permet au frontend Angular d'injecter dynamiquement le composant
-      let processedContent = note.content;
-      let blockIndex = 0;
-
-      // Réinitialiser la regex pour relire depuis le début
-      LEAFLET_BLOCK_REGEX.lastIndex = 0;
-
-      processedContent = processedContent.replace(LEAFLET_BLOCK_REGEX, () => {
-        const block = blocks[blockIndex];
-        blockIndex++;
-        // Générer un placeholder HTML avec l'ID du bloc
-        return `<div class="leaflet-map-placeholder" data-leaflet-map-id="${block.id}"></div>`;
-      });
 
       return {
         ...note,
@@ -79,38 +86,15 @@ export class DetectLeafletBlocksService implements BaseService {
   }
 
   /**
-   * Extrait tous les blocs ```leaflet d'un contenu markdown
-   */
-  private extractLeafletBlocks(content: string): LeafletBlock[] {
-    const blocks: LeafletBlock[] = [];
-    let match: RegExpExecArray | null;
-
-    // Reset regex state
-    LEAFLET_BLOCK_REGEX.lastIndex = 0;
-
-    while ((match = LEAFLET_BLOCK_REGEX.exec(content)) !== null) {
-      const rawContent = match[1].trim();
-
-      try {
-        const block = this.parseLeafletBlock(rawContent);
-        blocks.push(block);
-      } catch (error) {
-        this._logger.warn('Failed to parse Leaflet block', {
-          rawContent,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    return blocks;
-  }
-
-  /**
    * Parse le contenu brut d'un bloc leaflet.
    * Supporte les formats clé:valeur et YAML.
    */
   private parseLeafletBlock(rawContent: string): LeafletBlock {
-    const lines = rawContent.split('\n').map((line) => line.trim());
+    const lines = rawContent
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
     const block: Partial<LeafletBlock> = {
       rawContent,
     };
@@ -119,7 +103,7 @@ export class DetectLeafletBlocksService implements BaseService {
     const imageOverlays: LeafletImageOverlay[] = [];
 
     for (const line of lines) {
-      if (!line || line.startsWith('#')) {
+      if (line.startsWith('#')) {
         continue; // Ignore empty lines and comments
       }
 
@@ -239,9 +223,9 @@ export class DetectLeafletBlocksService implements BaseService {
    * Parse un nombre depuis une chaîne
    */
   private parseNumber(value: string): number {
-    const num = parseFloat(value);
-    if (isNaN(num)) {
-      throw new Error(`Invalid number: ${value}`);
+    const num = Number.parseFloat(value);
+    if (Number.isNaN(num)) {
+      throw new TypeError(`Invalid number: ${value}`);
     }
     return num;
   }
@@ -284,15 +268,25 @@ export class DetectLeafletBlocksService implements BaseService {
    * Exemple: default, 50.5, 30.5, [[My Note]]
    */
   private parseMarker(value: string, markers: LeafletMarker[]): void {
+    const normalizedValue = this.normalizeMarkerValue(value);
+    if (!normalizedValue) {
+      this._logger.warn('Invalid marker format (empty marker value)', { value });
+      return;
+    }
+
     // Extraire le wikilink s'il existe
-    const wikilinkMatch = value.match(/\[\[([^\]]+)\]\]/);
+    const wikilinkRegex = /\[\[([^\]]+)\]\]/;
+    const wikilinkMatch = wikilinkRegex.exec(normalizedValue);
     const link = wikilinkMatch ? wikilinkMatch[1].trim() : undefined;
 
     // Retirer le wikilink pour parser le reste
-    const valueWithoutLink = value.replace(/\[\[[^\]]+\]\]/g, '').trim();
+    const valueWithoutLink = normalizedValue.replaceAll(/\[\[[^\]]+\]\]/g, '').trim();
 
     // Split par virgule
-    const parts = valueWithoutLink.split(',').map((p) => p.trim());
+    const parts = valueWithoutLink
+      .split(',')
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
 
     if (parts.length < 3) {
       this._logger.warn('Invalid marker format (need at least type, lat, long)', { value });
@@ -318,9 +312,27 @@ export class DetectLeafletBlocksService implements BaseService {
     } catch (error) {
       this._logger.warn('Failed to parse marker coordinates', {
         value,
+        normalizedValue,
         error: error instanceof Error ? error.message : String(error),
       });
     }
+  }
+
+  private normalizeMarkerValue(value: string): string {
+    let normalized = value.trim();
+
+    // Tolère les notations YAML de liste en ligne:
+    // marker: - default, 48.8, 2.3
+    // marker: - [default, 48.8, 2.3, [[Note]]]
+    if (normalized.startsWith('-')) {
+      normalized = normalized.substring(1).trim();
+    }
+
+    if (normalized.startsWith('[') && normalized.endsWith(']')) {
+      normalized = normalized.substring(1, normalized.length - 1).trim();
+    }
+
+    return normalized;
   }
 
   /**

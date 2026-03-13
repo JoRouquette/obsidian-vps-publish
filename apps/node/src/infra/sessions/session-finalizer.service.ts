@@ -16,6 +16,7 @@ import {
 } from '@core-application';
 import { NoteHashService } from '@core-application/publishing/services/note-hash.service';
 import { type CustomIndexConfig, type LoggerPort, LogLevel } from '@core-domain';
+import { load } from 'cheerio';
 
 import { type StagingManager } from '../filesystem/staging-manager';
 import { ContentSearchIndexer } from '../search/content-search-indexer';
@@ -351,7 +352,7 @@ export class SessionFinalizerService {
         });
 
         // Inject rendered Dataview and Leaflet blocks before extracting
-        const htmlWithBlocks = this.injectRenderedBlocks(htmlContent, page);
+        const htmlWithBlocks = this.injectRenderedBlocks(htmlContent, page, log);
 
         // Extract body content from full HTML page
         let bodyContent = this.extractBodyContent(htmlWithBlocks);
@@ -460,31 +461,91 @@ export class SessionFinalizerService {
    */
   private injectRenderedBlocks(
     html: string,
-    page: { dataviewBlocks?: unknown[]; leafletBlocks?: unknown[] }
+    page: { dataviewBlocks?: unknown[]; leafletBlocks?: unknown[]; route?: string },
+    log: LoggerPort
   ): string {
-    let result = html;
-
     // For Dataview: Keep placeholders as-is, ViewerComponent will inject them client-side
     // No modification needed - the HTML already contains the placeholders
 
     // For Leaflet: Enrich placeholders with full block data for client-side rendering
-    if (page.leafletBlocks && Array.isArray(page.leafletBlocks)) {
-      for (const block of page.leafletBlocks) {
-        if (block && typeof block === 'object' && 'id' in block) {
-          const blockId = String(block.id);
-          // Serialize block data as JSON and embed in data attribute
-          const blockDataJson = JSON.stringify(block)
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-
-          const placeholder = `<div class="leaflet-map-placeholder" data-leaflet-map-id="${blockId}"></div>`;
-          const enhancedPlaceholder = `<div class="leaflet-map-placeholder" data-leaflet-map-id="${blockId}" data-leaflet-block='${blockDataJson}'></div>`;
-          result = result.replace(placeholder, enhancedPlaceholder);
-        }
-      }
+    if (
+      !page.leafletBlocks ||
+      !Array.isArray(page.leafletBlocks) ||
+      page.leafletBlocks.length === 0
+    ) {
+      return html;
     }
 
-    return result;
+    const blocksById = new Map<string, unknown>();
+    for (const block of page.leafletBlocks) {
+      if (!block || typeof block !== 'object' || !('id' in block)) {
+        continue;
+      }
+
+      const blockId = String(block.id);
+      if (blocksById.has(blockId)) {
+        log.warn('Duplicate Leaflet block id detected while enriching placeholders', {
+          route: page.route,
+          blockId,
+        });
+      }
+
+      blocksById.set(blockId, block);
+    }
+
+    if (blocksById.size === 0) {
+      return html;
+    }
+
+    const $ = (load as (...args: unknown[]) => ReturnType<typeof load>)(
+      html,
+      { decodeEntities: false },
+      false
+    );
+    const placeholders = $('[data-leaflet-map-id]');
+
+    let enrichedCount = 0;
+    let missingBlockCount = 0;
+
+    for (const element of placeholders.toArray()) {
+      const mapId = $(element).attr('data-leaflet-map-id');
+      if (!mapId) {
+        continue;
+      }
+
+      const block = blocksById.get(mapId);
+      if (!block) {
+        missingBlockCount++;
+        log.warn('Leaflet placeholder has no matching block data', {
+          route: page.route,
+          mapId,
+        });
+        continue;
+      }
+
+      const blockDataJson = JSON.stringify(block);
+      $(element).attr('data-leaflet-block', blockDataJson);
+      enrichedCount++;
+    }
+
+    if (enrichedCount === 0 && blocksById.size > 0) {
+      log.warn('No Leaflet placeholder was enriched despite available blocks', {
+        route: page.route,
+        availableBlocks: blocksById.size,
+        placeholders: placeholders.length,
+      });
+    }
+
+    if (placeholders.length > 0 && missingBlockCount > 0) {
+      log.warn('Some Leaflet placeholders could not be enriched', {
+        route: page.route,
+        placeholders: placeholders.length,
+        enriched: enrichedCount,
+        missing: missingBlockCount,
+      });
+    }
+
+    return $.html();
   }
 
   /**

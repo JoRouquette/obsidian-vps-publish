@@ -1,20 +1,25 @@
+import { isPlatformBrowser } from '@angular/common';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   ComponentRef,
   computed,
-  createComponent,
   effect,
   ElementRef,
   EnvironmentInjector,
   Inject,
+  inject,
+  Injector,
+  OnDestroy,
+  OnInit,
+  PLATFORM_ID,
   ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-// Angular Material
 import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
 import { DomSanitizer } from '@angular/platform-browser';
@@ -29,6 +34,8 @@ import { ConfigFacade } from '../../../application/facades/config-facade';
 import type { ContentRepository } from '../../../domain/ports/content-repository.port';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
 import { LeafletMapComponent } from '../../components/leaflet-map/leaflet-map.component';
+import type { LeafletLogSink } from '../../services/leaflet-injection.service';
+import { LeafletInjectionService } from '../../services/leaflet-injection.service';
 
 type Section = {
   key: string;
@@ -46,11 +53,16 @@ type Section = {
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class HomeComponent {
+export class HomeComponent implements OnInit, OnDestroy {
   @ViewChild('contentEl', { static: false }) contentEl?: ElementRef<HTMLElement>;
 
   private readonly cleanupFns: Array<() => void> = [];
-  private readonly leafletComponentRefs: ComponentRef<LeafletMapComponent>[] = [];
+  private readonly leafletComponentRefs = new Map<HTMLElement, ComponentRef<LeafletMapComponent>>();
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly injector = inject(Injector);
+  private readonly leafletService = inject(LeafletInjectionService);
+  private postRenderCycle = 0;
+  private isDestroyed = false;
 
   welcomeTitle = computed(() => {
     const cfg = this.config.cfg();
@@ -74,25 +86,35 @@ export class HomeComponent {
     private readonly router: Router,
     private readonly environmentInjector: EnvironmentInjector
   ) {
-    void this.catalog.ensureManifest();
-    void this.config.ensure();
-
     // Effect pour décorer les liens après chargement du HTML
     effect(() => {
       this.rootIndexHtml();
-      setTimeout(() => {
-        this.decorateLinks();
-        this.injectLeafletComponents();
-      });
+      const cycle = ++this.postRenderCycle;
+      afterNextRender(
+        () => {
+          if (this.isDestroyed || cycle !== this.postRenderCycle) return;
+          this.decorateLinks();
+          this.injectLeafletComponents();
+        },
+        { injector: this.injector }
+      );
     });
   }
 
+  ngOnInit(): void {
+    void this.catalog.ensureManifest();
+    void this.config.ensure();
+  }
+
   ngOnDestroy(): void {
+    this.isDestroyed = true;
     this.cleanupLinks();
     this.cleanupLeafletComponents();
   }
 
   private decorateLinks(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+
     this.cleanupLinks();
 
     const container = this.contentEl?.nativeElement;
@@ -134,61 +156,89 @@ export class HomeComponent {
   }
 
   /**
-   * Injecte dynamiquement les composants Leaflet dans les placeholders HTML de l'index custom
+   * Injecte dynamiquement les composants Leaflet dans les placeholders HTML de l'index custom.
+   * Résolution métier : JSON embarqué dans data-leaflet-block.
    */
   private injectLeafletComponents(): void {
-    this.cleanupLeafletComponents();
+    if (!this.leafletService.canRun) return;
 
     const container = this.contentEl?.nativeElement;
     if (!container) return;
 
-    // Trouver tous les placeholders dans le HTML avec les données embarquées
-    const placeholders = Array.from(
-      container.querySelectorAll<HTMLElement>('[data-leaflet-block]')
-    );
+    const placeholders = this.leafletService.findPlaceholders(container, '[data-leaflet-block]');
 
-    if (placeholders.length === 0) return;
+    this.leafletService.runInjectionPass({
+      placeholders,
+      resolveBlock: (ph) => this.resolveBlockFromDataset(ph),
+      environmentInjector: this.environmentInjector,
+      refs: this.leafletComponentRefs,
+      log: this.leafletLog,
+    });
+  }
 
-    console.log('[HomeComponent] Found Leaflet placeholders:', placeholders.length);
+  /** Home-specific: parse block JSON from data-leaflet-block attribute */
+  private resolveBlockFromDataset(
+    placeholder: HTMLElement
+  ): { ok: true; block: LeafletBlock; mapId: string } | { ok: false; reason: string } {
+    const blockDataStr = placeholder.dataset['leafletBlock'];
+    if (!blockDataStr) {
+      return { ok: false, reason: 'missing-leaflet-block-dataset' };
+    }
 
-    for (const placeholder of placeholders) {
-      const blockDataStr = placeholder.dataset['leafletBlock'];
-      if (!blockDataStr) continue;
-
-      try {
-        // Désérialiser les données du bloc depuis l'attribut data-leaflet-block
-        const block: LeafletBlock = JSON.parse(blockDataStr);
-
-        // Créer le composant dynamiquement
-        const componentRef = createComponent(LeafletMapComponent, {
-          environmentInjector: this.environmentInjector,
-          hostElement: placeholder,
+    try {
+      const block: LeafletBlock = JSON.parse(blockDataStr);
+      if (!block.id) {
+        this.leafletLog.warn('placeholder-data-invalid', {
+          category: 'data',
+          reason: 'invalid-block-missing-id',
         });
-
-        // Passer les données au composant
-        componentRef.setInput('block', block);
-
-        // Déclencher la détection de changement
-        componentRef.changeDetectorRef.detectChanges();
-
-        // Stocker la référence pour nettoyage ultérieur
-        this.leafletComponentRefs.push(componentRef);
-
-        console.log('[HomeComponent] Injected Leaflet component:', block.id);
-      } catch (error) {
-        console.error('[HomeComponent] Failed to inject Leaflet component:', error);
+        return { ok: false, reason: 'invalid-block-missing-id' };
       }
+      return { ok: true, block, mapId: block.id };
+    } catch (error) {
+      this.leafletLog.error('leaflet-block-parse-failed', {
+        category: 'data',
+        error,
+        blockDataStr,
+      });
+      return { ok: false, reason: 'invalid-leaflet-block-json' };
     }
   }
 
-  /**
-   * Nettoie les composants Leaflet injectés dynamiquement
-   */
   private cleanupLeafletComponents(): void {
-    for (const componentRef of this.leafletComponentRefs) {
-      componentRef.destroy();
+    this.leafletService.destroyAll(this.leafletComponentRefs, this.leafletLog);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Leaflet log sink (preserves component-specific prefix)
+  // ---------------------------------------------------------------------------
+
+  private readonly leafletLog: LeafletLogSink = {
+    info: (event, data) => {
+      if (!this.isLeafletVerboseLoggingEnabled()) return;
+      // eslint-disable-next-line no-console
+      console.info('[HomeComponent][Leaflet]', { event, ...data });
+    },
+    warn: (event, data) => {
+      // eslint-disable-next-line no-console
+      console.warn('[HomeComponent][Leaflet]', { event, ...data });
+    },
+    error: (event, data) => {
+      // eslint-disable-next-line no-console
+      console.error('[HomeComponent][Leaflet]', { event, ...data });
+    },
+  };
+
+  private isLeafletVerboseLoggingEnabled(): boolean {
+    if (!isPlatformBrowser(this.platformId)) return false;
+    try {
+      return (
+        globalThis.window.localStorage.getItem('vps:leaflet:debug') === '1' ||
+        globalThis.window.localStorage.getItem('leaflet:debug') === '1'
+      );
+    } catch {
+      return false;
     }
-    this.leafletComponentRefs.length = 0;
   }
 
   sections = computed<Section[]>(() => {
@@ -199,14 +249,11 @@ export class HomeComponent {
       return [];
     }
 
-    const groups = new Map<
-      string,
-      { landing?: ManifestPage | undefined; children: ManifestPage[] }
-    >();
+    const groups = new Map<string, { landing?: ManifestPage; children: ManifestPage[] }>();
 
     for (const p of pages) {
       const route: string = p.route ?? '';
-      const clean = route.replace(/^\/+|\/+$/g, '');
+      const clean = route.replaceAll(/^\/+|\/+$/g, '');
       const [key, ...rest] = clean.split('/');
       if (!key) continue;
 

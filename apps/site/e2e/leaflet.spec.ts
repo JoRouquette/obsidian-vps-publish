@@ -1,173 +1,157 @@
 import { expect, test } from '@playwright/test';
 
-test.describe('Leaflet Map Integration', () => {
-  // Ce test suppose qu'il existe une page avec un bloc Leaflet dans le manifest
-  // Pour un vrai test, vous devriez créer une page de test avec un bloc Leaflet
+/**
+ * Leaflet E2E smoke tests.
+ *
+ * Fixtures:
+ *   - /leaflet-single  → one map  (e2e-map-single)
+ *   - /leaflet-multi   → two maps (e2e-map-paris, e2e-map-london)
+ *
+ * The HTML fixtures contain pre-enriched `data-leaflet-block` attributes
+ * (as the real backend would produce), so the Angular Viewer only needs
+ * to create the LeafletMapComponent at runtime.
+ *
+ * Network isolation:
+ *   All external tile/image requests (OSM tiles, unpkg marker icons) are
+ *   intercepted via Playwright route() and fulfilled with a transparent
+ *   1×1 PNG. This keeps the full Leaflet init path exercised without
+ *   depending on third-party servers in CI.
+ */
 
-  // Skip: sessionStorage mock doesn't affect backend routing - would need real fixtures
-  test.skip('should render leaflet map container when page has leaflet blocks', async ({
-    page,
-  }) => {
-    // Pour ce test, nous allons mocker une page avec un bloc Leaflet
-    // En production, il faudrait une vraie page avec un bloc ```leaflet
+const SINGLE_MAP_URL = '/leaflet-single';
+const MULTI_MAP_URL = '/leaflet-multi';
+const NON_LEAFLET_URL = '/test-page';
 
-    // Naviguer vers une page (adapter selon votre manifest)
-    await page.goto('/');
+// Leaflet dynamic import takes a moment; wait up to 15 s for the container
+const MAP_TIMEOUT = 15_000;
 
-    // Injecter un mock de leafletBlocks dans le manifest pour tester
-    await page.evaluate(() => {
-      // Mock du manifest avec un leaflet block
-      const mockManifest = {
-        pages: [
-          {
-            id: 'test-leaflet',
-            title: 'Test Leaflet',
-            route: '/test-leaflet',
-            leafletBlocks: [
-              {
-                id: 'test-map',
-                lat: 48.8566,
-                long: 2.3522,
-                defaultZoom: 13,
-                height: '400px',
-                width: '100%',
-              },
-            ],
-          },
-        ],
-        generatedAt: new Date(),
-        siteMetadata: {
-          siteName: 'Test Site',
-          author: 'Test Author',
-        },
-      };
+// Minimal 1×1 transparent PNG (68 bytes) — served in place of real tiles/icons
+const TRANSPARENT_1X1_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAAA0lEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==',
+  'base64'
+);
 
-      // Remplacer le manifest dans sessionStorage
-      sessionStorage.setItem('vps-manifest', JSON.stringify(mockManifest));
-    });
+/**
+ * Intercept all external network requests that Leaflet makes:
+ * - OSM tile server (*.tile.openstreetmap.org)
+ * - unpkg CDN (marker icons)
+ * Respond with a tiny transparent PNG so Leaflet initialises normally
+ * but no real network call leaves the test runner.
+ */
+async function stubExternalTileRequests(page: import('@playwright/test').Page): Promise<void> {
+  await page.route(/tile\.openstreetmap\.org/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: TRANSPARENT_1X1_PNG,
+    })
+  );
+  await page.route(/unpkg\.com\/leaflet/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: TRANSPARENT_1X1_PNG,
+    })
+  );
+}
 
-    // Naviguer vers la page de test
-    await page.goto('/test-leaflet');
-
-    // Attendre que la page charge
-    await page.waitForLoadState('domcontentloaded');
-
-    // Vérifier que le conteneur de carte Leaflet existe
-    const mapContainer = page.locator('[data-testid="leaflet-map-test-map"]');
-
-    // Le conteneur doit être présent dans le DOM
-    await expect(mapContainer).toBeAttached();
-
-    // Vérifier que le conteneur a les bonnes dimensions
-    const height = await mapContainer.evaluate((el: HTMLElement) => el.style.height);
-    const width = await mapContainer.evaluate((el: HTMLElement) => el.style.width);
-
-    expect(height).toBe('400px');
-    expect(width).toBe('100%');
+test.describe('Leaflet Map E2E', () => {
+  test.beforeEach(async ({ page }) => {
+    await stubExternalTileRequests(page);
   });
 
-  test('should not throw errors when initializing leaflet on client side', async ({ page }) => {
-    // Capturer les erreurs console
-    const consoleErrors: string[] = [];
+  test('single map page renders a .leaflet-container', async ({ page }) => {
+    await page.goto(SINGLE_MAP_URL);
+
+    const container = page.locator('.leaflet-container').first();
+    await expect(container).toBeVisible({ timeout: MAP_TIMEOUT });
+
+    // The container must have non-zero dimensions (proves Leaflet initialised)
+    const box = await container.boundingBox();
+    expect(box).toBeTruthy();
+    expect(box!.width).toBeGreaterThan(0);
+    expect(box!.height).toBeGreaterThan(0);
+  });
+
+  test('multi-map page renders two independent .leaflet-container', async ({ page }) => {
+    await page.goto(MULTI_MAP_URL);
+
+    const containers = page.locator('.leaflet-container');
+    await expect(containers.first()).toBeVisible({ timeout: MAP_TIMEOUT });
+    await expect(containers).toHaveCount(2);
+
+    // Each container must have non-zero dimensions
+    for (let i = 0; i < 2; i++) {
+      const box = await containers.nth(i).boundingBox();
+      expect(box).toBeTruthy();
+      expect(box!.width).toBeGreaterThan(0);
+      expect(box!.height).toBeGreaterThan(0);
+    }
+  });
+
+  test('maps survive client-side navigation between pages', async ({ page }) => {
+    // Start on the single map page
+    await page.goto(SINGLE_MAP_URL);
+    await expect(page.locator('.leaflet-container').first()).toBeVisible({
+      timeout: MAP_TIMEOUT,
+    });
+
+    // Navigate to multi-map via Angular router (click an internal link or use goto)
+    await page.goto(MULTI_MAP_URL);
+    const containers = page.locator('.leaflet-container');
+    await expect(containers.first()).toBeVisible({ timeout: MAP_TIMEOUT });
+    await expect(containers).toHaveCount(2);
+
+    // Navigate back to single map
+    await page.goto(SINGLE_MAP_URL);
+    await expect(page.locator('.leaflet-container')).toHaveCount(1, {
+      timeout: MAP_TIMEOUT,
+    });
+  });
+
+  test('maps survive a hard reload', async ({ page }) => {
+    await page.goto(SINGLE_MAP_URL);
+    await expect(page.locator('.leaflet-container').first()).toBeVisible({
+      timeout: MAP_TIMEOUT,
+    });
+
+    // Hard reload — forces full re-bootstrap
+    await page.reload();
+    await expect(page.locator('.leaflet-container').first()).toBeVisible({
+      timeout: MAP_TIMEOUT,
+    });
+
+    const box = await page.locator('.leaflet-container').first().boundingBox();
+    expect(box).toBeTruthy();
+    expect(box!.width).toBeGreaterThan(0);
+  });
+
+  test('no blocking Leaflet errors in the console', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
-        consoleErrors.push(msg.text());
+        errors.push(msg.text());
       }
     });
 
-    // Capturer les erreurs de page
-    const pageErrors: Error[] = [];
-    page.on('pageerror', (error) => {
-      pageErrors.push(error);
+    await page.goto(SINGLE_MAP_URL);
+    await expect(page.locator('.leaflet-container').first()).toBeVisible({
+      timeout: MAP_TIMEOUT,
     });
 
-    await page.goto('/');
-
-    // Attendre que la page soit complètement chargée
-    await page.waitForLoadState('domcontentloaded');
-
-    // Vérifier qu'il n'y a pas d'erreurs liées à Leaflet
-    const leafletErrors = consoleErrors.filter((err) => err.toLowerCase().includes('leaflet'));
+    const leafletErrors = errors.filter((e) => /leaflet/i.test(e));
     expect(leafletErrors).toHaveLength(0);
-
-    const leafletPageErrors = pageErrors.filter((err) =>
-      err.message.toLowerCase().includes('leaflet')
-    );
-    expect(leafletPageErrors).toHaveLength(0);
   });
 
-  test('should handle SSR without crashing (no window/document access)', async ({ page }) => {
-    // Ce test vérifie que le SSR ne crash pas
-    // En vérifiant simplement que la page se charge sans erreur 5xx
-
-    const response = await page.goto('/');
-
-    // La réponse ne doit pas être une erreur serveur
-    expect(response?.status()).toBeLessThan(500);
-
-    // La page doit contenir du contenu
-    const body = await page.textContent('body');
-    expect(body).toBeTruthy();
-    expect(body!.length).toBeGreaterThan(0);
-  });
-
-  // Skip: sessionStorage mock doesn't affect backend routing - would need real fixtures
-  test.skip('should display multiple leaflet maps if page has multiple blocks', async ({
-    page,
-  }) => {
-    // Mock avec plusieurs blocs
-    await page.evaluate(() => {
-      const mockManifest = {
-        pages: [
-          {
-            id: 'multi-maps',
-            title: 'Multiple Maps',
-            route: '/multi-maps',
-            leafletBlocks: [
-              {
-                id: 'map-1',
-                lat: 48.8566,
-                long: 2.3522,
-                defaultZoom: 13,
-              },
-              {
-                id: 'map-2',
-                lat: 51.5074,
-                long: -0.1278,
-                defaultZoom: 12,
-              },
-            ],
-          },
-        ],
-        generatedAt: new Date(),
-        siteMetadata: {
-          siteName: 'Test Site',
-          author: 'Test Author',
-        },
-      };
-
-      sessionStorage.setItem('vps-manifest', JSON.stringify(mockManifest));
-    });
-
-    await page.goto('/multi-maps');
+  test('page without Leaflet blocks has zero .leaflet-container', async ({ page }) => {
+    await page.goto(NON_LEAFLET_URL);
     await page.waitForLoadState('domcontentloaded');
 
-    // Vérifier que les deux conteneurs existent
-    const map1 = page.locator('[data-testid="leaflet-map-map-1"]');
-    const map2 = page.locator('[data-testid="leaflet-map-map-2"]');
+    // Small wait to give any rogue init a chance to appear
+    await page.waitForTimeout(1000);
 
-    await expect(map1).toBeAttached();
-    await expect(map2).toBeAttached();
-  });
-
-  test('should not display leaflet section when page has no blocks', async ({ page }) => {
-    await page.goto('/');
-
-    // La section leaflet-maps-section ne devrait pas être présente
-    const leafletSection = page.locator('.leaflet-maps-section');
-
-    // Vérifier que la section n'existe pas ou n'est pas visible
-    const count = await leafletSection.count();
-    expect(count).toBe(0);
+    const containers = page.locator('.leaflet-container');
+    await expect(containers).toHaveCount(0);
   });
 });

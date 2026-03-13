@@ -812,11 +812,15 @@ export const en: Translations = {
       leaflet: {
         title: 'Leaflet Maps',
         content:
-          'Leaflet code blocks are detected and preserved for client-side rendering.\n\nMaps will be interactive on the published site.',
+          'Leaflet code blocks are detected and preserved for client-side rendering.\n\nMaps will be interactive on the published site.\n\nThe `id` property is mandatory. Lines starting with `#` are treated as comments.\n\nSupported properties: `id`, `lat`, `long` (or `lon`), `defaultZoom`, `minZoom`, `maxZoom`, `height`, `width`, `darkMode`, `marker`, `image`, `tileServer`, `unit`, `scale`.\n\nMarkers accept YAML-like list syntax: `marker: - [type, lat, long, [[Link]]]`.',
         examples: [
           {
-            code: '```leaflet\nid: map-1\nlat: 48.8566\nlong: 2.3522\n```',
-            description: 'Leaflet map configuration',
+            code: '```leaflet\nid: map-1\nlat: 48.8566\nlong: 2.3522\ndefaultZoom: 13\nmarker: default, 48.8566, 2.3522, [[Paris]]\n```',
+            description: 'Map with a marker linking to a page',
+          },
+          {
+            code: '```leaflet\nid: fantasy-map\nimage: [[world-map.png]]\nscale: 1000\ndarkMode: true\n```',
+            description: 'Image overlay map (fantasy/custom map)',
           },
         ],
       },
@@ -1341,11 +1345,15 @@ export const fr: Translations = {
       leaflet: {
         title: 'Cartes Leaflet',
         content:
-          'Les blocs de code Leaflet sont détectés et préservés pour le rendu côté client.\n\nLes cartes seront interactives sur le site publié.',
+          'Les blocs de code Leaflet sont détectés et préservés pour le rendu côté client.\n\nLes cartes seront interactives sur le site publié.\n\nLa propriété `id` est obligatoire. Les lignes commençant par `#` sont traitées comme des commentaires.\n\nPropriétés supportées : `id`, `lat`, `long` (ou `lon`), `defaultZoom`, `minZoom`, `maxZoom`, `height`, `width`, `darkMode`, `marker`, `image`, `tileServer`, `unit`, `scale`.\n\nLes marqueurs acceptent la syntaxe de liste YAML : `marker: - [type, lat, long, [[Lien]]]`.',
         examples: [
           {
-            code: '```leaflet\nid: carte-1\nlat: 48.8566\nlong: 2.3522\n```',
-            description: 'Configuration de carte Leaflet',
+            code: '```leaflet\nid: carte-1\nlat: 48.8566\nlong: 2.3522\ndefaultZoom: 13\nmarker: default, 48.8566, 2.3522, [[Paris]]\n```',
+            description: 'Carte avec un marqueur lié à une page',
+          },
+          {
+            code: '```leaflet\nid: carte-fantasy\nimage: [[carte-monde.png]]\nscale: 1000\ndarkMode: true\n```',
+            description: 'Carte avec image overlay (carte fantasy/personnalisée)',
           },
         ],
       },
