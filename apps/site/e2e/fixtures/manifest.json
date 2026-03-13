@@ -63,6 +63,48 @@
       "description": "A page that contains wikilinks to other pages",
       "publishedAt": "2024-01-01T00:00:00.000Z",
       "tags": ["wikilinks"]
+    },
+    {
+      "id": "leaflet-single",
+      "title": "Leaflet Single Map",
+      "slug": "leaflet-single",
+      "route": "/leaflet-single",
+      "description": "A page with a single Leaflet map",
+      "publishedAt": "2024-01-01T00:00:00.000Z",
+      "tags": ["leaflet", "e2e"],
+      "leafletBlocks": [
+        {
+          "id": "e2e-map-single",
+          "lat": 48.8566,
+          "long": 2.3522,
+          "defaultZoom": 13,
+          "height": "400px",
+          "width": "100%"
+        }
+      ]
+    },
+    {
+      "id": "leaflet-multi",
+      "title": "Leaflet Multi Maps",
+      "slug": "leaflet-multi",
+      "route": "/leaflet-multi",
+      "description": "A page with multiple Leaflet maps",
+      "publishedAt": "2024-01-01T00:00:00.000Z",
+      "tags": ["leaflet", "e2e"],
+      "leafletBlocks": [
+        {
+          "id": "e2e-map-paris",
+          "lat": 48.8566,
+          "long": 2.3522,
+          "defaultZoom": 13
+        },
+        {
+          "id": "e2e-map-london",
+          "lat": 51.5074,
+          "long": -0.1278,
+          "defaultZoom": 12
+        }
+      ]
     }
   ],
   "canonicalMap": {
@@ -71,7 +113,9 @@
     "page-with-anchor": "/page-with-anchor",
     "page-with-assets": "/page-with-assets",
     "nested/deep-page": "/nested/deep-page",
-    "wikilink-source": "/wikilink-source"
+    "wikilink-source": "/wikilink-source",
+    "leaflet-single": "/leaflet-single",
+    "leaflet-multi": "/leaflet-multi"
   },
   "folderStructure": {
     "name": "root",
@@ -82,6 +126,14 @@
         "pages": ["nested/deep-page"]
       }
     ],
-    "pages": ["index", "test-page", "page-with-anchor", "page-with-assets", "wikilink-source"]
+    "pages": [
+      "index",
+      "test-page",
+      "page-with-anchor",
+      "page-with-assets",
+      "wikilink-source",
+      "leaflet-single",
+      "leaflet-multi"
+    ]
   }
 }

@@ -1,14 +1,15 @@
 import { isPlatformBrowser } from '@angular/common';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   ComponentRef,
   computed,
-  createComponent,
   effect,
   ElementRef,
   EnvironmentInjector,
   Inject,
+  Injector,
   inject,
   OnDestroy,
   PLATFORM_ID,
@@ -31,6 +32,8 @@ import { OfflineDetectionService, VisitedPagesService } from '../../../infrastru
 import { ImageOverlayComponent } from '../../components/image-overlay/image-overlay.component';
 import { LeafletMapComponent } from '../../components/leaflet-map/leaflet-map.component';
 import { AnchorScrollService } from '../../services/anchor-scroll.service';
+import type { LeafletLogSink } from '../../services/leaflet-injection.service';
+import { LeafletInjectionService } from '../../services/leaflet-injection.service';
 
 @Component({
   standalone: true,
@@ -60,7 +63,12 @@ export class ViewerComponent implements OnDestroy {
   private readonly pendingScrollFragment = signal<string | null>(null);
 
   private readonly cleanupFns: Array<() => void> = [];
-  private readonly leafletComponentRefs: ComponentRef<LeafletMapComponent>[] = [];
+  private readonly leafletComponentRefs = new Map<HTMLElement, ComponentRef<LeafletMapComponent>>();
+  private readonly injector = inject(Injector);
+  private postRenderCycle = 0;
+  private isDestroyed = false;
+  private readonly isBrowser = isPlatformBrowser(this.platformId);
+  private readonly leafletService = inject(LeafletInjectionService);
 
   // Injected services for offline support
   private readonly visitedPagesService = inject(VisitedPagesService);
@@ -142,12 +150,17 @@ export class ViewerComponent implements OnDestroy {
     // Effect pour décorer le DOM après chargement
     effect(() => {
       this.html();
-      setTimeout(() => {
-        this.decorateWikilinks();
-        this.decorateImages();
-        this.injectLeafletComponents();
-        this.scrollToFragmentIfPending();
-      });
+      const cycle = ++this.postRenderCycle;
+      afterNextRender(
+        () => {
+          if (this.isDestroyed || cycle !== this.postRenderCycle) return;
+          this.decorateWikilinks();
+          this.decorateImages();
+          this.injectLeafletComponents();
+          this.scrollToFragmentIfPending();
+        },
+        { injector: this.injector }
+      );
     });
 
     // Gérer le scroll vers fragment lors de navigation (deep links)
@@ -162,6 +175,7 @@ export class ViewerComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.isDestroyed = true;
     this.cleanupWikilinks();
     this.cleanupImages();
     this.cleanupLeafletComponents();
@@ -362,59 +376,100 @@ export class ViewerComponent implements OnDestroy {
   }
 
   /**
-   * Injecte dynamiquement les composants Leaflet dans les placeholders HTML
+   * Injecte dynamiquement les composants Leaflet dans les placeholders HTML.
+   * Résolution métier : manifest signal → blocksById lookup.
    */
   private injectLeafletComponents(): void {
-    // Nettoyer les composants précédents
-    this.cleanupLeafletComponents();
+    if (!this.leafletService.canRun) return;
 
     const container = this.contentEl?.nativeElement;
     if (!container) return;
 
     const blocks = this.leafletBlocks();
-    if (blocks.length === 0) return;
+    const placeholders = this.leafletService.findPlaceholders(container, '[data-leaflet-map-id]');
 
-    // Créer un Map pour accès rapide par ID
-    const blocksById = new Map(blocks.map((block) => [block.id, block]));
-
-    // Trouver tous les placeholders dans le HTML
-    const placeholders = Array.from(
-      container.querySelectorAll<HTMLElement>('[data-leaflet-map-id]')
-    );
-
-    for (const placeholder of placeholders) {
-      const mapId = placeholder.dataset['leafletMapId'];
-      if (!mapId) continue;
-
-      const block = blocksById.get(mapId);
-      if (!block) {
-        continue;
-      }
-
-      // Créer le composant dynamiquement
-      const componentRef = createComponent(LeafletMapComponent, {
-        environmentInjector: this.environmentInjector,
-        hostElement: placeholder,
+    // Handle case where manifest blocks are not yet available
+    if (blocks.length === 0 && placeholders.length > 0) {
+      this.leafletLog.info('leaflet-blocks-missing', {
+        category: 'data',
+        placeholdersFound: placeholders.length,
       });
-
-      // Passer les données au composant
-      componentRef.setInput('block', block);
-
-      // Déclencher la détection de changement
-      componentRef.changeDetectorRef.detectChanges();
-
-      // Stocker la référence pour nettoyage ultérieur
-      this.leafletComponentRefs.push(componentRef);
+      return;
     }
+
+    const blocksById = new Map(blocks.map((b) => [b.id, b]));
+
+    this.leafletService.runInjectionPass({
+      placeholders,
+      resolveBlock: (ph) => this.resolveBlockFromManifest(ph, blocksById),
+      environmentInjector: this.environmentInjector,
+      refs: this.leafletComponentRefs,
+      log: this.leafletLog,
+    });
   }
 
-  /**
-   * Nettoie les composants Leaflet injectés dynamiquement
-   */
-  private cleanupLeafletComponents(): void {
-    for (const componentRef of this.leafletComponentRefs) {
-      componentRef.destroy();
+  /** Viewer-specific: resolve block from manifest signal */
+  private resolveBlockFromManifest(
+    placeholder: HTMLElement,
+    blocksById: Map<string, LeafletBlock>
+  ): { ok: true; block: LeafletBlock; mapId: string } | { ok: false; reason: string } {
+    const mapId = placeholder.dataset['leafletMapId'];
+    if (!mapId) {
+      return { ok: false, reason: 'missing-map-id' };
     }
-    this.leafletComponentRefs.length = 0;
+    const block = blocksById.get(mapId);
+    if (!block) {
+      this.leafletLog.warn('missing-block-for-placeholder', {
+        category: 'data',
+        mapId,
+      });
+      return { ok: false, reason: `missing-block-for-map-id:${mapId}` };
+    }
+    return { ok: true, block, mapId };
+  }
+
+  private cleanupLeafletComponents(): void {
+    this.leafletService.destroyAll(this.leafletComponentRefs, this.leafletLog);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Leaflet log sink (preserves component-specific prefix)
+  // ---------------------------------------------------------------------------
+
+  private readonly leafletLog: LeafletLogSink = {
+    info: (event, data) => {
+      if (!this.isLeafletVerboseLoggingEnabled()) return;
+      console.info('[ViewerComponent][Leaflet]', {
+        event,
+        route: this.currentRoute(),
+        ...data,
+      });
+    },
+    warn: (event, data) => {
+      console.warn('[ViewerComponent][Leaflet]', {
+        event,
+        route: this.currentRoute(),
+        ...data,
+      });
+    },
+    error: (event, data) => {
+      console.error('[ViewerComponent][Leaflet]', {
+        event,
+        route: this.currentRoute(),
+        ...data,
+      });
+    },
+  };
+
+  private isLeafletVerboseLoggingEnabled(): boolean {
+    if (!this.isBrowser) return false;
+    try {
+      return (
+        globalThis.window.localStorage.getItem('vps:leaflet:debug') === '1' ||
+        globalThis.window.localStorage.getItem('leaflet:debug') === '1'
+      );
+    } catch {
+      return false;
+    }
   }
 }

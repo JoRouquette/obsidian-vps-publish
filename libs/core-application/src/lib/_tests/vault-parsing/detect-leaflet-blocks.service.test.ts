@@ -70,6 +70,43 @@ Some text after
       expect(block.long).toBe(30.5);
     });
 
+    it('should detect leaflet block with CRLF line endings', () => {
+      const content = [
+        'Text before',
+        '',
+        '```leaflet',
+        'id: crlf-map',
+        'lat: 45.0',
+        'long: 3.0',
+        '```',
+        '',
+        'Text after',
+      ].join('\r\n');
+
+      const notes = [createMockNote(content)];
+      const result = service.process(notes);
+
+      expect(result[0].leafletBlocks).toHaveLength(1);
+      expect(result[0].leafletBlocks![0].id).toBe('crlf-map');
+      expect(result[0].content).toContain('data-leaflet-map-id="crlf-map"');
+    });
+
+    it('should detect leaflet block when spaces follow the leaflet fence language', () => {
+      const content = `
+\`\`\`leaflet   
+id: spaced-fence
+lat: 10
+long: 20
+\`\`\`
+`;
+
+      const notes = [createMockNote(content)];
+      const result = service.process(notes);
+
+      expect(result[0].leafletBlocks).toHaveLength(1);
+      expect(result[0].leafletBlocks![0].id).toBe('spaced-fence');
+    });
+
     it('should parse all standard leaflet properties', () => {
       const content = `
 \`\`\`leaflet
@@ -126,6 +163,50 @@ marker: custom, 51.5074, -0.1278, [[London Note]]
       });
 
       expect(block.markers![1]).toEqual({
+        type: 'custom',
+        lat: 51.5074,
+        long: -0.1278,
+        link: 'London Note',
+      });
+    });
+
+    it('should ignore malformed marker lines without failing the whole block', () => {
+      const content = `
+\`\`\`leaflet
+id: map-mixed-markers
+marker: invalid marker line
+marker: default, 48.8566, 2.3522
+\`\`\`
+`;
+
+      const notes = [createMockNote(content)];
+      const result = service.process(notes);
+
+      const block = result[0].leafletBlocks![0];
+      expect(block.id).toBe('map-mixed-markers');
+      expect(block.markers).toHaveLength(1);
+      expect(block.markers![0]).toEqual({
+        type: 'default',
+        lat: 48.8566,
+        long: 2.3522,
+        link: undefined,
+      });
+    });
+
+    it('should parse marker with YAML-like list syntax', () => {
+      const content = `
+\`\`\`leaflet
+id: yaml-like-marker-map
+marker: - [custom, 51.5074, -0.1278, [[London Note]]]
+\`\`\`
+`;
+
+      const notes = [createMockNote(content)];
+      const result = service.process(notes);
+
+      const block = result[0].leafletBlocks![0];
+      expect(block.markers).toHaveLength(1);
+      expect(block.markers![0]).toEqual({
         type: 'custom',
         lat: 51.5074,
         long: -0.1278,
@@ -259,8 +340,8 @@ long: 5.0
 
       const block = result[0].leafletBlocks![0];
       expect(block.id).toBe('commented-map');
-      expect(block.lat).toBe(45.0);
-      expect(block.long).toBe(5.0);
+      expect(block.lat).toBe(45);
+      expect(block.long).toBe(5);
     });
 
     it('should process multiple notes with leaflet blocks', () => {
@@ -299,7 +380,7 @@ lon: -70.0
       const result = service.process(notes);
 
       const block = result[0].leafletBlocks![0];
-      expect(block.long).toBe(-70.0);
+      expect(block.long).toBe(-70);
     });
   });
 });

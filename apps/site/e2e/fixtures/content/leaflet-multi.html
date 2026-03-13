@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Leaflet Multi Maps - E2E Test Site</title>
+    <meta name="description" content="A page with multiple Leaflet maps" />
+  </head>
+  <body>
+    <div>
+      <h1>Leaflet Multi Maps</h1>
+      <p>This page contains multiple Leaflet maps for E2E testing.</p>
+      <h2>Map 1 — Paris</h2>
+      <div
+        class="leaflet-map-placeholder"
+        data-leaflet-map-id="e2e-map-paris"
+        data-leaflet-block='{"id":"e2e-map-paris","lat":48.8566,"long":2.3522,"defaultZoom":13}'
+      ></div>
+      <h2>Map 2 — London</h2>
+      <div
+        class="leaflet-map-placeholder"
+        data-leaflet-map-id="e2e-map-london"
+        data-leaflet-block='{"id":"e2e-map-london","lat":51.5074,"long":-0.1278,"defaultZoom":12}'
+      ></div>
+      <p>Content after the maps.</p>
+    </div>
+  </body>
+</html>

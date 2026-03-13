@@ -221,20 +221,85 @@ for (const page of pages) {
 
 ## Cartes Leaflet
 
-### Configuration de carte
+Les blocs ` ```leaflet ` sont détectés, parsés et remplacés par des placeholders HTML. Le rendu interactif se fait côté client sur le site publié.
+
+### Propriétés supportées
+
+| Propriété         | Type           | Obligatoire | Description                                |
+| ----------------- | -------------- | ----------- | ------------------------------------------ |
+| `id`              | string         | **oui**     | Identifiant unique de la carte             |
+| `lat`             | number         | non         | Latitude du centre                         |
+| `long` (ou `lon`) | number         | non         | Longitude du centre                        |
+| `defaultZoom`     | number         | non         | Niveau de zoom initial                     |
+| `minZoom`         | number         | non         | Zoom minimum autorisé                      |
+| `maxZoom`         | number         | non         | Zoom maximum autorisé                      |
+| `height`          | string         | non         | Hauteur CSS (ex: `500px`)                  |
+| `width`           | string         | non         | Largeur CSS (ex: `100%`)                   |
+| `darkMode`        | boolean        | non         | Forcer le mode sombre (`true`, `yes`, `1`) |
+| `marker`          | format spécial | non         | Marqueur (voir ci-dessous)                 |
+| `image`           | wikilink       | non         | Image overlay (ex: `[[map.png]]`)          |
+| `scale`           | number         | non         | Échelle pour les images overlays           |
+| `unit`            | string         | non         | Unité de mesure                            |
+| `tileServer`      | URL            | non         | Serveur de tuiles custom                   |
+
+Les lignes commençant par `#` sont traitées comme des commentaires et ignorées.
+
+### Exemple minimal
 
 ```markdown
 \`\`\`leaflet
 id: map-1
 lat: 48.8566
 long: 2.3522
-zoom: 12
+defaultZoom: 13
 \`\`\`
 ```
 
-→ Les blocs Leaflet sont **préservés** et rendus côté client sur le site publié.
+### Marqueurs
 
-**Note** : L'`id` est obligatoire.
+Format : `marker: type, lat, long, [[Lien optionnel]]`
+
+Plusieurs marqueurs peuvent être définis en répétant la ligne `marker:`.
+
+```markdown
+\`\`\`leaflet
+id: map-paris
+lat: 48.8566
+long: 2.3522
+defaultZoom: 12
+marker: default, 48.8566, 2.3522, [[Paris]]
+marker: custom, 48.8606, 2.3376, [[Louvre]]
+\`\`\`
+```
+
+Le parser tolère aussi les variantes YAML-like :
+
+```markdown
+marker: - default, 48.8, 2.3
+marker: - [custom, 51.5, -0.1, [[London]]]
+```
+
+### Image overlay (cartes fantasy)
+
+Pour afficher une image personnalisée au lieu de tuiles OpenStreetMap :
+
+```markdown
+\`\`\`leaflet
+id: fantasy-map
+image: [[world-map.png]]
+scale: 1000
+darkMode: true
+\`\`\`
+```
+
+→ L'image est centrée à `[0, 0]` en coordonnées pixel (CRS Simple).
+
+### Tolérances du parser
+
+- **Fins de ligne Windows** (CRLF) : supportées sans conversion préalable
+- **Espaces après ` ```leaflet `** : ignorés automatiquement
+- **Casse des clés** : insensible (`defaultZoom`, `DefaultZoom`, `DEFAULTZOOM` sont équivalents)
+- **Bloc invalide** : conservé tel quel dans le contenu (pas de placeholder généré), un warning est émis dans les logs
 
 ## Markdown avancé
 
@@ -343,5 +408,5 @@ Les aliases sont automatiquement convertis vers leur type canonique pour le rend
 
 ---
 
-**Dernière mise à jour** : 2025-12-25  
+**Dernière mise à jour** : 2026-03-13  
 **⚠️ À synchroniser avec l'aide interne** : Toute modification ici DOIT être répercutée dans `locales.ts` → `help` sections.
