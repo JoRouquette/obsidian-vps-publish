@@ -1,3 +1,9 @@
+## [6.11.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.11.0...6.11.1) (2026-03-14)
+
+### Bug Fixes
+
+* **site:** restore search on label/displayName and slugify anchor fragments ([64f6260](https://github.com/JoRouquette/obsidian-vps-publish/commit/64f6260417b7f1161bdae94a752f9599606109ce))
+
 ## [6.11.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.10.1...6.11.0) (2026-03-12)
 
 ### ⚠ BREAKING CHANGES
