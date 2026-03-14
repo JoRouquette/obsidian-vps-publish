@@ -35,10 +35,13 @@ import { SearchBarComponent } from '../search-bar/search-bar.component';
 })
 export class VaultExplorerComponent implements OnInit, OnDestroy {
   tree = signal<TreeNode>(defaultTreeNode);
+  /** Raw input value (immediate, for display binding) */
+  inputValue = signal<string>('');
+  /** Debounced query value (for tree filtering) */
   q = signal<string>('');
   private searchDebounceTimer?: ReturnType<typeof setTimeout>;
   private readonly EMPTY: TreeNode[] = [];
-  private readonly DEBOUNCE_MS = 200; // Wait 200ms after last keystroke before filtering
+  private readonly DEBOUNCE_MS = 200;
   private readonly buildTree = new BuildTreeHandler();
   hasQuery = computed(() => this.q().trim().length > 0);
 
@@ -114,9 +117,9 @@ export class VaultExplorerComponent implements OnInit, OnDestroy {
   isFile = (_: number, n: TreeNode) => n.kind === 'file';
   trackByPath = (_: number, n: TreeNode) => {
     const base = n.path ?? (n.label || n.name);
-    // Force new identity when filtering so Angular re-renders nodes correctly
-    // Without this, mat-tree keeps old expanded node references with unfiltered children
-    return this.hasQuery() ? `filtered-${base}` : base;
+    const query = this.q();
+    // Include the current query so mat-tree re-renders nodes when the filter changes
+    return query ? `q:${query}:${base}` : base;
   };
 
   constructor(private readonly facade: CatalogFacade) {
@@ -141,20 +144,24 @@ export class VaultExplorerComponent implements OnInit, OnDestroy {
   }
 
   onInputQuery(value: string): void {
-    // Clear any pending debounce timer
+    // Update display value immediately (no debounce)
+    this.inputValue.set(value ?? '');
+
+    // Cancel any pending filter
     if (this.searchDebounceTimer) {
       clearTimeout(this.searchDebounceTimer);
     }
 
-    // For empty queries, apply immediately without debounce
+    // For empty queries, apply filter immediately
     if (!value || value.trim().length === 0) {
       this.q.set('');
       return;
     }
 
-    // Debounce non-empty queries to improve performance
+    // Schedule filter: reads inputValue() at execution time,
+    // so only the latest value is ever applied
     this.searchDebounceTimer = setTimeout(() => {
-      this.q.set(value ?? '');
+      this.q.set(this.inputValue());
     }, this.DEBOUNCE_MS);
   }
 
@@ -251,9 +258,12 @@ export class VaultExplorerComponent implements OnInit, OnDestroy {
    */
   private buildFilteredTree(node: TreeNode, query: string): TreeNode | null {
     const basename = this.getBaseName(node.name);
-    const selfMatch = this.matchesQuery(basename, query);
+    const selfMatch =
+      this.matchesQuery(basename, query) ||
+      this.matchesQuery(node.label, query) ||
+      (node.displayName ? this.matchesQuery(node.displayName, query) : false);
 
-    // For files: include if basename matches
+    // For files: include if basename or label matches
     if (node.kind === 'file') {
       return selfMatch ? { ...node } : null;
     }

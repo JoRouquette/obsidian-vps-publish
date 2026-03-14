@@ -334,15 +334,17 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
       throw error;
     }
 
-    if (L.Icon?.Default) {
-      L.Icon.Default.mergeOptions({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const leaflet = L as any;
+    if (leaflet.Icon?.Default) {
+      leaflet.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
         iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
         shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
       });
     }
 
-    this.initializeMap(L, trigger);
+    this.initializeMap(leaflet, trigger);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -391,7 +393,7 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     // Exécuter l'initialisation en dehors de la zone Angular
     // pour éviter le change detection permanent sur les events de la carte
     this.ngZone.runOutsideAngular(() => {
-      this.initializeMapOutsideZone(L, readiness.container, trigger);
+      this.initializeMapOutsideZone(L, readiness.container!, trigger);
     });
   }
 
