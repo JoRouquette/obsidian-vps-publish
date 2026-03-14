@@ -3,7 +3,7 @@
     <div class="search">
       <app-search-bar
         placeholder="Rechercher..."
-        [value]="q()"
+        [value]="inputValue()"
         (queryChange)="onInputQuery($event)"
       ></app-search-bar>
       @if (hasQuery() && !noResult()) {

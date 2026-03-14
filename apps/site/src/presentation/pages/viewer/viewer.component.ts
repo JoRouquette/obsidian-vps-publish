@@ -67,6 +67,7 @@ export class ViewerComponent implements OnDestroy {
   private readonly injector = inject(Injector);
   private postRenderCycle = 0;
   private isDestroyed = false;
+  private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
   private readonly leafletService = inject(LeafletInjectionService);
 
@@ -76,7 +77,6 @@ export class ViewerComponent implements OnDestroy {
 
   // Injected service for anchor scrolling
   private readonly anchorScrollService = inject(AnchorScrollService);
-  private readonly platformId = inject(PLATFORM_ID);
 
   // Flux réactif moderne avec toSignal (Angular 20 pattern)
   private readonly rawHtml = toSignal(
