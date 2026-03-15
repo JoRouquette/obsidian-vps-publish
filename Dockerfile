@@ -45,8 +45,13 @@ WORKDIR /app
 # On repart du package.json racine du monorepo
 COPY package.json package-lock.json ./
 
+# Install dependencies (without scripts for security)
 RUN --mount=type=cache,target=/root/.npm \
     npm install --omit=dev --omit=optional --no-audit --no-fund --ignore-scripts --legacy-peer-deps
+
+# Sharp needs its native binaries rebuilt for Alpine (--ignore-scripts skips postinstall)
+# This is safe since we only rebuild sharp, not running arbitrary scripts
+RUN npm rebuild sharp --verbose 2>/dev/null || echo "WARN: Sharp rebuild failed - image optimization will be disabled"
 
 
 ################################

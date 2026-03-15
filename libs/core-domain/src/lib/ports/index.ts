@@ -7,6 +7,7 @@ export * from './compression-port';
 export * from './custom-index-resolver-port';
 export * from './dataview-processor-port';
 export * from './guid-generator-port';
+export * from './image-optimizer-port';
 export * from './logger-port';
 export * from './manifest-repository.port';
 export * from './note-hash-port';

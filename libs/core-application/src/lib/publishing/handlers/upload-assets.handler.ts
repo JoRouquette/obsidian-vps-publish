@@ -1,6 +1,7 @@
 import {
   type AssetHashPort,
   type AssetValidatorPort,
+  type ImageOptimizerPort,
   type LoggerPort,
   type ManifestAsset,
 } from '@core-domain';
@@ -28,6 +29,7 @@ export class UploadAssetsHandler implements CommandHandler<
     private readonly assetHasher?: AssetHashPort,
     private readonly assetValidator?: AssetValidatorPort,
     private readonly maxAssetSizeBytes?: number,
+    private readonly imageOptimizer?: ImageOptimizerPort,
     logger?: LoggerPort
   ) {
     this._logger = logger?.child({
@@ -37,6 +39,7 @@ export class UploadAssetsHandler implements CommandHandler<
       hasValidator: !!assetValidator,
       hasManifest: !!manifestStorage,
       hasHasher: !!assetHasher,
+      hasImageOptimizer: !!imageOptimizer,
       maxAssetSizeBytes,
     });
   }
@@ -77,7 +80,8 @@ export class UploadAssetsHandler implements CommandHandler<
       const batchResults = await Promise.allSettled(
         batch.map(async (asset) => {
           const filename = asset.relativePath || asset.fileName;
-          const content = this.decodeBase64(asset.contentBase64);
+          let content = this.decodeBase64(asset.contentBase64);
+          let finalFilename = filename;
 
           // Validate asset (size + real MIME detection) if validator is configured
           if (this.assetValidator) {
@@ -98,6 +102,33 @@ export class UploadAssetsHandler implements CommandHandler<
             });
           }
 
+          // Optimize image if optimizer is configured and image is optimizable
+          if (this.imageOptimizer && this.imageOptimizer.isOptimizable(filename)) {
+            try {
+              const originalSize = content.length;
+              const optimized = await this.imageOptimizer.optimize(content, filename);
+              content = Buffer.from(optimized.data);
+              // Update MIME type based on format
+              asset.mimeType = this.formatToMimeType(optimized.format);
+              finalFilename = optimized.optimizedFilename;
+
+              this._logger?.info('Image optimized', {
+                originalFilename: filename,
+                finalFilename,
+                originalSize,
+                optimizedSize: content.length,
+                savings: `${Math.round((1 - content.length / originalSize) * 100)}%`,
+                format: optimized.format,
+              });
+            } catch (error) {
+              // Log but continue with original image on optimization failure
+              this._logger?.warn('Image optimization failed, using original', {
+                filename,
+                error: error instanceof Error ? error.message : 'Unknown error',
+              });
+            }
+          }
+
           // Compute hash for deduplication (if hasher is available)
           const hash = this.assetHasher ? await this.assetHasher.computeHash(content) : undefined;
 
@@ -106,23 +137,23 @@ export class UploadAssetsHandler implements CommandHandler<
             const existingAsset = existingAssetsByHash.get(hash);
             if (existingAsset) {
               this._logger?.info('Asset already exists (duplicate hash), skipping upload', {
-                filename,
+                filename: finalFilename,
                 hash,
                 existingPath: existingAsset.path,
               });
               // Add existing asset to staged manifest (preserve reference)
               allStagedAssets.push(existingAsset);
-              return { filename, skipped: true };
+              return { filename: finalFilename, skipped: true };
             }
           }
 
           // New asset - save to storage
-          await storage.save([{ filename, content }]);
+          await storage.save([{ filename: finalFilename, content }]);
 
           // Track new asset for manifest update (if hash is available)
           if (hash) {
             const manifestAsset: ManifestAsset = {
-              path: filename,
+              path: finalFilename,
               hash,
               size: content.length,
               mimeType: asset.mimeType,
@@ -131,14 +162,14 @@ export class UploadAssetsHandler implements CommandHandler<
             allStagedAssets.push(manifestAsset);
 
             this._logger?.debug('New asset uploaded', {
-              filename,
+              filename: finalFilename,
               hash,
               size: content.length,
               mimeType: asset.mimeType,
             });
           }
 
-          return { filename, skipped: false };
+          return { filename: finalFilename, skipped: false };
         })
       );
       results.push(...batchResults);
@@ -203,5 +234,19 @@ export class UploadAssetsHandler implements CommandHandler<
 
   private decodeBase64(data: string): Buffer {
     return Buffer.from(data, 'base64');
+  }
+
+  private formatToMimeType(format: string): string {
+    const mimeTypes: Record<string, string> = {
+      webp: 'image/webp',
+      jpeg: 'image/jpeg',
+      jpg: 'image/jpeg',
+      png: 'image/png',
+      gif: 'image/gif',
+      avif: 'image/avif',
+      tiff: 'image/tiff',
+      svg: 'image/svg+xml',
+    };
+    return mimeTypes[format.toLowerCase()] ?? `image/${format}`;
   }
 }
