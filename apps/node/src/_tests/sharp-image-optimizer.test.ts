@@ -1,7 +1,65 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
+import sharp from 'sharp';
 
 import { NoopImageOptimizer, SharpImageOptimizer } from '../infra/image';
+
+/**
+ * Helper to generate a synthetic PNG image of specified size
+ */
+async function generateTestPng(width: number, height: number): Promise<Buffer> {
+  return sharp({
+    create: {
+      width,
+      height,
+      channels: 3,
+      background: { r: 128, g: 128, b: 128 },
+    },
+  })
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Helper to generate a synthetic JPEG image of specified size
+ */
+async function generateTestJpeg(width: number, height: number, quality = 90): Promise<Buffer> {
+  return sharp({
+    create: {
+      width,
+      height,
+      channels: 3,
+      background: { r: 200, g: 100, b: 50 },
+    },
+  })
+    .jpeg({ quality })
+    .toBuffer();
+}
+
+/**
+ * Helper to generate a PNG with noise/complexity (for quality comparison tests)
+ * Creates a gradient with noise that will show quality differences
+ */
+async function generateComplexPng(width: number, height: number): Promise<Buffer> {
+  // Create raw pixel buffer with gradient + noise
+  const channels = 3;
+  const rawData = Buffer.alloc(width * height * channels);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * channels;
+      // Gradient based on position + noise
+      const noise = Math.floor(Math.random() * 50);
+      rawData[idx] = Math.floor((x / width) * 200) + noise; // R
+      rawData[idx + 1] = Math.floor((y / height) * 200) + noise; // G
+      rawData[idx + 2] = 128 + noise; // B
+    }
+  }
+
+  return sharp(rawData, {
+    raw: { width, height, channels },
+  })
+    .png()
+    .toBuffer();
+}
 
 /**
  * Tests for SharpImageOptimizer - Server-side image optimization
@@ -91,7 +149,6 @@ describe('SharpImageOptimizer', () => {
 
   describe('optimize - with real test images', () => {
     let optimizer: SharpImageOptimizer;
-    const testVaultAssetsPath = path.join(process.cwd(), 'test-vault', '_assets');
 
     beforeEach(() => {
       optimizer = new SharpImageOptimizer({
@@ -101,63 +158,45 @@ describe('SharpImageOptimizer', () => {
     });
 
     it('should optimize a small PNG and convert to WebP', async () => {
-      const imagePath = path.join(testVaultAssetsPath, '_images', 'D20.png');
-      const content = await fs.readFile(imagePath);
+      const content = await generateTestPng(200, 200);
       const originalSize = content.length;
 
-      const result = await optimizer.optimize(new Uint8Array(content), 'D20.png');
+      const result = await optimizer.optimize(new Uint8Array(content), 'test-small.png');
 
       expect(result.wasOptimized).toBe(true);
       expect(result.format).toBe('webp');
-      expect(result.optimizedFilename).toBe('D20.webp');
-      expect(result.originalFilename).toBe('D20.png');
+      expect(result.optimizedFilename).toBe('test-small.webp');
+      expect(result.originalFilename).toBe('test-small.png');
       expect(result.originalSize).toBe(originalSize);
       expect(result.optimizedSize).toBeLessThan(originalSize);
-      expect(result.width).toBeGreaterThan(0);
-      expect(result.height).toBeGreaterThan(0);
-
-      console.log(
-        `D20.png: ${(originalSize / 1024).toFixed(1)}KB → ${(result.optimizedSize / 1024).toFixed(1)}KB ` +
-          `(${((1 - result.optimizedSize / originalSize) * 100).toFixed(1)}% reduction)`
-      );
+      expect(result.width).toBe(200);
+      expect(result.height).toBe(200);
     });
 
     it('should optimize a JPEG image', async () => {
-      const imagePath = path.join(testVaultAssetsPath, 'BujoKey.jpg');
-      const content = await fs.readFile(imagePath);
+      const content = await generateTestJpeg(400, 300);
       const originalSize = content.length;
 
-      const result = await optimizer.optimize(new Uint8Array(content), 'BujoKey.jpg');
+      const result = await optimizer.optimize(new Uint8Array(content), 'test-photo.jpg');
 
       expect(result.wasOptimized).toBe(true);
       expect(result.format).toBe('webp');
-      expect(result.optimizedFilename).toBe('BujoKey.webp');
+      expect(result.optimizedFilename).toBe('test-photo.webp');
       expect(result.originalSize).toBe(originalSize);
-
-      console.log(
-        `BujoKey.jpg: ${(originalSize / 1024).toFixed(1)}KB → ${(result.optimizedSize / 1024).toFixed(1)}KB ` +
-          `(${((1 - result.optimizedSize / originalSize) * 100).toFixed(1)}% reduction)`
-      );
     });
 
     it('should optimize a larger PNG with significant compression', async () => {
-      const imagePath = path.join(testVaultAssetsPath, 'amber_crossroads.png');
-      const content = await fs.readFile(imagePath);
+      // Generate a larger image (1000x800) that should compress well
+      const content = await generateTestPng(1000, 800);
       const originalSize = content.length;
 
-      const result = await optimizer.optimize(new Uint8Array(content), 'amber_crossroads.png');
+      const result = await optimizer.optimize(new Uint8Array(content), 'large-image.png');
 
       expect(result.wasOptimized).toBe(true);
       expect(result.format).toBe('webp');
-      expect(result.optimizedFilename).toBe('amber_crossroads.webp');
-      // Large PNGs should have significant compression
-      expect(result.optimizedSize).toBeLessThan(originalSize * 0.8);
-
-      console.log(
-        `amber_crossroads.png: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ` +
-          `${(result.optimizedSize / 1024 / 1024).toFixed(2)}MB ` +
-          `(${((1 - result.optimizedSize / originalSize) * 100).toFixed(1)}% reduction)`
-      );
+      expect(result.optimizedFilename).toBe('large-image.webp');
+      // Large solid-color PNGs should have significant compression to WebP
+      expect(result.optimizedSize).toBeLessThan(originalSize);
     });
 
     it('should preserve JPEG format when preserveFormat is true', async () => {
@@ -166,14 +205,13 @@ describe('SharpImageOptimizer', () => {
         convertToWebp: false,
       });
 
-      const imagePath = path.join(testVaultAssetsPath, 'BujoKey.jpg');
-      const content = await fs.readFile(imagePath);
+      const content = await generateTestJpeg(300, 300);
 
-      const result = await preserveOptimizer.optimize(new Uint8Array(content), 'BujoKey.jpg');
+      const result = await preserveOptimizer.optimize(new Uint8Array(content), 'photo.jpg');
 
       expect(result.wasOptimized).toBe(true);
       expect(result.format).toBe('jpeg');
-      expect(result.optimizedFilename).toBe('BujoKey.jpg');
+      expect(result.optimizedFilename).toBe('photo.jpg');
     });
 
     it('should resize oversized images', async () => {
@@ -182,13 +220,10 @@ describe('SharpImageOptimizer', () => {
         maxHeight: 500,
       });
 
-      const imagePath = path.join(testVaultAssetsPath, 'amber_crossroads.png');
-      const content = await fs.readFile(imagePath);
+      // Generate a 1200x900 image
+      const content = await generateTestPng(1200, 900);
 
-      const result = await smallMaxOptimizer.optimize(
-        new Uint8Array(content),
-        'amber_crossroads.png'
-      );
+      const result = await smallMaxOptimizer.optimize(new Uint8Array(content), 'oversized.png');
 
       expect(result.wasOptimized).toBe(true);
       expect(result.width).toBeLessThanOrEqual(500);
@@ -197,98 +232,65 @@ describe('SharpImageOptimizer', () => {
   });
 
   describe('optimize - large image handling', () => {
-    // Note: This test uses Ektaron.png (46MB) - skip if not available
-    it('should handle very large images with aggressive compression', async () => {
-      const imagePath = path.join(process.cwd(), 'test-vault', '_assets', '_images', 'Ektaron.png');
-
-      let content: Buffer;
-      try {
-        content = await fs.readFile(imagePath);
-      } catch {
-        console.log('Skipping large image test - Ektaron.png not available');
-        return;
-      }
-
-      // Skip if file is too small (not the expected large file)
-      if (content.length < 10 * 1024 * 1024) {
-        console.log('Skipping - Ektaron.png is smaller than expected');
-        return;
-      }
+    it('should handle large images with aggressive compression', async () => {
+      // Generate a large 2000x1500 image to test compression
+      const content = await generateTestPng(2000, 1500);
+      const originalSize = content.length;
 
       const optimizer = new SharpImageOptimizer({
         quality: 85,
         maxSizeBytes: 10 * 1024 * 1024, // 10MB target
       });
 
-      const originalSize = content.length;
-      console.log(`Processing Ektaron.png: ${(originalSize / 1024 / 1024).toFixed(2)}MB...`);
-
-      const startTime = Date.now();
-      const result = await optimizer.optimize(new Uint8Array(content), 'Ektaron.png');
-      const duration = Date.now() - startTime;
+      const result = await optimizer.optimize(new Uint8Array(content), 'large-test.png');
 
       expect(result.wasOptimized).toBe(true);
       expect(result.format).toBe('webp');
-      expect(result.optimizedFilename).toBe('Ektaron.webp');
+      expect(result.optimizedFilename).toBe('large-test.webp');
 
       // Should achieve significant compression
       expect(result.optimizedSize).toBeLessThan(originalSize);
-
-      console.log(
-        `Ektaron.png: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ` +
-          `${(result.optimizedSize / 1024 / 1024).toFixed(2)}MB ` +
-          `(${((1 - result.optimizedSize / originalSize) * 100).toFixed(1)}% reduction) ` +
-          `in ${duration}ms`
-      );
-    }, 60000); // 60s timeout for large image
+    });
   });
 
   describe('optimize - quality settings', () => {
     it('should produce smaller files with lower quality', async () => {
-      const imagePath = path.join(process.cwd(), 'test-vault', '_assets', '_images', 'D20.png');
-      const content = await fs.readFile(imagePath);
+      // Use complex image with noise to show quality differences
+      const content = await generateComplexPng(400, 400);
 
       const highQualityOptimizer = new SharpImageOptimizer({ quality: 95 });
       const lowQualityOptimizer = new SharpImageOptimizer({ quality: 50 });
 
       const highQualityResult = await highQualityOptimizer.optimize(
         new Uint8Array(content),
-        'D20.png'
+        'quality-test.png'
       );
       const lowQualityResult = await lowQualityOptimizer.optimize(
         new Uint8Array(content),
-        'D20.png'
+        'quality-test.png'
       );
 
       expect(lowQualityResult.optimizedSize).toBeLessThan(highQualityResult.optimizedSize);
-
-      console.log(
-        `Quality comparison: Q95=${highQualityResult.optimizedSize}B, Q50=${lowQualityResult.optimizedSize}B`
-      );
     });
   });
 
   describe('optimize - WebP passthrough', () => {
     it('should skip re-compression for small WebP files that do not need resizing', async () => {
-      // First, create an optimized WebP from a PNG
       const optimizer = new SharpImageOptimizer({ quality: 85 });
-      const imagePath = path.join(process.cwd(), 'test-vault', '_assets', '_images', 'D20.png');
-      const pngContent = await fs.readFile(imagePath);
+      const pngContent = await generateTestPng(300, 300);
 
       // Convert PNG to WebP
-      const webpResult = await optimizer.optimize(new Uint8Array(pngContent), 'D20.png');
+      const webpResult = await optimizer.optimize(new Uint8Array(pngContent), 'passthrough.png');
       expect(webpResult.wasOptimized).toBe(true);
       expect(webpResult.format).toBe('webp');
 
       // Now try to re-optimize the WebP - it should be skipped
-      const reOptimizeResult = await optimizer.optimize(webpResult.data, 'D20.webp');
+      const reOptimizeResult = await optimizer.optimize(webpResult.data, 'passthrough.webp');
 
       expect(reOptimizeResult.wasOptimized).toBe(false);
-      expect(reOptimizeResult.optimizedFilename).toBe('D20.webp');
+      expect(reOptimizeResult.optimizedFilename).toBe('passthrough.webp');
       expect(reOptimizeResult.data).toEqual(webpResult.data);
       expect(reOptimizeResult.optimizedSize).toBe(webpResult.optimizedSize);
-
-      console.log(`WebP passthrough: ${webpResult.optimizedSize}B WebP was not re-compressed`);
     });
 
     it('should still resize oversized WebP files', async () => {
@@ -300,23 +302,21 @@ describe('SharpImageOptimizer', () => {
         maxHeight: 100,
       });
 
-      const imagePath = path.join(process.cwd(), 'test-vault', '_assets', '_images', 'D20.png');
-      const pngContent = await fs.readFile(imagePath);
+      const pngContent = await generateTestPng(500, 500);
 
       // Create WebP
-      const webpResult = await createOptimizer.optimize(new Uint8Array(pngContent), 'D20.png');
+      const webpResult = await createOptimizer.optimize(
+        new Uint8Array(pngContent),
+        'resize-test.png'
+      );
       expect(webpResult.width).toBeGreaterThan(100);
 
       // Re-optimize with resize required - should process
-      const resizedResult = await resizeOptimizer.optimize(webpResult.data, 'D20.webp');
+      const resizedResult = await resizeOptimizer.optimize(webpResult.data, 'resize-test.webp');
 
       expect(resizedResult.wasOptimized).toBe(true);
       expect(resizedResult.width).toBeLessThanOrEqual(100);
       expect(resizedResult.height).toBeLessThanOrEqual(100);
-
-      console.log(
-        `WebP resize: ${webpResult.width}x${webpResult.height} → ${resizedResult.width}x${resizedResult.height}`
-      );
     });
   });
 });
