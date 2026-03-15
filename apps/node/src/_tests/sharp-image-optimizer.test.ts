@@ -267,6 +267,58 @@ describe('SharpImageOptimizer', () => {
       );
     });
   });
+
+  describe('optimize - WebP passthrough', () => {
+    it('should skip re-compression for small WebP files that do not need resizing', async () => {
+      // First, create an optimized WebP from a PNG
+      const optimizer = new SharpImageOptimizer({ quality: 85 });
+      const imagePath = path.join(process.cwd(), 'test-vault', '_assets', '_images', 'D20.png');
+      const pngContent = await fs.readFile(imagePath);
+
+      // Convert PNG to WebP
+      const webpResult = await optimizer.optimize(new Uint8Array(pngContent), 'D20.png');
+      expect(webpResult.wasOptimized).toBe(true);
+      expect(webpResult.format).toBe('webp');
+
+      // Now try to re-optimize the WebP - it should be skipped
+      const reOptimizeResult = await optimizer.optimize(webpResult.data, 'D20.webp');
+
+      expect(reOptimizeResult.wasOptimized).toBe(false);
+      expect(reOptimizeResult.optimizedFilename).toBe('D20.webp');
+      expect(reOptimizeResult.data).toEqual(webpResult.data);
+      expect(reOptimizeResult.optimizedSize).toBe(webpResult.optimizedSize);
+
+      console.log(`WebP passthrough: ${webpResult.optimizedSize}B WebP was not re-compressed`);
+    });
+
+    it('should still resize oversized WebP files', async () => {
+      // Create a WebP then try to resize it
+      const createOptimizer = new SharpImageOptimizer({ quality: 85 });
+      const resizeOptimizer = new SharpImageOptimizer({
+        quality: 85,
+        maxWidth: 100,
+        maxHeight: 100,
+      });
+
+      const imagePath = path.join(process.cwd(), 'test-vault', '_assets', '_images', 'D20.png');
+      const pngContent = await fs.readFile(imagePath);
+
+      // Create WebP
+      const webpResult = await createOptimizer.optimize(new Uint8Array(pngContent), 'D20.png');
+      expect(webpResult.width).toBeGreaterThan(100);
+
+      // Re-optimize with resize required - should process
+      const resizedResult = await resizeOptimizer.optimize(webpResult.data, 'D20.webp');
+
+      expect(resizedResult.wasOptimized).toBe(true);
+      expect(resizedResult.width).toBeLessThanOrEqual(100);
+      expect(resizedResult.height).toBeLessThanOrEqual(100);
+
+      console.log(
+        `WebP resize: ${webpResult.width}x${webpResult.height} → ${resizedResult.width}x${resizedResult.height}`
+      );
+    });
+  });
 });
 
 describe('NoopImageOptimizer', () => {

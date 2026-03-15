@@ -104,12 +104,24 @@ export class SharpImageOptimizer implements ImageOptimizerPort {
         originalSize,
       });
 
+      // Check if resize is needed
+      const needsResize = metadata.width > config.maxWidth || metadata.height > config.maxHeight;
+
+      // Skip re-compression for WebP files that are already optimized
+      // (small enough and don't need resizing) to avoid quality loss from double compression
+      if (metadata.format === 'webp' && !needsResize && originalSize <= config.maxSizeBytes) {
+        this.logger?.debug('WebP already optimized, skipping re-compression', {
+          filename,
+          size: originalSize,
+          maxSizeBytes: config.maxSizeBytes,
+        });
+        return this.createResult(content, filename, originalSize, false);
+      }
+
       // Reset pipeline after reading metadata
       pipeline = sharp(Buffer.from(content));
 
       // Resize if needed
-      const needsResize = metadata.width > config.maxWidth || metadata.height > config.maxHeight;
-
       if (needsResize) {
         pipeline = pipeline.resize(config.maxWidth, config.maxHeight, {
           fit: 'inside',
