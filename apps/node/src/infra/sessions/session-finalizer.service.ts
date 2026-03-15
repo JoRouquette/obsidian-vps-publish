@@ -619,6 +619,7 @@ export class SessionFinalizerService {
   /**
    * Replace asset paths in HTML files based on optimization mappings.
    * When images are converted (e.g., .png → .webp), this updates all references in HTML.
+   * Also handles Leaflet blocks where image paths are stored in JSON data attributes.
    * @returns Number of files modified
    */
   private async replaceAssetPaths(
@@ -689,12 +690,20 @@ export class SessionFinalizerService {
       let content = await fs.readFile(htmlFile, 'utf-8');
       let modified = false;
 
+      // Replace in standard HTML attributes (src, href, data-src)
       for (const { pattern, replacement } of patterns) {
         const newContent = content.replace(pattern, replacement);
         if (newContent !== content) {
           content = newContent;
           modified = true;
         }
+      }
+
+      // Replace in Leaflet block JSON (data-leaflet-block attribute)
+      const leafletResult = this.replaceAssetPathsInLeafletBlocks(content, mappings, log);
+      if (leafletResult.modified) {
+        content = leafletResult.content;
+        modified = true;
       }
 
       if (modified) {
@@ -707,5 +716,77 @@ export class SessionFinalizerService {
     }
 
     return filesModified;
+  }
+
+  /**
+   * Replace asset paths in Leaflet block JSON data.
+   * Leaflet blocks store image overlay paths in JSON within data-leaflet-block attribute.
+   */
+  private replaceAssetPathsInLeafletBlocks(
+    html: string,
+    mappings: Record<string, string>,
+    log: LoggerPort
+  ): { content: string; modified: boolean } {
+    // Quick check to avoid parsing if no Leaflet blocks
+    if (!html.includes('data-leaflet-block=')) {
+      return { content: html, modified: false };
+    }
+
+    const $ = (load as (...args: unknown[]) => ReturnType<typeof load>)(
+      html,
+      { decodeEntities: false },
+      false
+    );
+    const leafletElements = $('[data-leaflet-block]');
+
+    if (leafletElements.length === 0) {
+      return { content: html, modified: false };
+    }
+
+    let modified = false;
+
+    for (const element of leafletElements.toArray()) {
+      const blockDataJson = $(element).attr('data-leaflet-block');
+      if (!blockDataJson) {
+        continue;
+      }
+
+      try {
+        const blockData = JSON.parse(blockDataJson);
+
+        // Replace paths in imageOverlays
+        if (blockData.imageOverlays && Array.isArray(blockData.imageOverlays)) {
+          for (const overlay of blockData.imageOverlays) {
+            if (overlay.path && typeof overlay.path === 'string') {
+              // Check for direct match or match with /assets/ prefix
+              for (const [original, optimized] of Object.entries(mappings)) {
+                // Match exact path or path ending with original
+                if (overlay.path === original || overlay.path.endsWith('/' + original)) {
+                  const newPath = overlay.path.replace(original, optimized);
+                  log.debug('Replacing Leaflet imageOverlay path', {
+                    old: overlay.path,
+                    new: newPath,
+                  });
+                  overlay.path = newPath;
+                  modified = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        // Update the attribute with modified JSON
+        if (modified) {
+          $(element).attr('data-leaflet-block', JSON.stringify(blockData));
+        }
+      } catch (error) {
+        log.warn('Failed to parse Leaflet block JSON for asset path replacement', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    return { content: $.html(), modified };
   }
 }
