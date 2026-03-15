@@ -189,6 +189,15 @@ export function createSessionController(
 
       const result = await assetPublicationHandler.handle(command);
 
+      routeLogger?.debug('Asset publication result', {
+        sessionId: result.sessionId,
+        published: result.published,
+        skipped: result.skipped,
+        hasRenamedAssets: !!result.renamedAssets,
+        renamedAssetsCount: result.renamedAssets ? Object.keys(result.renamedAssets).length : 0,
+        renamedAssets: result.renamedAssets,
+      });
+
       // If any assets were renamed (e.g., .png → .webp), save mappings to session
       if (result.renamedAssets && Object.keys(result.renamedAssets).length > 0) {
         const session = await sessionRepository.findById(req.params.sessionId);

@@ -184,6 +184,14 @@ export class SessionFinalizerService {
     if (session?.assetPathMappings && Object.keys(session.assetPathMappings).length > 0) {
       stepStart = performance.now();
       const contentRoot = this.stagingManager.contentStagingPath(sessionId);
+
+      // Debug logging for asset path mappings
+      log.debug('Asset path mappings to apply', {
+        mappingsCount: Object.keys(session.assetPathMappings).length,
+        mappings: session.assetPathMappings,
+        contentRoot,
+      });
+
       const replacedCount = await this.replaceAssetPaths(
         contentRoot,
         session.assetPathMappings,
@@ -216,6 +224,15 @@ export class SessionFinalizerService {
         }
       }
       timings.replaceManifestAssetPaths = performance.now() - stepStart;
+    } else {
+      // No asset path mappings - either no images were optimized or optimization is disabled
+      log.debug('No asset path mappings to apply', {
+        hasSession: !!session,
+        hasMappings: !!session?.assetPathMappings,
+        mappingsCount: session?.assetPathMappings
+          ? Object.keys(session.assetPathMappings).length
+          : 0,
+      });
     }
 
     // STEP 9: Extract custom index HTML and update manifest
@@ -671,13 +688,18 @@ export class SessionFinalizerService {
 
     await findHtmlFiles(contentRoot);
 
+    log.debug('Found HTML files for asset path replacement', {
+      htmlFilesCount: htmlFiles.length,
+      contentRoot,
+    });
+
     if (htmlFiles.length === 0) {
       return 0;
     }
 
     // Build regex patterns for all mappings
     // Match both encoded and non-encoded paths in src, href, data-src attributes
-    const patterns: { pattern: RegExp; replacement: string }[] = [];
+    const patterns: { pattern: RegExp; replacement: string; desc: string }[] = [];
     for (const [original, optimized] of Object.entries(mappings)) {
       // Create patterns for common attribute contexts
       // Match: src="...original...", href="...original...", /assets/original
@@ -688,14 +710,17 @@ export class SessionFinalizerService {
       patterns.push({
         pattern: new RegExp(`(src=["'].*?)${escapedOriginal}(["'])`, 'gi'),
         replacement: `$1${optimized}$2`,
+        desc: `src: ${original} → ${optimized}`,
       });
       patterns.push({
         pattern: new RegExp(`(href=["'].*?)${escapedOriginal}(["'])`, 'gi'),
         replacement: `$1${optimized}$2`,
+        desc: `href: ${original} → ${optimized}`,
       });
       patterns.push({
         pattern: new RegExp(`(data-src=["'].*?)${escapedOriginal}(["'])`, 'gi'),
         replacement: `$1${optimized}$2`,
+        desc: `data-src: ${original} → ${optimized}`,
       });
 
       // Also match just the filename (basename) when path structures differ
@@ -708,14 +733,17 @@ export class SessionFinalizerService {
         patterns.push({
           pattern: new RegExp(`(src=["'][^"']*/)${escapedBasename}(["'])`, 'gi'),
           replacement: `$1${optimizedBasename}$2`,
+          desc: `src-basename: ${originalBasename} → ${optimizedBasename}`,
         });
         patterns.push({
           pattern: new RegExp(`(href=["'][^"']*/)${escapedBasename}(["'])`, 'gi'),
           replacement: `$1${optimizedBasename}$2`,
+          desc: `href-basename: ${originalBasename} → ${optimizedBasename}`,
         });
         patterns.push({
           pattern: new RegExp(`(data-src=["'][^"']*/)${escapedBasename}(["'])`, 'gi'),
           replacement: `$1${optimizedBasename}$2`,
+          desc: `data-src-basename: ${originalBasename} → ${optimizedBasename}`,
         });
       }
 
@@ -724,24 +752,40 @@ export class SessionFinalizerService {
         patterns.push({
           pattern: new RegExp(`(src=["'].*?)${escapedEncoded}(["'])`, 'gi'),
           replacement: `$1${encodeURIComponent(optimized)}$2`,
+          desc: `src-encoded: ${original} → ${optimized}`,
         });
         patterns.push({
           pattern: new RegExp(`(href=["'].*?)${escapedEncoded}(["'])`, 'gi'),
           replacement: `$1${encodeURIComponent(optimized)}$2`,
+          desc: `href-encoded: ${original} → ${optimized}`,
         });
       }
     }
 
+    log.debug('Generated replacement patterns', {
+      patternCount: patterns.length,
+      patterns: patterns.map((p) => p.desc),
+    });
+
     let filesModified = 0;
+    let totalReplacements = 0;
 
     for (const htmlFile of htmlFiles) {
       let content = await fs.readFile(htmlFile, 'utf-8');
       let modified = false;
+      let fileReplacements = 0;
 
       // Replace in standard HTML attributes (src, href, data-src)
-      for (const { pattern, replacement } of patterns) {
+      for (const { pattern, replacement, desc } of patterns) {
         const newContent = content.replace(pattern, replacement);
         if (newContent !== content) {
+          const matchCount = (content.match(pattern) || []).length;
+          fileReplacements += matchCount;
+          log.debug('Pattern matched in file', {
+            file: path.basename(htmlFile),
+            pattern: desc,
+            matchCount,
+          });
           content = newContent;
           modified = true;
         }
@@ -752,16 +796,25 @@ export class SessionFinalizerService {
       if (leafletResult.modified) {
         content = leafletResult.content;
         modified = true;
+        fileReplacements++;
       }
 
       if (modified) {
         await fs.writeFile(htmlFile, content, 'utf-8');
         filesModified++;
+        totalReplacements += fileReplacements;
         log.debug('Replaced asset paths in HTML file', {
           file: path.relative(contentRoot, htmlFile),
+          replacements: fileReplacements,
         });
       }
     }
+
+    log.debug('Asset path replacement summary', {
+      filesScanned: htmlFiles.length,
+      filesModified,
+      totalReplacements,
+    });
 
     return filesModified;
   }
