@@ -33,7 +33,7 @@ ENV NODE_ENV=production \
     SSR_ENABLED=true \
     NODE_OPTIONS=--enable-source-maps
 
-# Utilitaires pour le healthcheck (wget)
+# Utilitaires pour le healthcheck (wget) et Sharp dependencies
 RUN apk add --no-cache wget
 
 WORKDIR /app
@@ -45,13 +45,11 @@ WORKDIR /app
 # On repart du package.json racine du monorepo
 COPY package.json package-lock.json ./
 
-# Install dependencies (without scripts for security)
+# Install dependencies (without dev deps, but include optional for sharp native binaries)
+# Sharp requires platform-specific binaries for Alpine (musl libc)
 RUN --mount=type=cache,target=/root/.npm \
-    npm install --omit=dev --omit=optional --no-audit --no-fund --ignore-scripts --legacy-peer-deps
-
-# Sharp needs its native binaries rebuilt for Alpine (--ignore-scripts skips postinstall)
-# This is safe since we only rebuild sharp, not running arbitrary scripts
-RUN npm rebuild sharp --verbose 2>/dev/null || echo "WARN: Sharp rebuild failed - image optimization will be disabled"
+    npm install --omit=dev --no-audit --no-fund --ignore-scripts --legacy-peer-deps && \
+    npm install --os=linux --libc=musl --cpu=x64 sharp --no-save --legacy-peer-deps
 
 
 ################################
