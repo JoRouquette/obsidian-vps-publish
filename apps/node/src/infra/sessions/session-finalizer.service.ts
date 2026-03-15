@@ -174,6 +174,23 @@ export class SessionFinalizerService {
     });
     timings.renderMarkdownToHtml = performance.now() - stepStart;
 
+    // STEP 8.5: Replace asset paths if any images were converted (e.g., .png → .webp)
+    if (session?.assetPathMappings && Object.keys(session.assetPathMappings).length > 0) {
+      stepStart = performance.now();
+      const contentRoot = this.stagingManager.contentStagingPath(sessionId);
+      const replacedCount = await this.replaceAssetPaths(
+        contentRoot,
+        session.assetPathMappings,
+        log
+      );
+      timings.replaceAssetPaths = performance.now() - stepStart;
+      log.info('Asset paths replaced in HTML files', {
+        mappingsCount: Object.keys(session.assetPathMappings).length,
+        filesModified: replacedCount,
+        durationMs: timings.replaceAssetPaths.toFixed(2),
+      });
+    }
+
     // STEP 9: Extract custom index HTML and update manifest
     stepStart = performance.now();
     const customIndexesHtml = await this.extractCustomIndexesHtml(
@@ -597,5 +614,98 @@ export class SessionFinalizerService {
     } catch (error) {
       this.logger.warn('Failed to rebuild content search index', { sessionId, error });
     }
+  }
+
+  /**
+   * Replace asset paths in HTML files based on optimization mappings.
+   * When images are converted (e.g., .png → .webp), this updates all references in HTML.
+   * @returns Number of files modified
+   */
+  private async replaceAssetPaths(
+    contentRoot: string,
+    mappings: Record<string, string>,
+    log: LoggerPort
+  ): Promise<number> {
+    const htmlFiles: string[] = [];
+
+    // Recursively find all HTML files
+    const findHtmlFiles = async (dir: string): Promise<void> => {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          await findHtmlFiles(fullPath);
+        } else if (entry.name.endsWith('.html')) {
+          htmlFiles.push(fullPath);
+        }
+      }
+    };
+
+    await findHtmlFiles(contentRoot);
+
+    if (htmlFiles.length === 0) {
+      return 0;
+    }
+
+    // Build regex patterns for all mappings
+    // Match both encoded and non-encoded paths in src, href, data-src attributes
+    const patterns: { pattern: RegExp; replacement: string }[] = [];
+    for (const [original, optimized] of Object.entries(mappings)) {
+      // Create patterns for common attribute contexts
+      // Match: src="...original...", href="...original...", /assets/original
+      const escapedOriginal = original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedEncoded = encodeURIComponent(original).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      // Replace in src, href, data-src attributes
+      patterns.push({
+        pattern: new RegExp(`(src=["'].*?)${escapedOriginal}(["'])`, 'gi'),
+        replacement: `$1${optimized}$2`,
+      });
+      patterns.push({
+        pattern: new RegExp(`(href=["'].*?)${escapedOriginal}(["'])`, 'gi'),
+        replacement: `$1${optimized}$2`,
+      });
+      patterns.push({
+        pattern: new RegExp(`(data-src=["'].*?)${escapedOriginal}(["'])`, 'gi'),
+        replacement: `$1${optimized}$2`,
+      });
+
+      // Also match URL-encoded versions
+      if (escapedOriginal !== escapedEncoded) {
+        patterns.push({
+          pattern: new RegExp(`(src=["'].*?)${escapedEncoded}(["'])`, 'gi'),
+          replacement: `$1${encodeURIComponent(optimized)}$2`,
+        });
+        patterns.push({
+          pattern: new RegExp(`(href=["'].*?)${escapedEncoded}(["'])`, 'gi'),
+          replacement: `$1${encodeURIComponent(optimized)}$2`,
+        });
+      }
+    }
+
+    let filesModified = 0;
+
+    for (const htmlFile of htmlFiles) {
+      let content = await fs.readFile(htmlFile, 'utf-8');
+      let modified = false;
+
+      for (const { pattern, replacement } of patterns) {
+        const newContent = content.replace(pattern, replacement);
+        if (newContent !== content) {
+          content = newContent;
+          modified = true;
+        }
+      }
+
+      if (modified) {
+        await fs.writeFile(htmlFile, content, 'utf-8');
+        filesModified++;
+        log.debug('Replaced asset paths in HTML file', {
+          file: path.relative(contentRoot, htmlFile),
+        });
+      }
+    }
+
+    return filesModified;
   }
 }

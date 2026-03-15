@@ -73,7 +73,11 @@ export class UploadAssetsHandler implements CommandHandler<
 
     // Process assets in parallel with controlled concurrency
     const CONCURRENCY = 10;
-    const results: PromiseSettledResult<{ filename: string; skipped: boolean }>[] = [];
+    const results: PromiseSettledResult<{
+      originalFilename: string;
+      finalFilename: string;
+      skipped: boolean;
+    }>[] = [];
 
     for (let i = 0; i < assets.length; i += CONCURRENCY) {
       const batch = assets.slice(i, Math.min(i + CONCURRENCY, assets.length));
@@ -143,7 +147,7 @@ export class UploadAssetsHandler implements CommandHandler<
               });
               // Add existing asset to staged manifest (preserve reference)
               allStagedAssets.push(existingAsset);
-              return { filename: finalFilename, skipped: true };
+              return { originalFilename: filename, finalFilename, skipped: true };
             }
           }
 
@@ -169,21 +173,28 @@ export class UploadAssetsHandler implements CommandHandler<
             });
           }
 
-          return { filename: finalFilename, skipped: false };
+          return { originalFilename: filename, finalFilename, skipped: false };
         })
       );
       results.push(...batchResults);
     }
 
     // Aggregate results
+    const renamedAssets: Record<string, string> = {};
     results.forEach((result, idx) => {
       if (result.status === 'rejected') {
         const asset = assets[idx];
         const message = result.reason instanceof Error ? result.reason.message : 'Unknown error';
         errors.push({ assetName: asset.fileName, message });
         this._logger?.error('Asset upload failed', { asset: asset.fileName, message });
-      } else if (result.value.skipped) {
-        skippedAssets.push(result.value.filename);
+      } else {
+        if (result.value.skipped) {
+          skippedAssets.push(result.value.finalFilename);
+        }
+        // Track renamed assets (where filename changed, e.g., .png → .webp)
+        if (result.value.originalFilename !== result.value.finalFilename) {
+          renamedAssets[result.value.originalFilename] = result.value.finalFilename;
+        }
       }
     });
 
@@ -211,6 +222,7 @@ export class UploadAssetsHandler implements CommandHandler<
       published,
       skipped: skipped > 0 ? skipped : undefined,
       skippedAssets: skippedAssets.length > 0 ? skippedAssets : undefined,
+      renamedAssets: Object.keys(renamedAssets).length > 0 ? renamedAssets : undefined,
       errors: errors.length ? errors : undefined,
     };
   }

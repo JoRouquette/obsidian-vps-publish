@@ -13,5 +13,10 @@ export interface UploadAssetsResult {
   skipped?: number;
   /** List of skipped asset paths (for logging/debugging) */
   skippedAssets?: string[];
+  /**
+   * Mapping of original asset paths to final paths (e.g., image.png → image.webp)
+   * Used to update references in rendered HTML when image format changes
+   */
+  renamedAssets?: Record<string, string>;
   errors?: { assetName: string; message: string }[];
 }

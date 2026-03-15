@@ -189,6 +189,24 @@ export function createSessionController(
 
       const result = await assetPublicationHandler.handle(command);
 
+      // If any assets were renamed (e.g., .png → .webp), save mappings to session
+      if (result.renamedAssets && Object.keys(result.renamedAssets).length > 0) {
+        const session = await sessionRepository.findById(req.params.sessionId);
+        if (session) {
+          // Merge with existing mappings (multiple batches may add more)
+          const existingMappings = session.assetPathMappings ?? {};
+          await sessionRepository.save({
+            ...session,
+            assetPathMappings: { ...existingMappings, ...result.renamedAssets },
+          });
+          routeLogger?.debug('Saved asset path mappings to session', {
+            newMappings: Object.keys(result.renamedAssets).length,
+            totalMappings:
+              Object.keys(existingMappings).length + Object.keys(result.renamedAssets).length,
+          });
+        }
+      }
+
       return res.status(200).json({
         sessionId: result.sessionId,
         publishedCount: result.published,
