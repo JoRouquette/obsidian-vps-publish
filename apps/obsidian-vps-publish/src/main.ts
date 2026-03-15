@@ -33,6 +33,7 @@ import {
   formatPublishingStats,
   type PublishingStats,
 } from '@core-domain/entities/publishing-stats';
+import type { ResolvedAssetFile } from '@core-domain/entities/resolved-asset-file';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import { LogLevel } from '@core-domain/ports/logger-port';
 import type { PerformanceTrackerPort } from '@core-domain/ports/performance-tracker.port';
@@ -1137,11 +1138,56 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           existingAssetHashes
         );
 
+        // Log assets to be resolved for debugging
+        const allAssetsToResolve = notesWithAssets.flatMap((n) =>
+          (n.assets ?? []).map((a) => ({
+            noteVaultPath: n.vaultPath,
+            target: a.target,
+            kind: a.kind,
+            origin: a.origin,
+            hasLeafletBlocks: (n.leafletBlocks?.length ?? 0) > 0,
+          }))
+        );
+        scopedLogger.info('Assets to resolve', {
+          notesWithAssetsCount: notesWithAssets.length,
+          totalAssets: allAssetsToResolve.length,
+          assetsFolder: settings.assetsFolder,
+          vaultFallbackEnabled: settings.enableAssetsVaultFallback,
+          assets: allAssetsToResolve.slice(0, 20), // Log first 20 for debugging
+        });
+
         const resolvedAssets = await assetsVault.resolveAssetsFromNotes(
           notesWithAssets,
           settings.assetsFolder,
           settings.enableAssetsVaultFallback
         );
+
+        // Warn user if some assets could not be resolved
+        const totalExpectedAssets = notesWithAssets.reduce(
+          (sum, n) => sum + (Array.isArray(n.assets) ? n.assets.length : 0),
+          0
+        );
+        const missingAssetsCount = totalExpectedAssets - resolvedAssets.length;
+        if (missingAssetsCount > 0) {
+          const missingAssets = this.findMissingAssets(notesWithAssets, resolvedAssets);
+          scopedLogger.warn('Some assets could not be found in vault', {
+            totalExpectedAssets,
+            resolvedAssets: resolvedAssets.length,
+            missingAssetsCount,
+            missingAssets: missingAssets.slice(0, 10), // Log first 10 for debugging
+            assetsFolder: settings.assetsFolder,
+            vaultFallbackEnabled: settings.enableAssetsVaultFallback,
+          });
+
+          // Show user-visible warning
+          new Notice(
+            translate(t, 'notice.missingAssets', {
+              count: String(missingAssetsCount),
+              assetsFolder: settings.assetsFolder || 'assets',
+            }),
+            10000 // Show for 10 seconds
+          );
+        }
 
         // Calculer le nombre de batchs
         const assetsBatchInfo = await assetsUploader.getBatchInfo(resolvedAssets);
@@ -1463,6 +1509,30 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     );
 
     await client.cleanupVps(confirmationName);
+  }
+
+  /**
+   * Finds assets that were expected but not resolved.
+   * Used for debugging when assets are missing.
+   */
+  private findMissingAssets(
+    notesWithAssets: PublishableNote[],
+    resolvedAssets: ResolvedAssetFile[]
+  ): string[] {
+    const resolvedTargets = new Set(resolvedAssets.map((a) => a.fileName.toLowerCase()));
+
+    const missing: string[] = [];
+    for (const note of notesWithAssets) {
+      for (const asset of note.assets ?? []) {
+        const target = asset.target?.toLowerCase();
+        const baseName = target?.split('/').pop();
+        if (baseName && !resolvedTargets.has(baseName)) {
+          missing.push(`${asset.target} (from ${note.vaultPath})`);
+        }
+      }
+    }
+
+    return missing;
   }
 
   private buildParseContentHandler(

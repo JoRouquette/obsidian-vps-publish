@@ -21,6 +21,7 @@ import { NotesFileSystemStorage } from '../../filesystem/notes-file-system.stora
 import { SessionNotesFileStorage } from '../../filesystem/session-notes-file.storage';
 import { StagingManager } from '../../filesystem/staging-manager';
 import { UuidIdGenerator } from '../../id/uuid-id.generator';
+import { NoopImageOptimizer, SharpImageOptimizer } from '../../image';
 import { CalloutRendererService } from '../../markdown/callout-renderer.service';
 import { MarkdownItRenderer } from '../../markdown/markdown-it.renderer';
 import { ClamAVAssetScanner } from '../../security/clamav-asset-scanner';
@@ -208,12 +209,27 @@ export function createApp(rootLogger?: LoggerPort) {
   const assetValidator = new FileTypeAssetValidator(assetScanner, rootLogger);
   const assetHasher = new AssetHashService();
   const maxAssetSizeBytes = EnvConfig.maxAssetSizeBytes();
+
+  // Initialize image optimizer (Sharp if enabled, Noop otherwise)
+  const imageOptimizer = EnvConfig.imageOptimizationEnabled()
+    ? new SharpImageOptimizer(
+        {
+          quality: EnvConfig.imageQuality(),
+          maxWidth: EnvConfig.imageMaxWidth(),
+          maxHeight: EnvConfig.imageMaxHeight(),
+          convertToWebp: EnvConfig.imageConvertToWebp(),
+        },
+        rootLogger
+      )
+    : new NoopImageOptimizer();
+
   const uploadAssetsHandler = new UploadAssetsHandler(
     assetStorage,
     manifestFileSystem,
     assetHasher,
     assetValidator,
     maxAssetSizeBytes,
+    imageOptimizer,
     rootLogger
   );
   const createSessionHandler = new CreateSessionHandler(

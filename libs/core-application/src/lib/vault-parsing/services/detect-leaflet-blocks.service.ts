@@ -68,6 +68,15 @@ export class DetectLeafletBlocksService implements BaseService {
       totalBlocks += blocks.length;
       notesWithBlocks++;
 
+      // Log details for each note with Leaflet blocks
+      this._logger.info('Leaflet blocks found in note', {
+        noteVaultPath: note.vaultPath,
+        blocksCount: blocks.length,
+        blockIds: blocks.map((b) => b.id),
+        imageOverlaysCount: blocks.reduce((sum, b) => sum + (b.imageOverlays?.length ?? 0), 0),
+        imageOverlayPaths: blocks.flatMap((b) => b.imageOverlays?.map((o) => o.path) ?? []),
+      });
+
       return {
         ...note,
         content: processedContent,

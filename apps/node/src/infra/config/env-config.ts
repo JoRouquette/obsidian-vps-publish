@@ -130,6 +130,59 @@ export class EnvConfig {
     return Number.isFinite(val) && val > 0 ? val : 10000;
   }
 
+  // ===== Image Optimization Configuration =====
+
+  /**
+   * Enable automatic image optimization (compression, format conversion).
+   * When enabled, images will be compressed and optionally converted to WebP.
+   * Default: true
+   */
+  static imageOptimizationEnabled(): boolean {
+    const val = this.norm(process.env.IMAGE_OPTIMIZATION_ENABLED).toLowerCase();
+    if (val === 'false' || val === '0') return false;
+    return true; // Enabled by default
+  }
+
+  /**
+   * Convert images to WebP format for better compression.
+   * WebP typically offers 25-35% better compression than JPEG/PNG.
+   * Default: true
+   */
+  static imageConvertToWebp(): boolean {
+    const val = this.norm(process.env.IMAGE_CONVERT_TO_WEBP).toLowerCase();
+    if (val === 'false' || val === '0') return false;
+    return true; // Enabled by default
+  }
+
+  /**
+   * Image compression quality (1-100).
+   * Higher values = better quality but larger files.
+   * Default: 85
+   */
+  static imageQuality(): number {
+    const val = Number(this.norm(process.env.IMAGE_QUALITY));
+    if (Number.isFinite(val) && val >= 1 && val <= 100) return val;
+    return 85;
+  }
+
+  /**
+   * Maximum image width in pixels. Larger images will be resized.
+   * Default: 4096
+   */
+  static imageMaxWidth(): number {
+    const val = Number(this.norm(process.env.IMAGE_MAX_WIDTH));
+    return Number.isFinite(val) && val > 0 ? val : 4096;
+  }
+
+  /**
+   * Maximum image height in pixels. Larger images will be resized.
+   * Default: 4096
+   */
+  static imageMaxHeight(): number {
+    const val = Number(this.norm(process.env.IMAGE_MAX_HEIGHT));
+    return Number.isFinite(val) && val > 0 ? val : 4096;
+  }
+
   /**
    * Base URL for the public site (used for SEO: sitemap, canonical URLs)
    * Example: https://example.com

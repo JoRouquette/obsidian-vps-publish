@@ -102,9 +102,13 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
         }
 
         if (!file) {
-          this._logger.debug('Asset not found in vault', {
+          this._logger.warn('Asset not found in vault - will not be uploaded', {
             target,
+            baseName,
             note: note.vaultPath,
+            assetsFolder: normalizedAssetsFolder,
+            vaultFallbackEnabled: enableVaultFallback,
+            hint: `Check that the file "${baseName}" exists in your vault, and that assetsFolder setting is correct`,
           });
           continue;
         }
@@ -131,6 +135,26 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
 
         resolvedAssets.push(resolved);
       }
+    }
+
+    // Log summary of asset resolution
+    const totalAssets = notes.reduce((sum, n) => sum + (n.assets?.length ?? 0), 0);
+    const resolvedCount = resolvedAssets.length;
+    const missingCount = totalAssets - resolvedCount;
+
+    if (missingCount > 0) {
+      this._logger.warn('Some assets could not be resolved', {
+        totalAssets,
+        resolved: resolvedCount,
+        missing: missingCount,
+        assetsFolder: this.normalizeFolder(assetsFolder),
+        vaultFallbackEnabled: enableVaultFallback,
+      });
+    } else {
+      this._logger.info('All assets resolved successfully', {
+        totalAssets,
+        resolved: resolvedCount,
+      });
     }
 
     return resolvedAssets;

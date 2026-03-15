@@ -25,6 +25,7 @@ describe('UploadAssetsHandler', () => {
       undefined,
       undefined,
       undefined,
+      undefined, // imageOptimizer
       logger
     );
   });
@@ -35,6 +36,7 @@ describe('UploadAssetsHandler', () => {
       hasValidator: false,
       hasManifest: false,
       hasHasher: false,
+      hasImageOptimizer: false,
       maxAssetSizeBytes: undefined,
     });
   });

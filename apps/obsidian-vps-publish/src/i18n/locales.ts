@@ -15,6 +15,7 @@ type NoticeTranslations = {
   analyzingVault: string;
   uploadingNotesBatches: string;
   uploadingAssetsBatches: string;
+  missingAssets: string;
   dataviewNotDetected: string;
   completedIn: string;
   debugModeHint: string;
@@ -864,6 +865,8 @@ export const en: Translations = {
     analyzingVault: '🔍 Analyzing vault notes...',
     uploadingNotesBatches: '📤 Uploading notes in {count} batch{plural}...',
     uploadingAssetsBatches: '📤 Uploading assets in {count} batch{plural}...',
+    missingAssets:
+      '⚠️ {count} asset(s) not found in vault.\nCheck that your assets folder "{assetsFolder}" is correct, or enable "Vault Fallback" in settings.',
     dataviewNotDetected:
       '⚠️ Dataview plugin not detected. Dataview blocks will show as errors on the site.',
     completedIn: 'completed in',
@@ -1397,6 +1400,8 @@ export const fr: Translations = {
     analyzingVault: '🔍 Analyse des notes du vault...',
     uploadingNotesBatches: '📤 Envoi des notes en {count} lot{plural}...',
     uploadingAssetsBatches: '📤 Envoi des ressources en {count} lot{plural}...',
+    missingAssets:
+      '⚠️ {count} ressource(s) introuvable(s) dans le vault.\nVérifiez que votre dossier de ressources "{assetsFolder}" est correct, ou activez "Recours au vault" dans les paramètres.',
     dataviewNotDetected:
       '⚠️ Plugin Dataview non détecté. Les blocs Dataview apparaîtront comme erreurs sur le site.',
     completedIn: 'terminé en',

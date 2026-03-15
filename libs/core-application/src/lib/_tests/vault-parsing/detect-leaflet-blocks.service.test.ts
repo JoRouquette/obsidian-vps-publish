@@ -382,5 +382,45 @@ lon: -70.0
       const block = result[0].leafletBlocks![0];
       expect(block.long).toBe(-70);
     });
+
+    it('integration: parses exact Ektaron.md Leaflet block format', () => {
+      // This test uses the EXACT content format from test-vault/Ektaron/Ektaron.md
+      // to ensure the parsing works correctly for real-world usage
+      const content = `## Carte
+
+\`\`\`leaflet
+
+id: Ektaron-map
+image: [[Ektaron.png]]
+defaultZoom: 6
+scale: 1365
+unit: km
+height: 700px
+
+\`\`\`
+<small style="font-style: italic">1 jour de voyage</small>`;
+
+      const notes = [createMockNote(content)];
+      const result = service.process(notes);
+
+      // Leaflet block should be detected
+      expect(result[0].leafletBlocks).toBeDefined();
+      expect(result[0].leafletBlocks).toHaveLength(1);
+
+      const block = result[0].leafletBlocks![0];
+      expect(block.id).toBe('Ektaron-map');
+      expect(block.defaultZoom).toBe(6);
+      expect(block.scale).toBe(1365);
+      expect(block.unit).toBe('km');
+      expect(block.height).toBe('700px');
+
+      // CRITICAL: imageOverlays should be detected from `image: [[Ektaron.png]]`
+      expect(block.imageOverlays).toBeDefined();
+      expect(block.imageOverlays).toHaveLength(1);
+      expect(block.imageOverlays![0].path).toBe('Ektaron.png');
+
+      // Content should have placeholder
+      expect(result[0].content).toContain('data-leaflet-map-id="Ektaron-map"');
+    });
   });
 });

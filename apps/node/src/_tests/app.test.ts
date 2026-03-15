@@ -37,6 +37,11 @@ jest.mock('../infra/config/env-config', () => ({
     clamavHost: jest.fn(() => 'localhost'),
     clamavPort: jest.fn(() => 3310),
     clamavTimeout: jest.fn(() => 10000),
+    imageOptimizationEnabled: jest.fn(() => false),
+    imageConvertToWebp: jest.fn(() => true),
+    imageQuality: jest.fn(() => 85),
+    imageMaxWidth: jest.fn(() => 4096),
+    imageMaxHeight: jest.fn(() => 4096),
   },
 }));
 

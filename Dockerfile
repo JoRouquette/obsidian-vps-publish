@@ -33,7 +33,7 @@ ENV NODE_ENV=production \
     SSR_ENABLED=true \
     NODE_OPTIONS=--enable-source-maps
 
-# Utilitaires pour le healthcheck (wget)
+# Utilitaires pour le healthcheck (wget) et Sharp dependencies
 RUN apk add --no-cache wget
 
 WORKDIR /app
@@ -45,8 +45,11 @@ WORKDIR /app
 # On repart du package.json racine du monorepo
 COPY package.json package-lock.json ./
 
+# Install dependencies (without dev deps, but include optional for sharp native binaries)
+# Sharp requires platform-specific binaries for Alpine (musl libc)
 RUN --mount=type=cache,target=/root/.npm \
-    npm install --omit=dev --omit=optional --no-audit --no-fund --ignore-scripts --legacy-peer-deps
+    npm install --omit=dev --no-audit --no-fund --ignore-scripts --legacy-peer-deps && \
+    npm install --os=linux --libc=musl --cpu=x64 sharp --no-save --legacy-peer-deps
 
 
 ################################

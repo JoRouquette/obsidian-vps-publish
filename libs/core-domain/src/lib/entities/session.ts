@@ -33,4 +33,9 @@ export interface Session {
    * Used to detect render pipeline changes and trigger full re-render
    */
   pipelineSignature?: PipelineSignature;
+  /**
+   * Mapping of original asset paths to optimized paths (e.g., image.png → image.webp)
+   * Used by SessionFinalizerService to update references in rendered HTML
+   */
+  assetPathMappings?: Record<string, string>;
 }
