@@ -15,7 +15,13 @@ import {
   UploadNotesHandler,
 } from '@core-application';
 import { NoteHashService } from '@core-application/publishing/services/note-hash.service';
-import { type CustomIndexConfig, type LoggerPort, LogLevel } from '@core-domain';
+import {
+  type CustomIndexConfig,
+  type LeafletBlock,
+  type LoggerPort,
+  LogLevel,
+  type Manifest,
+} from '@core-domain';
 import { load } from 'cheerio';
 
 import { type StagingManager } from '../filesystem/staging-manager';
@@ -189,6 +195,27 @@ export class SessionFinalizerService {
         filesModified: replacedCount,
         durationMs: timings.replaceAssetPaths.toFixed(2),
       });
+
+      // STEP 8.6: Update manifest pages with optimized asset paths
+      stepStart = performance.now();
+      const manifestForAssets = this.manifestStorage(sessionId);
+      const currentManifest = await manifestForAssets.load();
+      if (currentManifest) {
+        const updateResult = this.replaceAssetPathsInManifestPages(
+          currentManifest,
+          session.assetPathMappings,
+          log
+        );
+        if (updateResult.modified) {
+          await manifestForAssets.save(currentManifest);
+          log.info('Asset paths replaced in manifest pages', {
+            pagesModified: updateResult.pagesModified,
+            coverImagesUpdated: updateResult.coverImagesUpdated,
+            leafletOverlaysUpdated: updateResult.leafletOverlaysUpdated,
+          });
+        }
+      }
+      timings.replaceManifestAssetPaths = performance.now() - stepStart;
     }
 
     // STEP 9: Extract custom index HTML and update manifest
@@ -788,5 +815,110 @@ export class SessionFinalizerService {
     }
 
     return { content: $.html(), modified };
+  }
+
+  /**
+   * Replace asset paths in manifest pages (coverImage and leafletBlocks.imageOverlays.path).
+   * This ensures the manifest JSON reflects optimized asset filenames.
+   */
+  private replaceAssetPathsInManifestPages(
+    manifest: Manifest,
+    mappings: Record<string, string>,
+    log: LoggerPort
+  ): {
+    modified: boolean;
+    pagesModified: number;
+    coverImagesUpdated: number;
+    leafletOverlaysUpdated: number;
+  } {
+    let pagesModified = 0;
+    let coverImagesUpdated = 0;
+    let leafletOverlaysUpdated = 0;
+
+    for (const page of manifest.pages) {
+      let pageModified = false;
+
+      // Update coverImage path
+      if (page.coverImage) {
+        const newCoverImage = this.replaceAssetPath(page.coverImage, mappings);
+        if (newCoverImage !== page.coverImage) {
+          log.debug('Replacing coverImage path in manifest', {
+            route: page.route,
+            old: page.coverImage,
+            new: newCoverImage,
+          });
+          page.coverImage = newCoverImage;
+          coverImagesUpdated++;
+          pageModified = true;
+        }
+      }
+
+      // Update leafletBlocks imageOverlays paths
+      if (page.leafletBlocks && Array.isArray(page.leafletBlocks)) {
+        for (const block of page.leafletBlocks as LeafletBlock[]) {
+          if (block.imageOverlays && Array.isArray(block.imageOverlays)) {
+            for (const overlay of block.imageOverlays) {
+              if (overlay.path) {
+                const newPath = this.replaceAssetPath(overlay.path, mappings);
+                if (newPath !== overlay.path) {
+                  log.debug('Replacing Leaflet imageOverlay path in manifest', {
+                    route: page.route,
+                    blockId: block.id,
+                    old: overlay.path,
+                    new: newPath,
+                  });
+                  overlay.path = newPath;
+                  leafletOverlaysUpdated++;
+                  pageModified = true;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (pageModified) {
+        pagesModified++;
+      }
+    }
+
+    return {
+      modified: pagesModified > 0,
+      pagesModified,
+      coverImagesUpdated,
+      leafletOverlaysUpdated,
+    };
+  }
+
+  /**
+   * Replace an asset path using the mappings.
+   * Handles both exact matches and paths containing the original filename.
+   * Skips absolute URLs (http://, https://).
+   */
+  private replaceAssetPath(assetPath: string, mappings: Record<string, string>): string {
+    // Skip absolute URLs
+    if (assetPath.startsWith('http://') || assetPath.startsWith('https://')) {
+      return assetPath;
+    }
+
+    for (const [original, optimized] of Object.entries(mappings)) {
+      // Exact match
+      if (assetPath === original) {
+        return optimized;
+      }
+      // Path ends with /original (e.g., /assets/_assets/image.png)
+      if (assetPath.endsWith('/' + original)) {
+        return assetPath.replace(original, optimized);
+      }
+      // Path contains /original (e.g., /assets/image.png → /assets/image.webp)
+      if (assetPath.includes('/' + original)) {
+        return assetPath.replace(original, optimized);
+      }
+      // Original is a filename that appears at the end
+      if (assetPath.endsWith(original)) {
+        return assetPath.slice(0, -original.length) + optimized;
+      }
+    }
+    return assetPath;
   }
 }
