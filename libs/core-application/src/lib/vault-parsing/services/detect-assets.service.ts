@@ -234,7 +234,7 @@ export class DetectAssetsService implements BaseService {
         const kind = this.classifyAssetKind(target);
 
         const asset: AssetRef = {
-          raw: `[[${overlay.path}]]`,
+          raw: `![[${overlay.path}]]`,
           target,
           kind,
           origin: 'content', // Considéré comme venant du contenu
@@ -251,9 +251,12 @@ export class DetectAssetsService implements BaseService {
     }
 
     if (note.leafletBlocks.length > 0) {
-      this._logger.debug('Detected Leaflet block assets', {
-        blocksProcessed: note.leafletBlocks.length,
+      // Use INFO level so it's always visible for debugging Leaflet issues
+      this._logger.info('Leaflet block assets detection', {
+        noteVaultPath: note.vaultPath,
+        blocksCount: note.leafletBlocks.length,
         assetsDetected: assets.length,
+        assetTargets: assets.map((a) => a.target),
         skippedEmpty,
       });
     }

@@ -6,6 +6,7 @@ import {
   inject,
   Injectable,
   PLATFORM_ID,
+  runInInjectionContext,
 } from '@angular/core';
 import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
 
@@ -90,15 +91,18 @@ export class LeafletInjectionService {
     environmentInjector: EnvironmentInjector,
     refs: Map<HTMLElement, ComponentRef<LeafletMapComponent>>
   ): ComponentRef<LeafletMapComponent> {
-    const componentRef = createComponent(LeafletMapComponent, {
-      environmentInjector,
-      hostElement: placeholder,
+    // Use runInInjectionContext to ensure inject() calls in the component work correctly
+    return runInInjectionContext(environmentInjector, () => {
+      const componentRef = createComponent(LeafletMapComponent, {
+        environmentInjector,
+        hostElement: placeholder,
+      });
+      componentRef.setInput('block', block);
+      componentRef.changeDetectorRef.detectChanges();
+      refs.set(placeholder, componentRef);
+      placeholder.dataset['leafletInjected'] = 'true';
+      return componentRef;
     });
-    componentRef.setInput('block', block);
-    componentRef.changeDetectorRef.detectChanges();
-    refs.set(placeholder, componentRef);
-    placeholder.dataset['leafletInjected'] = 'true';
-    return componentRef;
   }
 
   // -----------------------------------------------------------------------
