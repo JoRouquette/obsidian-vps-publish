@@ -1,3 +1,24 @@
+## [6.12.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.11.1...6.12.0) (2026-03-15)
+
+### Features
+
+* **asset-optimization:** add debug logging for path replacement troubleshooting ([477dc3f](https://github.com/JoRouquette/obsidian-vps-publish/commit/477dc3fb26f18622d0b85618a71bf231ae676aab))
+* **node:** add server-side image optimization with Sharp ([d4c0fdc](https://github.com/JoRouquette/obsidian-vps-publish/commit/d4c0fdc057837625ebbf78d0b89479bd8192f302))
+* **node:** update HTML asset references when images are converted to WebP ([a88fff1](https://github.com/JoRouquette/obsidian-vps-publish/commit/a88fff127260d469265531143f48571efa146dc1))
+
+### Bug Fixes
+
+* **docker:** install Sharp native binaries for Alpine (musl libc) ([35cde5b](https://github.com/JoRouquette/obsidian-vps-publish/commit/35cde5b4fe5349091f1e104899ba65050b28922c))
+* **leaflet:** resolve NG0203 inject error and improve asset detection diagnostics ([c871497](https://github.com/JoRouquette/obsidian-vps-publish/commit/c8714970835c7389e134d37d368f4138c69fba0b))
+* **node:** replace asset paths in Leaflet JSON blocks ([833c4a3](https://github.com/JoRouquette/obsidian-vps-publish/commit/833c4a3f17707a130384ad48f86302346cdcbcb5))
+* **node:** replace asset paths in manifest pages ([e10a5fb](https://github.com/JoRouquette/obsidian-vps-publish/commit/e10a5fbab6027fbfaec4ba2335d964db039b9239))
+* **node:** support basename matching for image path replacement ([5f72075](https://github.com/JoRouquette/obsidian-vps-publish/commit/5f720750c6d8fd050517bfe0d4f408605a668f24))
+* **node:** use synthetic images in SharpImageOptimizer tests ([54d7d57](https://github.com/JoRouquette/obsidian-vps-publish/commit/54d7d57aaba10e0049c204f8cca3d6e6e9fdf660))
+
+### Performance Improvements
+
+* **node:** skip re-compression for already-optimized WebP files ([78b2337](https://github.com/JoRouquette/obsidian-vps-publish/commit/78b233789dbdc91e497c815353008feca310341b))
+
 ## [6.11.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.11.0...6.11.1) (2026-03-14)
 
 ### Bug Fixes
