@@ -684,7 +684,7 @@ export class SessionFinalizerService {
       const escapedOriginal = original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const escapedEncoded = encodeURIComponent(original).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-      // Replace in src, href, data-src attributes
+      // Replace in src, href, data-src attributes (full path match)
       patterns.push({
         pattern: new RegExp(`(src=["'].*?)${escapedOriginal}(["'])`, 'gi'),
         replacement: `$1${optimized}$2`,
@@ -697,6 +697,27 @@ export class SessionFinalizerService {
         pattern: new RegExp(`(data-src=["'].*?)${escapedOriginal}(["'])`, 'gi'),
         replacement: `$1${optimized}$2`,
       });
+
+      // Also match just the filename (basename) when path structures differ
+      // e.g., mapping has "_assets/image.png" but HTML has "/assets/image.png"
+      const originalBasename = path.basename(original);
+      const optimizedBasename = path.basename(optimized);
+      if (originalBasename !== original) {
+        const escapedBasename = originalBasename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Match filename at end of path (e.g., /assets/image.png or /any/path/image.png)
+        patterns.push({
+          pattern: new RegExp(`(src=["'][^"']*/)${escapedBasename}(["'])`, 'gi'),
+          replacement: `$1${optimizedBasename}$2`,
+        });
+        patterns.push({
+          pattern: new RegExp(`(href=["'][^"']*/)${escapedBasename}(["'])`, 'gi'),
+          replacement: `$1${optimizedBasename}$2`,
+        });
+        patterns.push({
+          pattern: new RegExp(`(data-src=["'][^"']*/)${escapedBasename}(["'])`, 'gi'),
+          replacement: `$1${optimizedBasename}$2`,
+        });
+      }
 
       // Also match URL-encoded versions
       if (escapedOriginal !== escapedEncoded) {
@@ -772,6 +793,12 @@ export class SessionFinalizerService {
 
     let modified = false;
 
+    // Build basename lookup for faster matching
+    const basenameMap = new Map<string, string>();
+    for (const [original, optimized] of Object.entries(mappings)) {
+      basenameMap.set(path.basename(original), path.basename(optimized));
+    }
+
     for (const element of leafletElements.toArray()) {
       const blockDataJson = $(element).attr('data-leaflet-block');
       if (!blockDataJson) {
@@ -785,6 +812,8 @@ export class SessionFinalizerService {
         if (blockData.imageOverlays && Array.isArray(blockData.imageOverlays)) {
           for (const overlay of blockData.imageOverlays) {
             if (overlay.path && typeof overlay.path === 'string') {
+              let replaced = false;
+
               // Check for direct match or match with /assets/ prefix
               for (const [original, optimized] of Object.entries(mappings)) {
                 // Match exact path or path ending with original
@@ -796,7 +825,23 @@ export class SessionFinalizerService {
                   });
                   overlay.path = newPath;
                   modified = true;
+                  replaced = true;
                   break;
+                }
+              }
+
+              // If no full path match, try basename match
+              if (!replaced) {
+                const overlayBasename = path.basename(overlay.path);
+                const optimizedBasename = basenameMap.get(overlayBasename);
+                if (optimizedBasename) {
+                  const newPath = overlay.path.replace(overlayBasename, optimizedBasename);
+                  log.debug('Replacing Leaflet imageOverlay path (basename match)', {
+                    old: overlay.path,
+                    new: newPath,
+                  });
+                  overlay.path = newPath;
+                  modified = true;
                 }
               }
             }
@@ -893,6 +938,7 @@ export class SessionFinalizerService {
   /**
    * Replace an asset path using the mappings.
    * Handles both exact matches and paths containing the original filename.
+   * Falls back to basename matching when path structures differ.
    * Skips absolute URLs (http://, https://).
    */
   private replaceAssetPath(assetPath: string, mappings: Record<string, string>): string {
@@ -901,6 +947,7 @@ export class SessionFinalizerService {
       return assetPath;
     }
 
+    // Try full path matching first
     for (const [original, optimized] of Object.entries(mappings)) {
       // Exact match
       if (assetPath === original) {
@@ -919,6 +966,18 @@ export class SessionFinalizerService {
         return assetPath.slice(0, -original.length) + optimized;
       }
     }
+
+    // Fallback: try basename matching when path structures differ
+    // e.g., mapping has "_assets/image.png" but assetPath is "/assets/image.png"
+    const assetBasename = path.basename(assetPath);
+    for (const [original, optimized] of Object.entries(mappings)) {
+      const originalBasename = path.basename(original);
+      if (assetBasename === originalBasename) {
+        const optimizedBasename = path.basename(optimized);
+        return assetPath.replace(assetBasename, optimizedBasename);
+      }
+    }
+
     return assetPath;
   }
 }

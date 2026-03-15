@@ -156,6 +156,32 @@ describe('SessionFinalizerService.replaceAssetPath', () => {
       '/content/assets/photo.webp'
     );
   });
+
+  // Basename matching tests - when path structures differ
+  it('should replace using basename when path structures differ', () => {
+    // Mapping has _assets/ but path has /assets/ (no underscore)
+    expect(replaceAssetPath('/assets/Ektaron.png', mappings)).toBe('/assets/Ektaron.webp');
+  });
+
+  it('should replace using basename for wikilink-style image paths', () => {
+    const wikiMappings = {
+      '_assets/BrocheCameleon.png': '_assets/BrocheCameleon.webp',
+    };
+    // The HTML might have /assets/BrocheCameleon.png (different folder)
+    expect(replaceAssetPath('/assets/BrocheCameleon.png', wikiMappings)).toBe(
+      '/assets/BrocheCameleon.webp'
+    );
+  });
+
+  it('should replace using basename for deeply nested paths', () => {
+    const nestedMappings = {
+      'folder/subfolder/deep-image.jpg': 'folder/subfolder/deep-image.webp',
+    };
+    // The HTML path structure is completely different
+    expect(replaceAssetPath('/assets/deep-image.jpg', nestedMappings)).toBe(
+      '/assets/deep-image.webp'
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -269,6 +295,46 @@ describe('SessionFinalizerService.replaceAssetPathsInLeafletBlocks', () => {
 
     expect(result.modified).toBe(false);
     expect(result.content).toContain('simple-map');
+  });
+
+  // Basename matching tests - when path structures differ
+  it('should replace using basename when path structures differ in Leaflet', () => {
+    // Mapping has _assets/ prefix but overlay path is /assets/ (different folder)
+    const basenameMapping = {
+      '_assets/WorldMap.png': '_assets/WorldMap.webp',
+    };
+    const leafletBlock = {
+      id: 'map-basename',
+      imageOverlays: [{ path: '/assets/WorldMap.png', topLeft: [0, 0], bottomRight: [100, 100] }],
+    };
+    const html = `<div data-leaflet-block='${JSON.stringify(leafletBlock)}'></div>`;
+
+    const result = replaceAssetPathsInLeafletBlocks(html, basenameMapping, createFakeLogger());
+
+    expect(result.modified).toBe(true);
+    expect(result.content).toContain('WorldMap.webp');
+    expect(result.content).not.toContain('WorldMap.png');
+  });
+
+  it('should replace wikilink-style image paths in Leaflet using basename', () => {
+    // Real-world scenario: vault has _assets/BrocheCameleon.png
+    // but HTML references /assets/BrocheCameleon.png
+    const wikiMapping = {
+      '_assets/BrocheCameleon.png': '_assets/BrocheCameleon.webp',
+    };
+    const leafletBlock = {
+      id: 'map-wikilink',
+      imageOverlays: [
+        { path: '/assets/BrocheCameleon.png', topLeft: [0, 0], bottomRight: [100, 100] },
+      ],
+    };
+    const html = `<div data-leaflet-block='${JSON.stringify(leafletBlock)}'></div>`;
+
+    const result = replaceAssetPathsInLeafletBlocks(html, wikiMapping, createFakeLogger());
+
+    expect(result.modified).toBe(true);
+    expect(result.content).toContain('BrocheCameleon.webp');
+    expect(result.content).not.toContain('BrocheCameleon.png');
   });
 });
 
