@@ -2,8 +2,8 @@ import { DetectAssetsService } from '@core-application/vault-parsing/services/de
 import { DetectLeafletBlocksService } from '@core-application/vault-parsing/services/detect-leaflet-blocks.service';
 import type { LoggerPort, PublishableNote } from '@core-domain';
 
-import { AssetHashService } from '../lib/infra/crypto/asset-hash.service';
 import { AssetsUploaderAdapter } from '../lib/infra/assets-uploader.adapter';
+import { AssetHashService } from '../lib/infra/crypto/asset-hash.service';
 import { ObsidianAssetsVaultAdapter } from '../lib/infra/obsidian-assets-vault.adapter';
 
 class NullLogger implements LoggerPort {

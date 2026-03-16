@@ -6,7 +6,7 @@ import { CreateSessionHandler, UploadAssetsHandler, UploadNotesHandler } from '@
 import { NoteHashService } from '@core-application/publishing/services/note-hash.service';
 import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
 import { DetectLeafletBlocksService } from '@core-application/vault-parsing/services/detect-leaflet-blocks.service';
-import type { ImageOptimizerPort, LoggerPort, Manifest, PublishableNote } from '@core-domain';
+import type { ImageOptimizerPort, LoggerPort, PublishableNote } from '@core-domain';
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
 import { AssetsFileSystemStorage } from '../infra/filesystem/assets-file-system.storage';
