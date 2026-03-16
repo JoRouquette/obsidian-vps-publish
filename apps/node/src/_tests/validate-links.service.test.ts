@@ -234,6 +234,69 @@ describe('ValidateLinksService', () => {
       expect(fixedHtml).toContain('href="/lore/classes/barbarian"');
     });
 
+    it('should convert dataview wikilink spans to resolved anchors during finish validation', async () => {
+      const manifest = createMockManifest();
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <p>See also: <span class="wikilink" data-wikilink="Yalgranthir/Yalgranthir">Yalgranthir</span></p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const htmlPath = path.join(tempDir, 'test.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      const result = await service.validateAllLinks(tempDir, manifest);
+
+      expect(result.filesProcessed).toBe(1);
+      expect(result.filesModified).toBe(1);
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      const $ = cheerio.load(fixedHtml);
+      const $link = $('a.wikilink').first();
+
+      expect($link.length).toBe(1);
+      expect($link.attr('href')).toBe('/mundis/yalgranthir/yalgranthir');
+      expect($link.attr('data-wikilink')).toBe('Yalgranthir/Yalgranthir');
+      expect($link.text()).toBe('Yalgranthir');
+      expect($('span.wikilink').length).toBe(0);
+    });
+
+    it('should re-resolve unresolved wikilink spans when the final manifest contains the page', async () => {
+      const manifest = createMockManifest();
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <p>
+                <span class="wikilink wikilink-unresolved" title="Page inconnue : Ektaron" data-wikilink="Ektaron.md">Ektaron</span>
+              </p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const htmlPath = path.join(tempDir, 'test.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      await service.validateAllLinks(tempDir, manifest);
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      const $ = cheerio.load(fixedHtml);
+      const $link = $('a.wikilink').first();
+
+      expect($link.length).toBe(1);
+      expect($link.attr('href')).toBe('/mundis/ektaron');
+      expect($link.attr('data-wikilink')).toBe('Ektaron');
+      expect($link.attr('class')).toBe('wikilink');
+      expect(fixedHtml).not.toContain('wikilink-unresolved');
+    });
+
     it('should recursively process nested directories', async () => {
       const manifest = createMockManifest();
 

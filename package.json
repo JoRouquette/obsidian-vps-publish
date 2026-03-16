@@ -152,6 +152,7 @@
     "express": "^4.19.2",
     "file-type": "16.5.4",
     "jsdom": "^20.0.3",
+    "katex": "^0.16.38",
     "leaflet": "^1.9.4",
     "leaflet.fullscreen": "^5.1.1",
     "markdown-it": "^14.1.0",

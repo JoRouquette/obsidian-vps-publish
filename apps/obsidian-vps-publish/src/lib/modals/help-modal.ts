@@ -36,6 +36,7 @@ export class HelpModal extends Modal {
       { id: 'wikilinks', section: this.t.help.sections.wikilinks },
       { id: 'assets', section: this.t.help.sections.assets },
       { id: 'dataview', section: this.t.help.sections.dataview },
+      { id: 'math', section: this.t.help.sections.math },
       { id: 'leaflet', section: this.t.help.sections.leaflet },
       { id: 'markdown', section: this.t.help.sections.markdown },
     ];

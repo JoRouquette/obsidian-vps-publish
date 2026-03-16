@@ -37,12 +37,11 @@ describe('Cache Headers Strategy', () => {
     // Create minimal Express app with cache strategy
     app = express();
 
-    // Assets with aggressive caching (immutable)
+    // Assets with moderate caching (revalidated via ?cv=)
     app.use(
       '/assets',
       express.static(testAssetsRoot, {
-        maxAge: '365d',
-        immutable: true,
+        maxAge: '7d',
         etag: true,
       })
     );
@@ -138,13 +137,13 @@ describe('Cache Headers Strategy', () => {
     });
   });
 
-  describe('/assets/* - Immutable Aggressive Caching', () => {
-    it('should return 200 with 1-year cache and immutable directive', async () => {
+  describe('/assets/* - Moderate Caching with ETag', () => {
+    it('should return 200 with 7-day cache and ETag', async () => {
       const res = await request(app).get('/assets/test-image.png');
 
       expect(res.status).toBe(200);
-      expect(res.headers['cache-control']).toContain('max-age=31536000'); // 365 days in seconds
-      expect(res.headers['cache-control']).toContain('immutable');
+      expect(res.headers['cache-control']).toContain('max-age=604800'); // 7 days in seconds
+      expect(res.headers['cache-control']).not.toContain('immutable');
       expect(res.headers['etag']).toBeDefined();
     });
 
@@ -159,7 +158,7 @@ describe('Cache Headers Strategy', () => {
   });
 
   describe('Cache Strategy Comparison', () => {
-    it('should have different max-age for manifest (60s) vs HTML (300s) vs assets (365d)', async () => {
+    it('should have different max-age for manifest (60s) vs HTML (300s) vs assets (7d)', async () => {
       const manifestRes = await request(app).get('/content/_manifest.json');
       const htmlRes = await request(app).get('/content/test-page.html');
       const assetRes = await request(app).get('/assets/test-image.png');
@@ -170,18 +169,19 @@ describe('Cache Headers Strategy', () => {
       // HTML: 300s (5 minutes)
       expect(htmlRes.headers['cache-control']).toContain('max-age=300');
 
-      // Assets: 31536000s (365 days)
-      expect(assetRes.headers['cache-control']).toContain('max-age=31536000');
+      // Assets: 604800s (7 days)
+      expect(assetRes.headers['cache-control']).toContain('max-age=604800');
     });
 
-    it('should enforce must-revalidate on content but not on immutable assets', async () => {
+    it('should enforce must-revalidate on content and use ETag for assets', async () => {
       const manifestRes = await request(app).get('/content/_manifest.json');
       const htmlRes = await request(app).get('/content/test-page.html');
       const assetRes = await request(app).get('/assets/test-image.png');
 
       expect(manifestRes.headers['cache-control']).toContain('must-revalidate');
       expect(htmlRes.headers['cache-control']).toContain('must-revalidate');
-      expect(assetRes.headers['cache-control']).toContain('immutable'); // immutable = never revalidate
+      expect(assetRes.headers['cache-control']).not.toContain('immutable');
+      expect(assetRes.headers['etag']).toBeDefined();
     });
   });
 });
