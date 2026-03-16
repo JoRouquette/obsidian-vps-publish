@@ -219,6 +219,28 @@ for (const page of pages) {
 
 → Toutes les requêtes sont **exécutées côté plugin** et rendues en HTML avant upload.
 
+## Maths & LaTeX
+
+Les expressions mathématiques Obsidian sont rendues **côté backend** avec **KaTeX** avant d’être servies par le site. Le frontend Angular ne recalcule pas la formule: il injecte simplement le HTML généré, ce qui reste compatible avec SSR/hydratation.
+
+### Blocs `$$ ... $$`
+
+```markdown
+$$
+\textnormal{DD psionique} = 8 + \textnormal{bonus de maîtrise} + \textnormal{modificateur de caractéristique}
+$$
+```
+
+→ Le HTML final contient le markup KaTeX prêt à afficher.
+
+### Inline `$...$`
+
+```markdown
+Énergie : $E = mc^2$
+```
+
+→ Le rendu inline est aussi supporté dans le texte courant.
+
 ## Cartes Leaflet
 
 Les blocs ` ```leaflet ` sont détectés, parsés et remplacés par des placeholders HTML. Le rendu interactif se fait côté client sur le site publié.

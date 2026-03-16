@@ -3,6 +3,7 @@
 
 // Import Leaflet CSS for map rendering
 @import 'leaflet/dist/leaflet.css';
+@import 'katex/dist/katex.min.css';
 
 // Note: Roboto fonts are now loaded via index.html with preload for better LCP
 // The font-family is already set in the ITS theme via --font-family-default
@@ -169,6 +170,12 @@ samp,
     'wght' 400,
     'GRAD' 0,
     'opsz' 24;
+}
+
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.125rem;
 }
 
 /* Images: Contraste automatique global selon le thème */

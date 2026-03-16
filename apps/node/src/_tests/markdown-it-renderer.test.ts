@@ -1,4 +1,5 @@
 import { type PublishableNote } from '@core-domain';
+import { load } from 'cheerio';
 
 import { MarkdownItRenderer } from '../infra/markdown/markdown-it.renderer';
 
@@ -30,6 +31,55 @@ describe('MarkdownItRenderer', () => {
     // Headings now have automatic IDs via markdown-it-anchor
     expect(html).toContain('<h1 id="title"');
     expect(html).toContain('>Title</h1>');
+  });
+
+  it('renders Obsidian $$...$$ math blocks with KaTeX HTML', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = ['Avant', '', '$$', 'E = mc^2', '$$', '', 'Apres'].join('\n');
+
+    const html = await renderer.render(note);
+    const $ = load(html);
+
+    expect($('.katex-display').length).toBe(1);
+    expect($('.katex-display').text()).toContain('E=mc2');
+    expect(html).not.toContain('$$');
+    expect(html).toContain('<p>Avant</p>');
+    expect(html).toContain('<p>Apres</p>');
+  });
+
+  it('renders \\textnormal expressions inside math blocks', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = [
+      '$$',
+      '\\textnormal{DD psionique} = 8 + \\textnormal{bonus de maîtrise} + \\textnormal{modificateur de caractéristique}',
+      '$$',
+    ].join('\n');
+
+    const html = await renderer.render(note);
+    const $ = load(html);
+    const mathText = $('.katex-display').text();
+
+    expect($('.katex-display').length).toBe(1);
+    expect(mathText).toContain('DD psionique');
+    expect(mathText).toContain('bonus de maîtrise');
+    expect(mathText).toContain('modificateur de caractéristique');
+    expect($('.katex-display .textrm').length).toBeGreaterThan(0);
+  });
+
+  it('renders inline $...$ math without affecting regular markdown', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = 'La formule $E = mc^2$ reste inline dans un paragraphe.';
+
+    const html = await renderer.render(note);
+    const $ = load(html);
+
+    expect($('.katex').length).toBeGreaterThan(0);
+    expect($('.katex-display').length).toBe(0);
+    expect($('p').text()).toContain('La formule');
+    expect($('p').text()).toContain('reste inline dans un paragraphe.');
   });
 
   it('injects assets with display options', async () => {

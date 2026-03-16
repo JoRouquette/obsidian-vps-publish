@@ -14,6 +14,7 @@ import footnote from 'markdown-it-footnote';
 
 import { CalloutRendererService } from './callout-renderer.service';
 import { HeadingSlugger } from './heading-slugger';
+import { registerKatexRenderer } from './katex-renderer.plugin';
 import { TagFilterService } from './tag-filter.service';
 
 export class MarkdownItRenderer implements MarkdownRendererPort {
@@ -42,6 +43,7 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       permalink: false, // Don't add permalink links
       level: [1, 2, 3, 4, 5, 6], // Add IDs to all heading levels
     });
+    registerKatexRenderer(this.md);
 
     this.calloutRenderer.register(this.md);
     this.customizeTableRenderer();

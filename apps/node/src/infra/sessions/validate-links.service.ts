@@ -109,7 +109,11 @@ export class ValidateLinksService {
   }
 
   /**
-   * Validate links within a single HTML document
+   * Validate links within a single HTML document.
+   *
+   * This pass is intentionally more permissive than the renderer:
+   * it can recover valid links from unresolved spans or Dataview-generated
+   * `data-wikilink` placeholders once the final manifest is complete.
    */
   private validateLinksInHtml(
     html: string,
@@ -120,53 +124,104 @@ export class ValidateLinksService {
     let linksProcessed = 0;
     let linksTransformed = 0;
 
-    // Find all <a> tags
     $('a').each((_, el) => {
       const $el = $(el);
       const href = $el.attr('href');
+      const dataWikilink = $el.attr('data-wikilink');
 
-      if (!href) {
-        return; // Skip links without href
+      if (!href && !dataWikilink) {
+        return;
       }
 
       linksProcessed++;
 
-      // Skip fragment-only links (#section) and external URLs
-      if (href.startsWith('#') || href.startsWith('http://') || href.startsWith('https://')) {
+      if (
+        href &&
+        (href.startsWith('#') || href.startsWith('http://') || href.startsWith('https://'))
+      ) {
         return;
       }
 
-      // Skip index routes (e.g., /arali/index, /ektaron/index) - they're valid folder indexes
-      if (href.endsWith('/index') || href === '/index') {
+      if (href && (href.endsWith('/index') || href === '/index')) {
         return;
       }
 
-      // Extract the base path without fragment for validation
-      // e.g., "/page#section" → "/page", but keep the fragment to preserve it if valid
-      const [basePath, fragment] = href.split('#');
-      const hrefToValidate = basePath || href;
+      const hrefResolution = href ? this.resolveLinkCandidate(href, pathMap) : undefined;
+      const wikilinkResolution = dataWikilink
+        ? this.resolveLinkCandidate(this.normalizeWikilinkTarget(dataWikilink), pathMap)
+        : undefined;
+      const resolved = hrefResolution?.page ? hrefResolution : wikilinkResolution;
 
-      // Try to resolve the link against the manifest
-      const resolved = this.resolveLinkPath(hrefToValidate, pathMap);
+      if (resolved?.page) {
+        const correctHref = resolved.fragment
+          ? `${resolved.page.route}#${resolved.fragment}`
+          : resolved.page.route;
 
-      if (resolved) {
-        // Valid link - update href to use proper routed path, preserving fragment if present
-        const correctHref = fragment ? `${resolved.route}#${fragment}` : resolved.route;
         if ($el.attr('href') !== correctHref) {
           $el.attr('href', correctHref);
           linksTransformed++;
         }
-      } else {
-        // Invalid link - transform to unresolved wikilink span
-        const linkText = $el.text() || href;
-        const title = `Page inconnue : ${linkText}`;
 
-        // Replace <a> with <span class="wikilink wikilink-unresolved">
-        $el.replaceWith(
-          `<span class="wikilink wikilink-unresolved" title="${this.escapeHtml(title)}">${this.escapeHtml(linkText)}</span>`
-        );
-        linksTransformed++;
+        if (dataWikilink) {
+          $el.attr('data-wikilink', this.normalizeWikilinkTarget(dataWikilink));
+        }
+
+        return;
       }
+
+      const linkText = $el.text() || href || dataWikilink || '';
+      const title = `Page inconnue : ${linkText}`;
+      const wikilinkTarget = this.normalizeWikilinkTarget(dataWikilink || href || linkText);
+
+      $el.replaceWith(
+        `<span class="wikilink wikilink-unresolved" title="${this.escapeHtml(title)}" data-wikilink="${this.escapeHtml(wikilinkTarget)}">${this.escapeHtml(linkText)}</span>`
+      );
+      linksTransformed++;
+    });
+
+    $('[data-wikilink]').each((_, el) => {
+      const $el = $(el);
+      if ($el.is('a')) {
+        return;
+      }
+
+      const rawTarget = $el.attr('data-wikilink');
+      if (!rawTarget) {
+        return;
+      }
+
+      linksProcessed++;
+
+      const normalizedTarget = this.normalizeWikilinkTarget(rawTarget);
+      if (!normalizedTarget) {
+        return;
+      }
+
+      const resolved = this.resolveLinkCandidate(normalizedTarget, pathMap);
+      if (!resolved.page) {
+        return;
+      }
+
+      const href = resolved.fragment
+        ? `${resolved.page.route}#${resolved.fragment}`
+        : resolved.page.route;
+      const classNames = ($el.attr('class') || '')
+        .split(/\s+/)
+        .filter(Boolean)
+        .filter((cls) => cls !== 'wikilink-unresolved');
+
+      if (!classNames.includes('wikilink')) {
+        classNames.push('wikilink');
+      }
+
+      const $anchor = $('<a></a>');
+      $anchor.attr('href', href);
+      $anchor.attr('data-wikilink', normalizedTarget);
+      $anchor.attr('class', classNames.join(' '));
+      $anchor.html($el.html() || this.escapeHtml($el.text()));
+
+      $el.replaceWith($anchor);
+      linksTransformed++;
     });
 
     if (linksTransformed > 0) {
@@ -176,7 +231,6 @@ export class ValidateLinksService {
       });
     }
 
-    // Return the updated HTML (cheerio might reformat slightly)
     return linksTransformed > 0 ? $.html() : html;
   }
 
@@ -200,7 +254,7 @@ export class ValidateLinksService {
     }
 
     // Otherwise, treat as vault path or partial vault path
-    let normalized = decodeURIComponent(href).toLowerCase();
+    const normalized = decodeURIComponent(href).toLowerCase();
 
     // Try exact match first
     let matched = pathMap.get(normalized);
@@ -226,11 +280,10 @@ export class ValidateLinksService {
         return page;
       }
 
-      // Check if href is a partial match (e.g., "Yalgranthir/Yalgranthir" matches "Ektaron/Yalgranthir/Yalgranthir")
+      // Check if href is a partial match
       const pathSegments = vaultPath.split('/').map((s) => s.toLowerCase());
       const hrefSegments = normalized.split('/');
 
-      // Check if all href segments match the end of the vault path
       if (hrefSegments.length > 0 && pathSegments.length >= hrefSegments.length) {
         const pathTail = pathSegments.slice(-hrefSegments.length);
         const match = hrefSegments.every((seg, i) => {
@@ -245,6 +298,23 @@ export class ValidateLinksService {
     }
 
     return undefined;
+  }
+
+  private resolveLinkCandidate(
+    rawValue: string,
+    pathMap: Map<string, ManifestPage>
+  ): { page?: ManifestPage; fragment?: string } {
+    const [basePath, fragment] = rawValue.split('#');
+    return {
+      page: this.resolveLinkPath(basePath || rawValue, pathMap),
+      fragment,
+    };
+  }
+
+  private normalizeWikilinkTarget(target: string): string {
+    return decodeURIComponent(target)
+      .replace(/\.md(?=#|$)/i, '')
+      .replace(/^\/+/, '');
   }
 
   /**

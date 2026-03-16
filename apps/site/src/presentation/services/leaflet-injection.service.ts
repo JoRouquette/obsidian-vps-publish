@@ -19,6 +19,7 @@ import { LeafletMapComponent } from '../components/leaflet-map/leaflet-map.compo
 export interface LeafletInjectionStats {
   found: number;
   created: number;
+  updated: number;
   active: number;
   ignored: Record<string, number>;
 }
@@ -105,6 +106,21 @@ export class LeafletInjectionService {
     });
   }
 
+  updateLeafletComponent(
+    placeholder: HTMLElement,
+    block: LeafletBlock,
+    refs: Map<HTMLElement, ComponentRef<LeafletMapComponent>>
+  ): boolean {
+    const componentRef = refs.get(placeholder);
+    if (!componentRef) {
+      return false;
+    }
+
+    componentRef.setInput('block', block);
+    componentRef.changeDetectorRef.detectChanges();
+    return true;
+  }
+
   // -----------------------------------------------------------------------
   // Stale reference cleanup
   // -----------------------------------------------------------------------
@@ -162,6 +178,7 @@ export class LeafletInjectionService {
     const stats: LeafletInjectionStats = {
       found: placeholders.length,
       created: 0,
+      updated: 0,
       active: refs.size,
       ignored: {},
     };
@@ -170,13 +187,26 @@ export class LeafletInjectionService {
       const mapId = placeholder.dataset['leafletMapId'] ?? 'unknown-map';
       log.info('placeholder-found', { mapId });
 
+      const resolution = resolveBlock(placeholder);
+
+      if (refs.has(placeholder)) {
+        if (!resolution.ok) {
+          incrementReason(stats.ignored, resolution.reason);
+          continue;
+        }
+
+        this.updateLeafletComponent(placeholder, resolution.block, refs);
+        stats.updated++;
+        log.info('component-updated', { mapId: resolution.mapId, category: 'timing' });
+        continue;
+      }
+
       const skipReason = this.getSkipReason(placeholder, refs);
       if (skipReason) {
         incrementReason(stats.ignored, skipReason);
         continue;
       }
 
-      const resolution = resolveBlock(placeholder);
       if (!resolution.ok) {
         incrementReason(stats.ignored, resolution.reason);
         continue;

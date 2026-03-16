@@ -404,6 +404,7 @@ export type HelpTranslations = {
     wikilinks: HelpSection;
     assets: HelpSection;
     dataview: HelpSection;
+    math: HelpSection;
     leaflet: HelpSection;
     markdown: HelpSection;
   };
@@ -807,6 +808,21 @@ export const en: Translations = {
           {
             code: '```dataviewjs\nawait dv.view("my-view", {param: "value"})\n```',
             description: 'DataviewJS custom view',
+          },
+        ],
+      },
+      math: {
+        title: 'Math & LaTeX',
+        content:
+          'Math expressions are rendered server-side with KaTeX before publishing.\n\nSupported: block math with `$$ ... $$`. Inline math with `$...$` is also supported when used in normal text.\n\nThe published site only injects the generated HTML, so rendering stays compatible with SSR and hydration.',
+        examples: [
+          {
+            code: '$$\n\\textnormal{DD psionique} = 8 + \\textnormal{proficiency bonus} + \\textnormal{ability modifier}\n$$',
+            description: 'Display formula rendered as KaTeX before upload',
+          },
+          {
+            code: 'Energy: $E = mc^2$',
+            description: 'Inline math rendered in the surrounding paragraph',
           },
         ],
       },
@@ -1342,6 +1358,21 @@ export const fr: Translations = {
           {
             code: '```dataviewjs\nawait dv.view("ma-vue", {param: "valeur"})\n```',
             description: 'Vue personnalisée DataviewJS',
+          },
+        ],
+      },
+      math: {
+        title: 'Maths & LaTeX',
+        content:
+          "Les expressions mathématiques sont rendues côté serveur avec KaTeX avant publication.\n\nSupporté au minimum : les blocs `$$ ... $$`. Le mode inline `$...$` est aussi pris en charge lorsqu'il est utilisé dans du texte normal.\n\nLe site publié ne fait qu'injecter le HTML généré, ce qui reste compatible avec SSR et hydratation.",
+        examples: [
+          {
+            code: '$$\n\\textnormal{DD psionique} = 8 + \\textnormal{bonus de maîtrise} + \\textnormal{modificateur de caractéristique}\n$$',
+            description: 'Formule affichée en bloc et rendue en KaTeX avant upload',
+          },
+          {
+            code: 'Énergie : $E = mc^2$',
+            description: 'Math inline rendue dans le paragraphe courant',
           },
         ],
       },

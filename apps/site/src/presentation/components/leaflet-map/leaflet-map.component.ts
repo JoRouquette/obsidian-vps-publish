@@ -13,6 +13,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
+import { ContentVersionService } from '../../../infrastructure/content-version/content-version.service';
 
 /**
  * Composant Angular pour afficher une carte Leaflet en mode lecture seule.
@@ -44,6 +45,7 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly ngZone = inject(NgZone);
   private readonly injector = inject(Injector);
+  private readonly contentVersionService = inject(ContentVersionService);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private map: any = null; // Type 'any' pour éviter l'import de Leaflet côté serveur
   private isBrowser = false;
@@ -520,8 +522,10 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     const allBounds: [[number, number], [number, number]][] = [];
 
     this.block.imageOverlays?.forEach((overlay) => {
-      // Construire l'URL de l'image via l'API d'assets
-      const imageUrl = `/assets/${overlay.path}`;
+      // Construire l'URL de l'image via l'API d'assets avec cache-busting
+      const cv = this.contentVersionService.currentVersion;
+      const basePath = `/assets/${encodeURI(overlay.path)}`;
+      const imageUrl = cv ? `${basePath}?cv=${encodeURIComponent(cv)}` : basePath;
 
       // Charger l'image pour obtenir ses dimensions réelles
       const img = new Image();

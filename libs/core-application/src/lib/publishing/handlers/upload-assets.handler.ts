@@ -86,14 +86,18 @@ export class UploadAssetsHandler implements CommandHandler<
           const filename = asset.relativePath || asset.fileName;
           let content = this.decodeBase64(asset.contentBase64);
           let finalFilename = filename;
+          const isOptimizableImage =
+            !!this.imageOptimizer && this.imageOptimizer.isOptimizable(filename);
 
-          // Validate asset (size + real MIME detection) if validator is configured
+          // Validate original asset before any transformation.
+          // For optimizable images, defer the size limit check until after optimization
+          // so large source files can still be accepted if the published asset fits.
           if (this.assetValidator) {
             const validationResult = await this.assetValidator.validate(
               content,
               filename,
               asset.mimeType,
-              this.maxAssetSizeBytes
+              isOptimizableImage ? undefined : this.maxAssetSizeBytes
             );
 
             // Replace client MIME with detected MIME for security
@@ -107,7 +111,7 @@ export class UploadAssetsHandler implements CommandHandler<
           }
 
           // Optimize image if optimizer is configured and image is optimizable
-          if (this.imageOptimizer && this.imageOptimizer.isOptimizable(filename)) {
+          if (isOptimizableImage && this.imageOptimizer) {
             try {
               const originalSize = content.length;
               const optimized = await this.imageOptimizer.optimize(content, filename);
@@ -133,6 +137,25 @@ export class UploadAssetsHandler implements CommandHandler<
             }
           }
 
+          // Validate the published image after optimization so the enforced size limit
+          // applies to the actual file written to disk.
+          if (this.assetValidator && isOptimizableImage) {
+            const validationResult = await this.assetValidator.validate(
+              content,
+              finalFilename,
+              asset.mimeType,
+              this.maxAssetSizeBytes
+            );
+
+            asset.mimeType = validationResult.detectedMimeType;
+
+            this._logger?.debug('Optimized asset validated', {
+              filename: finalFilename,
+              sizeBytes: validationResult.sizeBytes,
+              detectedMimeType: validationResult.detectedMimeType,
+            });
+          }
+
           // Compute hash for deduplication (if hasher is available)
           const hash = this.assetHasher ? await this.assetHasher.computeHash(content) : undefined;
 
@@ -140,14 +163,22 @@ export class UploadAssetsHandler implements CommandHandler<
           if (hash) {
             const existingAsset = existingAssetsByHash.get(hash);
             if (existingAsset) {
+              // Use the path actually stored on disk (existingAsset.path) as the
+              // authoritative final name. This covers the case where a previous
+              // publication optimised the file (e.g. .png → .webp) and the current
+              // session deduplicates it: the mapping must still propagate so that
+              // Leaflet overlay paths and other HTML references are rewritten.
+              const publishedPath = existingAsset.path;
+
               this._logger?.info('Asset already exists (duplicate hash), skipping upload', {
                 filename: finalFilename,
                 hash,
-                existingPath: existingAsset.path,
+                existingPath: publishedPath,
+                publishedPathDiffersFromSource: filename !== publishedPath,
               });
               // Add existing asset to staged manifest (preserve reference)
               allStagedAssets.push(existingAsset);
-              return { originalFilename: filename, finalFilename, skipped: true };
+              return { originalFilename: filename, finalFilename: publishedPath, skipped: true };
             }
           }
 

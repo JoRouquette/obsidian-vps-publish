@@ -349,14 +349,16 @@ describe('LeafletInjectionService', () => {
       expect(createSpy).toHaveBeenCalledWith(ph, BLOCK_A, fakeInjector, refs);
       expect(stats.found).toBe(1);
       expect(stats.created).toBe(1);
+      expect(stats.updated).toBe(0);
       expect(stats.active).toBe(1);
       expect(stats.ignored).toEqual({});
     });
 
-    it('should skip already-injected placeholders', () => {
+    it('should update already-injected placeholders with the latest block', () => {
       const ph = makePlaceholder('map-a');
+      const existingRef = makeFakeComponentRef();
       const refs = new Map<HTMLElement, ComponentRef<LeafletMapComponent>>();
-      refs.set(ph, makeFakeComponentRef());
+      refs.set(ph, existingRef);
 
       const stats = service.runInjectionPass({
         placeholders: [ph],
@@ -367,8 +369,11 @@ describe('LeafletInjectionService', () => {
       });
 
       expect(createSpy).not.toHaveBeenCalled();
+      expect(existingRef.setInput).toHaveBeenCalledWith('block', BLOCK_A);
+      expect(existingRef.changeDetectorRef.detectChanges).toHaveBeenCalled();
       expect(stats.created).toBe(0);
-      expect(stats.ignored['already-injected']).toBe(1);
+      expect(stats.updated).toBe(1);
+      expect(stats.ignored['already-injected']).toBeUndefined();
     });
 
     it('should skip placeholders with dataset flag but no ref', () => {
@@ -385,6 +390,7 @@ describe('LeafletInjectionService', () => {
       });
 
       expect(createSpy).not.toHaveBeenCalled();
+      expect(stats.updated).toBe(0);
       expect(stats.ignored['dataset-already-injected']).toBe(1);
     });
 
@@ -401,6 +407,7 @@ describe('LeafletInjectionService', () => {
       });
 
       expect(createSpy).not.toHaveBeenCalled();
+      expect(stats.updated).toBe(0);
       expect(stats.ignored['missing-block:map-unknown']).toBe(1);
     });
 
@@ -423,7 +430,8 @@ describe('LeafletInjectionService', () => {
       expect(createSpy).toHaveBeenCalledTimes(1);
       expect(stats.found).toBe(3);
       expect(stats.created).toBe(1);
-      expect(stats.ignored['already-injected']).toBe(1);
+      expect(stats.updated).toBe(1);
+      expect(stats.ignored['already-injected']).toBeUndefined();
       expect(stats.ignored['missing-block:map-missing']).toBe(1);
       expect(stats.active).toBe(2); // phDup (pre-existing) + phFresh (new)
     });
@@ -466,6 +474,7 @@ describe('LeafletInjectionService', () => {
       });
 
       expect(stats.created).toBe(0);
+      expect(stats.updated).toBe(0);
       expect(stats.ignored['component-creation-failed']).toBe(1);
       expect(log.error).toHaveBeenCalledWith(
         'component-injection-failed',
@@ -487,7 +496,7 @@ describe('LeafletInjectionService', () => {
 
       expect(log.info).toHaveBeenCalledWith(
         'injection-pass',
-        expect.objectContaining({ found: 1, created: 1, active: 1 })
+        expect.objectContaining({ found: 1, created: 1, updated: 0, active: 1 })
       );
     });
 
@@ -504,6 +513,7 @@ describe('LeafletInjectionService', () => {
 
       expect(stats.found).toBe(0);
       expect(stats.created).toBe(0);
+      expect(stats.updated).toBe(0);
       expect(stats.active).toBe(0);
       expect(stats.ignored).toEqual({});
     });

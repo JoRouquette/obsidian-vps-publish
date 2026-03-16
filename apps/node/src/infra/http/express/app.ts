@@ -101,14 +101,13 @@ export function createApp(rootLogger?: LoggerPort) {
 
   // Note: Removed disableCache middleware (no longer needed after conditional caching implementation)
 
-  // Static assets with aggressive caching (immutable content)
+  // Static assets with moderate caching (revalidated via ?cv= query param)
   app.use(
     '/assets',
     express.static(EnvConfig.assetsRoot(), {
       etag: true,
       lastModified: true,
-      maxAge: '365d', // Cache assets for 1 year
-      immutable: true, // Assets never change
+      maxAge: '7d', // Cache assets for 7 days; frontend appends ?cv= for cache-busting
     })
   );
 

@@ -107,7 +107,7 @@ describe('Asset Deduplication (B4)', () => {
       // Asset should be skipped (not uploaded)
       expect(result.published).toBe(0);
       expect(result.skipped).toBe(1);
-      expect(result.skippedAssets).toEqual(['_assets/duplicate-image.png']);
+      expect(result.skippedAssets).toEqual(['_assets/existing-image.png']);
       expect(storage.save).not.toHaveBeenCalled();
 
       // But manifest should be updated with the asset still present

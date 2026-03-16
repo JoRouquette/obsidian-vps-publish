@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { UploadAssetsHandler } from '@core-application';
-import { type Asset } from '@core-domain';
+import { type Asset, type ImageOptimizerPort } from '@core-domain';
 
 import { AssetsFileSystemStorage } from '../infra/filesystem/assets-file-system.storage';
 import { FileTypeAssetValidator } from '../infra/validation/file-type-asset-validator';
@@ -124,6 +124,63 @@ describe('Asset Upload Integration - With Validation', () => {
     expect(result.errors).toBeDefined();
     expect(result.errors?.length).toBe(1);
     expect(result.errors?.[0].message).toMatch(/exceeds maximum allowed/);
+  });
+
+  it('should accept an oversized source image when the optimized output fits the size limit', async () => {
+    const reducedMaxSizeBytes = 1024;
+    const storage = new AssetsFileSystemStorage(tmpAssetsRoot);
+    const validator = new FileTypeAssetValidator(undefined);
+    const optimizer: ImageOptimizerPort = {
+      isOptimizable: jest.fn().mockReturnValue(true),
+      optimize: jest.fn().mockResolvedValue({
+        data: new Uint8Array(Buffer.from('optimized-webp')),
+        format: 'webp',
+        originalFilename: 'maps/Ektaron.png',
+        optimizedFilename: 'maps/Ektaron.webp',
+        originalSize: 2048,
+        optimizedSize: Buffer.from('optimized-webp').length,
+        width: 100,
+        height: 100,
+        wasOptimized: true,
+      }),
+      getConfig: jest.fn(),
+    };
+    handler = new UploadAssetsHandler(
+      storage,
+      undefined,
+      undefined,
+      validator,
+      reducedMaxSizeBytes,
+      optimizer
+    );
+
+    const oversizedPng = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.alloc(2048),
+    ]);
+
+    const result = await handler.handle({
+      sessionId: 'test-session',
+      assets: [
+        {
+          relativePath: 'maps/Ektaron.png',
+          vaultPath: 'vault/maps/Ektaron.png',
+          fileName: 'Ektaron.png',
+          mimeType: 'image/png',
+          contentBase64: oversizedPng.toString('base64'),
+        },
+      ],
+    });
+
+    expect(result.published).toBe(1);
+    expect(result.errors).toBeUndefined();
+    expect(result.renamedAssets).toEqual({
+      'maps/Ektaron.png': 'maps/Ektaron.webp',
+    });
+
+    const savedPath = path.join(tmpAssetsRoot, 'maps', 'Ektaron.webp');
+    const savedContent = await fs.readFile(savedPath);
+    expect(savedContent).toEqual(Buffer.from('optimized-webp'));
   });
 
   it('should handle batch upload with mixed valid/invalid assets', async () => {

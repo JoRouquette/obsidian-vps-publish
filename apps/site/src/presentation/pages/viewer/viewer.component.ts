@@ -23,7 +23,17 @@ import { MatTooltip, MatTooltipModule } from '@angular/material/tooltip';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { NavigationEnd, Router } from '@angular/router';
 import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
-import { catchError, distinctUntilChanged, filter, from, map, of, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  distinctUntilChanged,
+  filter,
+  from,
+  map,
+  of,
+  startWith,
+  switchMap,
+  tap,
+} from 'rxjs';
 
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
@@ -81,35 +91,20 @@ export class ViewerComponent implements OnDestroy {
   // Flux réactif moderne avec toSignal (Angular 20 pattern)
   private readonly rawHtml = toSignal(
     this.router.events.pipe(
+      startWith(null),
       map(() => this.router.url.split('?')[0].split('#')[0]),
       distinctUntilChanged(),
       switchMap((routePath) => {
-        const normalized = routePath.replace(/\/+$/, '') || '/';
+        const normalized = this.normalizeRoute(routePath);
         const htmlUrl = normalized === '/' ? '/index.html' : `${normalized}.html`;
-        const manifest = this.catalog.manifest();
 
         // Update currentRoute for breadcrumbs
         this.currentRoute.set(normalized);
 
-        let pageTitle = '';
-        if (manifest.pages.length > 0) {
-          const p = manifest.pages.find((x) => x.route === normalized);
-          if (p) {
-            pageTitle = this.capitalize(p.title) ?? '';
-            this.title.set(pageTitle);
-            // Mettre à jour les blocs Leaflet si présents
-            const leafletBlocks = p.leafletBlocks ?? [];
-            this.leafletBlocks.set(leafletBlocks);
-          } else {
-            this.leafletBlocks.set([]);
-          }
-        } else {
-          this.leafletBlocks.set([]);
-        }
-
         return from(this.contentRepository.fetch(htmlUrl)).pipe(
           tap(() => {
             // Record successful page visit for offline access
+            const pageTitle = this.title();
             if (pageTitle && normalized !== '/') {
               this.visitedPagesService.recordVisit(normalized.slice(1), pageTitle, normalized);
             }
@@ -147,9 +142,25 @@ export class ViewerComponent implements OnDestroy {
     private readonly catalog: CatalogFacade,
     private readonly environmentInjector: EnvironmentInjector
   ) {
+    effect(() => {
+      const manifest = this.catalog.manifest();
+      const route = this.currentRoute();
+      const page = manifest.pages.find((candidate) => candidate.route === route);
+
+      if (!page) {
+        this.title.set('');
+        this.leafletBlocks.set([]);
+        return;
+      }
+
+      this.title.set(this.capitalize(page.title) ?? '');
+      this.leafletBlocks.set(page.leafletBlocks ?? []);
+    });
+
     // Effect pour décorer le DOM après chargement
     effect(() => {
       this.html();
+      this.leafletBlocks();
       const cycle = ++this.postRenderCycle;
       afterNextRender(
         () => {
@@ -184,6 +195,10 @@ export class ViewerComponent implements OnDestroy {
 
   private capitalize(s: string): string {
     return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  private normalizeRoute(routePath: string): string {
+    return routePath.replace(/\/+$/, '') || '/';
   }
 
   private decorateWikilinks(): void {
