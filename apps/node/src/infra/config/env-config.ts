@@ -81,6 +81,18 @@ export class EnvConfig {
     return Number.isFinite(val) && val > 0 ? val : 200;
   }
 
+  static maxEventLoopLagMs(): number {
+    const val = Number(this.norm(process.env.MAX_EVENT_LOOP_LAG_MS));
+    if (Number.isFinite(val) && val > 0) return val;
+    return this.nodeEnv() === 'test' ? 5000 : 200;
+  }
+
+  static maxMemoryUsageMB(): number {
+    const val = Number(this.norm(process.env.MAX_MEMORY_USAGE_MB));
+    if (Number.isFinite(val) && val > 0) return val;
+    return this.nodeEnv() === 'test' ? 2048 : 500;
+  }
+
   static maxConcurrentFinalizationJobs(): number {
     const val = Number(this.norm(process.env.MAX_CONCURRENT_FINALIZATION_JOBS));
     return Number.isFinite(val) && val > 0 ? val : 8;
