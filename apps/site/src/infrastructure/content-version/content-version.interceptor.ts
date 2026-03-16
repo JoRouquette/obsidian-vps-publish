@@ -11,6 +11,7 @@ const VERSIONED_URL_PATTERNS = [
   /^\/content\//,
   /^\/_manifest\.json/,
   /^\/content\/_manifest\.json/,
+  /^\/assets\//,
 ];
 
 /**
@@ -33,8 +34,8 @@ const EXCLUDED_URL_PATTERNS = [
  *
  * @example
  * ```
- * // Before: /content/_manifest.json
- * // After:  /content/_manifest.json?cv=abc123
+ * // Before: /content/_manifest.json      → /content/_manifest.json?cv=abc123
+ * // Before: /assets/map.png               → /assets/map.png?cv=abc123
  * ```
  */
 export const contentVersionInterceptor: HttpInterceptorFn = (req, next) => {

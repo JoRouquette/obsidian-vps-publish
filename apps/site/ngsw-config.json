@@ -15,7 +15,7 @@
       "installMode": "lazy",
       "updateMode": "prefetch",
       "resources": {
-        "files": ["/assets/**", "/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"]
+        "files": ["/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"]
       }
     }
   ],
@@ -55,7 +55,7 @@
       "urls": ["/assets/**"],
       "cacheConfig": {
         "maxSize": 500,
-        "maxAge": "365d",
+        "maxAge": "7d",
         "strategy": "freshness",
         "timeout": "10s"
       }

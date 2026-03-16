@@ -110,6 +110,17 @@ describe('contentVersionInterceptor', () => {
       req.flush('');
     });
 
+    it('should add cv parameter to published asset requests', () => {
+      httpClient.get('/assets/my-image.png').subscribe();
+
+      const req = httpTestingController.expectOne(
+        (request) =>
+          request.url.startsWith('/assets/my-image.png') && request.url.includes('cv=test-cv-123')
+      );
+      expect(req.request.url).toBe('/assets/my-image.png?cv=test-cv-123');
+      req.flush('');
+    });
+
     it('should NOT add cv parameter if already present', () => {
       httpClient.get('/content/_manifest.json?cv=existing').subscribe();
 
