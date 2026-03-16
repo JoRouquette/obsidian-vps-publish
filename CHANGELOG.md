@@ -1,3 +1,17 @@
+## [6.13.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.12.0...6.13.0) (2026-03-16)
+
+### Features
+
+* render published math with KaTeX ([b65551f](https://github.com/JoRouquette/obsidian-vps-publish/commit/b65551f4ef30ac41947f1b7279e35483a30c50c4))
+
+### Bug Fixes
+
+* **api:** resolve dataview wikilinks during finalization ([0620d25](https://github.com/JoRouquette/obsidian-vps-publish/commit/0620d2507565862da1be39e5a18b06d1147cdfc0))
+* **api:** revalidate published assets with shorter cache headers ([450d4cb](https://github.com/JoRouquette/obsidian-vps-publish/commit/450d4cba93ccc59d28a51cfd904e6dfbb7c0b114))
+* **api:** stabilize SSR tests under backpressure ([8025d76](https://github.com/JoRouquette/obsidian-vps-publish/commit/8025d76e49d39507f2b3ae73bab4c855419f7745))
+* **application:** harden optimized asset publishing ([bffbc25](https://github.com/JoRouquette/obsidian-vps-publish/commit/bffbc25697582966ce57124e8a1e69918cd94090))
+* **site:** refresh Leaflet assets when content changes ([c7867ce](https://github.com/JoRouquette/obsidian-vps-publish/commit/c7867ce25d04a39c5f6fd6c0ee58a9e1745a6588))
+
 ## [6.12.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.11.1...6.12.0) (2026-03-15)
 
 ### Features
