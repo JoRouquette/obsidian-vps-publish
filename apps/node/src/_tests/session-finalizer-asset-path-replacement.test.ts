@@ -182,6 +182,19 @@ describe('SessionFinalizerService.replaceAssetPath', () => {
       '/assets/deep-image.webp'
     );
   });
+
+  it('should handle filenames with accents, spaces and parentheses', () => {
+    const specialMappings = {
+      'Île de France (carte).png': 'Île de France (carte).webp',
+      'château-plan.jpg': 'château-plan.webp',
+    };
+    expect(replaceAssetPath('Île de France (carte).png', specialMappings)).toBe(
+      'Île de France (carte).webp'
+    );
+    expect(replaceAssetPath('/assets/château-plan.jpg', specialMappings)).toBe(
+      '/assets/château-plan.webp'
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -336,6 +349,21 @@ describe('SessionFinalizerService.replaceAssetPathsInLeafletBlocks', () => {
     expect(result.content).toContain('BrocheCameleon.webp');
     expect(result.content).not.toContain('BrocheCameleon.png');
   });
+
+  it('should handle special characters in JSON-encoded overlay paths', () => {
+    const mappings = { 'Île du Nord.png': 'Île du Nord.webp' };
+    const leafletBlock = {
+      id: 'map-special',
+      imageOverlays: [{ path: '/assets/Île du Nord.png', topLeft: [0, 0], bottomRight: [1, 1] }],
+    };
+    const html = `<div data-leaflet-block='${JSON.stringify(leafletBlock)}'></div>`;
+
+    const result = replaceAssetPathsInLeafletBlocks(html, mappings, createFakeLogger());
+
+    expect(result.modified).toBe(true);
+    expect(result.content).toContain('Île du Nord.webp');
+    expect(result.content).not.toContain('Île du Nord.png');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -484,5 +512,75 @@ describe('SessionFinalizerService.replaceAssetPathsInManifestPages', () => {
     expect(overlays[0].path).toBe('/assets/Ektaron.webp');
     expect(overlays[1].path).toBe('/assets/map-image.webp');
     expect(overlays[2].path).toBe('/assets/unmatched.gif'); // unchanged
+  });
+
+  it('should not mutate manifest when mappings object is empty', () => {
+    const leafletBlock: LeafletBlock = {
+      id: 'stable-map',
+      imageOverlays: [{ path: '/assets/Ektaron.webp', topLeft: [0, 0], bottomRight: [1, 1] }],
+    };
+    const page = createManifestPage({
+      coverImage: '/assets/cover.webp',
+      leafletBlocks: [leafletBlock],
+    });
+    const manifest = createManifest([page]);
+
+    const result = replaceAssetPathsInManifestPages(manifest, {}, createFakeLogger());
+
+    expect(result.modified).toBe(false);
+    expect(result.pagesModified).toBe(0);
+    expect(manifest.pages[0].coverImage).toBe('/assets/cover.webp');
+    expect((manifest.pages[0].leafletBlocks![0] as LeafletBlock).imageOverlays![0].path).toBe(
+      '/assets/Ektaron.webp'
+    );
+  });
+
+  it('should update overlay paths on republication with dedup-produced mapping', () => {
+    // Scenario: user republishes a page with a Leaflet map. The map overlay
+    // was originally Ektaron.png, optimised to Ektaron.webp in a previous
+    // session. On republication the asset is dedup-skipped and the handler
+    // produces renamedAssets = { 'Ektaron.png': 'Ektaron.webp' }.
+    // The manifest must NOT retain the old .png extension after finalisation.
+    const leafletBlock: LeafletBlock = {
+      id: 'world-map',
+      imageOverlays: [{ path: 'Ektaron.png', topLeft: [100, 0], bottomRight: [0, 100] }],
+    };
+    const page = createManifestPage({
+      title: 'Carte du monde',
+      leafletBlocks: [leafletBlock],
+    });
+    const manifest = createManifest([page]);
+
+    const dedupMapping = { 'Ektaron.png': 'Ektaron.webp' };
+
+    const result = replaceAssetPathsInManifestPages(manifest, dedupMapping, createFakeLogger());
+
+    expect(result.modified).toBe(true);
+    expect(result.leafletOverlaysUpdated).toBe(1);
+    expect((manifest.pages[0].leafletBlocks![0] as LeafletBlock).imageOverlays![0].path).toBe(
+      'Ektaron.webp'
+    );
+  });
+
+  it('should replace overlay paths containing accents, spaces and parentheses', () => {
+    const leafletBlock: LeafletBlock = {
+      id: 'map-accented',
+      imageOverlays: [
+        { path: '/assets/Île de France (carte).png', topLeft: [0, 0], bottomRight: [1, 1] },
+      ],
+    };
+    const page = createManifestPage({ leafletBlocks: [leafletBlock] });
+    const manifest = createManifest([page]);
+
+    const specialMappings = {
+      'Île de France (carte).png': 'Île de France (carte).webp',
+    };
+
+    const result = replaceAssetPathsInManifestPages(manifest, specialMappings, createFakeLogger());
+
+    expect(result.modified).toBe(true);
+    expect((manifest.pages[0].leafletBlocks![0] as LeafletBlock).imageOverlays![0].path).toBe(
+      '/assets/Île de France (carte).webp'
+    );
   });
 });
