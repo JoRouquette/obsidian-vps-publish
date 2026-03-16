@@ -57,8 +57,8 @@ export function createApp(rootLogger?: LoggerPort) {
   // Initialize backpressure protection (before performance monitoring)
   const backpressure = new BackpressureMiddleware(
     {
-      maxEventLoopLagMs: 200,
-      maxMemoryUsageMB: 500,
+      maxEventLoopLagMs: EnvConfig.maxEventLoopLagMs(),
+      maxMemoryUsageMB: EnvConfig.maxMemoryUsageMB(),
       maxActiveRequests: EnvConfig.maxActiveRequests(),
     },
     rootLogger

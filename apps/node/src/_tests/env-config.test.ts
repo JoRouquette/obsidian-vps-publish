@@ -21,7 +21,9 @@ describe('EnvConfig', () => {
     delete process.env.API_KEY;
     delete process.env.PORT;
     delete process.env.LOGGER_LEVEL;
-    process.env.NODE_ENV = 'test'; // Nécessaire pour obtenir la valeur par défaut de API_KEY
+    delete process.env.MAX_EVENT_LOOP_LAG_MS;
+    delete process.env.MAX_MEMORY_USAGE_MB;
+    process.env.NODE_ENV = 'test';
 
     expect(EnvConfig.assetsRoot()).toBe(path.resolve('./tmp/assets'));
     expect(EnvConfig.contentRoot()).toBe(path.resolve('./tmp/site-content'));
@@ -29,6 +31,8 @@ describe('EnvConfig', () => {
     expect(EnvConfig.apiKey()).toBe('devkeylocal');
     expect(EnvConfig.port()).toBe(3000);
     expect(EnvConfig.loggerLevel()).toBe('info');
+    expect(EnvConfig.maxEventLoopLagMs()).toBe(5000);
+    expect(EnvConfig.maxMemoryUsageMB()).toBe(2048);
   });
 
   it('should coerce and clamp logger level to allowed values', () => {
@@ -45,5 +49,13 @@ describe('EnvConfig', () => {
 
     process.env.PORT = 'not-a-number';
     expect(EnvConfig.port()).toBe(3000);
+  });
+
+  it('should parse configurable backpressure thresholds', () => {
+    process.env.MAX_EVENT_LOOP_LAG_MS = '750';
+    process.env.MAX_MEMORY_USAGE_MB = '768';
+
+    expect(EnvConfig.maxEventLoopLagMs()).toBe(750);
+    expect(EnvConfig.maxMemoryUsageMB()).toBe(768);
   });
 });
