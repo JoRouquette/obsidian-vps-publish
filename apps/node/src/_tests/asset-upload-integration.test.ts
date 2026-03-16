@@ -127,6 +127,7 @@ describe('Asset Upload Integration - With Validation', () => {
   });
 
   it('should accept an oversized source image when the optimized output fits the size limit', async () => {
+    const reducedMaxSizeBytes = 1024;
     const storage = new AssetsFileSystemStorage(tmpAssetsRoot);
     const validator = new FileTypeAssetValidator(undefined);
     const optimizer: ImageOptimizerPort = {
@@ -136,7 +137,7 @@ describe('Asset Upload Integration - With Validation', () => {
         format: 'webp',
         originalFilename: 'maps/Ektaron.png',
         optimizedFilename: 'maps/Ektaron.webp',
-        originalSize: 6 * 1024 * 1024,
+        originalSize: 2048,
         optimizedSize: Buffer.from('optimized-webp').length,
         width: 100,
         height: 100,
@@ -149,13 +150,13 @@ describe('Asset Upload Integration - With Validation', () => {
       undefined,
       undefined,
       validator,
-      maxSizeBytes,
+      reducedMaxSizeBytes,
       optimizer
     );
 
     const oversizedPng = Buffer.concat([
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-      Buffer.alloc(6 * 1024 * 1024),
+      Buffer.alloc(2048),
     ]);
 
     const result = await handler.handle({
