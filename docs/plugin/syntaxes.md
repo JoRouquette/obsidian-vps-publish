@@ -33,8 +33,15 @@ Vous pouvez exclure des sections spécifiques en utilisant le marqueur `^no-publ
 **Comportement** : Quand une ligne contient `^no-publishing`, le plugin supprime le contenu jusqu'au délimiteur précédent :
 
 1. **Règle horizontale** (`---`, `***`, `___`) si présente (priorité haute)
-2. **Header précédent** (`##`, `###`, etc.) si pas de règle horizontale
+2. **Header précédent** (ATX `##`, `###`, etc. ou Setext `Titre` + `---` / `===`) si pas de règle horizontale
 3. **Début du document** si aucun délimiteur trouvé
+
+**Contexte** :
+
+- Le marqueur est ignoré dans les blocs de code fencés (` ``` ` / `~~~`)
+- Le marqueur est ignoré dans les blocs de code indentés
+- Les lignes vides en tête et en fin sont supprimées après nettoyage
+- Les lignes vides consécutives sont normalisées
 
 **Exemples avec délimiteurs** :
 

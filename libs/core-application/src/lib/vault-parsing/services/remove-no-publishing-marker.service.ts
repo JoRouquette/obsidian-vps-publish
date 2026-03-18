@@ -15,6 +15,11 @@ type DelimiterResult = {
   type: 'hr' | 'header' | 'start';
 };
 
+type LineContext = {
+  inFencedCode: boolean;
+  isIndentedCode: boolean;
+};
+
 /**
  * Service to remove paragraphs marked with ^no-publishing block IDs.
  *
@@ -69,8 +74,11 @@ type DelimiterResult = {
  */
 export class RemoveNoPublishingMarkerService implements BaseService {
   private readonly markerPattern = /^\s*\^no-publishing\s*$/i;
-  private readonly headerPattern = /^(#{1,6})\s+(.+)$/;
-  private readonly horizontalRulePattern = /^(?:[-*_]\s*){3,}$/;
+  private readonly headerPattern = /^ {0,3}(#{1,6})\s+(.+)$/;
+  private readonly horizontalRulePattern = /^ {0,3}(?:[-*_]\s*){3,}$/;
+  private readonly setextUnderlinePattern = /^ {0,3}(?:=+\s*|-+\s*)$/;
+  private readonly fencedCodePattern = /^ {0,3}(`{3,}|~{3,})/;
+  private readonly indentedCodePattern = /^(?: {4,}|\t+)/;
 
   constructor(private readonly logger?: LoggerPort) {}
 
@@ -94,14 +102,16 @@ export class RemoveNoPublishingMarkerService implements BaseService {
   }
 
   private processContent(content: string, noteId: string): string {
-    const lines = content.split('\n');
+    const eol = this.detectLineEnding(content);
+    const lines = content.split(/\r?\n/);
+    const contexts = this.buildLineContexts(lines);
     const toRemove: Array<{ start: number; end: number }> = [];
 
     // Find all ^no-publishing markers
     for (let i = 0; i < lines.length; i++) {
-      if (this.markerPattern.test(lines[i])) {
+      if (this.isMarkerLine(lines[i], contexts[i])) {
         // Find the delimiter (horizontal rule or header)
-        const delimiter = this.findDelimiter(lines, i);
+        const delimiter = this.findDelimiter(lines, contexts, i);
 
         // Mark range for removal: from delimiter (or start) to marker (inclusive)
         toRemove.push({
@@ -124,11 +134,13 @@ export class RemoveNoPublishingMarkerService implements BaseService {
       return content;
     }
 
+    const mergedRanges = this.mergeRanges(toRemove);
+
     // Build result by excluding marked ranges
     const result: string[] = [];
     let currentIndex = 0;
 
-    for (const range of toRemove) {
+    for (const range of mergedRanges) {
       // Add lines before this removal range
       if (currentIndex < range.start) {
         result.push(...lines.slice(currentIndex, range.start));
@@ -142,10 +154,13 @@ export class RemoveNoPublishingMarkerService implements BaseService {
       result.push(...lines.slice(currentIndex));
     }
 
-    // Clean up: remove excessive blank lines
-    const cleaned = this.cleanupExcessiveBlankLines(result.join('\n'));
+    const cleanedLines = this.cleanupLines(result);
 
-    return cleaned;
+    if (cleanedLines.length === 0) {
+      return '';
+    }
+
+    return cleanedLines.join(eol);
   }
 
   /**
@@ -162,12 +177,28 @@ export class RemoveNoPublishingMarkerService implements BaseService {
    * Note: This explicit type eliminates ambiguity when index is 0
    * (header at line 0 vs. no delimiter found).
    */
-  private findDelimiter(lines: string[], fromIndex: number): DelimiterResult {
+  private findDelimiter(
+    lines: string[],
+    contexts: LineContext[],
+    fromIndex: number
+  ): DelimiterResult {
     let lastHeaderIndex = -1;
 
     // Search backwards from marker
     for (let i = fromIndex - 1; i >= 0; i--) {
       const line = lines[i];
+
+      if (contexts[i].inFencedCode || contexts[i].isIndentedCode) {
+        continue;
+      }
+
+      const setextHeadingStart = this.getSetextHeadingStart(lines, contexts, i);
+      if (setextHeadingStart !== undefined) {
+        if (lastHeaderIndex === -1) {
+          lastHeaderIndex = setextHeadingStart;
+        }
+        continue;
+      }
 
       // Check for horizontal rule first (higher priority)
       if (this.horizontalRulePattern.test(line)) {
@@ -190,22 +221,124 @@ export class RemoveNoPublishingMarkerService implements BaseService {
     return { index: 0, type: 'start' };
   }
 
-  /**
-   * Clean up excessive blank lines after content removal.
-   *
-   * Reduces sequences of 3 or more consecutive blank lines to exactly 2.
-   * This maintains document readability while preventing large gaps
-   * that may result from removing sections.
-   *
-   * Example:
-   * - Input: "text\n\n\n\n\ntext" (4 blank lines)
-   * - Output: "text\n\n\ntext" (2 blank lines)
-   *
-   * @param content - Content with potential excessive blank lines
-   * @returns Content with normalized blank lines (max 2 consecutive)
-   */
-  private cleanupExcessiveBlankLines(content: string): string {
-    // Replace 3+ consecutive newlines with exactly 2 newlines
-    return content.replace(/\n{3,}/g, '\n\n');
+  private detectLineEnding(content: string): string {
+    return content.includes('\r\n') ? '\r\n' : '\n';
+  }
+
+  private isMarkerLine(line: string, context: LineContext): boolean {
+    return !context.inFencedCode && !context.isIndentedCode && this.markerPattern.test(line);
+  }
+
+  private buildLineContexts(lines: string[]): LineContext[] {
+    const contexts: LineContext[] = [];
+    let activeFence: { char: '`' | '~'; length: number } | null = null;
+
+    for (const line of lines) {
+      const context: LineContext = {
+        inFencedCode: activeFence !== null,
+        isIndentedCode: activeFence === null && this.indentedCodePattern.test(line),
+      };
+      contexts.push(context);
+
+      const fenceMatch = line.match(this.fencedCodePattern);
+      if (!fenceMatch) {
+        continue;
+      }
+
+      const fence = fenceMatch[1];
+      const fenceChar = fence[0] as '`' | '~';
+
+      if (!activeFence) {
+        activeFence = {
+          char: fenceChar,
+          length: fence.length,
+        };
+        continue;
+      }
+
+      if (activeFence.char === fenceChar && fence.length >= activeFence.length) {
+        activeFence = null;
+      }
+    }
+
+    return contexts;
+  }
+
+  private getSetextHeadingStart(
+    lines: string[],
+    contexts: LineContext[],
+    underlineIndex: number
+  ): number | undefined {
+    if (!this.setextUnderlinePattern.test(lines[underlineIndex])) {
+      return undefined;
+    }
+
+    const headingIndex = underlineIndex - 1;
+    if (headingIndex < 0) {
+      return undefined;
+    }
+
+    const headingLine = lines[headingIndex];
+    if (
+      headingLine.trim() === '' ||
+      contexts[headingIndex].inFencedCode ||
+      contexts[headingIndex].isIndentedCode
+    ) {
+      return undefined;
+    }
+
+    return headingIndex;
+  }
+
+  private mergeRanges(
+    ranges: Array<{ start: number; end: number }>
+  ): Array<{ start: number; end: number }> {
+    const sorted = [...ranges].sort((a, b) => a.start - b.start);
+    const merged: Array<{ start: number; end: number }> = [];
+
+    for (const range of sorted) {
+      const last = merged[merged.length - 1];
+
+      if (!last || range.start > last.end + 1) {
+        merged.push({ ...range });
+        continue;
+      }
+
+      last.end = Math.max(last.end, range.end);
+    }
+
+    return merged;
+  }
+
+  private cleanupLines(lines: string[]): string[] {
+    const trimmed = [...lines];
+
+    while (trimmed.length > 0 && trimmed[0].trim() === '') {
+      trimmed.shift();
+    }
+
+    while (trimmed.length > 0 && trimmed[trimmed.length - 1].trim() === '') {
+      trimmed.pop();
+    }
+
+    const cleaned: string[] = [];
+    let previousWasBlank = false;
+
+    for (const line of trimmed) {
+      const isBlank = line.trim() === '';
+
+      if (isBlank) {
+        if (!previousWasBlank) {
+          cleaned.push('');
+        }
+        previousWasBlank = true;
+        continue;
+      }
+
+      cleaned.push(line);
+      previousWasBlank = false;
+    }
+
+    return cleaned;
   }
 }
