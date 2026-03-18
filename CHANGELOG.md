@@ -1,3 +1,9 @@
+## [6.14.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.13.0...6.14.0) (2026-03-18)
+
+### Features
+
+* **parsing:** harden ^no-publishing handling across markdown and dataviewjs ([304ced9](https://github.com/JoRouquette/obsidian-vps-publish/commit/304ced99f39bba31fb0e1004deef4924aa8940b5))
+
 ## [6.13.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.12.0...6.13.0) (2026-03-16)
 
 ### Features
