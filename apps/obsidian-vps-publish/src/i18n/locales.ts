@@ -727,7 +727,7 @@ export const en: Translations = {
       noPublishing: {
         title: 'Section Exclusion with ^no-publishing',
         content:
-          'You can exclude specific sections from publication using the ^no-publishing marker.\n\nWhen a line contains ^no-publishing, the plugin removes content up to the previous delimiter:\n1. Horizontal rule (---, ***, ___) if present (highest priority)\n2. Previous header (##, ###, etc.) if no horizontal rule\n3. Start of document if no delimiter found\n\nNote: Excessive blank lines (3+) are reduced to 2 after removal.',
+          'You can exclude specific sections from publication using the ^no-publishing marker.\n\nWhen a line contains ^no-publishing, the plugin removes content up to the previous delimiter:\n1. Horizontal rule (---, ***, ___) if present (highest priority)\n2. Previous header (ATX # headers or Setext underlined headings) if no horizontal rule\n3. Start of document if no delimiter found\n\nThe marker is ignored inside fenced code blocks and indented code blocks. Leading and trailing blank lines are trimmed after removal.',
         examples: [
           {
             code: '## Public Header\nPublic content\n\n---\n\nPrivate content\n^no-publishing\n\n## Next Section',
@@ -1276,7 +1276,7 @@ export const fr: Translations = {
       noPublishing: {
         title: 'Exclusion de Sections avec ^no-publishing',
         content:
-          "Vous pouvez exclure des sections spécifiques de la publication avec le marqueur ^no-publishing.\n\nQuand une ligne contient ^no-publishing, le plugin supprime le contenu jusqu'au délimiteur précédent :\n1. Ligne horizontale (---, ***, ___) si présente (priorité maximale)\n2. En-tête précédent (##, ###, etc.) si pas de ligne horizontale\n3. Début du document si aucun délimiteur trouvé\n\nNote : Les lignes vides excessives (3+) sont réduites à 2 après suppression.",
+          "Vous pouvez exclure des sections spécifiques de la publication avec le marqueur ^no-publishing.\n\nQuand une ligne contient ^no-publishing, le plugin supprime le contenu jusqu'au délimiteur précédent :\n1. Ligne horizontale (---, ***, ___) si présente (priorité maximale)\n2. En-tête précédent (ATX avec # ou Setext souligné) si pas de ligne horizontale\n3. Début du document si aucun délimiteur trouvé\n\nLe marqueur est ignoré dans les blocs de code fencés et les blocs de code indentés. Les lignes vides en tête et en fin sont supprimées après nettoyage.",
         examples: [
           {
             code: '## En-tête Public\nContenu public\n\n---\n\nContenu privé\n^no-publishing\n\n## Section Suivante',

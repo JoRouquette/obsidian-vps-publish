@@ -21,7 +21,8 @@ describe('ParseContentHandler', () => {
   function buildHandler(
     ignoreRules: IgnoreRule[] = [],
     _keysToExclude: string[] = [],
-    _tagsToExclude: string[] = []
+    _tagsToExclude: string[] = [],
+    dataviewProcessor?: (notes: any[], cancellation?: any) => Promise<any[]>
   ) {
     const normalizeFrontmatterService = new NormalizeFrontmatterService(logger);
     const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(ignoreRules, logger);
@@ -47,7 +48,8 @@ describe('ParseContentHandler', () => {
       assetsDetector,
       resolveWikilinks,
       computeRoutingService,
-      logger
+      logger,
+      dataviewProcessor
     );
   }
 
@@ -149,5 +151,46 @@ describe('ParseContentHandler', () => {
 
     const result = await handler.handle([note]);
     expect(result.length).toBe(0);
+  });
+
+  it('removes no-publishing sections before and after dataview processing', async () => {
+    const dataviewProcessor = jest.fn(async (notes: any[]) =>
+      notes.map((note) => ({
+        ...note,
+        content: `${note.content}
+
+## Dataview Private
+Generated secret
+^no-publishing
+
+## Dataview Public
+Generated public`,
+      }))
+    );
+
+    const handler = buildHandler([], [], [], dataviewProcessor);
+    const note: CollectedNote = {
+      noteId: 'a',
+      title: 'Note A',
+      vaultPath: 'Vault/Blog/NoteA.md',
+      relativePath: 'NoteA.md',
+      content: `## Private Section
+Secret
+^no-publishing
+
+## Public Section
+Visible`,
+      frontmatter: { publish: true } as any,
+      folderConfig: baseFolder,
+    };
+
+    const [result] = await handler.handle([note]);
+
+    expect(dataviewProcessor).toHaveBeenCalledTimes(1);
+    expect(result.content).not.toContain('Private Section');
+    expect(result.content).not.toContain('Generated secret');
+    expect(result.content).toContain('## Public Section');
+    expect(result.content).toContain('## Dataview Public');
+    expect(result.content).not.toContain('^no-publishing');
   });
 });

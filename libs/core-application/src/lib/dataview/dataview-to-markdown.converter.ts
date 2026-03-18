@@ -19,7 +19,9 @@
  */
 
 import type { LoggerPort } from '@core-domain';
+import type { PublishableNote } from '@core-domain/entities/publishable-note';
 
+import { RemoveNoPublishingMarkerService } from '../vault-parsing/services/remove-no-publishing-marker.service';
 import { MarkdownLinkNormalizer } from './markdown-link-normalizer';
 
 /**
@@ -58,9 +60,11 @@ export interface DataviewJsResult {
  */
 export class DataviewToMarkdownConverter {
   private readonly normalizer: MarkdownLinkNormalizer;
+  private readonly noPublishingMarkerService: RemoveNoPublishingMarkerService;
 
   constructor(private readonly logger?: LoggerPort) {
     this.normalizer = new MarkdownLinkNormalizer(logger);
+    this.noPublishingMarkerService = new RemoveNoPublishingMarkerService(logger);
   }
 
   /**
@@ -131,6 +135,17 @@ export class DataviewToMarkdownConverter {
       // DataviewJS blocks with no output should be ignored (return empty string)
       if (!html || html === '') {
         return '';
+      }
+
+      if (html.includes('^no-publishing')) {
+        const markdownProjection = this.convertDomToMarkdown(jsResult.container).trim();
+
+        if (markdownProjection.includes('^no-publishing')) {
+          const [processed] = this.noPublishingMarkerService.process([
+            this.createTemporaryNote(markdownProjection),
+          ]);
+          return processed.content;
+        }
       }
 
       return html;
@@ -229,6 +244,10 @@ export class DataviewToMarkdownConverter {
   private convertElementToMarkdown(element: HTMLElement): string {
     const tag = element.tagName.toLowerCase();
 
+    if (tag.match(/^h[1-6]$/)) {
+      return this.convertHeadingToMarkdown(element);
+    }
+
     switch (tag) {
       case 'ul':
         return this.convertUlToMarkdown(element);
@@ -238,6 +257,12 @@ export class DataviewToMarkdownConverter {
         return this.convertTableElementToMarkdown(element);
       case 'p':
         return this.convertParagraphToMarkdown(element);
+      case 'hr':
+        return '---';
+      case 'pre':
+        return this.convertPreToMarkdown(element);
+      case 'blockquote':
+        return this.convertBlockquoteToMarkdown(element);
       case 'div':
         // Recurse into divs
         return this.convertDomToMarkdown(element);
@@ -302,6 +327,30 @@ export class DataviewToMarkdownConverter {
     return this.extractTextWithWikilinks(p);
   }
 
+  private convertHeadingToMarkdown(heading: HTMLElement): string {
+    const level = Number(heading.tagName.substring(1));
+    return `${'#'.repeat(level)} ${this.extractTextWithWikilinks(heading)}`.trim();
+  }
+
+  private convertPreToMarkdown(pre: HTMLElement): string {
+    const code = pre.querySelector('code');
+    const rawText = (code?.textContent ?? pre.textContent ?? '').replace(/\r\n/g, '\n').trimEnd();
+    const language = code?.className.match(/language-([A-Za-z0-9_-]+)/)?.[1] ?? '';
+    return `\`\`\`${language}\n${rawText}\n\`\`\``;
+  }
+
+  private convertBlockquoteToMarkdown(blockquote: HTMLElement): string {
+    const text = this.extractTextWithWikilinks(blockquote);
+    if (!text) {
+      return '';
+    }
+
+    return text
+      .split('\n')
+      .map((line) => `> ${line}`)
+      .join('\n');
+  }
+
   /**
    * Extract text from an element, converting internal links to wikilinks.
    *
@@ -363,5 +412,37 @@ export class DataviewToMarkdownConverter {
    */
   private renderInfoCallout(title: string, message: string): string {
     return `> [!note] ${title}\n> ${message.split('\n').join('\n> ')}`;
+  }
+
+  private createTemporaryNote(content: string): PublishableNote {
+    return {
+      noteId: 'dataviewjs-no-publishing',
+      vaultPath: 'dataviewjs-no-publishing.md',
+      relativePath: 'dataviewjs-no-publishing.md',
+      content,
+      frontmatter: {
+        flat: {},
+        nested: {},
+        tags: [],
+      },
+      title: 'DataviewJS Marker Projection',
+      routing: {
+        slug: 'dataviewjs-no-publishing',
+        path: '',
+        routeBase: '',
+        fullPath: '/dataviewjs-no-publishing',
+      },
+      folderConfig: {
+        id: 'dataviewjs-no-publishing',
+        vpsId: 'dataviewjs-no-publishing',
+        vaultFolder: '',
+        routeBase: '',
+        ignoredCleanupRuleIds: [],
+      },
+      eligibility: {
+        isPublishable: true,
+      },
+      publishedAt: new Date(0),
+    };
   }
 }

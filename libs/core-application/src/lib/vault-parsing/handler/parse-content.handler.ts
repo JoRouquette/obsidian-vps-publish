@@ -99,7 +99,19 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
 
     await yieldScheduler.maybeYield();
 
-    // Step 4: Inline dataview
+    // Step 4: Remove no-publishing markers early
+    this.cancellation?.throwIfCancelled();
+    stepSpan = this.perfTracker?.startSpan('remove-no-publishing-markers-pre');
+    publishableNotes = this.removeNoPublishingMarkerService.process(publishableNotes);
+    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
+
+    this.logger?.debug('^no-publishing markers pre-processed', {
+      notesCount: publishableNotes.length,
+    });
+
+    await yieldScheduler.maybeYield();
+
+    // Step 5: Inline dataview
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('inline-dataview-render');
     publishableNotes = this.inlineDataviewRenderer.process(publishableNotes);
@@ -111,7 +123,7 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
 
     await yieldScheduler.maybeYield();
 
-    // Step 5: Process Dataview blocks (async, potentially slow)
+    // Step 6: Process Dataview blocks (async, potentially slow)
     if (this.dataviewProcessor) {
       this.cancellation?.throwIfCancelled();
       stepSpan = this.perfTracker?.startSpan('dataview-blocks-process');
@@ -131,7 +143,15 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
       await yieldScheduler.maybeYield();
     }
 
-    // Step 6: Leaflet blocks
+    // Step 7: Remove no-publishing markers after Dataview rendering
+    this.cancellation?.throwIfCancelled();
+    stepSpan = this.perfTracker?.startSpan('remove-no-publishing-markers-post-dataview');
+    publishableNotes = this.removeNoPublishingMarkerService.process(publishableNotes);
+    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
+
+    await yieldScheduler.maybeYield();
+
+    // Step 8: Leaflet blocks
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('detect-leaflet-blocks');
     publishableNotes = this.leafletBlocksDetector.process(publishableNotes);
@@ -139,7 +159,7 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
 
     await yieldScheduler.maybeYield();
 
-    // Step 7: Ensure title header
+    // Step 9: Ensure title header
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('ensure-title-header');
     publishableNotes = this.ensureTitleHeaderService.process(publishableNotes);
@@ -147,19 +167,7 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
 
     await yieldScheduler.maybeYield();
 
-    // Step 8: Remove no-publishing markers
-    this.cancellation?.throwIfCancelled();
-    stepSpan = this.perfTracker?.startSpan('remove-no-publishing-markers');
-    publishableNotes = this.removeNoPublishingMarkerService.process(publishableNotes);
-    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
-
-    this.logger?.debug('^no-publishing markers processed', {
-      notesCount: publishableNotes.length,
-    });
-
-    await yieldScheduler.maybeYield();
-
-    // Step 9: Detect assets
+    // Step 10: Detect assets
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('detect-assets');
     publishableNotes = this.assetsDetector.process(publishableNotes);
@@ -167,7 +175,7 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
 
     await yieldScheduler.maybeYield();
 
-    // Step 10: Resolve wikilinks
+    // Step 11: Resolve wikilinks
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('resolve-wikilinks');
     publishableNotes = this.wikilinkResolver.process(publishableNotes);
@@ -175,7 +183,7 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
 
     await yieldScheduler.maybeYield();
 
-    // Step 11: Compute routing
+    // Step 12: Compute routing
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('compute-routing');
     publishableNotes = this.computeRoutingService.process(publishableNotes);

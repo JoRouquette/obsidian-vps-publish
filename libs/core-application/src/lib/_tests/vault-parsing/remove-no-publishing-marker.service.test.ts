@@ -100,6 +100,35 @@ Content
     expect(result[0].content).toContain('After');
   });
 
+  it('should ignore marker inside fenced code blocks', () => {
+    const content = `## Header
+\`\`\`md
+^no-publishing
+\`\`\`
+
+## After`;
+
+    const result = service.process([createNote(content)]);
+
+    expect(result[0].content).toContain('## Header');
+    expect(result[0].content).toContain('^no-publishing');
+    expect(result[0].content).toContain('```md');
+    expect(result[0].content).toContain('## After');
+  });
+
+  it('should ignore marker inside indented code blocks', () => {
+    const content = `## Header
+    ^no-publishing
+
+## After`;
+
+    const result = service.process([createNote(content)]);
+
+    expect(result[0].content).toContain('## Header');
+    expect(result[0].content).toContain('    ^no-publishing');
+    expect(result[0].content).toContain('## After');
+  });
+
   it('should find closest preceding header', () => {
     const content = `# Level 1
 Content 1
@@ -266,6 +295,21 @@ This should be removed.
     expect(result[0].content).not.toContain('This should be removed.');
   });
 
+  it('should treat Setext headings as valid delimiters', () => {
+    const content = `Public Header
+---
+Private content
+^no-publishing
+
+## After`;
+
+    const result = service.process([createNote(content)]);
+
+    expect(result[0].content).not.toContain('Public Header');
+    expect(result[0].content).not.toContain('Private content');
+    expect(result[0].content).toBe('## After');
+  });
+
   it('should handle horizontal rule with spaces', () => {
     const content = `## Header
 
@@ -298,6 +342,15 @@ Remove this section.
     expect(result[0].content).toContain('## Header');
     expect(result[0].content).toContain('Keep this section.');
     expect(result[0].content).not.toContain('Remove this section.');
+  });
+
+  it('should preserve CRLF line endings while trimming head and tail blank lines', () => {
+    const content = `## Header\r\nContent\r\n^no-publishing\r\n\r\n## After\r\n\r\n`;
+
+    const result = service.process([createNote(content)]);
+
+    expect(result[0].content).toBe('## After');
+    expect(result[0].content.includes('\r\n')).toBe(false);
   });
 
   // Helper to create a minimal PublishableNote

@@ -337,6 +337,69 @@ After view.
       expect(result.content).toContain('After view.');
       expect(result.content).not.toContain('```dataviewjs');
     });
+
+    it('should apply no-publishing cleanup to rendered DataviewJS sections', async () => {
+      const mockContainer = document.createElement('div');
+      mockContainer.innerHTML = `
+        <h2>Public Section</h2>
+        <p>Public content</p>
+        <h2>Private Section</h2>
+        <p>Private content</p>
+        <p>^no-publishing</p>
+        <h2>After Section</h2>
+        <p>After content</p>
+      `;
+
+      mockExecutor.executeBlock.mockResolvedValue({
+        success: true,
+        container: mockContainer,
+      });
+
+      const content = `
+\`\`\`dataviewjs
+dv.el("div", "test")
+\`\`\`
+`;
+
+      const result = await processDataviewBlocks(content, mockExecutor, 'test.md');
+
+      expect(result.content).toContain('## Public Section');
+      expect(result.content).toContain('Public content');
+      expect(result.content).not.toContain('Private Section');
+      expect(result.content).not.toContain('Private content');
+      expect(result.content).toContain('## After Section');
+      expect(result.content).not.toContain('^no-publishing');
+    });
+
+    it('should ignore no-publishing markers rendered inside DataviewJS code blocks', async () => {
+      const mockContainer = document.createElement('div');
+      mockContainer.innerHTML = `
+        <h2>Code Sample</h2>
+        <pre><code class="language-md">^no-publishing
+const x = 1;</code></pre>
+        <h2>After Section</h2>
+        <p>After content</p>
+      `;
+
+      mockExecutor.executeBlock.mockResolvedValue({
+        success: true,
+        container: mockContainer,
+      });
+
+      const content = `
+\`\`\`dataviewjs
+dv.el("div", "test")
+\`\`\`
+`;
+
+      const result = await processDataviewBlocks(content, mockExecutor, 'test.md');
+
+      expect(result.content).toContain('## Code Sample');
+      expect(result.content).toContain('```md');
+      expect(result.content).toContain('^no-publishing');
+      expect(result.content).toContain('const x = 1;');
+      expect(result.content).toContain('## After Section');
+    });
   });
 
   describe('Real-world scenarios', () => {

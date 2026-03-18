@@ -69,6 +69,7 @@ import type { PluginSettings } from './lib/settings/plugin-settings.type';
 import { enrichCleanupRules } from './lib/utils/create-default-folder-config.util';
 import { getEffectiveFolders } from './lib/utils/get-effective-folders.util';
 import { RequestUrlResponseMapper } from './lib/utils/http-response-status.mapper';
+import { insertNoPublishingMarker } from './lib/utils/insert-no-publishing-marker.util';
 import { selectVpsOrAuto } from './lib/utils/vps-selector';
 
 const defaultSettings: PluginSettings = {
@@ -325,13 +326,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         }
 
         if (editor) {
-          const cursor = editor.getCursor();
-          editor.replaceRange('^no-publishing', cursor);
-          // Move cursor after the inserted text
-          editor.setCursor({
-            line: cursor.line,
-            ch: cursor.ch + '^no-publishing'.length,
-          });
+          insertNoPublishingMarker(editor);
         }
       },
     });

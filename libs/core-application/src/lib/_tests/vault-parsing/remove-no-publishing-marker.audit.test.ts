@@ -386,7 +386,7 @@ Only content
   });
 
   describe('Edge Cases: Horizontal Rules', () => {
-    it('should recognize all HR variants: --- (dashes)', () => {
+    it('should treat --- after text as a Setext heading delimiter', () => {
       const content = `## Header
 ---
 Private
@@ -397,8 +397,7 @@ Private
       console.log('=== AUDIT: HR with dashes ===');
       console.log('OUTPUT:', JSON.stringify(result[0].content));
 
-      expect(result[0].content).toContain('## Header');
-      expect(result[0].content).not.toContain('---');
+      expect(result[0].content.trim()).toBe('');
       expect(result[0].content).not.toContain('Private');
     });
 
@@ -521,7 +520,7 @@ Content3`;
       expect(result[0].content).toContain('Header3');
     });
 
-    it('should handle marker with unusual indentation', () => {
+    it('should ignore marker with unusual indentation inside indented code', () => {
       const content = `## Header
 Content
     ^no-publishing
@@ -533,8 +532,9 @@ Content
       console.log('=== AUDIT: Indented marker ===');
       console.log('OUTPUT:', JSON.stringify(result[0].content));
 
-      // Pattern should match with leading whitespace
-      expect(result[0].content).not.toContain('Header');
+      // Indented marker is treated as code content, not as a real marker
+      expect(result[0].content).toContain('Header');
+      expect(result[0].content).toContain('    ^no-publishing');
       expect(result[0].content).toContain('After');
     });
 
