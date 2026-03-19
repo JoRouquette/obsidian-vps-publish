@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 import type { LoggerPort } from '@core-domain';
 import type { Request, Response, Router } from 'express';
 import { Router as createRouter } from 'express';
@@ -7,6 +6,7 @@ import type {
   ContentVersion,
   ContentVersionService,
 } from '../../../content-version/content-version.service';
+import { asyncRoute } from './async-route.util';
 
 /**
  * Creates routes for content version endpoints.
@@ -27,26 +27,29 @@ export function createContentVersionController(
    * Returns current content version for polling fallback.
    * Public endpoint (no API key required).
    */
-  router.get('/_content-version.json', async (_req: Request, res: Response) => {
-    try {
-      const version = await contentVersionService.getVersion();
+  router.get(
+    '/_content-version.json',
+    asyncRoute(async (_req: Request, res: Response) => {
+      try {
+        const version = await contentVersionService.getVersion();
 
-      if (!version) {
-        return res.status(404).json({ error: 'Content version not available' });
+        if (!version) {
+          return res.status(404).json({ error: 'Content version not available' });
+        }
+
+        // No caching - always return fresh version
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+
+        return res.json(version);
+      } catch (error) {
+        log?.error('Error getting content version', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return res.status(500).json({ error: 'Internal server error' });
       }
-
-      // No caching - always return fresh version
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-
-      return res.json(version);
-    } catch (error) {
-      log?.error('Error getting content version', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return res.status(500).json({ error: 'Internal server error' });
-    }
-  });
+    })
+  );
 
   /**
    * GET /events/content
