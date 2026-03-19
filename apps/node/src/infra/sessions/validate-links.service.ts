@@ -304,7 +304,9 @@ export class ValidateLinksService {
     rawValue: string,
     pathMap: Map<string, ManifestPage>
   ): { page?: ManifestPage; fragment?: string } {
-    const [basePath, fragment] = rawValue.split('#');
+    const hashIndex = rawValue.indexOf('#');
+    const basePath = hashIndex >= 0 ? rawValue.slice(0, hashIndex) : rawValue;
+    const fragment = hashIndex >= 0 ? rawValue.slice(hashIndex + 1) : undefined;
     return {
       page: this.resolveLinkPath(basePath || rawValue, pathMap),
       fragment,
