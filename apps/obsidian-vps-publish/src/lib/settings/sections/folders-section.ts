@@ -1,14 +1,16 @@
 import type { FolderConfig } from '@core-domain/entities/folder-config';
-import type { SanitizationRulesDefaults } from '@core-domain/entities/sanitization-rules';
 import type { VpsConfig } from '@core-domain/entities/vps-config';
 import { Notice, Setting } from 'obsidian';
 
-import type { Translations } from '../../../i18n';
 import { translate } from '../../../i18n';
 import { FileSuggest } from '../../suggesters/file-suggester';
 import { FolderSuggest } from '../../suggesters/folder-suggester';
 import { getEffectiveFolders } from '../../utils/get-effective-folders.util';
 import type { SettingsViewContext } from '../context';
+import {
+  getCleanupRuleDisplayName,
+  renderIgnoredCleanupRulesSettings,
+} from './ignored-cleanup-rules-settings.util';
 
 /**
  * UI State (non-persisted, ephemeral)
@@ -32,23 +34,6 @@ let uiState: FoldersUIState = {
   sortCriteria: [{ property: 'vaultFolder', direction: 'asc' }],
   editingFolderId: null,
 };
-
-/**
- * Helper to get nested translation value from a key like "settings.cleanupRules.removeCodeBlocks.name"
- */
-function getNestedTranslation(t: Translations, key: string): string | undefined {
-  const parts = key.split('.');
-  // Type-safe traversal of translation object structure
-  let current: unknown = t;
-  for (const part of parts) {
-    if (current && typeof current === 'object' && current !== null && part in current) {
-      current = (current as Record<string, unknown>)[part];
-    } else {
-      return undefined;
-    }
-  }
-  return typeof current === 'string' ? current : undefined;
-}
 
 /**
  * Render folders section - now organized by VPS with compact list + detailed editor
@@ -83,7 +68,8 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
         routeBase: '/',
         ignoredCleanupRuleIds: [],
       };
-      // TODO: Will be refactored in Step 3 to use routeTree directly
+      // Legacy folder creation is still required for VPS configs that have not migrated to routeTree.
+      // See docs/_archive/settings-route-tree-technical-debt-2026-03-19.md for the remaining sync gap.
       if (!vps.folders) vps.folders = [];
       vps.folders.push(defaultFolder);
     }
@@ -148,7 +134,8 @@ export function renderFoldersSection(root: HTMLElement, ctx: SettingsViewContext
         routeBase: '/',
         ignoredCleanupRuleIds: [],
       };
-      // TODO: Will be refactored in Step 3 to use routeTree directly
+      // Legacy folder creation is still required for VPS configs that have not migrated to routeTree.
+      // See docs/_archive/settings-route-tree-technical-debt-2026-03-19.md for the remaining sync gap.
       if (!vps.folders) vps.folders = [];
       vps.folders.push(newFolder);
       uiState.editingFolderId = newFolder.id; // Auto-open editor
@@ -216,18 +203,20 @@ function renderToolbar(
 
 /**
  * Filter folders based on search query
- * Matches: vaultFolder, routeBase, customIndexFile, ignoredCleanupRuleIds
- * TODO: Extend to match rule labels if available (see getNestedTranslation for default rules)
+ * Matches: vaultFolder, routeBase, customIndexFile, ignoredCleanupRuleIds, and rule labels
  */
 function filterFolders(
   folders: FolderConfig[],
   query: string,
-  _vps: VpsConfig,
-  _ctx: SettingsViewContext
+  vps: VpsConfig,
+  ctx: SettingsViewContext
 ): FolderConfig[] {
   if (!query || query.trim() === '') return folders;
 
   const lowerQuery = query.toLowerCase();
+  const cleanupRuleNames = new Map(
+    (vps.cleanupRules ?? []).map((rule) => [rule.id, getCleanupRuleDisplayName(rule, ctx.t)])
+  );
 
   return folders.filter((folder) => {
     // Match vault folder
@@ -240,11 +229,12 @@ function filterFolders(
     if (folder.customIndexFile && folder.customIndexFile.toLowerCase().includes(lowerQuery))
       return true;
 
-    // Match ignored cleanup rule IDs
-    // TODO: For better UX, also match against human-readable rule names/labels
-    // Use getNestedTranslation(ctx.t, rule.nameKey) for default rules
-    // Example: const ruleName = getNestedTranslation(ctx.t, rule.nameKey) || rule.name;
-    if (folder.ignoredCleanupRuleIds.some((ruleId) => ruleId.toLowerCase().includes(lowerQuery)))
+    if (
+      folder.ignoredCleanupRuleIds.some((ruleId) => {
+        const displayName = cleanupRuleNames.get(ruleId)?.toLowerCase();
+        return ruleId.toLowerCase().includes(lowerQuery) || !!displayName?.includes(lowerQuery);
+      })
+    )
       return true;
 
     return false;
@@ -368,7 +358,8 @@ function renderCompactFolderItem(
       return;
     }
     logger.debug('Folder deleted', { vpsId: vps.id, folderId: folderCfg.id });
-    // TODO: Will be refactored in Step 3 to use routeTree directly
+    // Legacy folder deletion is still required for VPS configs that have not migrated to routeTree.
+    // See docs/_archive/settings-route-tree-technical-debt-2026-03-19.md for the remaining sync gap.
     if (!vps.folders) vps.folders = [];
     const folderIdx = vps.folders.findIndex((f) => f.id === folderCfg.id);
     if (folderIdx !== -1) {
@@ -645,70 +636,6 @@ function renderCleanupRulesIgnoreSection(
   folderCfg: FolderConfig,
   ctx: SettingsViewContext
 ): void {
-  const { t, logger } = ctx;
-
-  if (!vps.cleanupRules || vps.cleanupRules.length === 0) {
-    // No cleanup rules on this VPS, nothing to ignore
-    return;
-  }
-
-  const ignoreSection = container.createDiv({ cls: 'ptpv-folder-cleanup-ignore' });
-
-  new Setting(ignoreSection)
-    .setName(t.settings.folders.ignoredCleanupRulesTitle ?? 'Ignored Cleanup Rules')
-    .setDesc(
-      t.settings.folders.ignoredCleanupRulesDescription ??
-        'Select which VPS cleanup rules should NOT be applied to this folder'
-    );
-
-  // Ensure ignoredCleanupRuleIds exists
-  if (!Array.isArray(folderCfg.ignoredCleanupRuleIds)) {
-    folderCfg.ignoredCleanupRuleIds = [];
-  }
-
-  const rulesContainer = ignoreSection.createDiv({ cls: 'ptpv-cleanup-ignore-list' });
-
-  vps.cleanupRules.forEach((rule) => {
-    const isIgnored = folderCfg.ignoredCleanupRuleIds.includes(rule.id);
-
-    // Get translated name if available (for default rules)
-    const nameKey = (rule as SanitizationRulesDefaults).nameKey;
-    const displayName = nameKey ? getNestedTranslation(t, nameKey) || rule.name : rule.name;
-
-    const ruleSetting = new Setting(rulesContainer)
-      .setName(displayName || rule.id)
-      .setDesc(rule.regex ? `Pattern: ${rule.regex}` : '');
-
-    ruleSetting.addToggle((toggle) =>
-      toggle
-        .setValue(isIgnored)
-        .setTooltip(
-          isIgnored
-            ? (t.settings.folders.cleanupIgnoredTooltip ?? 'Ignored by this folder')
-            : (t.settings.folders.cleanupAppliedTooltip ?? 'Applied to this folder')
-        )
-        .onChange((value) => {
-          logger.debug('Folder cleanup rule ignore toggled', {
-            folderId: folderCfg.id,
-            ruleId: rule.id,
-            ignored: value,
-          });
-
-          if (value) {
-            // Add to ignored list
-            if (!folderCfg.ignoredCleanupRuleIds.includes(rule.id)) {
-              folderCfg.ignoredCleanupRuleIds.push(rule.id);
-            }
-          } else {
-            // Remove from ignored list
-            const idx = folderCfg.ignoredCleanupRuleIds.indexOf(rule.id);
-            if (idx !== -1) {
-              folderCfg.ignoredCleanupRuleIds.splice(idx, 1);
-            }
-          }
-
-          void ctx.save();
-        })
-    );
-  });
+  const { logger } = ctx;
+  renderIgnoredCleanupRulesSettings(container, vps, folderCfg, ctx, logger, 'folder');
 }
