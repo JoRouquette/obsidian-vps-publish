@@ -21,4 +21,15 @@ module.exports = {
   },
 
   coverageDirectory: '../../coverage/apps/obsidian-vps-publish',
+
+  // Temporary baseline while harmonizing quality gates across projects.
+  // Raise these thresholds as integration-heavy paths get more focused tests.
+  coverageThreshold: {
+    global: {
+      statements: 35,
+      branches: 20,
+      functions: 35,
+      lines: 35,
+    },
+  },
 };
