@@ -13,6 +13,13 @@ import {
   ViewChild,
 } from '@angular/core';
 import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
+
+import type {
+  LeafletMapInstance,
+  LeafletMapOptions,
+  LeafletRuntime,
+  LeafletRuntimeModuleWithDefault,
+} from './leaflet-runtime.types';
 import { ContentVersionService } from '../../../infrastructure/content-version/content-version.service';
 
 /**
@@ -46,8 +53,7 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
   private readonly ngZone = inject(NgZone);
   private readonly injector = inject(Injector);
   private readonly contentVersionService = inject(ContentVersionService);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private map: any = null; // Type 'any' pour éviter l'import de Leaflet côté serveur
+  private map: LeafletMapInstance | null = null;
   private isBrowser = false;
   private initInProgress = false;
   private initCompleted = false;
@@ -319,11 +325,10 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
 
     try {
       // Import dynamique pour éviter les erreurs SSR
-      const leafletModule = await import('leaflet');
+      const leafletModule = (await import('leaflet')) as LeafletRuntimeModuleWithDefault;
 
       // Extraire L depuis le module (support ESM avec .default)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      L = (leafletModule as any).default || leafletModule;
+      L = leafletModule.default ?? (leafletModule as unknown as LeafletRuntime);
 
       // Importer le plugin fullscreen (side-effect: ajoute L.Control.Fullscreen)
       await import('leaflet.fullscreen');
@@ -336,8 +341,7 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
       throw error;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const leaflet = L as any;
+    const leaflet = L as LeafletRuntime;
     if (leaflet.Icon?.Default) {
       leaflet.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -349,7 +353,6 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     this.initializeMap(leaflet, trigger);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private fitBoundsWithoutAnimation(finalBounds: [[number, number], [number, number]]): void {
     if (!this.map) {
       return;
@@ -385,45 +388,27 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     }, delayMs);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private initializeMap(L: any, trigger: string): void {
+  private initializeMap(L: LeafletRuntime, trigger: string): void {
     const readiness = this.canInitializeNow();
-    if (!readiness.ok || !readiness.container) {
+    const container = readiness.container;
+    if (!readiness.ok || !container) {
       throw new Error(`container is not ready during initializeMap: ${readiness.reason}`);
     }
 
     // Exécuter l'initialisation en dehors de la zone Angular
     // pour éviter le change detection permanent sur les events de la carte
     this.ngZone.runOutsideAngular(() => {
-      this.initializeMapOutsideZone(L, readiness.container!, trigger);
+      this.initializeMapOutsideZone(L, container, trigger);
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private initializeMapOutsideZone(L: any, container: HTMLElement, trigger: string): void {
+  private initializeMapOutsideZone(
+    L: LeafletRuntime,
+    container: HTMLElement,
+    trigger: string
+  ): void {
     // Vérifier si on a des images overlays
     const hasImageOverlays = this.block.imageOverlays && this.block.imageOverlays.length > 0;
-
-    // Pour les images overlays, utiliser un CRS simple (coordonnées pixels)
-    // pour préserver les proportions de l'image
-    interface LeafletMapOptions {
-      crs?: unknown;
-      center?: [number, number];
-      zoom?: number;
-      minZoom?: number;
-      maxZoom?: number;
-      zoomControl: boolean;
-      attributionControl: boolean;
-      scrollWheelZoom: boolean;
-      doubleClickZoom: boolean;
-      boxZoom: boolean;
-      keyboard: boolean;
-      dragging: boolean;
-      zoomAnimation: boolean;
-      fadeAnimation: boolean;
-      markerZoomAnimation: boolean;
-      fullscreenControl: boolean;
-    }
 
     const mapOptions: LeafletMapOptions = {
       minZoom: this.block.minZoom ?? (hasImageOverlays ? -5 : undefined),
@@ -495,8 +480,12 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private addTileLayer(L: any): void {
+  private addTileLayer(L: LeafletRuntime): void {
+    const map = this.map;
+    if (!map) {
+      return;
+    }
+
     // Utiliser le serveur de tuiles personnalisé ou OpenStreetMap par défaut
     const tileUrl =
       this.block.tileServer?.url ?? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -510,11 +499,10 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
       subdomains: this.block.tileServer?.subdomains ?? ['a', 'b', 'c'],
       minZoom: this.block.tileServer?.minZoom,
       maxZoom: this.block.tileServer?.maxZoom,
-    }).addTo(this.map);
+    }).addTo(map);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private addImageOverlays(L: any): void {
+  private addImageOverlays(L: LeafletRuntime): void {
     this.totalOverlays = this.block.imageOverlays?.length ?? 0;
     this.overlaysLoaded = 0;
 
@@ -601,23 +589,27 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private addMarkers(L: any): void {
+  private addMarkers(L: LeafletRuntime): void {
+    const map = this.map;
+    if (!map) {
+      return;
+    }
+
     let addedCount = 0;
     let skippedByZoom = 0;
 
     this.block.markers?.forEach((marker) => {
       // Vérifier les contraintes de zoom si définies
-      if (marker.minZoom && this.map.getZoom() < marker.minZoom) {
+      if (marker.minZoom && map.getZoom() < marker.minZoom) {
         skippedByZoom++;
         return;
       }
-      if (marker.maxZoom && this.map.getZoom() > marker.maxZoom) {
+      if (marker.maxZoom && map.getZoom() > marker.maxZoom) {
         skippedByZoom++;
         return;
       }
 
-      const leafletMarker = L.marker([marker.lat, marker.long]).addTo(this.map);
+      const leafletMarker = L.marker([marker.lat, marker.long]).addTo(map);
 
       // Popup avec description ou lien — HTML-escaped to prevent XSS
       let popupContent = '';
