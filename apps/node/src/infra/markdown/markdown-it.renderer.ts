@@ -12,6 +12,10 @@ import MarkdownIt from 'markdown-it';
 import anchor from 'markdown-it-anchor';
 import footnote from 'markdown-it-footnote';
 
+import {
+  normalizeManifestWikilinkTarget,
+  resolveManifestLinkCandidate,
+} from '../links/manifest-link-resolver.util';
 import { attachBlockAnchors, prepareBlockAnchors } from './block-anchor.util';
 import { CalloutRendererService } from './callout-renderer.service';
 import { HeadingSlugger } from './heading-slugger';
@@ -176,14 +180,10 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     const contentAssets = (note.assets ?? []).filter((a) => a.origin !== 'frontmatter');
     const contentLinks = (note.resolvedWikilinks ?? []).filter((l) => l.origin !== 'frontmatter');
     const contentWithBlockAnchors = prepareBlockAnchors(note.content, this.blockIdCommentPrefix);
-
-    // Convert markdown links to .md files to unresolved spans
-    // (since they're not in resolvedWikilinks, they're not published)
-    const contentWithHandledMdLinks = this.handleMarkdownLinks(contentWithBlockAnchors);
-
-    const withAssets = this.injectAssets(contentWithHandledMdLinks, contentAssets);
+    const withAssets = this.injectAssets(contentWithBlockAnchors, contentAssets);
     const withLinks = this.injectWikilinks(withAssets, contentLinks);
-    const html = this.md.render(withLinks);
+    const contentWithHandledMdLinks = this.handleMarkdownLinks(withLinks);
+    const html = this.md.render(contentWithHandledMdLinks);
     const htmlWithBlockAnchors = attachBlockAnchors(html, this.blockIdCommentPrefix);
 
     const iconFontLink = [
@@ -200,7 +200,11 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
 
     // Clean and normalize all links (remove .md extensions, add proper classes, translate paths)
     // Pass manifest from context for vault-to-route path translation
-    const cleaned = this.cleanAndNormalizeLinks(withStyles, context?.manifest);
+    const cleaned = this.cleanAndNormalizeLinks(
+      withStyles,
+      context?.manifest,
+      note.routing?.fullPath
+    );
 
     // Wrap text following floated figures in <p> tags for proper text wrapping
     const fixedFloats = this.wrapTextAfterFloatedFigures(cleaned);
@@ -212,7 +216,7 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
 
     this.logger?.debug('Markdown rendered to HTML', {
       noteId: note.noteId,
-      slug: note.routing.slug,
+      slug: note.routing?.slug,
       ignoredTagsCount: ignoredTags.length,
     });
     this.logger?.debug('Rendered HTML content', { htmlLength: filtered.length });
@@ -305,13 +309,17 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
    * @param manifest - Optional manifest for vault-to-route path translation and validation
    * @returns HTML with all links normalized to wikilink template
    */
-  private cleanAndNormalizeLinks(html: string, manifest?: Manifest): string {
+  private cleanAndNormalizeLinks(
+    html: string,
+    manifest?: Manifest,
+    currentRoutePath?: string
+  ): string {
     // Load HTML - Cheerio wraps content in html/body tags, we'll extract body content at the end
     const $ = load(html);
 
     // Process all <a> tags to normalize to wikilink template
     $('a').each((_, element) => {
-      this.processLinkElement($(element), manifest);
+      this.processLinkElement($(element), manifest, currentRoutePath);
     });
 
     // Return body content only to avoid html/head/body wrapper tags
@@ -323,7 +331,8 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
    */
   private processLinkElement(
     $link: ReturnType<ReturnType<typeof load>>,
-    manifest?: Manifest
+    manifest?: Manifest,
+    currentRoutePath?: string
   ): void {
     const href = $link.attr('href');
     const dataWikilink = $link.attr('data-wikilink');
@@ -339,20 +348,23 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     if (href?.startsWith('#')) {
       const rawFragment = href.substring(1);
       if (rawFragment) {
-        $link.attr('href', '#' + this.normalizeFragment(rawFragment));
+        $link.attr('href', this.encodeInternalHref(`#${this.normalizeFragment(rawFragment)}`));
       }
       return;
     }
 
     // Process internal link
-    const processed = this.processInternalLink(href, dataWikilink, dataHref, manifest);
+    const processed = this.processInternalLink(
+      href,
+      dataWikilink,
+      dataHref,
+      manifest,
+      currentRoutePath
+    );
 
-    // Check if link is valid
-    // - If link has data-wikilink attribute, it was created by injectWikilinks and resolved by backend → trust it
-    // - Otherwise, validate against manifest (if available)
-    const isBackendResolvedWikilink = !!dataWikilink && !!href && !href.startsWith('#');
-    const isValidLink =
-      isBackendResolvedWikilink || !manifest || processed.matchedPage !== undefined;
+    // Validate against the manifest whenever it is available.
+    // This keeps wikilinks and Dataview-produced links on the same resolution policy.
+    const isValidLink = !manifest || processed.matchedPage !== undefined;
 
     // Debug logging for specific link
     if (
@@ -366,7 +378,6 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
         processedWikilink: processed.cleanedWikilink,
         hasMatchedPage: processed.matchedPage !== undefined,
         matchedPageRoute: processed.matchedPage?.route,
-        isBackendResolvedWikilink,
         isValidLink,
         manifestPresent: !!manifest,
       });
@@ -383,7 +394,7 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     }
 
     // Valid link - update attributes
-    this.updateLinkAttributes($link, processed, dataHref, manifest);
+    this.updateLinkAttributes($link, processed, dataHref, manifest, currentRoutePath);
   }
 
   /**
@@ -393,7 +404,8 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     href: string | undefined,
     dataWikilink: string | undefined,
     dataHref: string | undefined,
-    manifest?: Manifest
+    manifest?: Manifest,
+    currentRoutePath?: string
   ): { cleanedHref: string; cleanedWikilink: string; matchedPage?: ManifestPage } {
     let cleanedHref = '';
     let cleanedWikilink = '';
@@ -402,23 +414,46 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     if (href) {
       cleanedHref = this.cleanLinkPath(href);
       if (manifest) {
-        const result = this.translateToRoutedPathWithValidation(cleanedHref, manifest);
+        const result = this.translateToRoutedPathWithValidation(
+          cleanedHref,
+          manifest,
+          currentRoutePath
+        );
         cleanedHref = result.path;
         matchedPage = result.matchedPage;
-      }
-      if (!dataWikilink) {
-        cleanedWikilink = this.deriveWikilinkFromHref(cleanedHref);
       }
     }
 
     if (dataWikilink) {
       cleanedWikilink = this.cleanLinkPath(dataWikilink);
+      if (manifest) {
+        const result = this.translateToRoutedPathWithValidation(
+          cleanedWikilink,
+          manifest,
+          currentRoutePath
+        );
+        if (!cleanedHref && result.matchedPage) {
+          cleanedHref = result.path;
+        }
+        matchedPage ??= result.matchedPage;
+      }
     }
 
     if (dataHref && manifest) {
       const cleanedDataHref = this.cleanLinkPath(dataHref);
-      const result = this.translateToRoutedPathWithValidation(cleanedDataHref, manifest);
+      const result = this.translateToRoutedPathWithValidation(
+        cleanedDataHref,
+        manifest,
+        currentRoutePath
+      );
       matchedPage ??= result.matchedPage;
+    }
+
+    if (!cleanedWikilink && matchedPage) {
+      cleanedWikilink = this.deriveWikilinkFromPage(matchedPage);
+    }
+    if (!cleanedWikilink && cleanedHref) {
+      cleanedWikilink = this.deriveWikilinkFromHref(cleanedHref);
     }
 
     return { cleanedHref, cleanedWikilink, matchedPage };
@@ -431,9 +466,10 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     $link: ReturnType<ReturnType<typeof load>>,
     processed: { cleanedHref: string; cleanedWikilink: string },
     dataHref: string | undefined,
-    manifest?: Manifest
+    manifest?: Manifest,
+    currentRoutePath?: string
   ): void {
-    $link.attr('href', processed.cleanedHref);
+    $link.attr('href', this.encodeInternalHref(processed.cleanedHref));
 
     if (processed.cleanedWikilink) {
       $link.attr('data-wikilink', processed.cleanedWikilink);
@@ -442,7 +478,11 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     if (dataHref) {
       let cleanedDataHref = this.cleanLinkPath(dataHref);
       if (manifest) {
-        const result = this.translateToRoutedPathWithValidation(cleanedDataHref, manifest);
+        const result = this.translateToRoutedPathWithValidation(
+          cleanedDataHref,
+          manifest,
+          currentRoutePath
+        );
         cleanedDataHref = result.path;
       }
       $link.attr('data-href', cleanedDataHref);
@@ -470,12 +510,15 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
    * @returns Wikilink target string
    */
   private deriveWikilinkFromHref(cleanedHref: string): string {
-    let wikilink = cleanedHref.replace(/^\//, '');
-    const anchorIndex = wikilink.indexOf('#');
-    if (anchorIndex > 0) {
-      wikilink = wikilink.substring(0, anchorIndex);
-    }
-    return wikilink;
+    return normalizeManifestWikilinkTarget(cleanedHref).split('#')[0] ?? '';
+  }
+
+  private deriveWikilinkFromPage(page: ManifestPage): string {
+    return normalizeManifestWikilinkTarget(page.relativePath || page.vaultPath || page.route);
+  }
+
+  private encodeInternalHref(href: string): string {
+    return encodeURI(this.safeDecodeURI(href));
   }
 
   /**
@@ -515,87 +558,38 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
    */
   private translateToRoutedPathWithValidation(
     path: string,
-    manifest: Manifest
+    manifest: Manifest,
+    currentRoutePath?: string
   ): { path: string; matchedPage?: ManifestPage } {
-    // Extract base path and anchor
-    const anchorIndex = path.indexOf('#');
-    const basePath = anchorIndex >= 0 ? path.substring(0, anchorIndex) : path;
-    const anchor = anchorIndex >= 0 ? path.substring(anchorIndex) : '';
+    const resolved = resolveManifestLinkCandidate(path, manifest.pages, currentRoutePath);
 
-    // Normalize base path (remove leading slash for comparison)
-    const normalizedPath = basePath.replace(/^\//, '');
-
-    // Debug logging for specific path
-    const isTargetPath = normalizedPath.toLowerCase().includes('sens-et-capacites');
-    if (isTargetPath) {
-      this.logger?.debug('translateToRoutedPathWithValidation called', {
-        originalPath: path,
-        basePath,
-        anchor,
-        normalizedPath,
-        manifestPagesCount: manifest.pages.length,
+    if (resolved.ambiguousCandidates?.length) {
+      this.logger?.warn('Ambiguous internal link left unresolved during HTML normalization', {
+        path,
+        candidates: resolved.ambiguousCandidates.map((page) => page.route),
       });
     }
 
-    // Find matching page in manifest by comparing normalized paths
-    const matchingPage = manifest.pages.find((page) => {
-      if (!page.vaultPath) return false;
-
-      // Compare both vault paths AND routed paths
-      const pageVaultPath = page.vaultPath.replace(/\.md$/i, '').replace(/^\//, '');
-      const pageRelativePath = page.relativePath?.replace(/\.md$/i, '').replace(/^\//, '');
-      const pageRoute = page.route.replace(/^\//, '');
-
-      const matches =
-        pageVaultPath === normalizedPath ||
-        pageRelativePath === normalizedPath ||
-        pageRoute === normalizedPath ||
-        pageVaultPath.toLowerCase() === normalizedPath.toLowerCase() ||
-        pageRelativePath?.toLowerCase() === normalizedPath.toLowerCase() ||
-        pageRoute.toLowerCase() === normalizedPath.toLowerCase();
-
-      if (isTargetPath && page.title?.toLowerCase().includes('sens')) {
-        this.logger?.debug('Comparing with page', {
-          pageTitle: page.title,
-          pageRoute,
-          pageVaultPath,
-          pageRelativePath,
-          normalizedPath,
-          matches,
-        });
-      }
-
-      return matches;
-    });
-
-    if (isTargetPath) {
-      this.logger?.debug('translateToRoutedPathWithValidation result', {
-        found: matchingPage !== undefined,
-        matchedPageTitle: matchingPage?.title,
-        matchedPageRoute: matchingPage?.route,
-      });
-    }
-
-    if (matchingPage) {
-      const normalizedAnchor = anchor ? '#' + this.normalizeFragment(anchor.substring(1)) : '';
+    if (resolved.page) {
+      const normalizedAnchor = resolved.fragment
+        ? `#${this.normalizeFragment(resolved.fragment)}`
+        : '';
       return {
-        path: matchingPage.route + normalizedAnchor,
-        matchedPage: matchingPage,
+        path: resolved.page.route + normalizedAnchor,
+        matchedPage: resolved.page,
       };
     }
 
-    // If no match found, return original path with leading slash but no matched page
-    // Still normalize anchor fragments to match generated IDs
-    if (anchor) {
-      const normalizedAnchor = '#' + this.normalizeFragment(anchor.substring(1));
-      const base = basePath.startsWith('/') ? basePath : '/' + basePath;
-      return {
-        path: base + normalizedAnchor,
-        matchedPage: undefined,
-      };
-    }
+    const normalizedAnchor = resolved.fragment
+      ? `#${this.normalizeFragment(resolved.fragment)}`
+      : '';
+    const normalizedBasePath = resolved.normalizedBasePath
+      ? `/${resolved.normalizedBasePath}`
+      : path.startsWith('/')
+        ? path
+        : `/${path}`;
     return {
-      path: path.startsWith('/') ? path : '/' + path,
+      path: `${normalizedBasePath}${normalizedAnchor}`,
       matchedPage: undefined,
     };
   }
@@ -712,9 +706,15 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
   }
 
   private renderWikilink(link: ResolvedWikilink): string {
-    const label = this.escapeHtml(
-      link.alias ?? (link.subpath ? `${link.target}#${link.subpath}` : link.target)
-    );
+    const defaultLabel =
+      link.subpath && !link.target.includes('#') ? `${link.target}#${link.subpath}` : link.target;
+    const label = this.escapeHtml(link.alias ?? defaultLabel);
+
+    if (link.embed) {
+      return link.isResolved
+        ? this.renderResolvedEmbed(link, label)
+        : this.renderUnresolvedEmbed(link, label);
+    }
 
     if (link.isResolved) {
       let hrefTarget = link.href ?? link.path ?? link.target;
@@ -762,6 +762,37 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     )}">${label}</span>`;
   }
 
+  private renderResolvedEmbed(link: ResolvedWikilink, escapedLabel: string): string {
+    let hrefTarget = link.href ?? link.path ?? link.target;
+    hrefTarget = hrefTarget.replace(/\.md$/i, '');
+
+    if (link.subpath && !hrefTarget.includes('#')) {
+      hrefTarget = `${hrefTarget}#${this.normalizeFragment(link.subpath)}`;
+    }
+
+    if (hrefTarget.includes('#')) {
+      const [path, heading] = hrefTarget.split('#');
+      if (heading) {
+        const slug = this.normalizeFragment(heading);
+        hrefTarget = path ? `${path}#${slug}` : `#${slug}`;
+      }
+    }
+
+    const href = this.escapeAttribute(this.encodeInternalHref(hrefTarget));
+    return `<span class="wikilink-embed"><a class="wikilink wikilink-embed-link" data-wikilink="${this.escapeAttribute(
+      link.target
+    )}" href="${href}">${escapedLabel}</a></span>`;
+  }
+
+  private renderUnresolvedEmbed(link: ResolvedWikilink, escapedLabel: string): string {
+    const tooltip = 'Cette inclusion interne est introuvable';
+    return `<span class="wikilink wikilink-unresolved wikilink-embed" role="link" aria-disabled="true" title="${this.escapeAttribute(
+      tooltip
+    )}" data-tooltip="${this.escapeAttribute(tooltip)}" data-wikilink="${this.escapeAttribute(
+      link.target
+    )}">${escapedLabel}</span>`;
+  }
+
   private buildAssetUrl(target: string): string {
     const normalized = target.replace(/^\/+/, '').replace(/^assets\//, '');
     return `/assets/${encodeURI(normalized)}`;
@@ -792,6 +823,25 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
   }
 
   private normalizeFragment(fragment: string): string {
-    return fragment.startsWith('^') ? fragment : this.headingSlugger.slugify(fragment);
+    const decodedFragment = this.safeDecodeURIComponent(fragment);
+    return decodedFragment.startsWith('^')
+      ? decodedFragment
+      : this.headingSlugger.slugify(decodedFragment);
+  }
+
+  private safeDecodeURIComponent(value: string): string {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }
+
+  private safeDecodeURI(value: string): string {
+    try {
+      return decodeURI(value);
+    } catch {
+      return value;
+    }
   }
 }
