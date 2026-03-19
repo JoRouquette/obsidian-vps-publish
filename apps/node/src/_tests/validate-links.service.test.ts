@@ -164,6 +164,30 @@ describe('ValidateLinksService', () => {
       expect(fixedHtml).not.toContain('wikilink-unresolved');
     });
 
+    it('should preserve caret fragments for valid page links', async () => {
+      const manifest = createMockManifest();
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <p>Block link: <a href="/mundis/ektaron#%5E37066d">Bloc Ektaron</a></p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const htmlPath = path.join(tempDir, 'test.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      const result = await service.validateAllLinks(tempDir, manifest);
+
+      expect(result.filesModified).toBe(0);
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      expect(fixedHtml).toContain('<a href="/mundis/ektaron#%5E37066d">Bloc Ektaron</a>');
+    });
+
     it('should invalidate links with fragments to invalid pages', async () => {
       const manifest = createMockManifest();
 
