@@ -62,6 +62,7 @@ import { createStepMessages, getStepLabel } from './lib/infra/step-messages.fact
 import { StepProgressManagerAdapter } from './lib/infra/step-progress-manager.adapter';
 import { UiPressureMonitorAdapter } from './lib/infra/ui-pressure-monitor.adapter';
 import { PublishConfirmModal, type PublishSummary } from './lib/modals/publish-confirm-modal';
+import { getDataviewPlugin, getSettingsApi } from './lib/obsidian/app-capabilities.util';
 import { testVpsConnection } from './lib/services/http-connection.service';
 import { SessionApiClient } from './lib/services/session-api.client';
 import { ObsidianVpsPublishSettingTab } from './lib/setting-tab.view';
@@ -300,10 +301,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       id: 'open-vps-settings',
       name: t.plugin.commandOpenSettings,
       callback: () => {
-        // @ts-ignore
-        this.app.setting.open();
-        // @ts-ignore
-        this.app.setting.openTabById(`${this.manifest.id}`);
+        const settingsApi = getSettingsApi(this.app);
+        settingsApi?.open();
+        settingsApi?.openTabById(`${this.manifest.id}`);
       },
     });
 
@@ -747,21 +747,16 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       stats.totalNotesAnalyzed = notes.length;
 
       // Check if Dataview plugin is available
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const dataviewApi = (this.app as any).plugins?.plugins?.dataview?.api as
-        | DataviewApi
-        | undefined;
+      const dataviewPlugin = getDataviewPlugin(this.app);
+      const dataviewApi = dataviewPlugin?.api;
 
       trace.startStep('3-check-dataview');
 
       scopedLogger.debug('🔌 Dataview plugin status check', {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        hasPluginsManager: !!(this.app as any).plugins,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        hasDataviewPlugin: !!(this.app as any).plugins?.plugins?.dataview,
+        hasPluginsManager: 'plugins' in this.app,
+        hasDataviewPlugin: !!dataviewPlugin,
         hasDataviewApi: !!dataviewApi,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        dataviewVersion: (this.app as any).plugins?.plugins?.dataview?.manifest?.version,
+        dataviewVersion: dataviewPlugin?.manifest?.version,
       });
       if (!dataviewApi) {
         scopedLogger.debug(
