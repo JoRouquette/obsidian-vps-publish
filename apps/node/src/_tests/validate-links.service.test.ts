@@ -258,6 +258,43 @@ describe('ValidateLinksService', () => {
       expect(fixedHtml).toContain('href="/lore/classes/barbarian"');
     });
 
+    it('should normalize dataview links with encoded unicode paths and heading fragments', async () => {
+      const manifest = {
+        pages: [
+          ...createMockManifest().pages,
+          {
+            id: 'page-4',
+            vaultPath: 'My Notes/Héléna.md',
+            relativePath: 'My Notes/Héléna.md',
+            route: '/personnages/helena',
+            slug: { value: 'helena' },
+            title: 'Héléna',
+            folders: ['My Notes'],
+            publishedAt: new Date(),
+          } as ManifestPage,
+        ],
+      };
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <p><a href="My%20Notes/H%C3%A9l%C3%A9na.md#Capacit%C3%A9%20sp%C3%A9ciale">Alias</a></p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const htmlPath = path.join(tempDir, 'test.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      await service.validateAllLinks(tempDir, manifest);
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      expect(fixedHtml).toContain('href="/personnages/helena#capacite-speciale"');
+      expect(fixedHtml).toContain('>Alias</a>');
+    });
+
     it('should convert dataview wikilink spans to resolved anchors during finish validation', async () => {
       const manifest = createMockManifest();
 
@@ -318,6 +355,91 @@ describe('ValidateLinksService', () => {
       expect($link.attr('href')).toBe('/mundis/ektaron');
       expect($link.attr('data-wikilink')).toBe('Ektaron');
       expect($link.attr('class')).toBe('wikilink');
+      expect(fixedHtml).not.toContain('wikilink-unresolved');
+    });
+
+    it('should leave ambiguous basename-only links unresolved instead of selecting a duplicate page', async () => {
+      const manifest = {
+        pages: [
+          {
+            id: 'page-a',
+            vaultPath: 'Folder A/Shared.md',
+            relativePath: 'Folder A/Shared.md',
+            route: '/folder-a/shared',
+            slug: { value: 'shared-a' },
+            title: 'Shared',
+            folders: ['Folder A'],
+            publishedAt: new Date(),
+          } as ManifestPage,
+          {
+            id: 'page-b',
+            vaultPath: 'Folder B/Shared.md',
+            relativePath: 'Folder B/Shared.md',
+            route: '/folder-b/shared',
+            slug: { value: 'shared-b' },
+            title: 'Shared',
+            folders: ['Folder B'],
+            publishedAt: new Date(),
+          } as ManifestPage,
+        ],
+      };
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <p><a href="Shared.md">Shared</a></p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const htmlPath = path.join(tempDir, 'test.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      await service.validateAllLinks(tempDir, manifest);
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      expect(fixedHtml).toContain('wikilink-unresolved');
+      expect(fixedHtml).not.toContain('href="/folder-a/shared"');
+      expect(fixedHtml).not.toContain('href="/folder-b/shared"');
+    });
+
+    it('should resolve relative internal links using the current generated page path', async () => {
+      const manifest = {
+        pages: [
+          {
+            id: 'page-reference',
+            vaultPath: 'Guide/Reference.md',
+            relativePath: 'Guide/Reference.md',
+            route: '/guide/reference',
+            slug: { value: 'reference' },
+            title: 'Reference',
+            folders: ['Guide'],
+            publishedAt: new Date(),
+          } as ManifestPage,
+        ],
+      };
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <p><a href="../reference.md">Reference</a></p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const nestedDir = path.join(tempDir, 'guide', 'advanced');
+      await fs.mkdir(nestedDir, { recursive: true });
+      const htmlPath = path.join(nestedDir, 'getting-started.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      await service.validateAllLinks(tempDir, manifest);
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      expect(fixedHtml).toContain('href="/guide/reference"');
       expect(fixedHtml).not.toContain('wikilink-unresolved');
     });
 
