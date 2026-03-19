@@ -2,7 +2,21 @@ import { type LoggerPort, type WikilinkRef } from '@core-domain';
 import { type PublishableNote, type ResolvedWikilink } from '@core-domain';
 
 import { type BaseService } from '../../common/base-service';
+import {
+  getInternalLinkBasename,
+  normalizeInternalLinkKey,
+  normalizeInternalLinkPath,
+  resolveRelativeInternalLinkPath,
+} from '../../utils/internal-link-path.util';
 import { type DetectWikilinksService } from './detect-wikilinks.service';
+
+interface NoteLookup {
+  exactPath: Map<string, PublishableNote[]>;
+  slugPath: Map<string, PublishableNote[]>;
+  basename: Map<string, PublishableNote[]>;
+  basenameSlug: Map<string, PublishableNote[]>;
+  titleSlug: Map<string, PublishableNote[]>;
+}
 
 export class ResolveWikilinksService implements BaseService {
   private readonly _logger: LoggerPort;
@@ -24,8 +38,7 @@ export class ResolveWikilinksService implements BaseService {
     const lookup = this.buildNoteLookup(notes);
 
     for (const note of notes) {
-      // Extract markdown wikilinks (Dataview already converted to markdown wikilinks by plugin)
-      const markdownLinks: WikilinkRef[] = this.detectWikilinksService.process(note);
+      const markdownLinks = this.detectWikilinksService.process(note);
 
       if (markdownLinks.length === 0) {
         this._logger.debug('No wikilinks found in note', { noteId: note.noteId });
@@ -41,8 +54,6 @@ export class ResolveWikilinksService implements BaseService {
       const resolvedWikilinks: ResolvedWikilink[] = wikilinks.map((wikilink) => {
         const targetNote = this.findTargetNoteForWikilink(wikilink, note, lookup);
         const targetPath = targetNote?.routing?.fullPath;
-        // A link is only resolved if the target note exists AND has routing defined (will be published)
-        // fullPath can be an empty string for root-level notes, so check routing existence instead
         const isResolved = !!targetNote && targetNote.routing !== undefined;
         const targetNoteId = targetNote?.noteId;
         const href =
@@ -81,149 +92,167 @@ export class ResolveWikilinksService implements BaseService {
     return notes;
   }
 
-  private buildNoteLookup(notes: PublishableNote[]): Map<string, PublishableNote> {
-    const lookup = new Map<string, PublishableNote>();
+  private buildNoteLookup(notes: PublishableNote[]): NoteLookup {
+    const lookup: NoteLookup = {
+      exactPath: new Map<string, PublishableNote[]>(),
+      slugPath: new Map<string, PublishableNote[]>(),
+      basename: new Map<string, PublishableNote[]>(),
+      basenameSlug: new Map<string, PublishableNote[]>(),
+      titleSlug: new Map<string, PublishableNote[]>(),
+    };
 
     for (const note of notes) {
-      const keys = this.buildNoteKeys(note);
-      for (const key of keys) {
-        if (!lookup.has(key)) {
-          lookup.set(key, note);
-        }
-      }
+      const normalizedPath = this.normalizePath(this.stripExtension(note.relativePath));
+      const basename = this.basename(normalizedPath);
+      const basenameSlug = this.slugifySegment(basename);
+      const slugPath = this.slugifyPath(normalizedPath);
+      const titleSlug = this.slugifySegment(note.title);
+
+      this.addLookupEntry(lookup.exactPath, normalizedPath, note);
+      this.addLookupEntry(lookup.slugPath, slugPath, note);
+      this.addLookupEntry(lookup.basename, basename, note);
+      this.addLookupEntry(lookup.basenameSlug, basenameSlug, note);
+      this.addLookupEntry(lookup.titleSlug, titleSlug, note);
     }
 
     return lookup;
   }
 
-  private buildNoteKeys(note: PublishableNote): string[] {
-    const normalizedPath = this.normalizePath(note.relativePath);
-    const fileName = this.basename(normalizedPath);
-    const withoutExt = this.stripExtension(normalizedPath);
-    const fileWithoutExt = this.stripExtension(fileName);
-    const slugPath = this.slugifyPath(withoutExt);
-    const slugFile = this.basename(slugPath);
-    const titleSlug = this.slugifySegment(note.title);
-
-    const keys = this.normalizeKeys([
-      normalizedPath,
-      withoutExt,
-      fileName,
-      fileWithoutExt,
-      slugPath,
-      slugFile,
-      titleSlug,
-    ]);
-
-    // Debug logging for specific note
-    if (note.relativePath.includes('Sens et capacités')) {
-      this._logger.debug('Building note keys for target note', {
-        relativePath: note.relativePath,
-        title: note.title,
-        hasRouting: note.routing !== undefined,
-        routingPath: note.routing?.fullPath,
-        generatedKeys: keys,
-      });
+  private addLookupEntry(
+    map: Map<string, PublishableNote[]>,
+    rawKey: string,
+    note: PublishableNote
+  ): void {
+    const key = this.normalizeKey(rawKey);
+    if (!key) {
+      return;
     }
 
-    return keys;
-  }
-
-  private buildLinkKeys(target: string): string[] {
-    const normalized = this.normalizePath(target);
-    const fileName = this.basename(normalized);
-    const withoutExt = this.stripExtension(normalized);
-    const fileWithoutExt = this.stripExtension(fileName);
-    const withMd = normalized.endsWith('.md') ? normalized : `${normalized}.md`;
-    const slugPath = this.slugifyPath(withoutExt);
-    const slugFile = this.basename(slugPath);
-
-    const keys = this.normalizeKeys([
-      normalized,
-      withMd,
-      withoutExt,
-      fileName,
-      fileWithoutExt,
-      slugPath,
-      slugFile,
-      this.slugifySegment(target),
-    ]);
-
-    // Debug logging for specific target
-    if (target.toLowerCase().includes('sens et capacités')) {
-      this._logger.debug('Building link keys for wikilink', {
-        target,
-        generatedKeys: keys,
-      });
+    const existing = map.get(key);
+    if (existing) {
+      existing.push(note);
+      return;
     }
 
-    return keys;
-  }
-
-  private normalizeKeys(keys: string[]): string[] {
-    const set = new Set<string>();
-    for (const key of keys) {
-      const normalized = this.normalizeKey(key);
-      if (normalized) {
-        set.add(normalized);
-      }
-    }
-    return Array.from(set.values());
+    map.set(key, [note]);
   }
 
   private findTargetNoteForWikilink(
     wikilink: WikilinkRef,
     currentNote: PublishableNote,
-    lookup: Map<string, PublishableNote>
+    lookup: NoteLookup
   ): PublishableNote | undefined {
     if (!wikilink.path && wikilink.subpath) {
       return currentNote;
     }
 
-    return this.findTargetNote(wikilink.path, lookup);
+    return this.findTargetNote(wikilink.path, currentNote, lookup);
   }
 
-  private findTargetNote(target: string, lookup: Map<string, PublishableNote>) {
-    const candidates = this.buildLinkKeys(target);
-    for (const key of candidates) {
-      const note = lookup.get(key);
-      if (note) {
-        // Debug logging for specific target
-        if (target.toLowerCase().includes('sens et capacités')) {
-          this._logger.debug('Found target note match', {
-            target,
-            matchedKey: key,
-            noteTitle: note.title,
-            noteRelativePath: note.relativePath,
-            hasRouting: note.routing !== undefined,
-          });
-        }
-        return note;
+  private findTargetNote(
+    target: string,
+    currentNote: PublishableNote,
+    lookup: NoteLookup
+  ): PublishableNote | undefined {
+    const normalizedTarget = this.normalizePath(this.stripExtension(target));
+    const resolvedRelativeTarget = resolveRelativeInternalLinkPath(
+      normalizedTarget,
+      currentNote.relativePath
+    );
+    if (!resolvedRelativeTarget) {
+      return undefined;
+    }
+
+    const targetHasFolders = resolvedRelativeTarget.includes('/');
+
+    if (!targetHasFolders) {
+      const currentFolderTarget = this.joinPaths(
+        this.dirname(this.stripExtension(currentNote.relativePath)),
+        resolvedRelativeTarget
+      );
+      const sameFolderMatch = this.getUniqueCandidate(
+        [
+          ...this.getLookupNotes(lookup.exactPath, currentFolderTarget),
+          ...this.getLookupNotes(lookup.slugPath, this.slugifyPath(currentFolderTarget)),
+        ],
+        target,
+        currentNote,
+        'same-folder'
+      );
+
+      if (sameFolderMatch) {
+        return sameFolderMatch;
       }
     }
 
-    // Debug logging when target not found
-    if (target.toLowerCase().includes('sens et capacités')) {
-      this._logger.warn('Target note NOT found in lookup', {
-        target,
-        attemptedKeys: candidates,
-        lookupSize: lookup.size,
-      });
+    const exactMatch = this.getUniqueCandidate(
+      [
+        ...this.getLookupNotes(lookup.exactPath, resolvedRelativeTarget),
+        ...this.getLookupNotes(lookup.slugPath, this.slugifyPath(resolvedRelativeTarget)),
+      ],
+      target,
+      currentNote,
+      targetHasFolders ? 'path' : 'exact'
+    );
+
+    if (exactMatch || targetHasFolders) {
+      return exactMatch;
     }
+
+    return this.getUniqueCandidate(
+      [
+        ...this.getLookupNotes(lookup.basename, getInternalLinkBasename(resolvedRelativeTarget)),
+        ...this.getLookupNotes(lookup.basenameSlug, this.slugifySegment(resolvedRelativeTarget)),
+        ...this.getLookupNotes(lookup.titleSlug, this.slugifySegment(resolvedRelativeTarget)),
+      ],
+      target,
+      currentNote,
+      'basename'
+    );
+  }
+
+  private getLookupNotes(map: Map<string, PublishableNote[]>, rawKey: string): PublishableNote[] {
+    const key = this.normalizeKey(rawKey);
+    return key ? (map.get(key) ?? []) : [];
+  }
+
+  private getUniqueCandidate(
+    candidates: PublishableNote[],
+    target: string,
+    currentNote: PublishableNote,
+    strategy: string
+  ): PublishableNote | undefined {
+    const unique = Array.from(new Map(candidates.map((note) => [note.noteId, note])).values());
+    if (unique.length <= 1) {
+      return unique[0];
+    }
+
+    this._logger.warn('Ambiguous wikilink target left unresolved', {
+      currentNote: currentNote.relativePath,
+      target,
+      strategy,
+      candidatePaths: unique.map((note) => note.relativePath),
+    });
 
     return undefined;
   }
 
   private normalizePath(path: string): string {
-    return path
-      .replace(/\\/g, '/')
-      .replace(/^\/+|\/+$/g, '')
-      .trim();
+    return normalizeInternalLinkPath(path);
+  }
+
+  private dirname(path: string): string {
+    const normalized = this.normalizePath(path);
+    const lastSlash = normalized.lastIndexOf('/');
+    return lastSlash === -1 ? '' : normalized.slice(0, lastSlash);
+  }
+
+  private joinPaths(left: string, right: string): string {
+    return [left, right].filter(Boolean).join('/');
   }
 
   private basename(path: string): string {
-    const parts = path.split('/');
-    return parts[parts.length - 1] ?? path;
+    return getInternalLinkBasename(path);
   }
 
   private stripExtension(path: string): string {
@@ -231,15 +260,7 @@ export class ResolveWikilinksService implements BaseService {
   }
 
   private normalizeKey(value: string): string {
-    const trimmed = value.trim();
-    if (!trimmed) return '';
-
-    return trimmed
-      .replace(/\\/g, '/')
-      .replace(/^\/+|\/+$/g, '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
+    return normalizeInternalLinkKey(value);
   }
 
   private slugifyPath(path: string): string {
@@ -263,66 +284,5 @@ export class ResolveWikilinksService implements BaseService {
       .trim()
       .toLowerCase()
       .replace(/\s/g, '-');
-  }
-
-  /**
-   * Merge and deduplicate wikilinks from markdown and Dataview HTML.
-   *
-   * Deduplication strategy:
-   * - Normalize paths (lowercase, strip .md, normalize accents)
-   * - Keep first occurrence (markdown links take precedence over Dataview)
-   * - Preserve all metadata from first occurrence
-   *
-   * @param markdownLinks - Links extracted from markdown wikilink syntax
-   * @param dataviewLinks - Links extracted from Dataview HTML data-wikilink attributes
-   * @returns Merged and deduplicated array
-   */
-  private mergeAndDeduplicateLinks(
-    markdownLinks: WikilinkRef[],
-    dataviewLinks: WikilinkRef[]
-  ): WikilinkRef[] {
-    const seen = new Set<string>();
-    const merged: WikilinkRef[] = [];
-
-    // Process markdown links first (they take precedence)
-    for (const link of markdownLinks) {
-      const key = this.getLinkDeduplicationKey(link);
-      if (!seen.has(key)) {
-        seen.add(key);
-        merged.push(link);
-      }
-    }
-
-    // Add Dataview links that weren't already present in markdown
-    for (const link of dataviewLinks) {
-      const key = this.getLinkDeduplicationKey(link);
-      if (!seen.has(key)) {
-        seen.add(key);
-        merged.push(link);
-      }
-    }
-
-    return merged;
-  }
-
-  /**
-   * Generate deduplication key for a wikilink.
-   * Uses origin + frontmatterPath + normalized target path + subpath (if any).
-   *
-   * Origin and frontmatterPath are included to avoid deduplicating links
-   * that appear in both content and frontmatter, as they serve different purposes.
-   *
-   * Examples:
-   * - [[Folder/Note]] in content → "content::folder/note"
-   * - [[Folder/Note]] in frontmatter → "frontmatter:links[0]:folder/note"
-   * - [[Folder/Note#Section]] → "content::folder/note#section"
-   * - [[Note|Alias]] → "content::note" (alias ignored)
-   */
-  private getLinkDeduplicationKey(link: WikilinkRef): string {
-    const normalizedPath = this.normalizePath(link.path);
-    const normalizedSubpath = link.subpath ? `#${link.subpath.toLowerCase()}` : '';
-    const origin = link.origin || 'content';
-    const fmPath = link.frontmatterPath || '';
-    return `${origin}:${fmPath}:${normalizedPath}${normalizedSubpath}`;
   }
 }

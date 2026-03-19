@@ -14,6 +14,7 @@ export interface ResolvedWikilink {
   path: string;
   subpath?: string;
   alias?: string;
+  embed?: boolean;
   kind: WikilinkKind;
   isResolved: boolean;
   targetNoteId?: string;

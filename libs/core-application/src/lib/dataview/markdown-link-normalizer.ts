@@ -21,6 +21,11 @@
 
 import type { LoggerPort } from '@core-domain';
 
+import {
+  getInternalLinkBasename,
+  stripMarkdownExtensionPreservingFragment,
+} from '../utils/internal-link-path.util';
+
 /**
  * Dataview Link object (from Dataview API).
  */
@@ -62,7 +67,7 @@ export class MarkdownLinkNormalizer {
     }
 
     // Regular wikilinks → [[path|display]]
-    const normalizedPath = this.removeExtension(path, '.md');
+    const normalizedPath = stripMarkdownExtensionPreservingFragment(path);
     const displayTitle = link.display || this.extractBasename(normalizedPath);
 
     // Only add alias if display differs from path (avoid redundant [[Page|Page]])
@@ -116,20 +121,6 @@ export class MarkdownLinkNormalizer {
   }
 
   /**
-   * Remove extension from path if it matches.
-   *
-   * @param path - Vault path (may contain extension)
-   * @param ext - Extension to remove (e.g., '.md')
-   * @returns Path without extension
-   */
-  private removeExtension(path: string, ext: string): string {
-    if (path.endsWith(ext)) {
-      return path.substring(0, path.length - ext.length);
-    }
-    return path;
-  }
-
-  /**
    * Extract basename from path (last segment, without extension).
    *
    * EXAMPLES:
@@ -141,8 +132,7 @@ export class MarkdownLinkNormalizer {
    * @returns Basename (file name without directory)
    */
   private extractBasename(path: string): string {
-    // Handle both Unix and Windows path separators
-    const segments = path.split(/[/\\]/);
-    return segments[segments.length - 1] || path;
+    const withoutFragment = path.split('#')[0] || path;
+    return getInternalLinkBasename(withoutFragment);
   }
 }
