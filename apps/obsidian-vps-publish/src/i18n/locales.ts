@@ -844,11 +844,11 @@ export const en: Translations = {
       markdown: {
         title: 'Markdown Rendering',
         content:
-          'Advanced Markdown features are fully supported:\n\n• Wikilinks to headings: [[#Heading]] or [[Page#Heading]]\n• Footnotes with CSS-safe IDs: [^1]\n• Tags filtering: Inline tags configured in Settings > Ignore Rules > Tags are automatically removed from rendered HTML (headings, blockquotes, paragraphs, etc.)\n\nAll these features work seamlessly with Obsidian syntax.',
+          'Advanced Markdown features are fully supported:\n\n• Wikilinks to headings: [[#Heading]] or [[Page#Heading]]\n• Wikilinks to block IDs: [[#^block-id]] or [[Page#^block-id]]\n• Footnotes with CSS-safe IDs: [^1]\n• Tags filtering: Inline tags configured in Settings > Ignore Rules > Tags are automatically removed from rendered HTML (headings, blockquotes, paragraphs, etc.)\n\nBlock IDs become HTML anchors and stay hidden in rendered content. The reserved marker ^no-publishing is excluded from anchor navigation.\n\nAll these features work seamlessly with Obsidian syntax.',
         examples: [
           {
-            code: '[[#Introduction]] or [[Page#Section]]',
-            description: 'Link to heading in current page or another page',
+            code: '[[#Introduction]] or [[Page#Section]]\n[[#^37066d]] or [[Page#^quote-block]]',
+            description: 'Link to a heading or a block ID in the current page or another page',
           },
           {
             code: 'Text with footnote[^1]\n\n[^1]: Footnote content',
@@ -1393,11 +1393,12 @@ export const fr: Translations = {
       },
       markdown: {
         title: 'Rendu Markdown',
-        content: `Les fonctionnalités avancées de Markdown sont pleinement supportées :\n\n• Wikilinks vers des headings : [[#Titre]] ou [[Page#Section]]\n• Notes de bas de page avec IDs CSS-safe : [^1]\n• Filtrage des tags : Les tags inline configurés dans Paramètres > Règles d'Ignorance > Tags sont automatiquement supprimés du HTML rendu (titres, blockquotes, paragraphes, etc.)\n\nToutes ces fonctionnalités fonctionnent de manière transparente avec la syntaxe Obsidian.`,
+        content: `Les fonctionnalités avancées de Markdown sont pleinement supportées :\n\n• Wikilinks vers des headings : [[#Titre]] ou [[Page#Section]]\n• Wikilinks vers des block IDs : [[#^block-id]] ou [[Page#^block-id]]\n• Notes de bas de page avec IDs CSS-safe : [^1]\n• Filtrage des tags : Les tags inline configurés dans Paramètres > Règles d'Ignorance > Tags sont automatiquement supprimés du HTML rendu (titres, blockquotes, paragraphes, etc.)\n\nLes block IDs deviennent des ancres HTML et restent invisibles dans le rendu. Le marqueur réservé ^no-publishing est exclu de cette navigation.\n\nToutes ces fonctionnalités fonctionnent de manière transparente avec la syntaxe Obsidian.`,
         examples: [
           {
-            code: '[[#Introduction]] ou [[Page#Section]]',
-            description: 'Lien vers un titre dans la page actuelle ou une autre page',
+            code: '[[#Introduction]] ou [[Page#Section]]\n[[#^37066d]] ou [[Page#^quote-block]]',
+            description:
+              'Lien vers un titre ou un block ID dans la page actuelle ou une autre page',
           },
           {
             code: 'Texte avec note[^1]\n\n[^1]: Contenu de la note',
