@@ -38,6 +38,11 @@ export interface WikilinkRef {
   alias?: string;
 
   /**
+   * Whether the original syntax used Obsidian embed form ![[...]].
+   */
+  embed?: boolean;
+
+  /**
    * Coarse classification: "note" (default) or "file" if it looks like a file.
    */
   kind: WikilinkKind;
