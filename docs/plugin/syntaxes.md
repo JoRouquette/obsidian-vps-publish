@@ -144,6 +144,8 @@ type: Dashboard
 - `[[Note#Header|Custom Text]]` : Lien vers header avec texte custom
 - `[[Folder/Note]]` : Lien avec chemin
 - `[[#Header]]` : Lien vers header dans la page courante
+- `[[Page#^block-id]]` : Lien vers un block ID Obsidian dans une autre note
+- `[[#^block-id]]` : Lien vers un block ID Obsidian dans la page courante
 
 **Exemples** :
 
@@ -151,9 +153,18 @@ type: Dashboard
 See [[Other Note]] for details.
 Check [[Deep Concepts#Section|this section]].
 Jump to [[#Introduction]].
+Jump to [[#^37066d]].
+Open [[Daily note#^quote-block|that block]].
 ```
 
-→ Tous convertis en liens HTML valides avec ancres CSS-safe.
+Les liens vers headings et block IDs sont convertis en liens HTML valides.
+
+Pour les block IDs Obsidian :
+
+- un paragraphe simple utilise un suffixe inline, par exemple `Paragraph text ^37066d`
+- un bloc structuré (liste, citation, callout, tableau) utilise une ligne `^37066f` seule, encadrée par des lignes vides
+- le block ID n'est pas visible dans le HTML rendu : il devient un attribut `id`
+- `^no-publishing` reste réservé au filtrage de publication et n'est jamais traité comme un block ID navigable
 
 ## Assets et images
 
