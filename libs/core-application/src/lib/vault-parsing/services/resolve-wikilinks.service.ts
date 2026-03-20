@@ -39,16 +39,18 @@ export class ResolveWikilinksService implements BaseService {
     for (const note of notes) {
       const wikilinks = wikilinksByNotes[note.noteId] || [];
       const resolvedWikilinks: ResolvedWikilink[] = wikilinks.map((wikilink) => {
-        const targetNote = this.findTargetNote(wikilink.path, lookup);
+        const targetNote = this.findTargetNoteForWikilink(wikilink, note, lookup);
         const targetPath = targetNote?.routing?.fullPath;
         // A link is only resolved if the target note exists AND has routing defined (will be published)
         // fullPath can be an empty string for root-level notes, so check routing existence instead
         const isResolved = !!targetNote && targetNote.routing !== undefined;
         const targetNoteId = targetNote?.noteId;
         const href =
-          targetPath && wikilink.subpath
-            ? `${targetPath}#${wikilink.subpath}`
-            : (targetPath ?? undefined);
+          !wikilink.path && wikilink.subpath
+            ? `#${wikilink.subpath}`
+            : targetPath && wikilink.subpath
+              ? `${targetPath}#${wikilink.subpath}`
+              : (targetPath ?? undefined);
 
         if (isResolved) {
           resolvedCount++;
@@ -167,6 +169,18 @@ export class ResolveWikilinksService implements BaseService {
       }
     }
     return Array.from(set.values());
+  }
+
+  private findTargetNoteForWikilink(
+    wikilink: WikilinkRef,
+    currentNote: PublishableNote,
+    lookup: Map<string, PublishableNote>
+  ): PublishableNote | undefined {
+    if (!wikilink.path && wikilink.subpath) {
+      return currentNote;
+    }
+
+    return this.findTargetNote(wikilink.path, lookup);
   }
 
   private findTargetNote(target: string, lookup: Map<string, PublishableNote>) {

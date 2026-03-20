@@ -109,4 +109,23 @@ describe('ResolveWikilinksService', () => {
     expect(note.resolvedWikilinks?.[0].frontmatterPath).toBe('related');
     expect(note.resolvedWikilinks?.[0].isResolved).toBe(true);
   });
+
+  it('resolves same-page fragment-only caret links to the current note', () => {
+    const noteWithCaretLink: PublishableNote = {
+      ...baseNote,
+      content: 'Jump to [[#^37066d]]',
+      routing: {
+        slug: 'a',
+        path: '/blog/a',
+        routeBase: '/blog',
+        fullPath: '/blog/a',
+      },
+    };
+
+    const [note] = service.process([noteWithCaretLink, targetNote]);
+
+    expect(note.resolvedWikilinks?.[0].isResolved).toBe(true);
+    expect(note.resolvedWikilinks?.[0].targetNoteId).toBe(noteWithCaretLink.noteId);
+    expect(note.resolvedWikilinks?.[0].href).toBe('#^37066d');
+  });
 });
