@@ -128,12 +128,12 @@ export class DetectWikilinksService implements BaseService {
       const path = pathPart.trim();
       const subpath = subpathPart && subpathPart.trim().length > 0 ? subpathPart.trim() : undefined;
 
-      if (!path) {
+      if (!path && !subpath) {
         skippedEmptyPath++;
         continue;
       }
 
-      const kind = this.inferKind(path);
+      const kind = path ? this.inferKind(path) : 'note';
 
       const wikilink: WikilinkRef = {
         origin,
@@ -204,11 +204,11 @@ export class DetectWikilinksService implements BaseService {
       const path = pathPart.trim();
       const subpath = subpathPart && subpathPart.trim().length > 0 ? subpathPart.trim() : undefined;
 
-      if (!path) {
+      if (!path && !subpath) {
         continue;
       }
 
-      const kind = this.inferKind(path);
+      const kind = path ? this.inferKind(path) : 'note';
 
       const wikilink: WikilinkRef = {
         origin,
