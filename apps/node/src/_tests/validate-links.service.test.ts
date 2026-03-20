@@ -106,7 +106,9 @@ describe('ValidateLinksService', () => {
 
       const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
       expect(fixedHtml).toContain('class="wikilink wikilink-unresolved"');
-      expect(fixedHtml).toContain('title="Page inconnue : Unknown Page"');
+      expect(fixedHtml).toContain('title="Cette page sera bientot disponible"');
+      expect(fixedHtml).toContain('data-tooltip="Cette page sera bientot disponible"');
+      expect(fixedHtml).toContain('tabindex="0"');
       expect(fixedHtml).not.toContain('<a href="/unknown-page"');
     });
 
@@ -208,7 +210,8 @@ describe('ValidateLinksService', () => {
 
       const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
       expect(fixedHtml).toContain('class="wikilink wikilink-unresolved"');
-      expect(fixedHtml).toContain('title="Page inconnue : Invalid Section"');
+      expect(fixedHtml).toContain('title="Cette page sera bientot disponible"');
+      expect(fixedHtml).toContain('data-tooltip="Cette page sera bientot disponible"');
       expect(fixedHtml).not.toContain('<a href="/invalid/page#section"');
     });
 
