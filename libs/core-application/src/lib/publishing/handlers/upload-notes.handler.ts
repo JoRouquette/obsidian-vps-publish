@@ -7,6 +7,7 @@ import {
   type PublishableNote,
   type ResolvedWikilink,
   Slug,
+  UNAVAILABLE_INTERNAL_PAGE_MESSAGE,
 } from '@core-domain';
 import { humanizePropertyKey } from '@core-domain/utils/string.utils';
 
@@ -68,8 +69,10 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
 
     // Load manifest for vault-to-route path translation
     const manifest = await manifestStorage.load();
+    const renderManifest = this.buildRenderManifest(sessionId, manifest, notes);
     logger?.debug('Manifest loaded for path translation', {
       pagesCount: manifest?.pages.length ?? 0,
+      renderPagesCount: renderManifest?.pages.length ?? 0,
     });
 
     // Process notes in parallel with controlled concurrency
@@ -86,7 +89,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
             noteLogger?.debug('Rendering markdown');
             const bodyHtml = await this.markdownRenderer.render(note, {
               ignoredTags: this.ignoredTags,
-              manifest: manifest ?? undefined,
+              manifest: renderManifest,
             });
             noteLogger?.debug('Building HTML page');
             const fullHtml = this.buildHtmlPage(note, bodyHtml);
@@ -220,6 +223,50 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     }
 
     return { sessionId, published, errors };
+  }
+
+  private buildRenderManifest(
+    sessionId: string,
+    existingManifest: Manifest | null,
+    notes: PublishableNote[]
+  ): Manifest | undefined {
+    const basePages =
+      existingManifest && existingManifest.sessionId === sessionId ? existingManifest.pages : [];
+    const pagesById = new Map<string, ManifestPage>(basePages.map((page) => [page.id, page]));
+
+    for (const note of notes) {
+      pagesById.set(note.noteId, this.buildRenderManifestPage(note));
+    }
+
+    if (pagesById.size === 0) {
+      return undefined;
+    }
+
+    const createdAt = existingManifest?.createdAt ?? new Date();
+    const lastUpdatedAt = existingManifest?.lastUpdatedAt ?? createdAt;
+
+    return {
+      sessionId,
+      createdAt,
+      lastUpdatedAt,
+      pages: Array.from(pagesById.values()),
+      folderDisplayNames: existingManifest?.folderDisplayNames,
+      canonicalMap: existingManifest?.canonicalMap,
+    };
+  }
+
+  private buildRenderManifestPage(note: PublishableNote): ManifestPage {
+    return {
+      id: note.noteId,
+      title: note.title,
+      route: note.routing.fullPath,
+      slug: Slug.from(note.routing.slug),
+      publishedAt: note.publishedAt,
+      vaultPath: note.vaultPath,
+      relativePath: note.relativePath,
+      tags: note.frontmatter.tags ?? [],
+      leafletBlocks: note.leafletBlocks,
+    };
   }
 
   private async updateManifestForSession(
@@ -483,10 +530,16 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     if (link.isResolved) {
       const hrefTarget = link.href ?? link.path ?? link.target;
       const href = this.escapeAttribute(encodeURI(hrefTarget));
-      return `<a class="fm-link fm-wikilink" href="${href}">${label}</a>`;
+      return `<a class="fm-link fm-wikilink wikilink" href="${href}" data-wikilink="${this.escapeAttribute(
+        link.target
+      )}">${label}</a>`;
     }
 
-    return `<span class="fm-value fm-wikilink-unresolved">${label}</span>`;
+    return `<span class="fm-value fm-wikilink-unresolved wikilink wikilink-unresolved" role="link" aria-disabled="true" tabindex="0" title="${this.escapeAttribute(
+      UNAVAILABLE_INTERNAL_PAGE_MESSAGE
+    )}" data-tooltip="${this.escapeAttribute(
+      UNAVAILABLE_INTERNAL_PAGE_MESSAGE
+    )}" data-wikilink="${this.escapeAttribute(link.target)}">${label}</span>`;
   }
 
   private extractEmbedTarget(raw: string): string | null {

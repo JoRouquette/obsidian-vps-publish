@@ -1,4 +1,5 @@
-import { type PublishableNote } from '@core-domain';
+import type { PublishableNote } from '@core-domain';
+import { Slug } from '@core-domain';
 import { load } from 'cheerio';
 
 import { MarkdownItRenderer } from '../infra/markdown/markdown-it.renderer';
@@ -292,7 +293,8 @@ describe('MarkdownItRenderer', () => {
     // Unresolved wikilink: rendered as <span> (not <a>)
     expect(html).toContain('<span class="wikilink wikilink-unresolved"');
     expect(html).toContain('data-wikilink="Missing"');
-    expect(html).toContain('data-tooltip="Cette page arrive prochainement"');
+    expect(html).toContain('data-tooltip="Cette page sera bientot disponible"');
+    expect(html).toContain('tabindex="0"');
     expect(html).toContain('>Missing</span>'); // Display basename in span
     expect(html).not.toContain('[[Missing]]'); // No raw wikilink syntax
   });
@@ -320,6 +322,36 @@ describe('MarkdownItRenderer', () => {
       '<a class="wikilink" data-wikilink="Folder/Page#Section Title" href="/notes/folder/page#section-title">Alias section</a>'
     );
     expect(html).not.toContain('[Alias section]');
+  });
+
+  it('resolves raw internal markdown links through the shared normalization pass', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = 'Read [Alias section](Folder/Page.md#Section Title).';
+
+    const html = await renderer.render(note, {
+      manifest: {
+        sessionId: 'test',
+        createdAt: new Date(),
+        lastUpdatedAt: new Date(),
+        pages: [
+          {
+            id: 'page-1',
+            title: 'Page',
+            slug: Slug.from('page'),
+            route: '/notes/folder/page',
+            vaultPath: 'Folder/Page.md',
+            relativePath: 'Folder/Page.md',
+            publishedAt: new Date(),
+          },
+        ],
+      },
+    });
+
+    expect(html).toContain(
+      '<a href="/notes/folder/page#section-title" data-href="/notes/folder/page#section-title" data-wikilink="Folder/Page" class="wikilink">Alias section</a>'
+    );
+    expect(html).not.toContain('wikilink-unresolved');
   });
 
   it('renders note embeds as resolved internal embed links instead of raw ![[...]] text', async () => {

@@ -1,11 +1,12 @@
 import type { MarkdownRendererPort, RenderContext } from '@core-application';
-import type {
+import {
   AssetRef,
   LoggerPort,
   Manifest,
   ManifestPage,
   PublishableNote,
   ResolvedWikilink,
+  UNAVAILABLE_INTERNAL_PAGE_MESSAGE,
 } from '@core-domain';
 import { load } from 'cheerio';
 import MarkdownIt from 'markdown-it';
@@ -260,8 +261,8 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
   }
 
   /**
-   * Handle markdown links to .md files by rendering them as unresolved wikilink spans.
-   * This is necessary when markdown links weren't converted upstream or when resolvedWikilinks is empty.
+   * Convert internal markdown links to raw anchors so they can follow the same
+   * normalization and manifest-based resolution pass as wikilinks and Dataview links.
    */
   private handleMarkdownLinks(content: string): string {
     const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\(([^)]+\.md(?:#[^)]*)?)\)/gi;
@@ -271,18 +272,20 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
         return match;
       }
 
-      // Remove .md extension
-      const target = href.replace(/\.md$/i, '');
-
-      // Render as unresolved wikilink span
-      return this.renderUnresolvedWikilink(target, text);
+      const escapedText = this.escapeHtml(text);
+      const escapedHref = this.escapeAttribute(href);
+      return `<a href="${escapedHref}" data-href="${escapedHref}">${escapedText}</a>`;
     });
   }
 
   private renderUnresolvedWikilink(target: string, label: string): string {
     const escapedLabel = this.escapeHtml(label);
     const escapedTarget = this.escapeHtml(target);
-    return `<span class="wikilink wikilink-unresolved" role="link" aria-disabled="true" title="Cette page arrive prochainement" data-tooltip="Cette page arrive prochainement" data-wikilink="${escapedTarget}">${escapedLabel}</span>`;
+    return `<span class="wikilink wikilink-unresolved" role="link" aria-disabled="true" tabindex="0" title="${this.escapeAttribute(
+      UNAVAILABLE_INTERNAL_PAGE_MESSAGE
+    )}" data-tooltip="${this.escapeAttribute(
+      UNAVAILABLE_INTERNAL_PAGE_MESSAGE
+    )}" data-wikilink="${escapedTarget}">${escapedLabel}</span>`;
   }
 
   /**
@@ -322,8 +325,62 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       this.processLinkElement($(element), manifest, currentRoutePath);
     });
 
+    if (manifest) {
+      this.resolveDeferredWikilinks($, manifest, currentRoutePath);
+    }
+
     // Return body content only to avoid html/head/body wrapper tags
     return $('body').html() ?? $.html();
+  }
+
+  private resolveDeferredWikilinks(
+    $: ReturnType<typeof load>,
+    manifest: Manifest,
+    currentRoutePath?: string
+  ): void {
+    $('[data-wikilink]').each((_, element) => {
+      const $element = $(element);
+      if ($element.is('a')) {
+        return;
+      }
+
+      const rawTarget = $element.attr('data-wikilink');
+      if (!rawTarget) {
+        return;
+      }
+
+      const cleanedTarget = this.cleanLinkPath(rawTarget);
+      if (!cleanedTarget) {
+        return;
+      }
+
+      const resolved = this.translateToRoutedPathWithValidation(
+        cleanedTarget,
+        manifest,
+        currentRoutePath
+      );
+      if (!resolved.matchedPage) {
+        this.normalizeUnavailableWikilinkElement($element, cleanedTarget);
+        return;
+      }
+
+      const classNames = ($element.attr('class') || '')
+        .split(/\s+/)
+        .filter(Boolean)
+        .filter((cls) => cls !== 'wikilink-unresolved');
+
+      if (!classNames.includes('wikilink')) {
+        classNames.push('wikilink');
+      }
+
+      const $anchor = $('<a></a>');
+      $anchor.attr('href', this.encodeInternalHref(resolved.path));
+      $anchor.attr('data-wikilink', cleanedTarget);
+      $anchor.attr('class', classNames.join(' '));
+      $anchor.html($element.html() || this.escapeHtml($element.text()));
+
+      $element.replaceWith($anchor);
+    });
   }
 
   /**
@@ -533,6 +590,28 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       classList.push('wikilink');
     }
     $link.attr('class', classList.join(' '));
+  }
+
+  private normalizeUnavailableWikilinkElement(
+    $element: ReturnType<ReturnType<typeof load>>,
+    target: string
+  ): void {
+    const classNames = ($element.attr('class') || '').split(/\s+/).filter(Boolean);
+
+    if (!classNames.includes('wikilink')) {
+      classNames.push('wikilink');
+    }
+    if (!classNames.includes('wikilink-unresolved')) {
+      classNames.push('wikilink-unresolved');
+    }
+
+    $element.attr('class', classNames.join(' '));
+    $element.attr('role', 'link');
+    $element.attr('aria-disabled', 'true');
+    $element.attr('tabindex', '0');
+    $element.attr('title', UNAVAILABLE_INTERNAL_PAGE_MESSAGE);
+    $element.attr('data-tooltip', UNAVAILABLE_INTERNAL_PAGE_MESSAGE);
+    $element.attr('data-wikilink', target);
   }
 
   /**
@@ -754,10 +833,10 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       return `<a class="wikilink" data-wikilink="${this.escapeAttribute(link.target)}" href="${href}">${label}</a>`;
     }
 
-    const tooltip = 'Cette page arrive prochainement';
+    const tooltip = UNAVAILABLE_INTERNAL_PAGE_MESSAGE;
     return `<span class="wikilink wikilink-unresolved" role="link" aria-disabled="true" title="${this.escapeAttribute(
       tooltip
-    )}" data-tooltip="${this.escapeAttribute(tooltip)}" data-wikilink="${this.escapeAttribute(
+    )}" tabindex="0" data-tooltip="${this.escapeAttribute(tooltip)}" data-wikilink="${this.escapeAttribute(
       link.target
     )}">${label}</span>`;
   }
@@ -785,10 +864,10 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
   }
 
   private renderUnresolvedEmbed(link: ResolvedWikilink, escapedLabel: string): string {
-    const tooltip = 'Cette inclusion interne est introuvable';
+    const tooltip = UNAVAILABLE_INTERNAL_PAGE_MESSAGE;
     return `<span class="wikilink wikilink-unresolved wikilink-embed" role="link" aria-disabled="true" title="${this.escapeAttribute(
       tooltip
-    )}" data-tooltip="${this.escapeAttribute(tooltip)}" data-wikilink="${this.escapeAttribute(
+    )}" tabindex="0" data-tooltip="${this.escapeAttribute(tooltip)}" data-wikilink="${this.escapeAttribute(
       link.target
     )}">${escapedLabel}</span>`;
   }
