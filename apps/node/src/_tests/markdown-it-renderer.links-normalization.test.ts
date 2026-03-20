@@ -622,5 +622,34 @@ describe('MarkdownItRenderer - cleanAndNormalizeLinks()', () => {
       expect(result).toContain('href="/guide/reference"');
       expect(result).toContain('data-wikilink="Guide/Reference"');
     });
+
+    it('should re-resolve deferred unresolved wikilink spans when the manifest contains the page', () => {
+      const mockManifest = {
+        sessionId: 'test',
+        createdAt: new Date(),
+        lastUpdatedAt: new Date(),
+        pages: [
+          {
+            id: '1',
+            title: 'Target Page',
+            slug: 'target-page',
+            route: '/notes/target-page',
+            vaultPath: 'Target Page.md',
+            relativePath: 'Target Page.md',
+            publishedAt: new Date(),
+          },
+        ],
+      };
+
+      const result = (renderer as any).cleanAndNormalizeLinks(
+        '<span class="wikilink wikilink-unresolved" data-wikilink="Target Page">Target Page</span>',
+        mockManifest
+      );
+
+      expect(result).toContain(
+        '<a href="/notes/target-page" data-wikilink="Target Page" class="wikilink">Target Page</a>'
+      );
+      expect(result).not.toContain('wikilink-unresolved');
+    });
   });
 });

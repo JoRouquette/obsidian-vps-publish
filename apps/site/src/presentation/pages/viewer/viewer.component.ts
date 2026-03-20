@@ -23,6 +23,7 @@ import { MatTooltip, MatTooltipModule } from '@angular/material/tooltip';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { NavigationEnd, Router } from '@angular/router';
 import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
+import { UNAVAILABLE_INTERNAL_PAGE_MESSAGE } from '@core-domain';
 import {
   catchError,
   distinctUntilChanged,
@@ -61,7 +62,7 @@ export class ViewerComponent implements OnDestroy {
   @ViewChild(ImageOverlayComponent) imageOverlay?: ImageOverlayComponent;
 
   title = signal<string>('');
-  readonly tooltipMessage = 'Cette page arrive prochainement';
+  readonly tooltipMessage = UNAVAILABLE_INTERNAL_PAGE_MESSAGE;
 
   // Signal pour les blocs Leaflet de la page actuelle
   leafletBlocks = signal<LeafletBlock[]>([]);
@@ -228,20 +229,33 @@ export class ViewerComponent implements OnDestroy {
       container.querySelectorAll<HTMLElement>('.wikilink-unresolved')
     );
     for (const link of unresolvedLinks) {
-      const prevent = (event: Event) => event.preventDefault();
+      const preventAndShow = (event: Event) => {
+        event.preventDefault();
+        this.showTooltip(event);
+      };
       const show = (event: Event) => this.showTooltip(event);
       const hide = () => this.hideTooltip();
+      const showFromKeyboard = (event: KeyboardEvent) => {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+          return;
+        }
 
-      link.addEventListener('click', prevent);
+        event.preventDefault();
+        this.showTooltip(event);
+      };
+
+      link.addEventListener('click', preventAndShow);
       link.addEventListener('mouseenter', show);
       link.addEventListener('focus', show);
+      link.addEventListener('keydown', showFromKeyboard);
       link.addEventListener('mouseleave', hide);
       link.addEventListener('blur', hide);
 
       this.cleanupFns.push(() => {
-        link.removeEventListener('click', prevent);
+        link.removeEventListener('click', preventAndShow);
         link.removeEventListener('mouseenter', show);
         link.removeEventListener('focus', show);
+        link.removeEventListener('keydown', showFromKeyboard);
         link.removeEventListener('mouseleave', hide);
         link.removeEventListener('blur', hide);
       });
