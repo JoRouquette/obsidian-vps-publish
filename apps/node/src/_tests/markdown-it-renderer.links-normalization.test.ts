@@ -375,8 +375,8 @@ describe('MarkdownItRenderer - cleanAndNormalizeLinks()', () => {
       `;
       const result = (renderer as any).cleanAndNormalizeLinks(input);
 
-      expect(result).toContain('href="Book A"');
-      expect(result).toContain('href="Book B"');
+      expect(result).toContain('href="Book%20A"');
+      expect(result).toContain('href="Book%20B"');
       expect(result).toContain('data-wikilink="Book B"');
       expect(result).toContain('class="custom-book-link wikilink"');
       expect(result).not.toContain('.md');
@@ -478,6 +478,33 @@ describe('MarkdownItRenderer - cleanAndNormalizeLinks()', () => {
       expect(result).not.toContain('.md');
     });
 
+    it('should normalize dataview links with encoded unicode paths and fragments', () => {
+      const mockManifest = {
+        sessionId: 'test',
+        createdAt: new Date(),
+        lastUpdatedAt: new Date(),
+        pages: [
+          {
+            id: '1',
+            title: 'Helena',
+            slug: 'helena',
+            route: '/personnages/helena',
+            vaultPath: 'My Notes/Héléna.md',
+            relativePath: 'My Notes/Héléna.md',
+            publishedAt: new Date(),
+          },
+        ],
+      };
+
+      const input =
+        '<a href="My%20Notes/H%C3%A9l%C3%A9na.md#Capacit%C3%A9%20sp%C3%A9ciale">Alias</a>';
+      const result = (renderer as any).cleanAndNormalizeLinks(input, mockManifest);
+
+      expect(result).toContain('href="/personnages/helena#capacite-speciale"');
+      expect(result).toContain('data-wikilink="My Notes/Héléna"');
+      expect(result).toContain('>Alias</a>');
+    });
+
     it('should handle case-insensitive vault path matching', () => {
       const mockManifest = {
         sessionId: 'test',
@@ -529,6 +556,71 @@ describe('MarkdownItRenderer - cleanAndNormalizeLinks()', () => {
       expect(result).toContain('>Unknown<');
       expect(result).not.toContain('<a');
       expect(result).not.toContain('.md');
+    });
+
+    it('should leave ambiguous basename-only targets unresolved instead of picking a route', () => {
+      const mockManifest = {
+        sessionId: 'test',
+        createdAt: new Date(),
+        lastUpdatedAt: new Date(),
+        pages: [
+          {
+            id: '1',
+            title: 'Shared',
+            slug: 'shared-a',
+            route: '/folder-a/shared',
+            vaultPath: 'Folder A/Shared.md',
+            relativePath: 'Folder A/Shared.md',
+            publishedAt: new Date(),
+          },
+          {
+            id: '2',
+            title: 'Shared',
+            slug: 'shared-b',
+            route: '/folder-b/shared',
+            vaultPath: 'Folder B/Shared.md',
+            relativePath: 'Folder B/Shared.md',
+            publishedAt: new Date(),
+          },
+        ],
+      };
+
+      const result = (renderer as any).cleanAndNormalizeLinks(
+        '<a href="Shared.md">Shared</a>',
+        mockManifest
+      );
+
+      expect(result).toContain('wikilink-unresolved');
+      expect(result).not.toContain('href="/folder-a/shared"');
+      expect(result).not.toContain('href="/folder-b/shared"');
+    });
+
+    it('should resolve explicit relative internal links against the current page route', () => {
+      const mockManifest = {
+        sessionId: 'test',
+        createdAt: new Date(),
+        lastUpdatedAt: new Date(),
+        pages: [
+          {
+            id: '1',
+            title: 'Reference',
+            slug: 'reference',
+            route: '/guide/reference',
+            vaultPath: 'Guide/Reference.md',
+            relativePath: 'Guide/Reference.md',
+            publishedAt: new Date(),
+          },
+        ],
+      };
+
+      const result = (renderer as any).cleanAndNormalizeLinks(
+        '<a href="../reference.md">Reference</a>',
+        mockManifest,
+        '/guide/advanced/getting-started'
+      );
+
+      expect(result).toContain('href="/guide/reference"');
+      expect(result).toContain('data-wikilink="Guide/Reference"');
     });
   });
 });

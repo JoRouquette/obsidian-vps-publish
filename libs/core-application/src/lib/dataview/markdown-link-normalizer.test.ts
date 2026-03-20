@@ -54,6 +54,14 @@ describe('MarkdownLinkNormalizer', () => {
       expect(result).not.toContain('Maladram.md');
     });
 
+    it('should remove .md before fragments and preserve unicode paths', () => {
+      const link: DataviewLink = { path: 'My Notes/HÃ©lÃ©na.md#CapacitÃ© spÃ©ciale' };
+      const result = normalizer.normalize(link);
+
+      expect(result).toBe('[[My Notes/HÃ©lÃ©na#CapacitÃ© spÃ©ciale|HÃ©lÃ©na]]');
+      expect(result).not.toContain('.md#');
+    });
+
     it('should handle paths without .md extension', () => {
       const link: DataviewLink = { path: 'Notes/Page' };
       const result = normalizer.normalize(link);
@@ -183,6 +191,16 @@ describe('MarkdownLinkNormalizer', () => {
       const result = normalizer.normalizeValue(value);
 
       expect(result).toBe('[[Page]], text, 42');
+    });
+
+    it('should normalize links with encoded spaces and fragments', () => {
+      const value: DataviewLink = {
+        path: 'Folder/Space%20Page.md#Heading%20One',
+        display: 'Alias',
+      };
+      const result = normalizer.normalizeValue(value);
+
+      expect(result).toBe('[[Folder/Space%20Page#Heading%20One|Alias]]');
     });
   });
 

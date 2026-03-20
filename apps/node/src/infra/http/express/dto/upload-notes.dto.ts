@@ -74,6 +74,7 @@ export const WikilinkRefDto = z.object({
   path: z.string(),
   subpath: z.string().optional(),
   alias: z.string().optional(),
+  embed: z.boolean().optional(),
   kind: z.enum(['note', 'file']),
 });
 

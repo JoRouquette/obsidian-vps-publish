@@ -3,6 +3,11 @@ import type { WikilinkKind, WikilinkRef } from '@core-domain/entities/wikilink-r
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 
 import { type BaseService } from '../../common/base-service';
+import {
+  normalizeInternalLinkPath,
+  splitInternalLinkTarget,
+  stripMarkdownExtensionPreservingFragment,
+} from '../../utils/internal-link-path.util';
 import { extractFrontmatterStrings } from '../utils/frontmatter-strings.util';
 
 /**
@@ -78,6 +83,10 @@ export class DetectWikilinksService implements BaseService {
     return 'note';
   }
 
+  private isAssetEmbed(path: string): boolean {
+    return /\.(png|jpe?g|gif|webp|svg|mp3|wav|flac|ogg|mp4|webm|mkv|mov|pdf)$/i.test(path);
+  }
+
   private splitOnce(input: string, separator: string): [string, string | undefined] {
     const index = input.indexOf(separator);
     if (index === -1) return [input, undefined];
@@ -109,11 +118,7 @@ export class DetectWikilinksService implements BaseService {
       }
 
       const startIndex = match.index ?? 0;
-      // Exclude "![[...]]" (assets) by checking previous character
-      if (startIndex > 0 && markdown[startIndex - 1] === '!') {
-        skippedAssetEmbed++;
-        continue;
-      }
+      const isEmbed = startIndex > 0 && markdown[startIndex - 1] === '!';
 
       const [targetPart, aliasPart] = this.splitOnce(inner, '|');
       const targetRaw = targetPart.trim();
@@ -127,6 +132,11 @@ export class DetectWikilinksService implements BaseService {
       const [pathPart, subpathPart] = this.splitOnce(targetRaw, '#');
       const path = pathPart.trim();
       const subpath = subpathPart && subpathPart.trim().length > 0 ? subpathPart.trim() : undefined;
+
+      if (isEmbed && path && this.isAssetEmbed(path)) {
+        skippedAssetEmbed++;
+        continue;
+      }
 
       if (!path && !subpath) {
         skippedEmptyPath++;
@@ -143,6 +153,7 @@ export class DetectWikilinksService implements BaseService {
         path,
         subpath,
         alias,
+        embed: isEmbed,
         kind,
       };
 
@@ -198,11 +209,11 @@ export class DetectWikilinksService implements BaseService {
         continue;
       }
 
-      // Remove .md extension and parse subpath
-      const hrefWithoutExt = href.replace(/\.md$/i, '');
-      const [pathPart, subpathPart] = this.splitOnce(hrefWithoutExt, '#');
-      const path = pathPart.trim();
-      const subpath = subpathPart && subpathPart.trim().length > 0 ? subpathPart.trim() : undefined;
+      // Remove .md extension while preserving any fragment, then split.
+      const hrefWithoutExt = stripMarkdownExtensionPreservingFragment(href);
+      const split = splitInternalLinkTarget(hrefWithoutExt);
+      const path = normalizeInternalLinkPath(split.path);
+      const subpath = split.fragment;
 
       if (!path && !subpath) {
         continue;
