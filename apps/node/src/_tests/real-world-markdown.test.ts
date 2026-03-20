@@ -13,7 +13,7 @@ describe('Real-world Markdown Rendering (le-code.md)', () => {
     markdown = await fs.readFile(testFilePath, 'utf-8');
   });
 
-  it('should strip .md extension from markdown links', async () => {
+  it('should normalize markdown links without forcing an unresolved state when no manifest is provided', async () => {
     const testMarkdown = "- **_L'[Ambassade](Ambassade.md)._**";
     const note = {
       noteId: 'test',
@@ -30,9 +30,10 @@ describe('Real-world Markdown Rendering (le-code.md)', () => {
 
     const html = await renderer.render(note);
 
-    // Markdown links to unpublished notes should render as unresolved spans
-    expect(html).toContain('<span class="wikilink wikilink-unresolved"');
-    expect(html).toContain('data-wikilink="Ambassade"');
+    // Without a manifest, internal markdown links stay as normalized anchors.
+    expect(html).toContain(
+      '<a href="Ambassade" data-href="Ambassade" data-wikilink="Ambassade" class="wikilink">Ambassade</a>'
+    );
     expect(html).not.toContain('href="Ambassade.md"');
   });
 
@@ -121,9 +122,10 @@ describe('Real-world Markdown Rendering (le-code.md)', () => {
 
     const html = await renderer.render(note);
 
-    // Markdown link to unpublished note should render as unresolved span
-    expect(html).toContain('<span class="wikilink wikilink-unresolved"');
-    expect(html).toContain('data-wikilink="Cartulaire"');
+    // Without a manifest, internal markdown links stay as normalized anchors.
+    expect(html).toContain(
+      '<a href="Cartulaire" data-href="Cartulaire" data-wikilink="Cartulaire" class="wikilink">Cartulaire</a>'
+    );
     expect(html).not.toContain('href="Cartulaire.md"');
   });
 
@@ -164,13 +166,14 @@ describe('Real-world Markdown Rendering (le-code.md)', () => {
       // Wikilink resolved
       expect(html).toContain('href="/evenements/cataclysme"');
 
-      // Markdown link to unpublished note becomes unresolved span
-      expect(html).toContain('<span class="wikilink wikilink-unresolved"');
-      expect(html).toContain('data-wikilink="Ambassade"');
+      // Markdown link without manifest is normalized as an internal anchor.
+      expect(html).toContain(
+        '<a href="Ambassade" data-href="Ambassade" data-wikilink="Ambassade" class="wikilink">Ambassade</a>'
+      );
       expect(html).not.toContain('href="Ambassade.md"');
 
       // Wikilink unresolved becomes span
-      expect(html).toContain('wikilink-unresolved');
+      expect(html).toContain('<span class="wikilink wikilink-unresolved"');
       expect(html).toContain('data-wikilink="Capitaine Alastor"');
     });
   });
