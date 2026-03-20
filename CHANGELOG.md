@@ -1,3 +1,13 @@
+## [6.16.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.15.0...6.16.0) (2026-03-20)
+
+### Features
+
+* **site:** standardize unavailable internal link states ([5eb122d](https://github.com/JoRouquette/obsidian-vps-publish/commit/5eb122d32e99a81979e3705f00b561feba292b5b))
+
+### Bug Fixes
+
+* **publishing:** resolve internal links against projected manifests ([6cc39e5](https://github.com/JoRouquette/obsidian-vps-publish/commit/6cc39e51068735505f704bd7542e691afa0c2d80))
+
 ## [6.15.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.14.0...6.15.0) (2026-03-20)
 
 ### Features
