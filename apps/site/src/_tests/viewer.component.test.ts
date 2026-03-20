@@ -48,6 +48,22 @@ const leafletPageHtml = `
   </div>
 `;
 
+const unresolvedLinkPageHtml = `
+  <div class="markdown-body">
+    <p>
+      <span
+        class="wikilink wikilink-unresolved"
+        role="link"
+        aria-disabled="true"
+        tabindex="0"
+        title="Cette page sera bientot disponible"
+        data-tooltip="Cette page sera bientot disponible"
+        data-wikilink="Missing Page"
+      >Missing Page</span>
+    </p>
+  </div>
+`;
+
 function createLeafletBlock(path: string): LeafletBlock {
   return {
     id: 'Ektaron-map',
@@ -111,6 +127,9 @@ describe('ViewerComponent math HTML rendering', () => {
       if (path === '/ektaron.html') {
         return leafletPageHtml;
       }
+      if (path === '/unresolved.html') {
+        return unresolvedLinkPageHtml;
+      }
       return '<div class="markdown-body"><p>Index</p></div>';
     });
 
@@ -132,6 +151,7 @@ describe('ViewerComponent math HTML rendering', () => {
           { path: 'math-note', component: DummyRouteComponent },
           { path: 'math-note-2', component: DummyRouteComponent },
           { path: 'ektaron', component: DummyRouteComponent },
+          { path: 'unresolved', component: DummyRouteComponent },
         ]),
         provideLocationMocks(),
         { provide: PLATFORM_ID, useValue: platformId },
@@ -258,5 +278,24 @@ describe('ViewerComponent math HTML rendering', () => {
         }),
       })
     );
+  });
+
+  it('shows the unavailable-link state on click for unresolved wikilinks', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance as unknown as {
+      showTooltip: (event: Event) => void;
+    };
+    const showTooltipSpy = jest.spyOn(component, 'showTooltip').mockImplementation(() => {});
+
+    await router.navigateByUrl('/unresolved');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const unresolvedLink = fixture.nativeElement.querySelector<HTMLElement>('.wikilink-unresolved');
+    expect(unresolvedLink).toBeTruthy();
+
+    unresolvedLink?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(showTooltipSpy).toHaveBeenCalled();
   });
 });
