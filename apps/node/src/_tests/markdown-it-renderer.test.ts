@@ -297,6 +297,56 @@ describe('MarkdownItRenderer', () => {
     expect(html).not.toContain('[[Missing]]'); // No raw wikilink syntax
   });
 
+  it('renders resolved internal markdown links with canonical href and alias text', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = 'Read [Alias section](Folder/Page.md#Section Title).';
+    note.resolvedWikilinks = [
+      {
+        raw: '[Alias section](Folder/Page.md#Section Title)',
+        target: 'Folder/Page#Section Title',
+        path: '/notes/folder/page',
+        subpath: 'Section Title',
+        alias: 'Alias section',
+        kind: 'note',
+        isResolved: true,
+        href: '/notes/folder/page#Section Title',
+      },
+    ];
+
+    const html = await renderer.render(note);
+
+    expect(html).toContain(
+      '<a class="wikilink" data-wikilink="Folder/Page#Section Title" href="/notes/folder/page#section-title">Alias section</a>'
+    );
+    expect(html).not.toContain('[Alias section]');
+  });
+
+  it('renders note embeds as resolved internal embed links instead of raw ![[...]] text', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = 'Summary: ![[Resolved#Section Title]].';
+    note.resolvedWikilinks = [
+      {
+        raw: '![[Resolved#Section Title]]',
+        target: 'Resolved#Section Title',
+        path: '/notes/resolved',
+        subpath: 'Section Title',
+        embed: true,
+        kind: 'note',
+        isResolved: true,
+        href: '/notes/resolved#Section Title',
+      },
+    ];
+
+    const html = await renderer.render(note);
+
+    expect(html).toContain('class="wikilink-embed"');
+    expect(html).toContain('class="wikilink wikilink-embed-link"');
+    expect(html).toContain('href="/notes/resolved#section-title"');
+    expect(html).not.toContain('![[Resolved#Section Title]]');
+  });
+
   it('strips .md extension from wikilink paths (fallback for malformed paths)', async () => {
     const renderer = new MarkdownItRenderer();
     const note = baseNote();

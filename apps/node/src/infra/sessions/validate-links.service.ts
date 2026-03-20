@@ -14,7 +14,15 @@ import path from 'node:path';
 import { type LoggerPort, type ManifestPage } from '@core-domain';
 import * as cheerio from 'cheerio';
 
+import {
+  normalizeManifestWikilinkTarget,
+  resolveManifestLinkCandidate,
+} from '../links/manifest-link-resolver.util';
+import { HeadingSlugger } from '../markdown/heading-slugger';
+
 export class ValidateLinksService {
+  private readonly headingSlugger = new HeadingSlugger();
+
   constructor(private readonly logger?: LoggerPort) {}
 
   /**
@@ -34,18 +42,9 @@ export class ValidateLinksService {
     let linksFixed = 0;
     let filesModified = 0;
 
-    // Build a fast lookup map: vaultPath -> routed path
-    const pathMap = new Map<string, ManifestPage>();
-    for (const page of manifest.pages) {
-      if (page.vaultPath) {
-        pathMap.set(page.vaultPath.toLowerCase(), page);
-      }
-    }
-
-    log?.debug('Built path lookup map', {
+    log?.debug('Prepared manifest pages for link validation', {
       contentRoot,
       manifestPages: manifest.pages.length,
-      pathMapSize: pathMap.size,
     });
 
     // Recursively process all HTML files
@@ -57,7 +56,13 @@ export class ValidateLinksService {
 
       try {
         const originalHtml = await fs.readFile(htmlPath, 'utf-8');
-        const fixedHtml = this.validateLinksInHtml(originalHtml, pathMap, log);
+        const currentRoutePath = this.deriveCurrentRoutePath(contentRoot, htmlPath);
+        const fixedHtml = this.validateLinksInHtml(
+          originalHtml,
+          manifest.pages,
+          currentRoutePath,
+          log
+        );
 
         // Only write if content changed
         if (fixedHtml !== originalHtml) {
@@ -117,7 +122,8 @@ export class ValidateLinksService {
    */
   private validateLinksInHtml(
     html: string,
-    pathMap: Map<string, ManifestPage>,
+    pages: ManifestPage[],
+    currentRoutePath: string,
     log?: LoggerPort
   ): string {
     const $ = cheerio.load(html);
@@ -146,16 +152,21 @@ export class ValidateLinksService {
         return;
       }
 
-      const hrefResolution = href ? this.resolveLinkCandidate(href, pathMap) : undefined;
+      const hrefResolution = href
+        ? this.resolveLinkCandidate(href, pages, currentRoutePath, log)
+        : undefined;
       const wikilinkResolution = dataWikilink
-        ? this.resolveLinkCandidate(this.normalizeWikilinkTarget(dataWikilink), pathMap)
+        ? this.resolveLinkCandidate(
+            this.normalizeWikilinkTarget(dataWikilink),
+            pages,
+            currentRoutePath,
+            log
+          )
         : undefined;
       const resolved = hrefResolution?.page ? hrefResolution : wikilinkResolution;
 
       if (resolved?.page) {
-        const correctHref = resolved.fragment
-          ? `${resolved.page.route}#${resolved.fragment}`
-          : resolved.page.route;
+        const correctHref = this.buildResolvedHref(resolved.page.route, resolved.fragment);
 
         if ($el.attr('href') !== correctHref) {
           $el.attr('href', correctHref);
@@ -197,14 +208,14 @@ export class ValidateLinksService {
         return;
       }
 
-      const resolved = this.resolveLinkCandidate(normalizedTarget, pathMap);
+      const resolved = this.resolveLinkCandidate(normalizedTarget, pages, currentRoutePath, log);
       if (!resolved.page) {
         return;
       }
 
       const href = resolved.fragment
-        ? `${resolved.page.route}#${resolved.fragment}`
-        : resolved.page.route;
+        ? this.buildResolvedHref(resolved.page.route, resolved.fragment)
+        : this.encodeInternalHref(resolved.page.route);
       const classNames = ($el.attr('class') || '')
         .split(/\s+/)
         .filter(Boolean)
@@ -238,85 +249,67 @@ export class ValidateLinksService {
    * Resolve a link href against the manifest
    * Returns the matched page if found, undefined otherwise
    */
-  private resolveLinkPath(
-    href: string,
-    pathMap: Map<string, ManifestPage>
-  ): ManifestPage | undefined {
-    // If href starts with '/', it's a routed path - check if it matches a page route
-    if (href.startsWith('/')) {
-      const normalizedRoute = href.toLowerCase();
-      for (const page of pathMap.values()) {
-        if (page.route.toLowerCase() === normalizedRoute) {
-          return page;
-        }
-      }
-      return undefined;
-    }
-
-    // Otherwise, treat as vault path or partial vault path
-    const normalized = decodeURIComponent(href).toLowerCase();
-
-    // Try exact match first
-    let matched = pathMap.get(normalized);
-    if (matched) {
-      return matched;
-    }
-
-    // Try adding common extensions
-    matched = pathMap.get(normalized + '.md');
-    if (matched) {
-      return matched;
-    }
-
-    // Try path-based matching (search for pages with matching vault paths)
-    for (const [vaultPath, page] of pathMap.entries()) {
-      // Check if the vaultPath ends with the normalized href (case-insensitive)
-      if (vaultPath.endsWith(normalized) || vaultPath.endsWith(normalized + '.md')) {
-        return page;
-      }
-
-      // Also check if href matches the page slug
-      if (page.slug.value.toLowerCase() === normalized) {
-        return page;
-      }
-
-      // Check if href is a partial match
-      const pathSegments = vaultPath.split('/').map((s) => s.toLowerCase());
-      const hrefSegments = normalized.split('/');
-
-      if (hrefSegments.length > 0 && pathSegments.length >= hrefSegments.length) {
-        const pathTail = pathSegments.slice(-hrefSegments.length);
-        const match = hrefSegments.every((seg, i) => {
-          const pathSeg = pathTail[i];
-          return pathSeg === seg || pathSeg === seg + '.md';
-        });
-
-        if (match) {
-          return page;
-        }
-      }
-    }
-
-    return undefined;
-  }
-
   private resolveLinkCandidate(
     rawValue: string,
-    pathMap: Map<string, ManifestPage>
+    pages: ManifestPage[],
+    currentRoutePath: string,
+    log?: LoggerPort
   ): { page?: ManifestPage; fragment?: string } {
-    const hashIndex = rawValue.indexOf('#');
-    const basePath = hashIndex >= 0 ? rawValue.slice(0, hashIndex) : rawValue;
-    const fragment = hashIndex >= 0 ? rawValue.slice(hashIndex + 1) : undefined;
+    const resolved = resolveManifestLinkCandidate(rawValue, pages, currentRoutePath);
+
+    if (resolved.ambiguousCandidates?.length) {
+      log?.warn('Ambiguous internal link left unresolved during post-build validation', {
+        rawValue,
+        candidates: resolved.ambiguousCandidates.map((page) => page.route),
+      });
+    }
+
     return {
-      page: this.resolveLinkPath(basePath || rawValue, pathMap),
-      fragment,
+      page: resolved.page,
+      fragment: resolved.fragment,
     };
   }
 
   private normalizeWikilinkTarget(target: string): string {
-    return decodeURIComponent(target)
-      .replace(/\.md(?=#|$)/i, '')
-      .replace(/^\/+/, '');
+    return normalizeManifestWikilinkTarget(target);
+  }
+
+  private deriveCurrentRoutePath(contentRoot: string, htmlPath: string): string {
+    const relativeHtmlPath = path.relative(contentRoot, htmlPath).split(path.sep).join('/');
+    const withoutExtension = relativeHtmlPath.replace(/\.html$/i, '');
+    return withoutExtension ? `/${withoutExtension}` : '/';
+  }
+
+  private buildResolvedHref(route: string, fragment?: string): string {
+    const normalizedFragment = fragment ? `#${this.normalizeFragment(fragment)}` : '';
+    return this.encodeInternalHref(`${route}${normalizedFragment}`);
+  }
+
+  private normalizeFragment(fragment: string): string {
+    const decodedFragment = this.safeDecodeURIComponent(fragment);
+    return decodedFragment.startsWith('^')
+      ? decodedFragment
+      : this.headingSlugger.slugify(decodedFragment);
+  }
+
+  private encodeInternalHref(href: string): string {
+    return encodeURI(this.safeDecodeURI(href));
+  }
+
+  private safeDecodeURIComponent(value: string): string {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }
+
+  private safeDecodeURI(value: string): string {
+    try {
+      return decodeURI(value);
+    } catch {
+      return value;
+    }
   }
 
   /**
