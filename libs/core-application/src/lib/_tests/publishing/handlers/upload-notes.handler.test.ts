@@ -79,7 +79,15 @@ describe('UploadNotesHandler', () => {
 
     const result = await handler.handle(command);
 
-    expect(markdownRenderer.render).toHaveBeenCalledWith(note, { ignoredTags: undefined });
+    expect(markdownRenderer.render).toHaveBeenCalledWith(
+      note,
+      expect.objectContaining({
+        ignoredTags: undefined,
+        manifest: expect.objectContaining({
+          pages: [expect.objectContaining({ id: note.noteId, route: note.routing.fullPath })],
+        }),
+      })
+    );
     expect(contentStorage.save).toHaveBeenCalledWith({
       route: note.routing.fullPath,
       content: expect.stringContaining('<div class="markdown-body">'),
@@ -89,6 +97,70 @@ describe('UploadNotesHandler', () => {
     expect(manifestStorage.rebuildIndex).toHaveBeenCalled();
     expect(result.published).toBe(1);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it('renders notes against a projected manifest that includes existing and incoming pages', async () => {
+    const existingPage = {
+      id: 'existing-note',
+      title: 'Existing Page',
+      route: '/notes/existing-page',
+      slug: 'existing-page',
+      publishedAt: new Date('2022-01-01T00:00:00Z'),
+      vaultPath: 'notes/Existing Page.md',
+      relativePath: 'notes/Existing Page.md',
+      tags: [],
+    };
+    manifestStorage.load.mockResolvedValueOnce({
+      sessionId: 'session-1',
+      createdAt: new Date('2022-01-01T00:00:00Z'),
+      lastUpdatedAt: new Date('2022-01-01T00:00:00Z'),
+      pages: [existingPage],
+    });
+
+    const handler = new UploadNotesHandler(
+      markdownRenderer,
+      contentStorage,
+      manifestStorage,
+      logger
+    );
+    const noteA = createNote({
+      noteId: 'note-a',
+      title: 'Note A',
+      routing: {
+        fullPath: '/notes/note-a',
+        path: '/notes/note-a',
+        slug: 'note-a',
+        routeBase: '/notes',
+      },
+    });
+    const noteB = createNote({
+      noteId: 'note-b',
+      title: 'Note B',
+      routing: {
+        fullPath: '/notes/note-b',
+        path: '/notes/note-b',
+        slug: 'note-b',
+        routeBase: '/notes',
+      },
+    });
+
+    await handler.handle({
+      sessionId: 'session-1',
+      notes: [noteA, noteB],
+    });
+
+    expect(markdownRenderer.render).toHaveBeenCalledWith(
+      noteA,
+      expect.objectContaining({
+        manifest: expect.objectContaining({
+          pages: expect.arrayContaining([
+            expect.objectContaining({ id: 'existing-note', route: '/notes/existing-page' }),
+            expect.objectContaining({ id: 'note-a', route: '/notes/note-a' }),
+            expect.objectContaining({ id: 'note-b', route: '/notes/note-b' }),
+          ]),
+        }),
+      })
+    );
   });
 
   it('handles markdown rendering errors gracefully', async () => {
@@ -255,5 +327,52 @@ describe('UploadNotesHandler', () => {
     await handler.handle({ sessionId: 's-raw', notes: [note] });
 
     expect(notesStorage.append).toHaveBeenCalledWith('s-raw', [note]);
+  });
+
+  it('renders unresolved frontmatter wikilinks with the shared unavailable state markup', async () => {
+    const handler = new UploadNotesHandler(
+      markdownRenderer,
+      contentStorage,
+      manifestStorage,
+      logger
+    );
+    const note = createNote({
+      frontmatter: {
+        tags: [],
+        flat: {},
+        nested: { related: '[[Existing Page]]' },
+      },
+      resolvedWikilinks: [
+        {
+          raw: '[[Existing Page]]',
+          target: 'Existing Page',
+          path: 'Existing Page',
+          kind: 'note',
+          isResolved: false,
+          origin: 'frontmatter',
+          frontmatterPath: 'related',
+        },
+      ],
+    });
+
+    await handler.handle({ sessionId: 'frontmatter-state', notes: [note] });
+
+    expect(contentStorage.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining(
+          'class="fm-value fm-wikilink-unresolved wikilink wikilink-unresolved"'
+        ),
+      })
+    );
+    expect(contentStorage.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining('data-wikilink="Existing Page"'),
+      })
+    );
+    expect(contentStorage.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining('Cette page sera bientot disponible'),
+      })
+    );
   });
 });

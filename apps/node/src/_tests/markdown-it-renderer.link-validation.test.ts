@@ -172,8 +172,9 @@ describe('MarkdownItRenderer - Link Validation', () => {
       expect(result).toContain('class="wikilink wikilink-unresolved"');
       expect(result).toContain('role="link"');
       expect(result).toContain('aria-disabled="true"');
-      expect(result).toContain('title="Cette page arrive prochainement"');
-      expect(result).toContain('data-tooltip="Cette page arrive prochainement"');
+      expect(result).toContain('title="Cette page sera bientot disponible"');
+      expect(result).toContain('data-tooltip="Cette page sera bientot disponible"');
+      expect(result).toContain('tabindex="0"');
       expect(result).toContain('>Not Published<');
 
       // Should not be a link
