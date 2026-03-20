@@ -1,3 +1,4 @@
+export * from './constants/internal-link.constants';
 export * from './dataview';
 export * from './entities';
 export * from './errors/asset-scan.error';

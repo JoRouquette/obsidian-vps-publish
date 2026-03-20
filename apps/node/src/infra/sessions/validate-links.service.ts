@@ -11,8 +11,13 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { type LoggerPort, type ManifestPage } from '@core-domain';
+import {
+  type LoggerPort,
+  type ManifestPage,
+  UNAVAILABLE_INTERNAL_PAGE_MESSAGE,
+} from '@core-domain';
 import * as cheerio from 'cheerio';
+import type { AnyNode } from 'domhandler';
 
 import {
   normalizeManifestWikilinkTarget,
@@ -181,12 +186,9 @@ export class ValidateLinksService {
       }
 
       const linkText = $el.text() || href || dataWikilink || '';
-      const title = `Page inconnue : ${linkText}`;
       const wikilinkTarget = this.normalizeWikilinkTarget(dataWikilink || href || linkText);
 
-      $el.replaceWith(
-        `<span class="wikilink wikilink-unresolved" title="${this.escapeHtml(title)}" data-wikilink="${this.escapeHtml(wikilinkTarget)}">${this.escapeHtml(linkText)}</span>`
-      );
+      $el.replaceWith(this.renderUnavailableWikilink(linkText, wikilinkTarget));
       linksTransformed++;
     });
 
@@ -210,6 +212,7 @@ export class ValidateLinksService {
 
       const resolved = this.resolveLinkCandidate(normalizedTarget, pages, currentRoutePath, log);
       if (!resolved.page) {
+        this.normalizeUnavailableWikilinkElement($el, normalizedTarget);
         return;
       }
 
@@ -351,5 +354,35 @@ export class ValidateLinksService {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  private renderUnavailableWikilink(linkText: string, wikilinkTarget: string): string {
+    return `<span class="wikilink wikilink-unresolved" role="link" aria-disabled="true" tabindex="0" title="${this.escapeHtml(
+      UNAVAILABLE_INTERNAL_PAGE_MESSAGE
+    )}" data-tooltip="${this.escapeHtml(
+      UNAVAILABLE_INTERNAL_PAGE_MESSAGE
+    )}" data-wikilink="${this.escapeHtml(wikilinkTarget)}">${this.escapeHtml(linkText)}</span>`;
+  }
+
+  private normalizeUnavailableWikilinkElement(
+    $element: cheerio.Cheerio<AnyNode>,
+    normalizedTarget: string
+  ): void {
+    const classNames = ($element.attr('class') || '').split(/\s+/).filter(Boolean);
+
+    if (!classNames.includes('wikilink')) {
+      classNames.push('wikilink');
+    }
+    if (!classNames.includes('wikilink-unresolved')) {
+      classNames.push('wikilink-unresolved');
+    }
+
+    $element.attr('class', classNames.join(' '));
+    $element.attr('role', 'link');
+    $element.attr('aria-disabled', 'true');
+    $element.attr('tabindex', '0');
+    $element.attr('title', UNAVAILABLE_INTERNAL_PAGE_MESSAGE);
+    $element.attr('data-tooltip', UNAVAILABLE_INTERNAL_PAGE_MESSAGE);
+    $element.attr('data-wikilink', normalizedTarget);
   }
 }
