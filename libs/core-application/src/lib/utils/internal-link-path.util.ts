@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 function safeDecodeURIComponent(value: string): string {
   try {
     return decodeURIComponent(value);
@@ -60,6 +58,37 @@ export function getInternalLinkBasename(value: string): string {
   return segments[segments.length - 1] ?? normalized;
 }
 
+function getInternalLinkDirname(value: string): string {
+  const normalized = normalizeInternalLinkPath(value);
+  if (!normalized) {
+    return '';
+  }
+
+  const segments = normalized.split('/');
+  segments.pop();
+  return segments.join('/');
+}
+
+function resolvePosixLikePath(baseDirectory: string, relativePath: string): string {
+  const combinedSegments = [...baseDirectory.split('/'), ...relativePath.split('/')];
+  const resolvedSegments: string[] = [];
+
+  for (const segment of combinedSegments) {
+    if (!segment || segment === '.') {
+      continue;
+    }
+
+    if (segment === '..') {
+      resolvedSegments.pop();
+      continue;
+    }
+
+    resolvedSegments.push(segment);
+  }
+
+  return resolvedSegments.join('/');
+}
+
 export function resolveRelativeInternalLinkPath(
   value: string,
   currentNoteRelativePath?: string
@@ -69,11 +98,6 @@ export function resolveRelativeInternalLinkPath(
     return normalizedValue;
   }
 
-  const currentDirectory = path.posix.dirname(
-    `/${normalizeInternalLinkPath(currentNoteRelativePath)}`
-  );
-
-  return normalizeInternalLinkPath(
-    path.posix.normalize(path.posix.join(currentDirectory, normalizedValue))
-  );
+  const currentDirectory = getInternalLinkDirname(currentNoteRelativePath);
+  return resolvePosixLikePath(currentDirectory, normalizedValue);
 }
