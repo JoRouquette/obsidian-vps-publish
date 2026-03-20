@@ -1,5 +1,7 @@
 /node_modules
 /dist
+/apps/node/src/infra/filesystem/dist/
+/libs/core-application/src/lib/_tests/publishing/dist/
 /.idea
 .env
 .env.**

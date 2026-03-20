@@ -1,4 +1,4 @@
-import { promises as fs } from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -15,17 +15,15 @@ import {
   UploadNotesHandler,
 } from '@core-application';
 import { NoteHashService } from '@core-application/publishing/services/note-hash.service';
-import {
-  type CustomIndexConfig,
-  type LeafletBlock,
-  type LoggerPort,
-  LogLevel,
-  type Manifest,
-} from '@core-domain';
+import { type CustomIndexConfig, type LoggerPort, LogLevel } from '@core-domain';
 import { load } from 'cheerio';
 
 import { type StagingManager } from '../filesystem/staging-manager';
 import { ContentSearchIndexer } from '../search/content-search-indexer';
+import {
+  replaceAssetPathsInHtmlFiles,
+  replaceAssetPathsInManifestPages,
+} from './session-finalizer-asset-paths.util';
 import { SlugChangeDetectorService } from './slug-change-detector.service';
 import { ValidateLinksService } from './validate-links.service';
 
@@ -192,7 +190,7 @@ export class SessionFinalizerService {
         contentRoot,
       });
 
-      const replacedCount = await this.replaceAssetPaths(
+      const replacedCount = await replaceAssetPathsInHtmlFiles(
         contentRoot,
         session.assetPathMappings,
         log
@@ -209,7 +207,7 @@ export class SessionFinalizerService {
       const manifestForAssets = this.manifestStorage(sessionId);
       const currentManifest = await manifestForAssets.load();
       if (currentManifest) {
-        const updateResult = this.replaceAssetPathsInManifestPages(
+        const updateResult = replaceAssetPathsInManifestPages(
           currentManifest,
           session.assetPathMappings,
           log
@@ -658,379 +656,5 @@ export class SessionFinalizerService {
     } catch (error) {
       this.logger.warn('Failed to rebuild content search index', { sessionId, error });
     }
-  }
-
-  /**
-   * Replace asset paths in HTML files based on optimization mappings.
-   * When images are converted (e.g., .png → .webp), this updates all references in HTML.
-   * Also handles Leaflet blocks where image paths are stored in JSON data attributes.
-   * @returns Number of files modified
-   */
-  private async replaceAssetPaths(
-    contentRoot: string,
-    mappings: Record<string, string>,
-    log: LoggerPort
-  ): Promise<number> {
-    const htmlFiles: string[] = [];
-
-    // Recursively find all HTML files
-    const findHtmlFiles = async (dir: string): Promise<void> => {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          await findHtmlFiles(fullPath);
-        } else if (entry.name.endsWith('.html')) {
-          htmlFiles.push(fullPath);
-        }
-      }
-    };
-
-    await findHtmlFiles(contentRoot);
-
-    log.debug('Found HTML files for asset path replacement', {
-      htmlFilesCount: htmlFiles.length,
-      contentRoot,
-    });
-
-    if (htmlFiles.length === 0) {
-      return 0;
-    }
-
-    // Build regex patterns for all mappings
-    // Match both encoded and non-encoded paths in src, href, data-src attributes
-    const patterns: { pattern: RegExp; replacement: string; desc: string }[] = [];
-    for (const [original, optimized] of Object.entries(mappings)) {
-      // Create patterns for common attribute contexts
-      // Match: src="...original...", href="...original...", /assets/original
-      const escapedOriginal = original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const escapedEncoded = encodeURIComponent(original).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-      // Replace in src, href, data-src attributes (full path match)
-      patterns.push({
-        pattern: new RegExp(`(src=["'].*?)${escapedOriginal}(["'])`, 'gi'),
-        replacement: `$1${optimized}$2`,
-        desc: `src: ${original} → ${optimized}`,
-      });
-      patterns.push({
-        pattern: new RegExp(`(href=["'].*?)${escapedOriginal}(["'])`, 'gi'),
-        replacement: `$1${optimized}$2`,
-        desc: `href: ${original} → ${optimized}`,
-      });
-      patterns.push({
-        pattern: new RegExp(`(data-src=["'].*?)${escapedOriginal}(["'])`, 'gi'),
-        replacement: `$1${optimized}$2`,
-        desc: `data-src: ${original} → ${optimized}`,
-      });
-
-      // Also match just the filename (basename) when path structures differ
-      // e.g., mapping has "_assets/image.png" but HTML has "/assets/image.png"
-      const originalBasename = path.basename(original);
-      const optimizedBasename = path.basename(optimized);
-      if (originalBasename !== original) {
-        const escapedBasename = originalBasename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Match filename at end of path (e.g., /assets/image.png or /any/path/image.png)
-        patterns.push({
-          pattern: new RegExp(`(src=["'][^"']*/)${escapedBasename}(["'])`, 'gi'),
-          replacement: `$1${optimizedBasename}$2`,
-          desc: `src-basename: ${originalBasename} → ${optimizedBasename}`,
-        });
-        patterns.push({
-          pattern: new RegExp(`(href=["'][^"']*/)${escapedBasename}(["'])`, 'gi'),
-          replacement: `$1${optimizedBasename}$2`,
-          desc: `href-basename: ${originalBasename} → ${optimizedBasename}`,
-        });
-        patterns.push({
-          pattern: new RegExp(`(data-src=["'][^"']*/)${escapedBasename}(["'])`, 'gi'),
-          replacement: `$1${optimizedBasename}$2`,
-          desc: `data-src-basename: ${originalBasename} → ${optimizedBasename}`,
-        });
-      }
-
-      // Also match URL-encoded versions
-      if (escapedOriginal !== escapedEncoded) {
-        patterns.push({
-          pattern: new RegExp(`(src=["'].*?)${escapedEncoded}(["'])`, 'gi'),
-          replacement: `$1${encodeURIComponent(optimized)}$2`,
-          desc: `src-encoded: ${original} → ${optimized}`,
-        });
-        patterns.push({
-          pattern: new RegExp(`(href=["'].*?)${escapedEncoded}(["'])`, 'gi'),
-          replacement: `$1${encodeURIComponent(optimized)}$2`,
-          desc: `href-encoded: ${original} → ${optimized}`,
-        });
-      }
-    }
-
-    log.debug('Generated replacement patterns', {
-      patternCount: patterns.length,
-      patterns: patterns.map((p) => p.desc),
-    });
-
-    let filesModified = 0;
-    let totalReplacements = 0;
-
-    for (const htmlFile of htmlFiles) {
-      let content = await fs.readFile(htmlFile, 'utf-8');
-      let modified = false;
-      let fileReplacements = 0;
-
-      // Replace in standard HTML attributes (src, href, data-src)
-      for (const { pattern, replacement, desc } of patterns) {
-        const newContent = content.replace(pattern, replacement);
-        if (newContent !== content) {
-          const matchCount = (content.match(pattern) || []).length;
-          fileReplacements += matchCount;
-          log.debug('Pattern matched in file', {
-            file: path.basename(htmlFile),
-            pattern: desc,
-            matchCount,
-          });
-          content = newContent;
-          modified = true;
-        }
-      }
-
-      // Replace in Leaflet block JSON (data-leaflet-block attribute)
-      const leafletResult = this.replaceAssetPathsInLeafletBlocks(content, mappings, log);
-      if (leafletResult.modified) {
-        content = leafletResult.content;
-        modified = true;
-        fileReplacements++;
-      }
-
-      if (modified) {
-        await fs.writeFile(htmlFile, content, 'utf-8');
-        filesModified++;
-        totalReplacements += fileReplacements;
-        log.debug('Replaced asset paths in HTML file', {
-          file: path.relative(contentRoot, htmlFile),
-          replacements: fileReplacements,
-        });
-      }
-    }
-
-    log.debug('Asset path replacement summary', {
-      filesScanned: htmlFiles.length,
-      filesModified,
-      totalReplacements,
-    });
-
-    return filesModified;
-  }
-
-  /**
-   * Replace asset paths in Leaflet block JSON data.
-   * Leaflet blocks store image overlay paths in JSON within data-leaflet-block attribute.
-   */
-  private replaceAssetPathsInLeafletBlocks(
-    html: string,
-    mappings: Record<string, string>,
-    log: LoggerPort
-  ): { content: string; modified: boolean } {
-    // Quick check to avoid parsing if no Leaflet blocks
-    if (!html.includes('data-leaflet-block=')) {
-      return { content: html, modified: false };
-    }
-
-    const $ = (load as (...args: unknown[]) => ReturnType<typeof load>)(
-      html,
-      { decodeEntities: false },
-      false
-    );
-    const leafletElements = $('[data-leaflet-block]');
-
-    if (leafletElements.length === 0) {
-      return { content: html, modified: false };
-    }
-
-    let modified = false;
-
-    // Build basename lookup for faster matching
-    const basenameMap = new Map<string, string>();
-    for (const [original, optimized] of Object.entries(mappings)) {
-      basenameMap.set(path.basename(original), path.basename(optimized));
-    }
-
-    for (const element of leafletElements.toArray()) {
-      const blockDataJson = $(element).attr('data-leaflet-block');
-      if (!blockDataJson) {
-        continue;
-      }
-
-      try {
-        const blockData = JSON.parse(blockDataJson);
-
-        // Replace paths in imageOverlays
-        if (blockData.imageOverlays && Array.isArray(blockData.imageOverlays)) {
-          for (const overlay of blockData.imageOverlays) {
-            if (overlay.path && typeof overlay.path === 'string') {
-              let replaced = false;
-
-              // Check for direct match or match with /assets/ prefix
-              for (const [original, optimized] of Object.entries(mappings)) {
-                // Match exact path or path ending with original
-                if (overlay.path === original || overlay.path.endsWith('/' + original)) {
-                  const newPath = overlay.path.replace(original, optimized);
-                  log.debug('Replacing Leaflet imageOverlay path', {
-                    old: overlay.path,
-                    new: newPath,
-                  });
-                  overlay.path = newPath;
-                  modified = true;
-                  replaced = true;
-                  break;
-                }
-              }
-
-              // If no full path match, try basename match
-              if (!replaced) {
-                const overlayBasename = path.basename(overlay.path);
-                const optimizedBasename = basenameMap.get(overlayBasename);
-                if (optimizedBasename) {
-                  const newPath = overlay.path.replace(overlayBasename, optimizedBasename);
-                  log.debug('Replacing Leaflet imageOverlay path (basename match)', {
-                    old: overlay.path,
-                    new: newPath,
-                  });
-                  overlay.path = newPath;
-                  modified = true;
-                }
-              }
-            }
-          }
-        }
-
-        // Update the attribute with modified JSON
-        if (modified) {
-          $(element).attr('data-leaflet-block', JSON.stringify(blockData));
-        }
-      } catch (error) {
-        log.warn('Failed to parse Leaflet block JSON for asset path replacement', {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    }
-
-    return { content: $.html(), modified };
-  }
-
-  /**
-   * Replace asset paths in manifest pages (coverImage and leafletBlocks.imageOverlays.path).
-   * This ensures the manifest JSON reflects optimized asset filenames.
-   */
-  private replaceAssetPathsInManifestPages(
-    manifest: Manifest,
-    mappings: Record<string, string>,
-    log: LoggerPort
-  ): {
-    modified: boolean;
-    pagesModified: number;
-    coverImagesUpdated: number;
-    leafletOverlaysUpdated: number;
-  } {
-    let pagesModified = 0;
-    let coverImagesUpdated = 0;
-    let leafletOverlaysUpdated = 0;
-
-    for (const page of manifest.pages) {
-      let pageModified = false;
-
-      // Update coverImage path
-      if (page.coverImage) {
-        const newCoverImage = this.replaceAssetPath(page.coverImage, mappings);
-        if (newCoverImage !== page.coverImage) {
-          log.debug('Replacing coverImage path in manifest', {
-            route: page.route,
-            old: page.coverImage,
-            new: newCoverImage,
-          });
-          page.coverImage = newCoverImage;
-          coverImagesUpdated++;
-          pageModified = true;
-        }
-      }
-
-      // Update leafletBlocks imageOverlays paths
-      if (page.leafletBlocks && Array.isArray(page.leafletBlocks)) {
-        for (const block of page.leafletBlocks as LeafletBlock[]) {
-          if (block.imageOverlays && Array.isArray(block.imageOverlays)) {
-            for (const overlay of block.imageOverlays) {
-              if (overlay.path) {
-                const newPath = this.replaceAssetPath(overlay.path, mappings);
-                if (newPath !== overlay.path) {
-                  log.debug('Replacing Leaflet imageOverlay path in manifest', {
-                    route: page.route,
-                    blockId: block.id,
-                    old: overlay.path,
-                    new: newPath,
-                  });
-                  overlay.path = newPath;
-                  leafletOverlaysUpdated++;
-                  pageModified = true;
-                }
-              }
-            }
-          }
-        }
-      }
-
-      if (pageModified) {
-        pagesModified++;
-      }
-    }
-
-    return {
-      modified: pagesModified > 0,
-      pagesModified,
-      coverImagesUpdated,
-      leafletOverlaysUpdated,
-    };
-  }
-
-  /**
-   * Replace an asset path using the mappings.
-   * Handles both exact matches and paths containing the original filename.
-   * Falls back to basename matching when path structures differ.
-   * Skips absolute URLs (http://, https://).
-   */
-  private replaceAssetPath(assetPath: string, mappings: Record<string, string>): string {
-    // Skip absolute URLs
-    if (assetPath.startsWith('http://') || assetPath.startsWith('https://')) {
-      return assetPath;
-    }
-
-    // Try full path matching first
-    for (const [original, optimized] of Object.entries(mappings)) {
-      // Exact match
-      if (assetPath === original) {
-        return optimized;
-      }
-      // Path ends with /original (e.g., /assets/_assets/image.png)
-      if (assetPath.endsWith('/' + original)) {
-        return assetPath.replace(original, optimized);
-      }
-      // Path contains /original (e.g., /assets/image.png → /assets/image.webp)
-      if (assetPath.includes('/' + original)) {
-        return assetPath.replace(original, optimized);
-      }
-      // Original is a filename that appears at the end
-      if (assetPath.endsWith(original)) {
-        return assetPath.slice(0, -original.length) + optimized;
-      }
-    }
-
-    // Fallback: try basename matching when path structures differ
-    // e.g., mapping has "_assets/image.png" but assetPath is "/assets/image.png"
-    const assetBasename = path.basename(assetPath);
-    for (const [original, optimized] of Object.entries(mappings)) {
-      const originalBasename = path.basename(original);
-      if (assetBasename === originalBasename) {
-        const optimizedBasename = path.basename(optimized);
-        return assetPath.replace(assetBasename, optimizedBasename);
-      }
-    }
-
-    return assetPath;
   }
 }

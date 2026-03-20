@@ -110,8 +110,7 @@
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/apps/obsidian-vps-publish"],
       "options": {
-        "jestConfig": "apps/obsidian-vps-publish/jest.config.cjs",
-        "runInBand": true
+        "jestConfig": "apps/obsidian-vps-publish/jest.config.cjs"
       }
     },
     "format": {
