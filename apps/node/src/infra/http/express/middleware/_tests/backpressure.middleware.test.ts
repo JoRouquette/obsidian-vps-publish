@@ -13,8 +13,11 @@ describe('Backpressure Middleware', () => {
 
   beforeEach(() => {
     middleware = new BackpressureMiddleware({
-      maxEventLoopLagMs: 200,
-      maxMemoryUsageMB: 500,
+      // Keep the default test middleware focused on active-request behaviour.
+      // CI machines can legitimately exceed "reasonable" lag or heap thresholds,
+      // which would make these tests flaky for the wrong reason.
+      maxEventLoopLagMs: Number.MAX_SAFE_INTEGER,
+      maxMemoryUsageMB: Number.MAX_SAFE_INTEGER,
       maxActiveRequests: 50,
     });
 
