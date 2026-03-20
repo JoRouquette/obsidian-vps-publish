@@ -17,6 +17,7 @@ import {
   isDescendant,
   removeNodeFromTree,
 } from '../utils/route-tree.utils';
+import { renderIgnoredCleanupRulesSettings } from './ignored-cleanup-rules-settings.util';
 
 /**
  * UI State (non-persisted, ephemeral)
@@ -507,7 +508,7 @@ function renderRouteEditor(
   ctx: SettingsViewContext,
   state: RoutesUIState
 ): void {
-  const { t } = ctx;
+  const { t, logger } = ctx;
   container.createEl('h4', { text: t.settings.routes.routeConfiguration });
 
   // Segment
@@ -617,9 +618,7 @@ function renderRouteEditor(
     });
   });
 
-  // Ignored Cleanup Rules
-  // TODO: Add UI for managing ignoredCleanupRuleIds
-  // For now, users can manage this via JSON if needed
+  renderIgnoredCleanupRulesSettings(container, vps, node, ctx, logger, 'route');
 
   // Close editor button
   new Setting(container).addButton((btn) => {

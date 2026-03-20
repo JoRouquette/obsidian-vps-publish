@@ -10,7 +10,11 @@
 import type { LeafletBlock, LoggerPort, Manifest, ManifestPage } from '@core-domain';
 import { LogLevel } from '@core-domain';
 
-import { SessionFinalizerService } from '../infra/sessions/session-finalizer.service';
+import {
+  replaceAssetPath,
+  replaceAssetPathsInLeafletBlocks,
+  replaceAssetPathsInManifestPages,
+} from '../infra/sessions/session-finalizer-asset-paths.util';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -52,48 +56,6 @@ function createFakeLogger(): LoggerPort & { calls: LogCall[] } {
   return logger;
 }
 
-/**
- * Build a minimal SessionFinalizerService and return bound references
- * to its private asset path replacement methods.
- */
-function getAssetPathReplacementFns(): {
-  replaceAssetPathsInLeafletBlocks: (
-    html: string,
-    mappings: Record<string, string>,
-    log: LoggerPort
-  ) => { content: string; modified: boolean };
-  replaceAssetPathsInManifestPages: (
-    manifest: Manifest,
-    mappings: Record<string, string>,
-    log: LoggerPort
-  ) => {
-    modified: boolean;
-    pagesModified: number;
-    coverImagesUpdated: number;
-    leafletOverlaysUpdated: number;
-  };
-  replaceAssetPath: (assetPath: string, mappings: Record<string, string>) => string;
-} {
-  const service = new (SessionFinalizerService as any)(
-    null, // notesStorage
-    null, // stagingManager
-    null, // markdownRenderer
-    null, // contentStorage factory
-    null, // manifestStorage factory
-    null // sessionRepository
-  ) as SessionFinalizerService;
-
-  return {
-    replaceAssetPathsInLeafletBlocks: (service as any)['replaceAssetPathsInLeafletBlocks'].bind(
-      service
-    ),
-    replaceAssetPathsInManifestPages: (service as any)['replaceAssetPathsInManifestPages'].bind(
-      service
-    ),
-    replaceAssetPath: (service as any)['replaceAssetPath'].bind(service),
-  };
-}
-
 function createManifestPage(overrides: Partial<ManifestPage> = {}): ManifestPage {
   return {
     id: 'test-id',
@@ -119,8 +81,6 @@ function createManifest(pages: ManifestPage[]): Manifest {
 // ---------------------------------------------------------------------------
 
 describe('SessionFinalizerService.replaceAssetPath', () => {
-  const { replaceAssetPath } = getAssetPathReplacementFns();
-
   const mappings = {
     'image.png': 'image.webp',
     'photo.jpg': 'photo.webp',
@@ -202,8 +162,6 @@ describe('SessionFinalizerService.replaceAssetPath', () => {
 // ---------------------------------------------------------------------------
 
 describe('SessionFinalizerService.replaceAssetPathsInLeafletBlocks', () => {
-  const { replaceAssetPathsInLeafletBlocks } = getAssetPathReplacementFns();
-
   const mappings = {
     'Ektaron.png': 'Ektaron.webp',
     'map-overlay.jpg': 'map-overlay.webp',
@@ -371,8 +329,6 @@ describe('SessionFinalizerService.replaceAssetPathsInLeafletBlocks', () => {
 // ---------------------------------------------------------------------------
 
 describe('SessionFinalizerService.replaceAssetPathsInManifestPages', () => {
-  const { replaceAssetPathsInManifestPages } = getAssetPathReplacementFns();
-
   const mappings = {
     'cover.png': 'cover.webp',
     'Ektaron.png': 'Ektaron.webp',

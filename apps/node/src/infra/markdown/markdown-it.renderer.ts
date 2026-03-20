@@ -12,6 +12,7 @@ import MarkdownIt from 'markdown-it';
 import anchor from 'markdown-it-anchor';
 import footnote from 'markdown-it-footnote';
 
+import { attachBlockAnchors, prepareBlockAnchors } from './block-anchor.util';
 import { CalloutRendererService } from './callout-renderer.service';
 import { HeadingSlugger } from './heading-slugger';
 import { registerKatexRenderer } from './katex-renderer.plugin';
@@ -19,9 +20,6 @@ import { TagFilterService } from './tag-filter.service';
 
 export class MarkdownItRenderer implements MarkdownRendererPort {
   private readonly blockIdCommentPrefix = 'vps-block-id:';
-  private readonly blockIdLinePattern = /^\^([A-Za-z0-9][A-Za-z0-9_-]*)$/;
-  private readonly fencedCodePattern = /^ {0,3}(`{3,}|~{3,})/;
-  private readonly indentedCodePattern = /^(?: {4,}|\t+)/;
   private readonly md: MarkdownIt;
   private readonly calloutRenderer: CalloutRendererService;
   private readonly tagFilter: TagFilterService;
@@ -177,7 +175,7 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
   async render(note: PublishableNote, context?: RenderContext): Promise<string> {
     const contentAssets = (note.assets ?? []).filter((a) => a.origin !== 'frontmatter');
     const contentLinks = (note.resolvedWikilinks ?? []).filter((l) => l.origin !== 'frontmatter');
-    const contentWithBlockAnchors = this.prepareBlockAnchors(note.content);
+    const contentWithBlockAnchors = prepareBlockAnchors(note.content, this.blockIdCommentPrefix);
 
     // Convert markdown links to .md files to unresolved spans
     // (since they're not in resolvedWikilinks, they're not published)
@@ -186,7 +184,7 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     const withAssets = this.injectAssets(contentWithHandledMdLinks, contentAssets);
     const withLinks = this.injectWikilinks(withAssets, contentLinks);
     const html = this.md.render(withLinks);
-    const htmlWithBlockAnchors = this.attachBlockAnchors(html);
+    const htmlWithBlockAnchors = attachBlockAnchors(html, this.blockIdCommentPrefix);
 
     const iconFontLink = [
       '<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />',
@@ -791,135 +789,6 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
 
   private escapeAttribute(input: string): string {
     return this.escapeHtml(input).replaceAll('`', '&#96;');
-  }
-
-  private prepareBlockAnchors(content: string): string {
-    const eol = content.includes('\r\n') ? '\r\n' : '\n';
-    const lines = content.split(/\r?\n/);
-    const output: string[] = [];
-    let activeFence: { char: '`' | '~'; length: number } | null = null;
-
-    for (const line of lines) {
-      const inFencedCode = activeFence !== null;
-      const isIndentedCode = activeFence === null && this.indentedCodePattern.test(line);
-      const fenceMatch = line.match(this.fencedCodePattern);
-      const standaloneBlockId = this.extractStandaloneBlockId(line, inFencedCode, isIndentedCode);
-
-      if (standaloneBlockId) {
-        output.push(this.renderBlockIdComment(standaloneBlockId));
-      } else {
-        const inlineBlockId = this.extractInlineBlockId(line, inFencedCode, isIndentedCode);
-
-        if (inlineBlockId) {
-          output.push(line.replace(/\s+\^[A-Za-z0-9][A-Za-z0-9_-]*\s*$/, ''));
-          output.push(this.renderBlockIdComment(inlineBlockId));
-        } else {
-          output.push(line);
-        }
-      }
-
-      if (!fenceMatch) {
-        continue;
-      }
-
-      const fence = fenceMatch[1];
-      const fenceChar = fence[0] as '`' | '~';
-
-      if (!activeFence) {
-        activeFence = {
-          char: fenceChar,
-          length: fence.length,
-        };
-      } else if (activeFence.char === fenceChar && fence.length >= activeFence.length) {
-        activeFence = null;
-      }
-    }
-
-    return output.join(eol);
-  }
-
-  private attachBlockAnchors(html: string): string {
-    const $ = load(html);
-    const body = $('body');
-
-    body.contents().each((_, node) => {
-      if (node.type !== 'comment' || !node.data?.startsWith(this.blockIdCommentPrefix)) {
-        return;
-      }
-
-      const blockId = node.data.slice(this.blockIdCommentPrefix.length).trim();
-      const previousElement = this.findPreviousElementSibling(node);
-
-      if (previousElement && blockId && !previousElement.attribs?.['id']) {
-        $(previousElement).attr('id', `^${blockId}`);
-      }
-
-      $(node).remove();
-    });
-
-    return body.html() ?? $.html();
-  }
-
-  private findPreviousElementSibling(node: any): any {
-    let current = node.prev;
-
-    while (current) {
-      if (current.type === 'tag') {
-        return current;
-      }
-
-      if (current.type === 'text' && current.data?.trim()) {
-        return undefined;
-      }
-
-      current = current.prev;
-    }
-
-    return undefined;
-  }
-
-  private extractStandaloneBlockId(
-    line: string,
-    inFencedCode: boolean,
-    isIndentedCode: boolean
-  ): string | undefined {
-    if (inFencedCode || isIndentedCode) {
-      return undefined;
-    }
-
-    const trimmed = line.trim();
-    const match = trimmed.match(this.blockIdLinePattern);
-
-    if (!match || match[1] === 'no-publishing') {
-      return undefined;
-    }
-
-    return match[1];
-  }
-
-  private extractInlineBlockId(
-    line: string,
-    inFencedCode: boolean,
-    isIndentedCode: boolean
-  ): string | undefined {
-    if (inFencedCode || isIndentedCode || this.isStructuredBlockLine(line)) {
-      return undefined;
-    }
-
-    const match = line.match(/\s+\^([A-Za-z0-9][A-Za-z0-9_-]*)\s*$/);
-    if (!match || match[1] === 'no-publishing') {
-      return undefined;
-    }
-
-    return match[1];
-  }
-
-  private isStructuredBlockLine(line: string): boolean {
-    return /^(?: {0,3}(?:[#>|-]|\d+\.|\|)|\s*\[!)/.test(line.trimStart());
-  }
-
-  private renderBlockIdComment(blockId: string): string {
-    return `<!--${this.blockIdCommentPrefix}${blockId}-->`;
   }
 
   private normalizeFragment(fragment: string): string {

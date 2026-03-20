@@ -26,4 +26,15 @@ module.exports = {
   ],
 
   coverageDirectory: '../../coverage/libs/core-application',
+
+  // Temporary baseline while harmonizing quality gates across projects.
+  // Raise these thresholds incrementally to avoid turning on unstable gates.
+  coverageThreshold: {
+    global: {
+      statements: 45,
+      branches: 30,
+      functions: 45,
+      lines: 45,
+    },
+  },
 };
