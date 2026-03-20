@@ -1,3 +1,15 @@
+## [6.15.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.14.0...6.15.0) (2026-03-20)
+
+### Features
+
+* **core-application:** resolve relative internal links and note embeds ([681694b](https://github.com/JoRouquette/obsidian-vps-publish/commit/681694b509b64bf28ae933a1c67684ff1233ab36))
+* **markdown:** support Obsidian caret block anchors ([80265ff](https://github.com/JoRouquette/obsidian-vps-publish/commit/80265ffa8c9296ae0291223b6c0dce51a327acda))
+* **node:** normalize internal embeds and relative links ([1a56874](https://github.com/JoRouquette/obsidian-vps-publish/commit/1a568747a974d4243b4cce0c435dbdb33a050f8b))
+
+### Bug Fixes
+
+* **core-application:** remove node-only path helper from shared link utils ([7ae603d](https://github.com/JoRouquette/obsidian-vps-publish/commit/7ae603dced2d6bf3c542dc7dd5369f1746994231))
+
 ## [6.14.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.13.0...6.14.0) (2026-03-18)
 
 ### Features
