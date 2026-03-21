@@ -5,7 +5,10 @@ import { EnvConfig } from '../infra/config/env-config';
 const ORIGINAL_ENV = { ...process.env };
 
 describe('EnvConfig', () => {
+  const originalCwd = process.cwd();
+
   afterEach(() => {
+    process.chdir(originalCwd);
     process.env = { ...ORIGINAL_ENV };
   });
 
@@ -21,6 +24,7 @@ describe('EnvConfig', () => {
     delete process.env.API_KEY;
     delete process.env.PORT;
     delete process.env.LOGGER_LEVEL;
+    delete process.env.LOG_FILE_PATH;
     delete process.env.MAX_EVENT_LOOP_LAG_MS;
     delete process.env.MAX_MEMORY_USAGE_MB;
     process.env.NODE_ENV = 'test';
@@ -31,6 +35,7 @@ describe('EnvConfig', () => {
     expect(EnvConfig.apiKey()).toBe('devkeylocal');
     expect(EnvConfig.port()).toBe(3000);
     expect(EnvConfig.loggerLevel()).toBe('info');
+    expect(EnvConfig.logFilePath()).toBe(path.resolve('./node.log'));
     expect(EnvConfig.maxEventLoopLagMs()).toBe(5000);
     expect(EnvConfig.maxMemoryUsageMB()).toBe(2048);
   });
@@ -57,5 +62,23 @@ describe('EnvConfig', () => {
 
     expect(EnvConfig.maxEventLoopLagMs()).toBe(750);
     expect(EnvConfig.maxMemoryUsageMB()).toBe(768);
+  });
+
+  it('should normalize admin dashboard configuration', () => {
+    process.env.ADMIN_API_PATH = 'internal/admin/';
+    process.env.ADMIN_USERNAME_HASH = 'hash-user';
+    process.env.ADMIN_PASSWORD_HASH = 'hash-password';
+
+    expect(EnvConfig.adminApiPath()).toBe('/internal/admin');
+    expect(EnvConfig.adminDashboardEnabled()).toBe(true);
+  });
+
+  it('should resolve relative paths from the workspace root even if cwd changes', () => {
+    process.chdir(path.join(originalCwd, 'apps', 'node'));
+    process.env.CONTENT_ROOT = './tmp/site-content';
+    process.env.LOG_FILE_PATH = './tmp/logs/node.log';
+
+    expect(EnvConfig.contentRoot()).toBe(path.join(originalCwd, 'tmp', 'site-content'));
+    expect(EnvConfig.logFilePath()).toBe(path.join(originalCwd, 'tmp', 'logs', 'node.log'));
   });
 });

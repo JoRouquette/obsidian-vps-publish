@@ -43,9 +43,29 @@ export class ContentVersionService {
 
   /**
    * Get current content version.
-   * Loads from file if not cached.
+   * Reloads persisted state when the manifest changed out of band.
    */
   async getVersion(): Promise<ContentVersion | null> {
+    const manifestVersion = await this.computeVersionFromManifest();
+    if (manifestVersion) {
+      if (this.matchesManifestVersion(this.currentVersion, manifestVersion)) {
+        return this.currentVersion;
+      }
+
+      try {
+        const data = await fs.readFile(this.versionFilePath, 'utf-8');
+        const storedVersion = JSON.parse(data) as ContentVersion;
+        if (this.matchesManifestVersion(storedVersion, manifestVersion)) {
+          this.currentVersion = storedVersion;
+          return storedVersion;
+        }
+      } catch {
+        // Missing or invalid version file. Recompute from manifest below.
+      }
+
+      return this.computeAndSaveVersion(manifestVersion);
+    }
+
     if (this.currentVersion) {
       return this.currentVersion;
     }
@@ -55,7 +75,7 @@ export class ContentVersionService {
       this.currentVersion = JSON.parse(data) as ContentVersion;
       return this.currentVersion;
     } catch {
-      // File doesn't exist yet, compute from manifest
+      // File doesn't exist yet, compute from manifest or fall back.
       return this.computeAndSaveVersion();
     }
   }
@@ -98,28 +118,21 @@ export class ContentVersionService {
     return this.listeners.size;
   }
 
-  private async computeAndSaveVersion(): Promise<ContentVersion> {
+  private async computeAndSaveVersion(
+    manifestVersion?: Pick<ContentVersion, 'version' | 'contentRevision'>
+  ): Promise<ContentVersion> {
     try {
-      // Compute hash from manifest
-      const manifestContent = await fs.readFile(this.manifestPath, 'utf-8');
-      const hash = createHash('sha256').update(manifestContent).digest('hex').slice(0, 12);
-
-      // Extract contentRevision from manifest for traceability
-      let contentRevision: string | undefined;
-      try {
-        const parsed = JSON.parse(manifestContent) as { contentRevision?: string };
-        contentRevision = parsed.contentRevision;
-      } catch {
-        // Ignore JSON parse errors — hash is sufficient
+      const nextManifestVersion = manifestVersion ?? (await this.computeVersionFromManifest());
+      if (!nextManifestVersion) {
+        throw new Error('Manifest file is missing or unreadable');
       }
 
       const version: ContentVersion = {
-        version: hash,
-        contentRevision,
+        version: nextManifestVersion.version,
+        contentRevision: nextManifestVersion.contentRevision,
         generatedAt: new Date().toISOString(),
       };
 
-      // Save to file
       await fs.writeFile(this.versionFilePath, JSON.stringify(version, null, 2), 'utf-8');
 
       this.currentVersion = version;
@@ -135,7 +148,6 @@ export class ContentVersionService {
         error: error instanceof Error ? error.message : String(error),
       });
 
-      // Return fallback version based on timestamp
       const fallback: ContentVersion = {
         version: Date.now().toString(36),
         generatedAt: new Date().toISOString(),
@@ -144,6 +156,42 @@ export class ContentVersionService {
       this.currentVersion = fallback;
       return fallback;
     }
+  }
+
+  private async computeVersionFromManifest(): Promise<Pick<
+    ContentVersion,
+    'version' | 'contentRevision'
+  > | null> {
+    try {
+      const manifestContent = await fs.readFile(this.manifestPath, 'utf-8');
+      const version = createHash('sha256').update(manifestContent).digest('hex').slice(0, 12);
+
+      let contentRevision: string | undefined;
+      try {
+        const parsed = JSON.parse(manifestContent) as { contentRevision?: string };
+        contentRevision = parsed.contentRevision;
+      } catch {
+        // Ignore JSON parse errors, hash remains authoritative.
+      }
+
+      return { version, contentRevision };
+    } catch {
+      return null;
+    }
+  }
+
+  private matchesManifestVersion(
+    version: ContentVersion | null,
+    manifestVersion: Pick<ContentVersion, 'version' | 'contentRevision'> | null
+  ): boolean {
+    if (!version || !manifestVersion) {
+      return false;
+    }
+
+    return (
+      version.version === manifestVersion.version &&
+      (version.contentRevision ?? null) === (manifestVersion.contentRevision ?? null)
+    );
   }
 
   private notifyListeners(version: ContentVersion): void {

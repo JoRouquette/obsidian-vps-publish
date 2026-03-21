@@ -23,12 +23,17 @@ jest.mock('../infra/config/env-config', () => ({
     uiServerRoot: jest.fn(() => './tmp/ui-server'),
     ssrEnabled: jest.fn(() => false),
     loggerLevel: jest.fn(() => 'debug'),
+    logFilePath: jest.fn(() => './tmp/node.log'),
     baseUrl: jest.fn(() => 'http://localhost:4200'),
     siteName: jest.fn(() => 'Site'),
     author: jest.fn(() => 'Author'),
     repoUrl: jest.fn(() => 'http://repo'),
     reportIssuesUrl: jest.fn(() => 'http://issues'),
     homeWelcomeTitle: jest.fn(() => 'Welcome'),
+    adminApiPath: jest.fn(() => '/admin-api'),
+    adminUsernameHash: jest.fn(() => ''),
+    adminPasswordHash: jest.fn(() => ''),
+    adminDashboardEnabled: jest.fn(() => false),
     port: jest.fn(() => 3000),
     maxActiveRequests: jest.fn(() => 100),
     maxEventLoopLagMs: jest.fn(() => 5000),
@@ -59,5 +64,6 @@ describe('createApp', () => {
     expect(cfgRes.status).toBe(200);
     expect(cfgRes.body.baseUrl).toBe('http://localhost:4200');
     expect(cfgRes.body.siteName).toBe('Site');
+    expect(cfgRes.body.adminDashboardEnabled).toBe(false);
   });
 });

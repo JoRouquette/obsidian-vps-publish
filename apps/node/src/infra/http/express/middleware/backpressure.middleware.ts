@@ -28,6 +28,7 @@ export class BackpressureMiddleware {
   private eventLoopLagMs = 0;
   private lastEventLoopCheck = Date.now();
   private lagIntervalId: NodeJS.Timeout | null = null;
+  private config: BackpressureConfig;
 
   // Metrics counters for diagnostics
   private rejectionCounters = {
@@ -37,9 +38,10 @@ export class BackpressureMiddleware {
   };
 
   constructor(
-    private readonly config: BackpressureConfig = DEFAULT_CONFIG,
+    config: BackpressureConfig = DEFAULT_CONFIG,
     private readonly logger?: LoggerPort
   ) {
+    this.config = { ...config };
     this.startEventLoopMonitoring();
   }
 
@@ -201,5 +203,34 @@ export class BackpressureMiddleware {
         this.eventLoopLagMs > this.config.maxEventLoopLagMs ||
         memUsageMB > this.config.maxMemoryUsageMB,
     };
+  }
+
+  getConfig(): BackpressureConfig {
+    return { ...this.config };
+  }
+
+  updateConfig(nextConfig: Partial<BackpressureConfig>): BackpressureConfig {
+    this.config = {
+      maxActiveRequests:
+        this.normalizePositiveNumber(nextConfig.maxActiveRequests) ?? this.config.maxActiveRequests,
+      maxEventLoopLagMs:
+        this.normalizePositiveNumber(nextConfig.maxEventLoopLagMs) ?? this.config.maxEventLoopLagMs,
+      maxMemoryUsageMB:
+        this.normalizePositiveNumber(nextConfig.maxMemoryUsageMB) ?? this.config.maxMemoryUsageMB,
+    };
+
+    return this.getConfig();
+  }
+
+  resetRejectionCounters(): void {
+    this.rejectionCounters = {
+      active_requests: 0,
+      event_loop_lag: 0,
+      memory_pressure: 0,
+    };
+  }
+
+  private normalizePositiveNumber(value: number | undefined): number | null {
+    return Number.isFinite(value) && (value ?? 0) > 0 ? (value ?? null) : null;
   }
 }

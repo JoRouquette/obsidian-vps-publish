@@ -1,0 +1,137 @@
+<section class="admin-page">
+  <header class="hero">
+    <p class="eyebrow">Administration</p>
+    <h1>Dashboard du site</h1>
+    <p class="lede">
+      Une seule page `/admin`, avec les modules charges a la demande dans des onglets.
+    </p>
+  </header>
+
+  @if (!adminEnabled()) {
+    <mat-card class="panel empty">
+      <mat-icon aria-hidden="true">lock</mat-icon>
+      <h2>Dashboard desactive</h2>
+      <p>
+        Configure `ADMIN_API_PATH`, `ADMIN_USERNAME_HASH` et `ADMIN_PASSWORD_HASH` cote serveur.
+      </p>
+    </mat-card>
+  } @else if (!admin.credentials()) {
+    <mat-card class="panel login">
+      <div class="panel-head">
+        <div>
+          <p class="panel-kicker">Acces restreint</p>
+          <h2>Connexion admin</h2>
+        </div>
+      </div>
+
+      <form class="login-form" (ngSubmit)="submit()">
+        <mat-form-field appearance="outline">
+          <mat-label>Utilisateur</mat-label>
+          <input
+            matInput
+            [ngModel]="user()"
+            (ngModelChange)="user.set($event)"
+            name="user"
+            autocomplete="username"
+          />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Mot de passe</mat-label>
+          <input
+            matInput
+            type="password"
+            [ngModel]="mdp()"
+            (ngModelChange)="mdp.set($event)"
+            name="mdp"
+            autocomplete="current-password"
+          />
+        </mat-form-field>
+
+        @if (authError()) {
+          <p class="error-banner">{{ authError() }}</p>
+        }
+
+        <button mat-flat-button type="submit" [disabled]="admin.loading() || !user() || !mdp()">
+          @if (admin.loading()) {
+            <mat-spinner diameter="18"></mat-spinner>
+          } @else {
+            <span>Se connecter</span>
+          }
+        </button>
+      </form>
+    </mat-card>
+  } @else {
+    <div class="toolbar">
+      <p class="meta">
+        Dernier rafraichissement:
+        <strong>{{
+          lastRefreshLabel() ? (lastRefreshLabel() | date: 'dd/MM/yyyy HH:mm:ss') : 'n/a'
+        }}</strong>
+      </p>
+
+      <div class="actions">
+        <button mat-stroked-button type="button" (click)="refresh()" [disabled]="admin.loading()">
+          <mat-icon aria-hidden="true">refresh</mat-icon>
+          Rafraichir
+        </button>
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="refreshLogs()"
+          [disabled]="admin.logsLoading()"
+        >
+          <mat-icon aria-hidden="true">receipt_long</mat-icon>
+          Recharger les logs
+        </button>
+        <button mat-button type="button" (click)="logout()">
+          <mat-icon aria-hidden="true">logout</mat-icon>
+          Deconnexion
+        </button>
+      </div>
+    </div>
+
+    @if (authError()) {
+      <p class="error-banner">{{ authError() }}</p>
+    }
+
+    @if (actionFeedback()) {
+      <p class="info-banner">{{ actionFeedback() }}</p>
+    }
+
+    @if (snapshot()) {
+      <mat-tab-group
+        class="admin-tabs"
+        [selectedIndex]="selectedTabIndex()"
+        (selectedTabChange)="onTabChange($event.index)"
+        animationDuration="180ms"
+      >
+        @for (tab of tabs; track tab.id) {
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <div class="tab-label">
+                <strong>{{ tab.label }}</strong>
+                <span>{{ tab.hint }}</span>
+              </div>
+            </ng-template>
+
+            <ng-template matTabContent>
+              <section class="tab-panel">
+                @if (tabComponent(tab.id); as component) {
+                  <ng-container
+                    *ngComponentOutlet="component; inputs: tabInputs(tab.id)"
+                  ></ng-container>
+                } @else {
+                  <div class="tab-loading">
+                    <mat-spinner diameter="30"></mat-spinner>
+                    <p>Chargement du module {{ tab.label.toLowerCase() }}...</p>
+                  </div>
+                }
+              </section>
+            </ng-template>
+          </mat-tab>
+        }
+      </mat-tab-group>
+    }
+  }
+</section>

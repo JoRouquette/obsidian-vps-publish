@@ -115,4 +115,33 @@ export class FileSystemSessionRepository implements SessionRepository {
     const payload = JSON.stringify(this.serialize(session), null, 2);
     await fs.writeFile(filePath, payload, { flag: 'w' });
   }
+
+  async listRecent(limit = 20): Promise<Session[]> {
+    await fs.mkdir(this.sessionRoot, { recursive: true });
+
+    const entries = await fs.readdir(this.sessionRoot, { withFileTypes: true });
+    const sessions = await Promise.all(
+      entries
+        .filter(
+          (entry) => entry.isFile() && entry.name.endsWith('.json') && !entry.name.startsWith('_')
+        )
+        .map(async (entry) => {
+          try {
+            const raw = await fs.readFile(
+              this.getSessionFilePath(entry.name.replace(/\.json$/i, '')),
+              'utf-8'
+            );
+            const parsed = JSON.parse(raw) as Session & { createdAt: string; updatedAt: string };
+            return this.deserialize(parsed);
+          } catch {
+            return null;
+          }
+        })
+    );
+
+    return sessions
+      .filter((session): session is Session => session !== null)
+      .sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime())
+      .slice(0, limit);
+  }
 }

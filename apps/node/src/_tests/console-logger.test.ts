@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 import { ConsoleLogger } from '../infra/logging/console-logger';
 
 describe('ConsoleLogger', () => {
@@ -62,5 +66,21 @@ describe('ConsoleLogger', () => {
     expect(payload.error.name).toBe('Error');
     expect(payload.error.message).toBe('Outer error');
     expect(payload.details).toBeDefined();
+  });
+
+  it('writes logs to file when filePath is configured', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'console-logger-'));
+    const logFilePath = path.join(tempDir, 'node.log');
+    const logger = new ConsoleLogger({ level: 'info', filePath: logFilePath });
+
+    logger.info('persist me', { module: 'test' });
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const content = fs.readFileSync(logFilePath, 'utf8');
+    expect(content).toContain('persist me');
+    expect(content).toContain('"module":"test"');
+
+    fs.rmSync(tempDir, { recursive: true, force: true });
   });
 });

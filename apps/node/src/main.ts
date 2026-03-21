@@ -10,18 +10,21 @@ import { ConsoleLogger } from './infra/logging/console-logger';
 // In test mode (E2E/CI), do NOT override env vars passed externally
 const isTestMode = process.env.NODE_ENV === 'test' || process.env.CI === 'true';
 const envFile = process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.dev';
-const envPath = path.resolve(process.cwd(), envFile);
+const envPath = path.resolve(EnvConfig.workspaceRoot(), envFile);
 
 // Only override in development mode, not in test/CI
 loadEnv({ path: envPath, override: !isTestMode });
 
 // Fallback to .env if specific file doesn't exist (only if API_KEY not set)
 if (!process.env.API_KEY) {
-  loadEnv({ override: !isTestMode }); // Try default .env file
+  loadEnv({ path: path.resolve(EnvConfig.workspaceRoot(), '.env'), override: !isTestMode });
 }
 
 async function bootstrap() {
-  const rootLogger = new ConsoleLogger({ level: EnvConfig.loggerLevel() });
+  const rootLogger = new ConsoleLogger({
+    level: EnvConfig.loggerLevel(),
+    filePath: EnvConfig.logFilePath(),
+  });
 
   const { app, logger } = createApp(rootLogger);
 

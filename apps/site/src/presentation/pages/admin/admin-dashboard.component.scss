@@ -1,0 +1,275 @@
+:host {
+  display: block;
+}
+
+.admin-page {
+  --panel-bg: color-mix(in oklab, #132b3d 88%, white 12%);
+  --panel-border: color-mix(in oklab, #5cb4d6 28%, transparent);
+  --hero-bg:
+    radial-gradient(circle at top left, rgba(92, 180, 214, 0.28), transparent 38%),
+    linear-gradient(135deg, rgba(6, 28, 40, 0.96), rgba(12, 48, 63, 0.94));
+  display: grid;
+  gap: 1.5rem;
+}
+
+.hero,
+.panel,
+.toolbar,
+.admin-tabs {
+  border: 1px solid var(--panel-border);
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 50px rgba(7, 17, 24, 0.12);
+}
+
+.hero {
+  padding: 1.75rem;
+  background: var(--hero-bg);
+  color: #f4fbff;
+}
+
+.eyebrow,
+.panel-kicker {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.hero h1,
+.panel h2,
+.list-block h3 {
+  margin: 0.35rem 0 0.5rem;
+}
+
+.lede,
+.panel p,
+.list-block p {
+  margin: 0;
+}
+
+.panel {
+  background: var(--panel-bg);
+  color: #eff8fb;
+  padding: 1.25rem;
+}
+
+.panel.empty,
+.panel.login {
+  padding: 1.5rem;
+}
+
+.panel.accent {
+  background: linear-gradient(145deg, rgba(21, 73, 96, 0.98), rgba(11, 38, 52, 0.95));
+}
+
+.panel.healthy {
+  border-color: rgba(70, 186, 120, 0.45);
+}
+
+.panel.degraded,
+.panel.warn {
+  border-color: rgba(247, 167, 68, 0.55);
+}
+
+.panel.error {
+  border-color: rgba(255, 111, 97, 0.6);
+}
+
+.login-form,
+.control-grid,
+.stack,
+.list-block,
+.history-list,
+.notification-list,
+.log-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.login-form {
+  margin-top: 1rem;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: color-mix(in oklab, #0f2430 88%, white 12%);
+  color: #eff8fb;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.actions.inline {
+  justify-content: flex-start;
+}
+
+.stats-grid,
+.detail-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.detail-grid {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.panel-head,
+.notification-head,
+.log-meta,
+.history-head,
+.compact-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.badge {
+  min-width: 2rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  text-align: center;
+  font-weight: 700;
+}
+
+.compact-row,
+.history-row,
+.notification,
+.log-line {
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.history-row,
+.notification-list,
+.log-list {
+  max-height: 34rem;
+  overflow: auto;
+}
+
+.notification.warn,
+.log-line.warn {
+  border-left: 4px solid #f7a744;
+}
+
+.notification.error,
+.log-line.error,
+.error-copy {
+  border-left: 4px solid #ff6f61;
+}
+
+.notification pre {
+  margin: 0.75rem 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.78rem;
+  color: rgba(239, 248, 251, 0.76);
+}
+
+.error-banner,
+.info-banner {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+}
+
+.error-banner {
+  background: rgba(255, 111, 97, 0.14);
+  color: #ffe6e2;
+}
+
+.info-banner {
+  background: rgba(92, 180, 214, 0.12);
+  color: #d8f7ff;
+}
+
+.empty-copy {
+  margin-top: 1rem;
+  opacity: 0.8;
+}
+
+.mono {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.error-copy {
+  margin-top: 0.5rem;
+  padding-left: 0.75rem;
+  color: #ffe6e2;
+}
+
+.admin-tabs {
+  overflow: hidden;
+  background: color-mix(in oklab, #0f2430 90%, white 10%);
+}
+
+.admin-tabs .mat-mdc-tab-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-tabs .mdc-tab {
+  align-items: stretch;
+  min-height: 4.75rem;
+}
+
+.admin-tabs .mdc-tab__content {
+  align-items: stretch;
+}
+
+.admin-tabs .mdc-tab__text-label {
+  width: 100%;
+}
+
+.tab-label {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.8rem 0.2rem;
+  text-align: left;
+}
+
+.tab-label strong {
+  font-size: 0.95rem;
+  color: #eff8fb;
+}
+
+.tab-label span {
+  font-size: 0.76rem;
+  color: rgba(239, 248, 251, 0.7);
+}
+
+.tab-panel {
+  padding: 1.25rem;
+}
+
+.tab-loading {
+  min-height: 16rem;
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  color: #eff8fb;
+}
+
+@media (max-width: 720px) {
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tab-panel {
+    padding: 1rem;
+  }
+}

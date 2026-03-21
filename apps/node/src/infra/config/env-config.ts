@@ -1,8 +1,46 @@
+import fs from 'node:fs';
 import path from 'node:path';
 
 export class EnvConfig {
+  private static _workspaceRoot: string | null = null;
+
   private static norm(s: string | undefined): string {
     return (s ?? '').replace(/^\uFEFF/, '').trim();
+  }
+
+  static workspaceRoot(): string {
+    if (this._workspaceRoot) {
+      return this._workspaceRoot;
+    }
+
+    const candidates = [process.cwd(), __dirname];
+    for (const marker of ['nx.json', 'package.json']) {
+      for (const start of candidates) {
+        let current = path.resolve(start);
+        while (true) {
+          if (fs.existsSync(path.join(current, marker))) {
+            this._workspaceRoot = current;
+            return current;
+          }
+
+          const parent = path.dirname(current);
+          if (parent === current) {
+            break;
+          }
+          current = parent;
+        }
+      }
+    }
+
+    this._workspaceRoot = path.resolve(process.cwd());
+    return this._workspaceRoot;
+  }
+
+  private static resolvePath(value: string | undefined, fallback: string): string {
+    const normalized = this.norm(value) || fallback;
+    return path.isAbsolute(normalized)
+      ? path.resolve(normalized)
+      : path.resolve(this.workspaceRoot(), normalized);
   }
 
   static allowedOrigins(): string[] {
@@ -28,15 +66,15 @@ export class EnvConfig {
   }
 
   static uiRoot(): string {
-    return path.resolve(this.norm(process.env.UI_ROOT) || './tmp/ui');
+    return this.resolvePath(process.env.UI_ROOT, './tmp/ui');
   }
 
   static assetsRoot(): string {
-    return path.resolve(this.norm(process.env.ASSETS_ROOT) || './tmp/assets');
+    return this.resolvePath(process.env.ASSETS_ROOT, './tmp/assets');
   }
 
   static contentRoot(): string {
-    return path.resolve(this.norm(process.env.CONTENT_ROOT) || './tmp/site-content');
+    return this.resolvePath(process.env.CONTENT_ROOT, './tmp/site-content');
   }
 
   static port(): number {
@@ -56,6 +94,10 @@ export class EnvConfig {
     return 'info';
   }
 
+  static logFilePath(): string {
+    return this.resolvePath(process.env.LOG_FILE_PATH, './node.log');
+  }
+
   static siteName(): string {
     return this.norm(process.env.SITE_NAME) || "Scribe d'Ektaron";
   }
@@ -70,6 +112,27 @@ export class EnvConfig {
 
   static reportIssuesUrl(): string {
     return this.norm(process.env.REPORT_ISSUES_URL) || '';
+  }
+
+  static adminApiPath(): string {
+    const configured = this.norm(process.env.ADMIN_API_PATH);
+    const normalized = (configured || '/admin-api').replace(/\\/g, '/').replace(/\/{2,}/g, '/');
+    if (!normalized.startsWith('/')) {
+      return `/${normalized}`.replace(/\/+$/, '') || '/admin-api';
+    }
+    return normalized === '/' ? '/admin-api' : normalized.replace(/\/+$/, '') || '/admin-api';
+  }
+
+  static adminUsernameHash(): string {
+    return this.norm(process.env.ADMIN_USERNAME_HASH);
+  }
+
+  static adminPasswordHash(): string {
+    return this.norm(process.env.ADMIN_PASSWORD_HASH);
+  }
+
+  static adminDashboardEnabled(): boolean {
+    return Boolean(this.adminApiPath() && this.adminUsernameHash() && this.adminPasswordHash());
   }
 
   static homeWelcomeTitle(): string {
@@ -227,6 +290,6 @@ export class EnvConfig {
    * Default: /ui-server (Docker) or ./tmp/ui-server (local)
    */
   static uiServerRoot(): string {
-    return path.resolve(this.norm(process.env.UI_SERVER_ROOT) || './tmp/ui-server');
+    return this.resolvePath(process.env.UI_SERVER_ROOT, './tmp/ui-server');
   }
 }
