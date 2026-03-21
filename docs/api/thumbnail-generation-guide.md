@@ -472,7 +472,7 @@ const uploadAssetsHandler = new UploadAssetsHandler(
 Add optional thumbnail configuration:
 
 ```bash
-# .env.dev / .env.prod
+# .env.dev / docker-compose.prod.yml
 
 # Thumbnail generation
 THUMBNAILS_ENABLED=true                # Enable/disable thumbnail generation (default: true)

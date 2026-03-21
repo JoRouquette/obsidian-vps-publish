@@ -128,7 +128,7 @@ Create environment files from examples:
 cp .env.dev.example .env.dev
 
 # Production
-cp .env.prod.example .env.prod
+Production uses `docker-compose.prod.yml` directly; no separate production env file is required.
 ```
 
 **Required variables**:

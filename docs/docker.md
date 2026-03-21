@@ -25,8 +25,8 @@ docker run -d --name obsidian-vps-publish \
 
 ## Compose files
 
-- `docker-compose.dev.yml` builds the image locally for development.
-- `docker-compose.prod.yml` pulls `${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG:-latest}` and reads `.env.prod`.
+- `docker-compose.dev.yml` builds the image locally and reads `.env.dev`.
+- `docker-compose.prod.yml` is self-contained for application runtime variables and pulls `jorouquette/obsidian-vps-publish:latest` by default.
 
 ## Environment variables
 

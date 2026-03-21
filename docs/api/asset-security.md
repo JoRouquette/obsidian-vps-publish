@@ -145,7 +145,7 @@ MAX_ASSET_SIZE_BYTES=10485760
 #### Production (Docker with ClamAV)
 
 ```bash
-# .env.prod
+# docker-compose.prod.yml
 VIRUS_SCANNER_ENABLED=true
 CLAMAV_HOST=clamav              # Docker service name
 CLAMAV_PORT=3310
@@ -156,7 +156,7 @@ MAX_ASSET_SIZE_BYTES=52428800   # 50MB for production
 #### Production (VPS with clamd service)
 
 ```bash
-# .env.prod
+# docker-compose.prod.yml
 VIRUS_SCANNER_ENABLED=true
 CLAMAV_HOST=localhost
 CLAMAV_PORT=3310

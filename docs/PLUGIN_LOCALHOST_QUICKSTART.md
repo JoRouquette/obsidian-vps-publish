@@ -79,7 +79,7 @@ ALLOWED_ORIGINS=*,app://obsidian,http://localhost:4200,http://localhost:3000
 BASE_URL=http://localhost:3000
 ```
 
-> **Important** : Le fichier `.env` est automatiquement créé lors du setup. Si absent, copier depuis `.env.dev` : `cp .env.dev .env`
+> **Important** : Le backend de developpement charge `.env.dev`. Si absent, copier depuis `.env.dev.example` : `cp .env.dev.example .env.dev`
 
 ---
 
@@ -95,8 +95,8 @@ curl http://localhost:3000/health
 cat .env | grep API_KEY
 # Doit afficher : API_KEY=devkeylocal
 
-# Si absent, copie depuis .env.dev :
-cp .env.dev .env
+# Si absent, copie depuis .env.dev.example :
+cp .env.dev.example .env.dev
 
 # Redémarre le backend
 npm run start node

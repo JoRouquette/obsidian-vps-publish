@@ -114,7 +114,7 @@ Publishing uses a **session-based upload** system:
 
 ### Environment Variables
 
-See `.env.dev.example` / `.env.prod.example` for complete configuration.
+See `.env.dev.example` and `docker-compose.prod.yml` for complete configuration.
 
 **Required**:
 

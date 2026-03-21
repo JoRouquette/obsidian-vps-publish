@@ -315,11 +315,11 @@ ALLOWED_ORIGINS=https://your-domain.com   # CORS
 LOGGER_LEVEL=info                         # Debugging SEO
 ```
 
-**Fichier** : Créer `.env` ou `.env.prod` à la racine :
+**Fichier** : configurer `.env.dev` en developpement, ou editer directement `docker-compose.prod.yml` pour la production :
 
 ```bash
-cp .env.prod.example .env.prod
-# Éditer avec vos valeurs
+cp .env.dev.example .env.dev
+# Editer avec vos valeurs de developpement
 ```
 
 ### Schema Manifest (champs SEO)

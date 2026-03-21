@@ -108,7 +108,7 @@ Le backend utilise des variables d'environnement :
 
 Voir [Asset Security](./asset-security.md) pour la configuration détaillée.
 
-Voir `.env.dev.example` et `.env.prod.example` pour les templates complets.
+Voir `.env.dev.example` pour le template de developpement et `docker-compose.prod.yml` pour la configuration production.
 
 ## 📡 API Endpoints
 

@@ -20,12 +20,11 @@ npm install --no-audit --no-fund
 
 ## Configuration
 
-Le projet utilise deux fichiers de configuration d'environnement :
+Le projet utilise un seul fichier de configuration d'environnement pour le runtime de developpement :
 
-- **`.env`** - Fichier principal chargé automatiquement par l'application Node
-- **`.env.dev`** - Fichier de référence (identique à `.env` pour le dev local)
+- **`.env.dev`** - Fichier principal chargé automatiquement par l'application Node
 
-Les deux fichiers contiennent les mêmes variables pour le développement local :
+Variables typiques pour le développement local :
 
 ```dotenv
 NODE_ENV=development
@@ -39,7 +38,7 @@ ALLOWED_ORIGINS=*,app://obsidian,http://localhost:4200,http://localhost:3000
 BASE_URL=http://localhost:3000
 ```
 
-> **Note** : Les fichiers `.env` et `.env.dev` sont ignorés par git (dans `.gitignore`). Ils sont créés automatiquement lors du setup initial.
+> **Note** : Le fichier `.env.dev` est ignoré par git (dans `.gitignore`).
 
 Les dossiers `tmp/*` seront créés automatiquement au premier lancement.
 
@@ -309,24 +308,24 @@ Configure le VPS dans Obsidian :
    # Windows
    netstat -ano | findstr :3000
 
-   # Si le port est utilisé, tuer le processus ou changer le PORT dans .env
+   # Si le port est utilisé, tuer le processus ou changer le PORT dans .env.dev
    ```
 
    **Cause** : Le backend ne trouve pas l'API key dans les variables d'environnement.
 
 **Solution** :
 
-1. **Vérifier que le fichier `.env` existe** :
+1. **Vérifier que le fichier `.env.dev` existe** :
 
    ```bash
-   cat .env | grep API_KEY
+   cat .env.dev | grep API_KEY
    # Doit afficher : API_KEY=devkeylocal
    ```
 
 2. **Si le fichier n'existe pas, le créer** :
 
    ```bash
-   cp .env.dev .env
+   cp .env.dev.example .env.dev
    ```
 
 3. **Redémarrer le backend** :
@@ -341,14 +340,13 @@ Configure le VPS dans Obsidian :
    Server listening on port 3000
    ```
 
-> **Note technique** : Depuis la version actuelle, l'application charge automatiquement les variables depuis `.env` (ou `.env.dev` si `NODE_ENV=development`) grâce au package `dotenv`.# Si absent, copier depuis .env.dev :
-> cp .env.dev .env
+> **Note technique** : L'application charge automatiquement les variables depuis `.env.dev` pour les executions de developpement.
 
 ````
 
 3. **Vérifier que l'API_KEY est définie** :
 ```bash
-cat .env | grep API_KEY
+cat .env.dev | grep API_KEY
 # Doit afficher : API_KEY=devkeylocal
 ````
 
