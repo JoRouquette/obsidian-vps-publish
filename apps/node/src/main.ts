@@ -6,18 +6,16 @@ import { EnvConfig } from './infra/config/env-config';
 import { createApp } from './infra/http/express/app';
 import { ConsoleLogger } from './infra/logging/console-logger';
 
-// Load environment variables from .env.dev or .env file
-// In test mode (E2E/CI), do NOT override env vars passed externally
+// Load development environment variables from .env.dev.
+// Test/CI runs should rely on their explicit process environment instead.
 const isTestMode = process.env.NODE_ENV === 'test' || process.env.CI === 'true';
-const envFile = process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.dev';
-const envPath = path.resolve(EnvConfig.workspaceRoot(), envFile);
+const isProduction = process.env.NODE_ENV === 'production';
 
-// Only override in development mode, not in test/CI
-loadEnv({ path: envPath, override: !isTestMode });
-
-// Fallback to .env if specific file doesn't exist (only if API_KEY not set)
-if (!process.env.API_KEY) {
-  loadEnv({ path: path.resolve(EnvConfig.workspaceRoot(), '.env'), override: !isTestMode });
+if (!isProduction && !isTestMode) {
+  loadEnv({
+    path: path.resolve(EnvConfig.workspaceRoot(), '.env.dev'),
+    override: true,
+  });
 }
 
 async function bootstrap() {
