@@ -12,6 +12,8 @@ import { type LoggerPort, type Manifest } from '@core-domain';
 import compression from 'compression';
 import express from 'express';
 
+import { AdminDashboardService } from '../../admin/admin-dashboard.service';
+import { AdminRuntimeControlService } from '../../admin/admin-runtime-control.service';
 import { EnvConfig } from '../../config/env-config';
 import { ContentVersionService } from '../../content-version/content-version.service';
 import { AssetsFileSystemStorage } from '../../filesystem/assets-file-system.storage';
@@ -31,16 +33,19 @@ import { SessionFinalizerService } from '../../sessions/session-finalizer.servic
 import { createAngularSSRService } from '../../ssr/angular-ssr.service';
 import { AssetHashService } from '../../utils/asset-hash.service';
 import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
+import { createAdminDashboardController } from './controllers/admin-dashboard.controller';
 import { createContentVersionController } from './controllers/content-version.controller';
 import { createHealthCheckController } from './controllers/health-check.controller';
 import { createMaintenanceController } from './controllers/maintenance-controller';
 import { createPingController } from './controllers/ping.controller';
 import { createSeoController } from './controllers/seo.controller';
 import { createSessionController } from './controllers/session-controller';
+import { createAdminAuthMiddleware } from './middleware/admin-auth.middleware';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
 import { BackpressureMiddleware } from './middleware/backpressure.middleware';
 import { ChunkedUploadMiddleware } from './middleware/chunked-upload.middleware';
 import { createCorsMiddleware } from './middleware/cors.middleware';
+import { createMaintenanceModeMiddleware } from './middleware/maintenance-mode.middleware';
 import { PerformanceMonitoringMiddleware } from './middleware/performance-monitoring.middleware';
 import { createRedirectMiddleware } from './middleware/redirect.middleware';
 import { RequestCorrelationMiddleware } from './middleware/request-correlation.middleware';
@@ -259,6 +264,18 @@ export function createApp(rootLogger?: LoggerPort) {
 
   // Content version service for PWA cache invalidation
   const contentVersionService = new ContentVersionService(EnvConfig.contentRoot(), rootLogger);
+  const runtimeControl = new AdminRuntimeControlService();
+  const adminDashboardService = new AdminDashboardService(
+    productionManifest,
+    contentVersionService,
+    sessionRepository,
+    finalizationJobService,
+    runtimeControl,
+    backpressure,
+    perfMonitor,
+    rootLogger,
+    EnvConfig
+  );
 
   // Hook finalization completion to update content version
   finalizationJobService.onJobCompleted(async () => {
@@ -282,6 +299,7 @@ export function createApp(rootLogger?: LoggerPort) {
   apiRouter.use(chunkedUploadMiddleware.handle());
 
   apiRouter.use(createPingController(rootLogger));
+  apiRouter.use(createMaintenanceModeMiddleware(runtimeControl, rootLogger));
 
   apiRouter.use(createMaintenanceController(stagingManager, rootLogger));
 
@@ -318,6 +336,21 @@ export function createApp(rootLogger?: LoggerPort) {
   });
 
   app.use('/api', apiRouter);
+
+  if (EnvConfig.adminDashboardEnabled()) {
+    const adminRouter = express.Router();
+    adminRouter.use(
+      createAdminAuthMiddleware(
+        {
+          usernameHash: EnvConfig.adminUsernameHash(),
+          passwordHash: EnvConfig.adminPasswordHash(),
+        },
+        rootLogger
+      )
+    );
+    adminRouter.use(createAdminDashboardController(adminDashboardService, rootLogger));
+    app.use(EnvConfig.adminApiPath(), adminRouter);
+  }
 
   // Content version endpoints (public, no API key required)
   // These must be before static file handlers to ensure they're handled by Express
@@ -367,6 +400,8 @@ export function createApp(rootLogger?: LoggerPort) {
         reportIssuesUrl: EnvConfig.reportIssuesUrl(),
         homeWelcomeTitle: EnvConfig.homeWelcomeTitle(),
         locale,
+        adminApiPath: EnvConfig.adminDashboardEnabled() ? EnvConfig.adminApiPath() : '',
+        adminDashboardEnabled: EnvConfig.adminDashboardEnabled(),
       });
     })();
   });

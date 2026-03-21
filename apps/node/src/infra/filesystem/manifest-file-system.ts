@@ -99,6 +99,8 @@ export class ManifestFileSystem implements ManifestPort {
         sessionId?: string;
         createdAt?: string;
         lastUpdatedAt?: string;
+        locale?: Manifest['locale'];
+        contentRevision?: string;
         folderDisplayNames?: Record<string, string>;
         assets?: unknown;
         pipelineSignature?: unknown;
@@ -130,6 +132,8 @@ export class ManifestFileSystem implements ManifestPort {
         createdAt: new Date(parsed.createdAt ?? 0),
         lastUpdatedAt: new Date(parsed.lastUpdatedAt ?? 0),
         pages,
+        locale: parsed.locale,
+        contentRevision: parsed.contentRevision,
         folderDisplayNames: this.normalizeRouteKeyRecord(parsed.folderDisplayNames || undefined),
         canonicalMap: this.normalizeRouteMap(
           (parsed as { canonicalMap?: Record<string, string> }).canonicalMap

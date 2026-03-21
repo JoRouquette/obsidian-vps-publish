@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 import { type LoggerPort, LogLevel, type LogMeta, type OperationContext } from '@core-domain';
 
 type ConsoleLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -5,11 +8,13 @@ type ConsoleLevel = 'debug' | 'info' | 'warn' | 'error';
 export interface ConsoleLoggerOptions {
   level?: ConsoleLevel | LogLevel;
   context?: OperationContext;
+  filePath?: string;
 }
 
 export class ConsoleLogger implements LoggerPort {
   private _level: LogLevel;
   private readonly context: OperationContext;
+  private readonly filePath?: string;
 
   private static levelOrder: Record<ConsoleLevel, number> = {
     debug: 10,
@@ -21,6 +26,7 @@ export class ConsoleLogger implements LoggerPort {
   constructor(options: ConsoleLoggerOptions = {}) {
     this._level = this.normalizeLevel(options.level ?? 'info');
     this.context = options.context ?? {};
+    this.filePath = options.filePath;
   }
 
   set level(level: LogLevel) {
@@ -35,6 +41,7 @@ export class ConsoleLogger implements LoggerPort {
     return new ConsoleLogger({
       level: level ?? this._level,
       context: { ...this.context, ...context },
+      filePath: this.filePath,
     });
   }
 
@@ -71,6 +78,7 @@ export class ConsoleLogger implements LoggerPort {
     };
 
     const line = JSON.stringify(payload);
+    this.writeToFile(line);
 
     switch (normalized) {
       case 'debug':
@@ -85,6 +93,19 @@ export class ConsoleLogger implements LoggerPort {
       case 'error':
         console.error(line);
         break;
+    }
+  }
+
+  private writeToFile(line: string): void {
+    if (!this.filePath) {
+      return;
+    }
+
+    try {
+      fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
+      fs.appendFileSync(this.filePath, `${line}\n`, 'utf8');
+    } catch {
+      // Avoid recursive logging if file persistence fails.
     }
   }
 

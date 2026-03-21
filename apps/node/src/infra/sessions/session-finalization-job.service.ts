@@ -34,12 +34,25 @@ export interface FinalizationJob {
   };
 }
 
+export interface FinalizationJobHistoryEntry {
+  jobId: string;
+  sessionId: string;
+  status: FinalizationJob['status'];
+  progress: number;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  error?: string;
+  result?: FinalizationJob['result'];
+}
+
 export class SessionFinalizationJobService {
   private jobs: Map<string, FinalizationJob> = new Map();
   private processingQueue: string[] = [];
   private activeJobs = 0;
   private maxConcurrentJobs: number;
   private completionCallbacks: Array<() => Promise<void>> = [];
+  private readonly historyFilePath: string;
 
   constructor(
     private readonly sessionFinalizer: SessionFinalizerService,
@@ -49,6 +62,11 @@ export class SessionFinalizationJobService {
     maxConcurrentJobs?: number
   ) {
     this.maxConcurrentJobs = maxConcurrentJobs ?? 5;
+    this.historyFilePath = path.join(
+      this.stagingManager.contentRootPath,
+      '.admin',
+      'finalization-history.jsonl'
+    );
   }
 
   /**
@@ -108,6 +126,39 @@ export class SessionFinalizationJobService {
     return undefined;
   }
 
+  getRecentJobs(limit = 20): FinalizationJob[] {
+    return [...this.jobs.values()]
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      .slice(0, limit)
+      .map((job) => ({
+        ...job,
+        createdAt: new Date(job.createdAt),
+        startedAt: job.startedAt ? new Date(job.startedAt) : undefined,
+        completedAt: job.completedAt ? new Date(job.completedAt) : undefined,
+      }));
+  }
+
+  async getPersistedHistory(limit = 20): Promise<FinalizationJobHistoryEntry[]> {
+    try {
+      const raw = await fs.readFile(this.historyFilePath, 'utf8');
+      return raw
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .reverse()
+        .map((line) => JSON.parse(line) as FinalizationJobHistoryEntry)
+        .slice(0, limit);
+    } catch (error) {
+      const code = (error as { code?: string } | undefined)?.code;
+      if (code !== 'ENOENT') {
+        this.logger?.warn('[JOB] Failed to read persisted finalization history', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      return [];
+    }
+  }
+
   /**
    * Wait for job completion (blocking call with timeout)
    * Polls job status every 500ms until completed/failed or timeout
@@ -132,6 +183,7 @@ export class SessionFinalizationJobService {
       }
 
       if (currentJob.status === 'completed') {
+        await new Promise((resolve) => setTimeout(resolve, 0));
         return currentJob;
       }
 
@@ -271,17 +323,23 @@ export class SessionFinalizationJobService {
       const validationStart = Date.now();
       await this.validatePostPromotion();
       timings.validation = Date.now() - validationStart;
-      job.progress = 100;
-
-      // Mark as completed
-      job.status = 'completed';
-      job.completedAt = new Date();
-      job.result = {
+      const completedAt = new Date();
+      const result: FinalizationJob['result'] = {
         notesProcessed: session?.notesProcessed ?? 0,
         assetsProcessed: session?.assetsProcessed ?? 0,
         promotionStats,
         contentRevision,
       };
+
+      // Trigger completion callbacks before exposing the job as completed so
+      // queue stats only count fully finalized publications.
+      await this.triggerCompletionCallbacks();
+
+      job.progress = 100;
+      job.result = result;
+      job.completedAt = completedAt;
+      job.status = 'completed';
+      await this.appendHistory(job);
 
       const totalDuration = Date.now() - startTime;
       this.logger?.info('[JOB] Finalization job completed', {
@@ -292,13 +350,11 @@ export class SessionFinalizationJobService {
         timings,
         activeJobs: this.activeJobs,
       });
-
-      // Trigger completion callbacks (e.g., content version update)
-      await this.triggerCompletionCallbacks();
     } catch (error) {
-      job.status = 'failed';
       job.error = error instanceof Error ? error.message : 'Unknown error';
       job.completedAt = new Date();
+      job.status = 'failed';
+      await this.appendHistory(job);
 
       const totalDuration = Date.now() - startTime;
       this.logger?.error('[JOB] Finalization job failed', {
@@ -358,6 +414,23 @@ export class SessionFinalizationJobService {
         });
       }
     }
+  }
+
+  private async appendHistory(job: FinalizationJob): Promise<void> {
+    const entry: FinalizationJobHistoryEntry = {
+      jobId: job.jobId,
+      sessionId: job.sessionId,
+      status: job.status,
+      progress: job.progress,
+      createdAt: job.createdAt.toISOString(),
+      startedAt: job.startedAt?.toISOString(),
+      completedAt: job.completedAt?.toISOString(),
+      error: job.error,
+      result: job.result,
+    };
+
+    await fs.mkdir(path.dirname(this.historyFilePath), { recursive: true });
+    await fs.appendFile(this.historyFilePath, `${JSON.stringify(entry)}\n`, 'utf8');
   }
 
   /**
@@ -465,13 +538,15 @@ export class SessionFinalizationJobService {
       completed: 0,
       failed: 0,
       queueLength: this.processingQueue.length,
-      activeJobs: this.activeJobs,
+      activeJobs: 0,
       maxConcurrentJobs: this.maxConcurrentJobs,
     };
 
     for (const job of this.jobs.values()) {
       stats[job.status]++;
     }
+
+    stats.activeJobs = stats.processing;
 
     return stats;
   }

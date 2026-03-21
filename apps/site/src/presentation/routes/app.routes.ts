@@ -26,6 +26,11 @@ export const APP_ROUTES: Routes = [
         resolve: { seo: seoResolver },
       },
       {
+        path: 'admin',
+        loadComponent: () =>
+          import('../pages/admin/admin-dashboard.component').then((m) => m.AdminDashboardComponent),
+      },
+      {
         path: '**',
         loadComponent: () =>
           import('../pages/viewer/viewer.component').then((m) => m.ViewerComponent),

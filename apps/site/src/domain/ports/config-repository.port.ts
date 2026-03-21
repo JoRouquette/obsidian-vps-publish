@@ -7,6 +7,8 @@ export interface PublicConfig {
   homeWelcomeTitle: string;
   /** Site locale for HTML lang attribute and i18n */
   locale: 'en' | 'fr';
+  adminApiPath: string;
+  adminDashboardEnabled: boolean;
 }
 
 export interface ConfigRepository {

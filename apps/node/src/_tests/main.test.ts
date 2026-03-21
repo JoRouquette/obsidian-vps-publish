@@ -7,7 +7,9 @@ jest.mock('../infra/http/express/app', () => ({
 
 jest.mock('../infra/config/env-config', () => ({
   EnvConfig: {
+    workspaceRoot: jest.fn(() => process.cwd()),
     loggerLevel: jest.fn(() => 'info'),
+    logFilePath: jest.fn(() => './tmp/node.log'),
     port: jest.fn(() => 3000),
   },
 }));

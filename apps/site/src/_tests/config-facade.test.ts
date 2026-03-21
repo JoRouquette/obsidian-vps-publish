@@ -11,6 +11,8 @@ describe('ConfigFacade', () => {
       reportIssuesUrl: '',
       homeWelcomeTitle: 'Welcome',
       locale: 'en',
+      adminApiPath: '',
+      adminDashboardEnabled: false,
     };
     const repo: jest.Mocked<ConfigRepository> = { load: jest.fn().mockResolvedValue(cfg) };
 

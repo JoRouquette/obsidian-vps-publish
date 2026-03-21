@@ -81,6 +81,8 @@ const fakeConfig: PublicConfig = {
   reportIssuesUrl: '',
   homeWelcomeTitle: 'Bienvenue',
   locale: 'fr',
+  adminApiPath: '',
+  adminDashboardEnabled: false,
 };
 
 function manifestWithPages(pages: ManifestPage[]): Manifest {

@@ -5,7 +5,17 @@ import { HttpConfigRepository } from '../infrastructure/http/http-config.reposit
 
 describe('HttpConfigRepository', () => {
   it('caches config load', async () => {
-    const payload = { siteName: 'Site', author: 'Me', repoUrl: '', reportIssuesUrl: '' };
+    const payload = {
+      baseUrl: 'http://localhost',
+      siteName: 'Site',
+      author: 'Me',
+      repoUrl: '',
+      reportIssuesUrl: '',
+      homeWelcomeTitle: 'Welcome',
+      locale: 'fr' as const,
+      adminApiPath: '',
+      adminDashboardEnabled: false,
+    };
     const get = jest.fn().mockReturnValue(of(payload));
     const repo = new HttpConfigRepository({ get } as unknown as HttpClient);
 

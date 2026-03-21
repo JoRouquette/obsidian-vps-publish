@@ -14,6 +14,8 @@ describe('ManifestFileSystem', () => {
     sessionId: 's1',
     createdAt: new Date('2024-01-01T00:00:00Z'),
     lastUpdatedAt: new Date('2024-01-02T00:00:00Z'),
+    locale: 'fr',
+    contentRevision: 'rev-1',
     pages: [
       {
         id: 'p1',
@@ -51,6 +53,8 @@ describe('ManifestFileSystem', () => {
     const loaded = await storage.load();
     expect(loaded?.sessionId).toBe('s1');
     expect(loaded?.pages[0].publishedAt).toBeInstanceOf(Date);
+    expect(loaded?.locale).toBe('fr');
+    expect(loaded?.contentRevision).toBe('rev-1');
   });
 
   it('rebuilds indexes and writes html files', async () => {
