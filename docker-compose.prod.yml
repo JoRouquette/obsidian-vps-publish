@@ -1,6 +1,7 @@
 services:
   obsidian-vps-publish:
     image: ${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG:-latest}
+    pull_policy: always
 
     env_file:
       - .env.prod
@@ -8,3 +9,4 @@ services:
     environment:
       NODE_ENV: 'production'
       LOGGER_LEVEL: 'warn'
+      LOG_FILE_PATH: /app/tmp/logs/node.log

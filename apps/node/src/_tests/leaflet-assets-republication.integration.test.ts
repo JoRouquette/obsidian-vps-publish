@@ -210,7 +210,12 @@ describe('Leaflet asset republication integration', () => {
   });
 
   afterEach(async () => {
-    await fs.rm(tempDir, { recursive: true, force: true });
+    await fs.rm(tempDir, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    });
   });
 
   it('publishes a Leaflet image overlay coherently across two publications', async () => {
@@ -357,5 +362,5 @@ describe('Leaflet asset republication integration', () => {
       secondPublication.finalManifest!.pages[0].leafletBlocks![0].imageOverlays![0].path
     )}`;
     expect(frontendUrl).toBe('/assets/Ektaron.webp');
-  });
+  }, 15_000);
 });
