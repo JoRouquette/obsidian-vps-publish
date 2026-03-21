@@ -1,3 +1,9 @@
+## [6.16.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.16.0...6.16.1) (2026-03-21)
+
+### Bug Fixes
+
+* **routing:** keep published internal routes absolute ([53a6197](https://github.com/JoRouquette/obsidian-vps-publish/commit/53a619720bd8c40ab9f59a6c3bb8bc50f6612fd4))
+
 ## [6.16.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.15.0...6.16.0) (2026-03-20)
 
 ### Features
