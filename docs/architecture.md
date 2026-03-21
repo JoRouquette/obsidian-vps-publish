@@ -27,7 +27,7 @@
   - SPA served at `/` from the built Angular files copied into `UI_ROOT` during the image build.
 - `_manifest.json` is the canonical source for internal page routing; page routes and route-keyed
   maps are normalized on load/save/promotion so generated links stay stable across staged and final output.
-- Key environment variables (see `.env.dev.example` / `.env.prod.example`):
+- Key environment variables (see `.env.dev.example` and `docker-compose.prod.yml`):
   - `API_KEY` (required), `ALLOWED_ORIGINS`, `LOGGER_LEVEL`, `PORT`, `NODE_ENV`.
   - Roots: `CONTENT_ROOT` (rendered HTML + `_manifest.json`, default `/content`), `ASSETS_ROOT` (default `/assets`), `UI_ROOT` (default `/ui`).
   - SSR: `SSR_ENABLED` (default `false` in dev, `true` in production), `UI_SERVER_ROOT` (default `./dist/apps/site/server`).

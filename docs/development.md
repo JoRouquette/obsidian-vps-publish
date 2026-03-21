@@ -29,7 +29,7 @@ Useful scripts:
 ## Environment configuration
 
 - Backend expects `API_KEY` plus `CONTENT_ROOT`, `ASSETS_ROOT`, `UI_ROOT`, and optionally `UI_SERVER_ROOT` for SSR (see `docs/architecture.md` for defaults).
-- Populate `.env.dev` / `.env.prod` from the provided `.env.*.example` files before running Docker or compose.
+- Populate `.env.dev` from `.env.dev.example` before running locally. Production is configured directly in `docker-compose.prod.yml`.
 
 ### SSR-specific variables
 
@@ -41,7 +41,7 @@ Useful scripts:
 
 - By default, dotenv does NOT override existing environment variables
 - The backend uses `override: true` to ensure `.env.dev` values take precedence
-- Load order: `.env.dev` (if exists) → `.env` (fallback)
+- Load order: `.env.dev` for development runs only; production relies on process/container environment variables
 - Variables loaded: 18 expected (check console on startup for count)
 
 ## VS Code Tasks for SSR Development

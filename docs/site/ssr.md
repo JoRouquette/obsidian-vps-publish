@@ -324,7 +324,7 @@ JIT compilation is discouraged for production use-cases!
 1. **Use CSR mode (recommended for now)**:
 
    ```bash
-   # .env.dev or .env.prod
+   # .env.dev or docker-compose.prod.yml
    SSR_ENABLED=false
    ```
 

@@ -73,7 +73,7 @@ The backend uses environment variables:
 - **`LOGGER_LEVEL`** (default `info`): Log level (`debug`, `info`, `warn`, `error`)
 - **`NODE_ENV`**: Environment (`development`, `production`)
 
-See `.env.dev.example` and `.env.prod.example` for complete templates.
+See `.env.dev.example` for the development template and `docker-compose.prod.yml` for the production configuration.
 
 ## 📡 API Endpoints
 
