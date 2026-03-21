@@ -1,3 +1,9 @@
+## [6.17.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.16.1...6.17.0) (2026-03-21)
+
+### Features
+
+* **admin:** add site dashboard and runtime controls ([77cb980](https://github.com/JoRouquette/obsidian-vps-publish/commit/77cb980dedbd4df9b25df37fe10dec10878c1733))
+
 ## [6.16.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.16.0...6.16.1) (2026-03-21)
 
 ### Bug Fixes
