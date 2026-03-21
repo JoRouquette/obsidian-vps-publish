@@ -53,6 +53,44 @@ export class ManifestFileSystem implements ManifestPort {
     return path.join(this.contentRoot, '_manifest.json');
   }
 
+  private normalizeRoute(route: string | undefined): string | undefined {
+    if (!route) return route;
+
+    const normalized = route
+      .trim()
+      .replace(/\\/g, '/')
+      .replace(/\/{2,}/g, '/');
+    if (!normalized || normalized === '/') {
+      return '/';
+    }
+
+    return normalized.startsWith('/') ? normalized : `/${normalized.replace(/^\/+/, '')}`;
+  }
+
+  private normalizeRouteKeyRecord(
+    record: Record<string, string> | undefined
+  ): Record<string, string> | undefined {
+    if (!record) return undefined;
+
+    const normalizedEntries = Object.entries(record)
+      .map(([key, value]) => [this.normalizeRoute(key) ?? key, value])
+      .filter(([key, value]) => Boolean(key) && Boolean(value));
+
+    return normalizedEntries.length > 0 ? Object.fromEntries(normalizedEntries) : undefined;
+  }
+
+  private normalizeRouteMap(
+    record: Record<string, string> | undefined
+  ): Record<string, string> | undefined {
+    if (!record) return undefined;
+
+    const normalizedEntries = Object.entries(record)
+      .map(([key, value]) => [this.normalizeRoute(key) ?? key, this.normalizeRoute(value) ?? value])
+      .filter(([key, value]) => Boolean(key) && Boolean(value));
+
+    return normalizedEntries.length > 0 ? Object.fromEntries(normalizedEntries) : undefined;
+  }
+
   async load(): Promise<Manifest | null> {
     try {
       const raw = await fs.readFile(this.manifestPath(), 'utf8');
@@ -71,6 +109,7 @@ export class ManifestFileSystem implements ManifestPort {
             const page = p as ManifestPage & { publishedAt?: string | Date };
             return {
               ...page,
+              route: this.normalizeRoute(page.route) ?? page.route,
               publishedAt: new Date(page.publishedAt ?? 0),
             };
           })
@@ -91,7 +130,10 @@ export class ManifestFileSystem implements ManifestPort {
         createdAt: new Date(parsed.createdAt ?? 0),
         lastUpdatedAt: new Date(parsed.lastUpdatedAt ?? 0),
         pages,
-        folderDisplayNames: parsed.folderDisplayNames || undefined,
+        folderDisplayNames: this.normalizeRouteKeyRecord(parsed.folderDisplayNames || undefined),
+        canonicalMap: this.normalizeRouteMap(
+          (parsed as { canonicalMap?: Record<string, string> }).canonicalMap
+        ),
         assets,
         pipelineSignature: parsed.pipelineSignature as PipelineSignature | undefined, // PHASE 7: Load pipelineSignature
       };
@@ -123,9 +165,12 @@ export class ManifestFileSystem implements ManifestPort {
         ...manifest,
         createdAt: manifest.createdAt.toISOString(),
         lastUpdatedAt: manifest.lastUpdatedAt.toISOString(),
+        folderDisplayNames: this.normalizeRouteKeyRecord(manifest.folderDisplayNames),
+        canonicalMap: this.normalizeRouteMap(manifest.canonicalMap),
         pages: manifest.pages.map((p) => {
           const serializedPage = {
             ...p,
+            route: this.normalizeRoute(p.route) ?? p.route,
             publishedAt: p.publishedAt.toISOString(),
             // Explicitly include blocks to ensure they're serialized
             leafletBlocks: p.leafletBlocks ?? undefined,

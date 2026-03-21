@@ -77,10 +77,11 @@ export class ComputeRoutingService implements BaseService {
 
         parts.push(slug);
 
-        const fullPath = parts
+        const joinedPath = parts
           .filter(Boolean)
           .join('/')
           .replace(/\/{2,}/g, '/');
+        const fullPath = joinedPath ? `/${joinedPath.replace(/^\/+/, '')}` : '/';
 
         routing = {
           slug,

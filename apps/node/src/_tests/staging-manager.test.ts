@@ -498,4 +498,41 @@ describe('StagingManager - Manifest Merge (PHASE 6)', () => {
     expect(note4).toBeDefined();
     expect(note5).toBeDefined();
   });
+
+  it('normalizes slashless staging routes before promoting the final manifest', async () => {
+    const sessionId = 'slashless-routes';
+    const stagingManifest: Manifest = {
+      sessionId,
+      createdAt: new Date('2024-01-02T00:00:00Z'),
+      lastUpdatedAt: new Date('2024-01-02T00:00:00Z'),
+      pages: [
+        {
+          title: 'Guide A',
+          route: 'guides/guide-a',
+          relativePath: 'guides/guide-a.html',
+          publishedAt: new Date('2024-01-02T00:00:00Z'),
+        } as ManifestPage,
+      ],
+      folderDisplayNames: {
+        guides: 'Guides',
+      },
+      canonicalMap: {
+        'old-guides/guide-a': 'guides/guide-a',
+      },
+    };
+
+    await writeStagingManifest(sessionId, stagingManifest);
+
+    await stagingManager.promoteSession(sessionId, ['/guides/guide-a']);
+
+    const finalManifestPath = path.join(contentRoot, '_manifest.json');
+    const finalManifestRaw = await fs.readFile(finalManifestPath, 'utf8');
+    const finalManifest = JSON.parse(finalManifestRaw) as Manifest;
+
+    expect(finalManifest.pages[0].route).toBe('/guides/guide-a');
+    expect(finalManifest.folderDisplayNames).toEqual({ '/guides': 'Guides' });
+    expect(finalManifest.canonicalMap).toEqual({
+      '/old-guides/guide-a': '/guides/guide-a',
+    });
+  });
 });

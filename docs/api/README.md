@@ -32,7 +32,7 @@ Le backend Node.js/Express :
 
 ### Rendu de contenu
 
-- **[Link Normalization](./link-normalization.md)** - Normalisation des liens pour uniformité du routing et du style
+- **[Link Normalization](./link-normalization.md)** - Normalisation des liens, invariants de routes absolues, et cohérence entre staging, manifest et HTML final
 
 ### Logging et observabilité
 
