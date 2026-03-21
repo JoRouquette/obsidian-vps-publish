@@ -119,4 +119,34 @@ describe('ManifestFileSystem', () => {
     expect(loaded!.assets![0].uploadedAt.toISOString()).toBe('2024-02-01T10:15:00.000Z');
     expect(loaded!.assets![1].uploadedAt).toBeInstanceOf(Date);
   });
+
+  it('normalizes route-like manifest fields to absolute paths on save and load', async () => {
+    const manifestWithRelativeRoutes: Manifest = {
+      sessionId: 's3',
+      createdAt: new Date('2024-03-01T10:00:00Z'),
+      lastUpdatedAt: new Date('2024-03-01T12:00:00Z'),
+      pages: [
+        {
+          id: 'page-relative',
+          title: 'Relative',
+          route: 'guides/reference',
+          slug: Slug.from('reference'),
+          publishedAt: new Date('2024-03-01T10:30:00Z'),
+        },
+      ],
+      folderDisplayNames: {
+        guides: 'Guides',
+      },
+      canonicalMap: {
+        'old-guides/reference': 'guides/reference',
+      },
+    };
+
+    await storage.save(manifestWithRelativeRoutes);
+    const loaded = await storage.load();
+
+    expect(loaded?.pages[0].route).toBe('/guides/reference');
+    expect(loaded?.folderDisplayNames).toEqual({ '/guides': 'Guides' });
+    expect(loaded?.canonicalMap).toEqual({ '/old-guides/reference': '/guides/reference' });
+  });
 });

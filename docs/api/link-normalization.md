@@ -26,6 +26,10 @@ A post-processing step (`cleanAndNormalizeLinks()`) in `MarkdownItRenderer` that
 5. **Preserves anchors** (#section) in links
 6. **Ignores external URLs** (http://, https://, mailto:)
 
+This renderer-level normalization is only reliable if the routing data stays stable across the whole
+publication pipeline. Since March 2026, route normalization is enforced before rendering and again
+when manifests are loaded, saved, and promoted from staging to production.
+
 ## Implementation
 
 ### Location
@@ -96,6 +100,36 @@ const bodyHtml = await this.markdownRenderer.render(note, {
 });
 ```
 
+## Route invariants
+
+Internal-link rendering now relies on a strict invariant:
+
+- every published page route must be absolute and start with `/`
+- every `resolvedWikilinks.href` generated from routing must therefore also be absolute
+- manifest route maps (`pages[].route`, `folderDisplayNames` keys, `canonicalMap` keys/values)
+  must never contain slashless paths such as `guides/guide`
+
+### Why this matters
+
+If a route becomes relative at any point, a link that looks valid in the manifest can become broken in
+the final HTML:
+
+- from `/guides/guide-a`, `href="lore/deep-note"` resolves as a browser-relative path
+- the page exists, but the rendered link points to `/guides/lore/deep-note` instead of `/lore/deep-note`
+- the site can then report existing notes as orphaned or unavailable even though the vault and manifest
+  both contain them
+
+### Normalization points
+
+The route invariant is now enforced in three places:
+
+1. `ComputeRoutingService` generates absolute `fullPath` values and absolute `resolvedWikilinks.href`
+2. `ManifestFileSystem` normalizes routes when loading and saving `_manifest.json`
+3. `StagingManager` normalizes staged and promoted manifests during session finalization
+
+This makes link resolution deterministic even when notes are rendered in batches and the final manifest
+is reconstructed from both staging and production content.
+
 ## Examples
 
 ### Before Normalization
@@ -151,6 +185,12 @@ Comprehensive test suite in `apps/node/src/_tests/markdown-it-renderer.links-nor
 - Vault path to routed path translation
 - Case-insensitive matching
 - Fallback behavior
+
+Additional regression coverage protects the route invariant itself:
+
+- `libs/core-application/src/lib/_tests/vault-parsing/compute-routing.service.test.ts`
+- `apps/node/src/_tests/manifest-file-system.test.ts`
+- `apps/node/src/_tests/staging-manager.test.ts`
 
 ## Frontend Compatibility
 

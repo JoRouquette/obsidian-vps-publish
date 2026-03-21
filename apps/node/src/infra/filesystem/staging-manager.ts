@@ -31,6 +31,56 @@ export class StagingManager {
     return this.contentRoot;
   }
 
+  private normalizeRoute(route: string | undefined): string | undefined {
+    if (!route) return route;
+
+    const normalized = route
+      .trim()
+      .replace(/\\/g, '/')
+      .replace(/\/{2,}/g, '/');
+    if (!normalized || normalized === '/') {
+      return '/';
+    }
+
+    return normalized.startsWith('/') ? normalized : `/${normalized.replace(/^\/+/, '')}`;
+  }
+
+  private normalizeRouteKeyRecord(
+    record: Record<string, string> | undefined
+  ): Record<string, string> | undefined {
+    if (!record) return undefined;
+
+    const normalizedEntries = Object.entries(record)
+      .map(([key, value]) => [this.normalizeRoute(key) ?? key, value])
+      .filter(([key, value]) => Boolean(key) && Boolean(value));
+
+    return normalizedEntries.length > 0 ? Object.fromEntries(normalizedEntries) : undefined;
+  }
+
+  private normalizeRouteMap(
+    record: Record<string, string> | undefined
+  ): Record<string, string> | undefined {
+    if (!record) return undefined;
+
+    const normalizedEntries = Object.entries(record)
+      .map(([key, value]) => [this.normalizeRoute(key) ?? key, this.normalizeRoute(value) ?? value])
+      .filter(([key, value]) => Boolean(key) && Boolean(value));
+
+    return normalizedEntries.length > 0 ? Object.fromEntries(normalizedEntries) : undefined;
+  }
+
+  private normalizeManifest(manifest: Manifest): Manifest {
+    return {
+      ...manifest,
+      pages: manifest.pages.map((page) => ({
+        ...page,
+        route: this.normalizeRoute(page.route) ?? page.route,
+      })),
+      folderDisplayNames: this.normalizeRouteKeyRecord(manifest.folderDisplayNames),
+      canonicalMap: this.normalizeRouteMap(manifest.canonicalMap),
+    };
+  }
+
   contentStagingPath(sessionId: string): string {
     return path.join(this.contentRoot, '.staging', sessionId);
   }
@@ -110,7 +160,7 @@ export class StagingManager {
         unchangedPages = productionManifest?.pages.filter((p) => !stagingRoutes.has(p.route)) ?? [];
       }
 
-      const finalManifest: Manifest = {
+      const finalManifest: Manifest = this.normalizeManifest({
         ...stagingManifest,
         pages: [
           ...stagingManifest.pages, // New/updated pages from staging
@@ -124,7 +174,7 @@ export class StagingManager {
         locale: locale ?? stagingManifest.locale ?? productionManifest?.locale,
         // Publication revision for traceability and cache coherence
         contentRevision,
-      };
+      });
 
       this.logger?.debug('Manifest merge prepared', {
         sessionId,
@@ -209,6 +259,7 @@ export class StagingManager {
             lastUpdatedAt: finalManifest.lastUpdatedAt.toISOString(),
             pages: finalManifest.pages.map((p) => ({
               ...p,
+              route: this.normalizeRoute(p.route) ?? p.route,
               publishedAt: p.publishedAt.toISOString(),
             })),
             assets: finalManifest.assets?.map((a) => ({
@@ -340,6 +391,7 @@ export class StagingManager {
       const pages: ManifestPage[] = Array.isArray(parsed.pages)
         ? (parsed.pages.map((p: unknown) => ({
             ...(p as Record<string, unknown>),
+            route: this.normalizeRoute((p as Record<string, unknown>).route as string) ?? '',
             publishedAt: new Date(((p as Record<string, unknown>).publishedAt as number) ?? 0),
           })) as ManifestPage[])
         : [];
@@ -357,8 +409,8 @@ export class StagingManager {
         createdAt: new Date(parsed.createdAt ?? 0),
         lastUpdatedAt: new Date(parsed.lastUpdatedAt ?? 0),
         pages,
-        folderDisplayNames: parsed.folderDisplayNames,
-        canonicalMap: parsed.canonicalMap,
+        folderDisplayNames: this.normalizeRouteKeyRecord(parsed.folderDisplayNames),
+        canonicalMap: this.normalizeRouteMap(parsed.canonicalMap),
         assets,
         pipelineSignature: parsed.pipelineSignature as PipelineSignature | undefined,
       };
@@ -397,6 +449,7 @@ export class StagingManager {
       const pages: ManifestPage[] = Array.isArray(parsed.pages)
         ? (parsed.pages.map((p: unknown) => ({
             ...(p as Record<string, unknown>),
+            route: this.normalizeRoute((p as Record<string, unknown>).route as string) ?? '',
             publishedAt: new Date(((p as Record<string, unknown>).publishedAt as number) ?? 0),
           })) as ManifestPage[])
         : [];
@@ -414,8 +467,8 @@ export class StagingManager {
         createdAt: new Date(parsed.createdAt ?? 0),
         lastUpdatedAt: new Date(parsed.lastUpdatedAt ?? 0),
         pages,
-        folderDisplayNames: parsed.folderDisplayNames,
-        canonicalMap: parsed.canonicalMap,
+        folderDisplayNames: this.normalizeRouteKeyRecord(parsed.folderDisplayNames),
+        canonicalMap: this.normalizeRouteMap(parsed.canonicalMap),
         assets,
         pipelineSignature: parsed.pipelineSignature as PipelineSignature | undefined,
       };
