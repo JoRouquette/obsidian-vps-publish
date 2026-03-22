@@ -7,7 +7,7 @@ import { NotesMapper } from '@core-application/vault-parsing/mappers/notes.mappe
 import { ComputeRoutingService } from '@core-application/vault-parsing/services/compute-routing.service';
 import { DeduplicateNotesService } from '@core-application/vault-parsing/services/deduplicate-notes.service';
 import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
-import { DetectLeafletBlocksService } from '@core-application/vault-parsing/services/detect-leaflet-blocks.service';
+import { DetectLeafletBlocksService } from '@core-application';
 import { DetectWikilinksService } from '@core-application/vault-parsing/services/detect-wikilinks.service';
 import { EnsureTitleHeaderService } from '@core-application/vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';

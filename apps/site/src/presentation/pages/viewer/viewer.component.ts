@@ -22,8 +22,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltip, MatTooltipModule } from '@angular/material/tooltip';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { NavigationEnd, Router } from '@angular/router';
-import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
-import { UNAVAILABLE_INTERNAL_PAGE_MESSAGE } from '@core-domain';
+import { type LeafletBlock, UNAVAILABLE_INTERNAL_PAGE_MESSAGE } from '@core-domain';
 import {
   catchError,
   distinctUntilChanged,
