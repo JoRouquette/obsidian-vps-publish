@@ -1,6 +1,6 @@
-import type { PublishableNote } from '@core-domain/entities/publishable-note';
+import type { PublishableNote } from '@core-domain';
 
-import { DetectLeafletBlocksService } from '../../vault-parsing/services/detect-leaflet-blocks.service';
+import { DetectLeafletBlocksService } from '@core-application';
 import { NoopLogger } from '../helpers/fake-logger';
 
 describe('DetectLeafletBlocksService', () => {
@@ -118,8 +118,11 @@ long: 2.3522
 minZoom: 1
 maxZoom: 18
 defaultZoom: 10
+zoomDelta: 0.5
 unit: meters
 darkMode: true
+noScrollZoom: true
+lock: true
 \`\`\`
 `;
 
@@ -135,8 +138,11 @@ darkMode: true
       expect(block.minZoom).toBe(1);
       expect(block.maxZoom).toBe(18);
       expect(block.defaultZoom).toBe(10);
+      expect(block.zoomDelta).toBe(0.5);
       expect(block.unit).toBe('meters');
       expect(block.darkMode).toBe(true);
+      expect(block.noScrollZoom).toBe(true);
+      expect(block.lock).toBe(true);
     });
 
     it('should parse markers with coordinates', () => {
@@ -214,6 +220,27 @@ marker: - [custom, 51.5074, -0.1278, [[London Note]]]
       });
     });
 
+    it('should parse external marker links as links instead of descriptions', () => {
+      const content = `
+\`\`\`leaflet
+id: external-marker-map
+marker: default, 48.8566, 2.3522, https://example.com/map
+\`\`\`
+`;
+
+      const notes = [createMockNote(content)];
+      const result = service.process(notes);
+
+      expect(result[0].leafletBlocks![0].markers).toEqual([
+        {
+          type: 'default',
+          lat: 48.8566,
+          long: 2.3522,
+          link: 'https://example.com/map',
+        },
+      ]);
+    });
+
     it('should parse image overlays from wikilinks', () => {
       const content = `
 \`\`\`leaflet
@@ -247,6 +274,32 @@ image: [[Map1.png]], [[Map2.jpg]]
       expect(block.imageOverlays).toHaveLength(2);
       expect(block.imageOverlays![0].path).toBe('Map1.png');
       expect(block.imageOverlays![1].path).toBe('Map2.jpg');
+    });
+
+    it('keeps scale-only image overlays unresolved so the runtime can derive real bounds from the image aspect ratio', () => {
+      const content = `
+\`\`\`leaflet
+id: scaled-image-map
+image: [[ScaledMap.png]]
+scale: 1365
+defaultZoom: 6
+\`\`\`
+`;
+
+      const notes = [createMockNote(content)];
+      const result = service.process(notes);
+      const block = result[0].leafletBlocks![0];
+
+      expect(block.scale).toBe(1365);
+      expect(block.lat).toBeUndefined();
+      expect(block.long).toBeUndefined();
+      expect(block.imageOverlays).toEqual([
+        {
+          path: 'ScaledMap.png',
+          topLeft: [0, 0],
+          bottomRight: [0, 0],
+        },
+      ]);
     });
 
     it('should parse tile server configuration', () => {

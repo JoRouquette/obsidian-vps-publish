@@ -1,9 +1,11 @@
-import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
-import type { LeafletImageOverlay } from '@core-domain/entities/leaflet-image-overlay';
-import type { LeafletMarker } from '@core-domain/entities/leaflet-marker';
-import type { LeafletTileServer } from '@core-domain/entities/leaflet-tile-server';
-import type { PublishableNote } from '@core-domain/entities/publishable-note';
-import type { LoggerPort } from '@core-domain/ports/logger-port';
+import type {
+  LeafletBlock,
+  LeafletImageOverlay,
+  LeafletMarker,
+  LeafletTileServer,
+  LoggerPort,
+  PublishableNote,
+} from '@core-domain';
 
 import { type BaseService } from '../../common/base-service';
 
@@ -133,21 +135,12 @@ export class DetectLeafletBlocksService implements BaseService {
     }
 
     if (imageOverlays.length > 0) {
-      // Calculer les bounds des images si scale est défini
-      this.calculateImageOverlayBounds(imageOverlays, block);
       block.imageOverlays = imageOverlays;
     }
 
     // Validation : l'id est obligatoire
     if (!block.id) {
       throw new Error('Leaflet block must have an "id" property');
-    }
-
-    // Si pas de lat/long mais image avec scale, centrer sur l'image
-    if (!block.lat && !block.long && imageOverlays.length > 0 && block.scale) {
-      const firstOverlay = imageOverlays[0];
-      block.lat = (firstOverlay.topLeft[0] + firstOverlay.bottomRight[0]) / 2;
-      block.long = (firstOverlay.topLeft[1] + firstOverlay.bottomRight[1]) / 2;
     }
 
     return block as LeafletBlock;
@@ -197,6 +190,10 @@ export class DetectLeafletBlocksService implements BaseService {
         block.defaultZoom = this.parseNumber(value);
         break;
 
+      case 'zoomdelta':
+        block.zoomDelta = this.parseNumber(value);
+        break;
+
       case 'unit':
         block.unit = value;
         break;
@@ -207,6 +204,14 @@ export class DetectLeafletBlocksService implements BaseService {
 
       case 'darkmode':
         block.darkMode = this.parseBoolean(value);
+        break;
+
+      case 'noscrollzoom':
+        block.noScrollZoom = this.parseBoolean(value);
+        break;
+
+      case 'lock':
+        block.lock = this.parseBoolean(value);
         break;
 
       case 'image':
@@ -305,16 +310,16 @@ export class DetectLeafletBlocksService implements BaseService {
     const [type, latStr, longStr, ...rest] = parts;
 
     try {
+      const extraValue = rest.join(',').trim();
       const marker: LeafletMarker = {
         type: type || 'default',
         lat: this.parseNumber(latStr),
         long: this.parseNumber(longStr),
-        link,
+        link: link ?? (/^https?:\/\//i.test(extraValue) ? extraValue : undefined),
       };
 
-      // Description éventuelle (après les 3 premiers paramètres)
-      if (rest.length > 0 && !link) {
-        marker.description = rest.join(',').trim();
+      if (extraValue && !marker.link) {
+        marker.description = extraValue;
       }
 
       markers.push(marker);
@@ -352,44 +357,5 @@ export class DetectLeafletBlocksService implements BaseService {
     return {
       url: value.trim(),
     };
-  }
-
-  /**
-   * Calcule les bounds des images overlays à partir de la propriété scale.
-   * Le scale représente la largeur de l'image en pixels.
-   * On crée un ratio 16:9 par défaut pour la hauteur.
-   */
-  private calculateImageOverlayBounds(
-    overlays: LeafletImageOverlay[],
-    block: Partial<LeafletBlock>
-  ): void {
-    if (!block.scale || overlays.length === 0) {
-      return;
-    }
-
-    // Avec scale, on définit une carte centrée à [0, 0] avec l'image en overlay
-    // Le scale représente la largeur en pixels, on convertit en coordonnées Leaflet
-    // Leaflet utilise des coordonnées géographiques, donc on crée un système arbitraire
-    const scaleWidth = block.scale;
-    const scaleHeight = scaleWidth * 0.75; // Ratio 4:3 par défaut
-
-    // Centrer l'image à [0, 0]
-    const halfWidth = scaleWidth / 2;
-    const halfHeight = scaleHeight / 2;
-
-    overlays.forEach((overlay) => {
-      // Les coordonnées Leaflet pour une image overlay : [lat, lng]
-      // On utilise un système de coordonnées "pixel" centré sur [0, 0]
-      overlay.topLeft = [halfHeight, -halfWidth];
-      overlay.bottomRight = [-halfHeight, halfWidth];
-    });
-
-    this._logger.debug('Calculated image overlay bounds from scale', {
-      scale: block.scale,
-      bounds: {
-        topLeft: overlays[0].topLeft,
-        bottomRight: overlays[0].bottomRight,
-      },
-    });
   }
 }

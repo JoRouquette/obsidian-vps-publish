@@ -3,100 +3,96 @@ import type { LeafletMarker } from './leaflet-marker';
 import type { LeafletTileServer } from './leaflet-tile-server';
 
 /**
- * Représente un bloc de carte Leaflet complet.
- * Basé sur la documentation officielle d'Obsidian Leaflet plugin (javalent/obsidian-leaflet).
- *
- * Supporte la syntaxe :
- * ```leaflet
- * id: unique-map-id
- * image: [[image.png]]
- * lat: 50.5
- * long: 30.5
- * minZoom: 1
- * maxZoom: 10
- * defaultZoom: 5
- * unit: meters
- * height: 500px
- * width: 100%
- * marker: default, 50.5, 30.5, [[Note]]
- * darkMode: true
- * ```
+ * Represents a parsed Leaflet code block.
  */
 export interface LeafletBlock {
   /**
-   * Identifiant unique du bloc Leaflet (obligatoire)
+   * Stable map identity.
    */
   id: string;
 
   /**
-   * Hauteur de la carte (ex: "500px", "100%")
+   * Optional rendered map height, for example `500px`.
    */
   height?: string;
 
   /**
-   * Largeur de la carte (ex: "100%", "800px")
+   * Optional rendered map width, for example `100%`.
    */
   width?: string;
 
   /**
-   * Latitude du centre de la carte
+   * Geographic map center latitude.
    */
   lat?: number;
 
   /**
-   * Longitude du centre de la carte
+   * Geographic map center longitude.
    */
   long?: number;
 
   /**
-   * Zoom minimum
+   * Minimum allowed zoom level.
    */
   minZoom?: number;
 
   /**
-   * Zoom maximum
+   * Maximum allowed zoom level.
    */
   maxZoom?: number;
 
   /**
-   * Zoom par défaut au chargement
+   * Initial zoom level.
    */
   defaultZoom?: number;
 
   /**
-   * Unité de mesure (ex: "meters", "feet", "miles", "km")
+   * Leaflet zoom step applied per interaction.
+   */
+  zoomDelta?: number;
+
+  /**
+   * Optional distance unit label.
    */
   unit?: string;
 
   /**
-   * Échelle de la carte en pixels (pour les overlays d'images)
-   * Définit la largeur en pixels de l'image pour calculer les distances
+   * Logical image-map width used to derive bounds from the real image aspect ratio.
    */
   scale?: number;
 
   /**
-   * Mode sombre activé
+   * Enables dark-mode map styling.
    */
   darkMode?: boolean;
 
   /**
-   * Image overlay(s) pour la carte
-   * Peut être une seule image ou une liste d'images
+   * Disables mouse-wheel zoom.
+   */
+  noScrollZoom?: boolean;
+
+  /**
+   * Disables the main interactive controls of the map.
+   */
+  lock?: boolean;
+
+  /**
+   * Image overlays rendered on the map.
    */
   imageOverlays?: LeafletImageOverlay[];
 
   /**
-   * Configuration du serveur de tuiles personnalisé
+   * Custom tile server configuration.
    */
   tileServer?: LeafletTileServer;
 
   /**
-   * Liste des marqueurs sur la carte
+   * Markers rendered on the map.
    */
   markers?: LeafletMarker[];
 
   /**
-   * Contenu brut du bloc (pour debug/traçabilité)
+   * Original block content kept for diagnostics.
    */
   rawContent?: string;
 }
