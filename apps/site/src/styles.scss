@@ -196,6 +196,15 @@ img.no-auto-contrast {
   filter: none !important;
 }
 
+/* Leaflet assets keep their own rendering model. Do not apply global site image filters. */
+.leaflet-container img,
+.leaflet-container .leaflet-marker-icon,
+.leaflet-container .leaflet-marker-shadow,
+.leaflet-container .leaflet-tile,
+.leaflet-container img.leaflet-image-layer {
+  filter: none !important;
+}
+
 /* Tooltips Material: Fond opaque pour lisibilité optimale */
 .mat-mdc-tooltip {
   .mdc-tooltip__surface {

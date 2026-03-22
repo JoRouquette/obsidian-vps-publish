@@ -1,29 +1,65 @@
 :host {
   display: block;
   width: 100%;
+  margin-block-end: 0.75rem;
   container-type: inline-size;
 }
 
 .leaflet-map-container {
+  --leaflet-control-bg: var(--color-button-bg, #c14343);
+  --leaflet-control-bg-hover: color-mix(
+    in srgb,
+    var(--color-accent-light, #cd2626) 72%,
+    var(--color-button-bg, #c14343) 28%
+  );
+  --leaflet-control-border: color-mix(
+    in srgb,
+    var(--color-border-default, #b5c2d8) 45%,
+    var(--color-button-bg, #c14343) 55%
+  );
+  --leaflet-control-shadow: 0 8px 20px
+    color-mix(in srgb, var(--color-shadow, rgba(0, 0, 0, 0.18)) 80%, transparent);
+  --leaflet-control-text: var(--color-button-text, #e5ebee);
+  --leaflet-control-text-muted: color-mix(
+    in srgb,
+    var(--color-button-text, #e5ebee) 45%,
+    transparent
+  );
+  --leaflet-popup-bg: color-mix(
+    in srgb,
+    var(--color-surface-raised, #f1f5ff) 96%,
+    var(--color-bg-secondary, #f8fbff) 4%
+  );
+  --leaflet-popup-text: var(--color-text-primary, #30353a);
+  --leaflet-popup-border: var(--color-border-default, #b5c2d8);
+  --leaflet-popup-link: var(--color-link-default, #5599d0);
+  --leaflet-popup-link-hover: var(--color-link-hover, #cd2626);
+  --leaflet-attribution-bg: color-mix(
+    in srgb,
+    var(--color-surface-default, #e1e9f6) 92%,
+    transparent
+  );
+  --leaflet-attribution-text: var(--color-text-secondary, #697580);
+  --leaflet-fullscreen-icon-enter: url('data:image/svg+xml,<svg viewBox="0 0 26 26" xmlns="http://www.w3.org/2000/svg"><path d="M5 10.3V5.9c0-.5.4-.9.9-.9h4.4c.2 0 .4.2.4.4V7c0 .2-.2.4-.4.4h-3v3c0 .2-.2.4-.4.4H5.4a.4.4 0 0 1-.4-.4zm10.3-4.9V7c0 .2.2.4.4.4h3v3c0 .2.2.4.4.4h1.5c.2 0 .4-.2.4-.4V5.9c0-.5-.4-.9-.9-.9h-4.4c-.2 0-.4.2-.4.4zm5.3 9.9H19c-.2 0-.4.2-.4.4v3h-3c-.2 0-.4.2-.4.4v1.5c0 .2.2.4.4.4h4.4c.5 0 .9-.4.9-.9v-4.4c0-.2-.2-.4-.4-.4zm-9.9 5.3V19c0-.2-.2-.4-.4-.4h-3v-3c0-.2-.2-.4-.4-.4H5.4c-.2 0-.4.2-.4.4v4.4c0 .5.4.9.9.9h4.4c.2 0 .4-.2.4-.4z" fill="%23E5EBEE"/></svg>');
+  --leaflet-fullscreen-icon-exit: url('data:image/svg+xml,<svg viewBox="0 0 26 26" xmlns="http://www.w3.org/2000/svg"><path d="M20.6 10.7H16a.9.9 0 0 1-.8-.8v-4.5c0-.2.2-.4.4-.4h1.4c.3 0 .5.2.5.4v3h3c.2 0 .4.2.4.5v1.4c0 .2-.2.4-.4.4zm-9.9-.8V5.4c0-.2-.2-.4-.4-.4H8.9c-.3 0-.5.2-.5.4v3h-3c-.2 0-.4.2-.4.5v1.4c0 .2.2.4.4.4H9.9c.4 0 .8-.4.8-.8zm0 10.7V16c0-.4-.4-.8-.8-.8H5.4c-.2 0-.4.2-.4.4v1.4c0 .3.2.5.4.5h3v3c0 .2.2.4.5.4h1.4c.2 0 .4-.2.4-.4zm6.9 0v-3h3c.2 0 .4-.2.4-.5v-1.4c0-.2-.2-.4-.4-.4H16c-.4 0-.8.4-.8.8v4.5c0 .2.2.4.4.4h1.5c.3 0 .5-.2.5-.4z" fill="%23E5EBEE"/></svg>');
   position: relative;
   width: 100%;
   height: 0;
-  padding-bottom: 56.25%; // Ratio 16:9 par défaut
+  padding-bottom: 56.25%;
   border: 1px solid var(--c-outline, var(--color-border-default));
-  border-radius: 8px;
+  border-radius: var(--radius-large, 0px);
   overflow: hidden;
   background: var(--c-surface, var(--color-bg-secondary));
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-shadow) 55%, transparent);
 
-  // La carte prend tout l'espace du conteneur
   ::ng-deep .leaflet-container {
     position: absolute;
-    top: 0;
-    left: 0;
+    inset: 0;
     width: 100% !important;
     height: 100% !important;
+    background: transparent;
+    font-family: var(--font-family-default, 'Segoe UI', sans-serif);
 
-    // Désactiver TOUTES les animations et transitions Leaflet
     .leaflet-tile,
     .leaflet-image-layer,
     .leaflet-overlay-pane,
@@ -33,292 +69,288 @@
       transform-origin: 0 0;
     }
 
-    // Forcer le GPU rendering pour des performances optimales
     .leaflet-image-layer {
       will-change: transform;
       transform: translateZ(0);
       backface-visibility: hidden;
     }
-
-    // En mode plein écran, la carte prend tout l'écran
-    &.leaflet-fullscreen-on {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      z-index: 9999 !important;
-    }
   }
 
-  // Responsive breakpoints via container queries
-  @container (min-width: 768px) {
-    padding-bottom: 50%; // Ratio plus large sur tablette
-    border-radius: 12px;
+  ::ng-deep .leaflet-top,
+  ::ng-deep .leaflet-bottom {
+    z-index: 1000;
   }
 
-  @container (min-width: 1024px) {
-    padding-bottom: 45%; // Ratio encore plus large sur desktop
-    border-radius: 16px;
+  ::ng-deep .leaflet-top .leaflet-control,
+  ::ng-deep .leaflet-bottom .leaflet-control {
+    margin: 0.75rem;
   }
-}
 
-// Styles pour thème clair
-:root.theme-light .leaflet-map-container {
-  // Contrôles Leaflet (zoom, fullscreen, etc.)
-  ::ng-deep .leaflet-control-zoom,
-  ::ng-deep .leaflet-control-fullscreen {
-    border: 2px solid rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
+  ::ng-deep .leaflet-top .leaflet-control + .leaflet-control,
+  ::ng-deep .leaflet-bottom .leaflet-control + .leaflet-control {
+    margin-top: 0.55rem;
+  }
+
+  ::ng-deep .leaflet-control-container .leaflet-bar,
+  ::ng-deep .leaflet-control-container .leaflet-control-attribution {
+    backdrop-filter: blur(14px);
+  }
+
+  ::ng-deep .leaflet-bar,
+  ::ng-deep .leaflet-control-zoom {
+    border: 1px solid var(--leaflet-control-border);
+    border-radius: var(--radius-medium, 0px);
+    box-shadow: var(--leaflet-control-shadow);
     overflow: hidden;
-
-    a {
-      background-color: #fff;
-      color: #333;
-      border: none;
-      width: 36px;
-      height: 36px;
-      line-height: 36px;
-      font-size: 20px;
-      transition: background-color 0.2s ease;
-
-      &:hover {
-        background-color: #f4f4f4;
-      }
-
-      @media (min-width: 768px) {
-        width: 40px;
-        height: 40px;
-        line-height: 40px;
-        font-size: 22px;
-      }
-    }
+    background: var(--leaflet-control-bg);
   }
 
-  // Icône fullscreen personnalisée pour cohérence visuelle
-  ::ng-deep .leaflet-control-fullscreen a {
-    background-image: none;
-
-    &::before {
-      content: '⛶';
-      font-size: 18px;
-      display: block;
-
-      @media (min-width: 768px) {
-        font-size: 20px;
-      }
-    }
-
-    &.fullscreen-icon-active::before {
-      content: '⛶';
-      transform: rotate(45deg);
-    }
+  ::ng-deep .leaflet-bar a,
+  ::ng-deep .leaflet-control-zoom a,
+  ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    background: var(--leaflet-control-bg);
+    color: var(--leaflet-control-text);
+    border: 1px solid
+      color-mix(in srgb, var(--leaflet-control-text) 24%, var(--leaflet-control-border));
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--leaflet-control-text) 20%, var(--leaflet-control-border));
+    text-decoration: none;
+    transition:
+      background-color 0.18s ease,
+      color 0.18s ease,
+      transform 0.18s ease,
+      box-shadow 0.18s ease;
   }
 
-  // Popup
+  ::ng-deep .leaflet-bar a:last-child,
+  ::ng-deep .leaflet-control-zoom a:last-child,
+  ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen:last-child {
+    border-bottom-color: color-mix(
+      in srgb,
+      var(--leaflet-control-text) 24%,
+      var(--leaflet-control-border)
+    );
+  }
+
+  ::ng-deep .leaflet-bar a:hover,
+  ::ng-deep .leaflet-bar a:focus-visible,
+  ::ng-deep .leaflet-control-zoom a:hover,
+  ::ng-deep .leaflet-control-zoom a:focus-visible,
+  ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen:hover,
+  ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen:focus-visible {
+    background: var(--leaflet-control-bg-hover);
+    color: var(--leaflet-control-text);
+    outline: none;
+  }
+
+  ::ng-deep .leaflet-bar a:focus-visible,
+  ::ng-deep .leaflet-control-zoom a:focus-visible,
+  ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen:focus-visible {
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--leaflet-popup-link) 45%, transparent);
+  }
+
+  ::ng-deep .leaflet-bar a.leaflet-disabled,
+  ::ng-deep .leaflet-control-zoom a.leaflet-disabled {
+    color: var(--leaflet-control-text-muted);
+    background: color-mix(in srgb, var(--leaflet-control-bg) 92%, transparent);
+  }
+
+  ::ng-deep .leaflet-control-zoom-in,
+  ::ng-deep .leaflet-control-zoom-out {
+    font-family: var(--font-family-mono, 'Consolas', monospace);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    text-indent: 0;
+  }
+
+  ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen {
+    background-image: var(--leaflet-fullscreen-icon-enter);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 20px 20px;
+    text-indent: -9999px;
+  }
+
+  ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen.leaflet-fullscreen-on {
+    background-image: var(--leaflet-fullscreen-icon-exit);
+  }
+
+  ::ng-deep .leaflet-popup {
+    margin-bottom: 16px;
+  }
+
   ::ng-deep .leaflet-popup-content-wrapper {
-    background: #fff;
-    color: #333;
-    border-radius: 8px;
-    padding: 12px 16px;
-    font-size: 14px;
-    line-height: 1.5;
+    background: var(--leaflet-popup-bg);
+    color: var(--leaflet-popup-text);
+    border: 1px solid var(--leaflet-popup-border);
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.24);
+    padding: 0;
+  }
 
-    @media (min-width: 768px) {
-      padding: 16px 20px;
-      font-size: 15px;
-    }
+  ::ng-deep .leaflet-popup-content {
+    margin: 14px 18px;
+    min-width: 10rem;
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+
+  ::ng-deep .leaflet-popup-content a {
+    color: var(--leaflet-popup-link);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
+  }
+
+  ::ng-deep .leaflet-popup-content a:hover,
+  ::ng-deep .leaflet-popup-content a:focus-visible {
+    color: var(--leaflet-popup-link-hover);
+    outline: none;
   }
 
   ::ng-deep .leaflet-popup-tip {
-    background: #fff;
+    background: var(--leaflet-popup-bg);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
   }
 
-  // Attribution (plus compact sur mobile)
-  ::ng-deep .leaflet-control-attribution {
-    background: rgba(255, 255, 255, 0.9);
-    color: #333;
-    font-size: 10px;
-    padding: 2px 6px;
+  ::ng-deep .leaflet-popup-close-button {
+    display: grid;
+    place-items: center;
+    inline-size: 2rem !important;
+    block-size: 2rem !important;
+    padding: 0 !important;
+    color: var(--leaflet-control-text) !important;
+    font-size: 1.25rem !important;
+    border-radius: 999px;
+    inset: 0.45rem 0.45rem auto auto;
+    transition:
+      background-color 0.18s ease,
+      color 0.18s ease;
+  }
 
-    @media (min-width: 768px) {
-      font-size: 11px;
-      padding: 3px 8px;
+  ::ng-deep .leaflet-popup-close-button:hover,
+  ::ng-deep .leaflet-popup-close-button:focus-visible {
+    background: color-mix(in srgb, var(--leaflet-control-bg-hover) 88%, transparent);
+    color: var(--leaflet-popup-link) !important;
+    outline: none;
+  }
+
+  ::ng-deep .leaflet-tooltip {
+    background: color-mix(in srgb, var(--leaflet-popup-bg) 96%, transparent);
+    border: 1px solid var(--leaflet-popup-border);
+    border-radius: 10px;
+    color: var(--leaflet-popup-text);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+    padding: 0.45rem 0.65rem;
+    font-size: 0.82rem;
+  }
+
+  ::ng-deep .leaflet-tooltip-top:before {
+    border-top-color: var(--leaflet-popup-bg);
+  }
+
+  ::ng-deep .leaflet-tooltip-bottom:before {
+    border-bottom-color: var(--leaflet-popup-bg);
+  }
+
+  ::ng-deep .leaflet-tooltip-left:before {
+    border-left-color: var(--leaflet-popup-bg);
+  }
+
+  ::ng-deep .leaflet-tooltip-right:before {
+    border-right-color: var(--leaflet-popup-bg);
+  }
+
+  ::ng-deep .leaflet-control-attribution {
+    margin: 0;
+    padding: 0.25rem 0.5rem;
+    border-top-left-radius: 12px;
+    background: var(--leaflet-attribution-bg);
+    color: var(--leaflet-attribution-text);
+    font-size: 0.68rem;
+    line-height: 1.35;
+  }
+
+  ::ng-deep .leaflet-control-attribution a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
+  }
+
+  ::ng-deep .leaflet-marker-icon {
+    filter: drop-shadow(0 8px 12px rgba(15, 23, 42, 0.26));
+  }
+
+  ::ng-deep .leaflet-marker-shadow {
+    opacity: 0.8;
+  }
+
+  ::ng-deep .leaflet-tile {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+
+  @container (min-width: 768px) {
+    border-radius: 16px;
+
+    ::ng-deep .leaflet-bar a,
+    ::ng-deep .leaflet-control-zoom a,
+    ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen {
+      width: 42px;
+      height: 42px;
+    }
+  }
+
+  @container (min-width: 1024px) {
+    ::ng-deep .leaflet-tile {
+      image-rendering: auto;
     }
   }
 }
 
-// Styles pour thème sombre
 :root.theme-dark .leaflet-map-container,
 .leaflet-dark-mode {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --leaflet-popup-link-hover: var(--color-link-hover, #c94d4d);
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--color-shadow) 72%, transparent);
 
-  // Contrôles Leaflet (zoom, fullscreen, etc.)
-  ::ng-deep .leaflet-control-zoom,
-  ::ng-deep .leaflet-control-fullscreen {
-    border: 2px solid var(--color-border-default);
-    border-radius: 8px;
-    overflow: hidden;
-
-    a {
-      background-color: var(--color-surface-default);
-      color: var(--color-text-primary);
-      border: none;
-      width: 36px;
-      height: 36px;
-      line-height: 36px;
-      font-size: 20px;
-      transition: background-color 0.2s ease;
-
-      &:hover {
-        background-color: var(--color-bg-secondary);
-      }
-
-      @media (min-width: 768px) {
-        width: 40px;
-        height: 40px;
-        line-height: 40px;
-        font-size: 22px;
-      }
-    }
-  }
-
-  // Icône fullscreen en mode sombre
-  ::ng-deep .leaflet-control-fullscreen a {
-    background-image: none;
-
-    &::before {
-      content: '⛶';
-      font-size: 18px;
-      display: block;
-      color: var(--color-text-primary);
-
-      @media (min-width: 768px) {
-        font-size: 20px;
-      }
-    }
-
-    &.fullscreen-icon-active::before {
-      content: '⛶';
-      transform: rotate(45deg);
-    }
-  }
-
-  // Fond de la carte (visible si pas de tuiles)
   ::ng-deep .leaflet-container {
     background: var(--color-bg-primary);
   }
 
-  // Popup
-  ::ng-deep .leaflet-popup-content-wrapper {
-    background: var(--color-bg-secondary);
-    color: var(--color-text-primary);
-    border: 1px solid var(--color-border-default);
-    border-radius: 8px;
-    padding: 12px 16px;
-    font-size: 14px;
-    line-height: 1.5;
-
-    @media (min-width: 768px) {
-      padding: 16px 20px;
-      font-size: 15px;
-    }
-
-    a {
-      color: var(--color-accent-secondary);
-      text-decoration: underline;
-
-      &:hover {
-        color: var(--color-accent-header);
-      }
-    }
-  }
-
-  ::ng-deep .leaflet-popup-tip {
-    background: var(--color-bg-secondary);
-  }
-
-  // Fermeture popup
-  ::ng-deep .leaflet-popup-close-button {
-    color: var(--color-text-primary) !important;
-    font-size: 20px;
-    padding: 4px 8px;
-
-    &:hover {
-      color: var(--color-accent-header) !important;
-    }
-  }
-
-  // Attribution (plus compact sur mobile)
-  ::ng-deep .leaflet-control-attribution {
-    background: rgba(26, 30, 36, 0.9);
-    color: var(--color-text-primary);
-    font-size: 10px;
-    padding: 2px 6px;
-
-    @media (min-width: 768px) {
-      font-size: 11px;
-      padding: 3px 8px;
-    }
-
-    a {
-      color: var(--color-accent-secondary);
-    }
-  }
-
-  // Inverser les couleurs des tuiles OSM pour le mode sombre
-  // (uniquement si on utilise OSM, pas pour les images custom)
   &:not(.has-image-overlay) ::ng-deep .leaflet-tile-pane {
-    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.92);
   }
 }
 
-// Optimisations tactiles pour mobile/tablette
 @media (hover: none) and (pointer: coarse) {
   .leaflet-map-container {
-    // Augmenter la taille des boutons pour les doigts
+    ::ng-deep .leaflet-bar a,
     ::ng-deep .leaflet-control-zoom a,
-    ::ng-deep .leaflet-control-fullscreen a {
-      width: 44px !important;
-      height: 44px !important;
-      line-height: 44px !important;
-      font-size: 24px !important;
+    ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen {
+      width: 46px !important;
+      height: 46px !important;
     }
 
-    // Popup plus accessible au toucher
+    ::ng-deep .leaflet-control-zoom-in,
+    ::ng-deep .leaflet-control-zoom-out {
+      font-size: 25px !important;
+    }
+
     ::ng-deep .leaflet-popup-close-button {
-      font-size: 24px !important;
-      padding: 8px 12px !important;
-    }
-
-    // Désactiver les animations coûteuses sur mobile
-    ::ng-deep .leaflet-zoom-anim .leaflet-zoom-animated {
-      transition-duration: 0.2s;
+      inline-size: 2.4rem !important;
+      block-size: 2.4rem !important;
+      font-size: 1.4rem !important;
     }
   }
 }
 
-// Mode paysage sur mobile
 @media (max-width: 767px) and (orientation: landscape) {
   .leaflet-map-container {
-    padding-bottom: 75%; // Ratio plus vertical en paysage
     min-height: 250px;
-  }
-}
-
-// Améliorer la lisibilité des marqueurs sur tous les appareils
-.leaflet-map-container {
-  ::ng-deep .leaflet-marker-icon {
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-  }
-
-  // Optimiser les performances des tuiles sur mobile
-  ::ng-deep .leaflet-tile {
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
-
-    @media (min-width: 1024px) {
-      image-rendering: auto;
-    }
   }
 }
