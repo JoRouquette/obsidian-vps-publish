@@ -1,6 +1,61 @@
-import type { LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
+import type { LatLngBoundsExpression } from 'leaflet';
 
-export type LeafletMapInstance = LeafletMap;
+export interface LeafletLatLngLiteral {
+  lat: number;
+  lng: number;
+}
+
+export interface LeafletLayerInstance {
+  addTo(map: LeafletMapInstance): LeafletLayerInstance;
+}
+
+export interface LeafletMarkerInstance extends LeafletLayerInstance {
+  addTo(map: LeafletMapInstance): LeafletMarkerInstance;
+  bindPopup(content: string): LeafletMarkerInstance;
+}
+
+export interface LeafletMapInstance {
+  remove(): void;
+  removeLayer(layer: LeafletLayerInstance): void;
+  invalidateSize(): void;
+  on(
+    eventName: 'zoomend' | 'moveend' | 'enterFullscreen' | 'exitFullscreen',
+    handler: () => void
+  ): void;
+  off(
+    eventName: 'zoomend' | 'moveend' | 'enterFullscreen' | 'exitFullscreen',
+    handler: () => void
+  ): void;
+  fitBounds(
+    bounds: LatLngBoundsExpression,
+    options?: {
+      padding?: [number, number];
+      animate?: boolean;
+      duration?: number;
+    }
+  ): void;
+  setView(
+    center: [number, number],
+    zoom: number,
+    options?: {
+      animate?: boolean;
+    }
+  ): void;
+  getZoom(): number;
+  getCenter(): LeafletLatLngLiteral;
+  dragging: {
+    enable(): void;
+    disable(): void;
+  };
+  scrollWheelZoom: {
+    enable(): void;
+    disable(): void;
+  };
+}
+
+export interface LeafletFullscreenControlOptions {
+  forceSeparateButton?: boolean;
+}
 
 export interface LeafletMapOptions {
   crs?: unknown;
@@ -8,6 +63,7 @@ export interface LeafletMapOptions {
   zoom?: number;
   minZoom?: number;
   maxZoom?: number;
+  zoomDelta?: number;
   zoomControl: boolean;
   attributionControl: boolean;
   scrollWheelZoom: boolean;
@@ -15,10 +71,10 @@ export interface LeafletMapOptions {
   boxZoom: boolean;
   keyboard: boolean;
   dragging: boolean;
+  touchZoom?: boolean;
   zoomAnimation: boolean;
   fadeAnimation: boolean;
   markerZoomAnimation: boolean;
-  fullscreenControl: boolean;
 }
 
 export interface LeafletRuntime {
@@ -34,12 +90,12 @@ export interface LeafletRuntime {
   tileLayer(
     tileUrl: string,
     options: {
-      attribution: string;
+      attribution?: string;
       subdomains: string[];
       minZoom?: number;
       maxZoom?: number;
     }
-  ): { addTo(map: LeafletMapInstance): void };
+  ): LeafletLayerInstance;
   imageOverlay(
     imageUrl: string,
     bounds: LatLngBoundsExpression,
@@ -47,12 +103,8 @@ export interface LeafletRuntime {
       interactive: boolean;
       className: string;
     }
-  ): { addTo(map: LeafletMapInstance): void };
-  marker(position: [number, number]): {
-    addTo(map: LeafletMapInstance): {
-      bindPopup(content: string): void;
-    };
-  };
+  ): LeafletLayerInstance;
+  marker(position: [number, number]): LeafletMarkerInstance;
 }
 
 export type LeafletRuntimeModule = typeof import('leaflet');

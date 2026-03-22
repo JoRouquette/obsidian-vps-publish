@@ -8,35 +8,29 @@ import {
   inject,
   Input,
   NgZone,
+  OnChanges,
   OnDestroy,
   PLATFORM_ID,
+  SimpleChanges,
   ViewChild,
 } from '@angular/core';
-import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
+import type { LeafletBlock, LeafletImageOverlay } from '@core-domain';
 
+import { LeafletRuntimeService } from '../../../application/services/leaflet-runtime.service';
 import type {
+  LeafletFullscreenControlOptions,
+  LeafletLayerInstance,
   LeafletMapInstance,
   LeafletMapOptions,
+  LeafletMarkerInstance,
   LeafletRuntime,
   LeafletRuntimeModuleWithDefault,
 } from './leaflet-runtime.types';
-import { ContentVersionService } from '../../../infrastructure/content-version/content-version.service';
 
-/**
- * Composant Angular pour afficher une carte Leaflet en mode lecture seule.
- *
- * IMPORTANT: Ce composant est SSR-safe et n'initialise Leaflet que côté navigateur.
- * Leaflet utilise des APIs de navigateur (window, document) qui ne sont pas disponibles
- * côté serveur lors du rendu SSR.
- *
- * Fonctionnalités:
- * - Lecture seule (pas d'édition, pas de sauvegarde d'état)
- * - Pan et zoom autorisés
- * - Support des marqueurs avec popups
- * - Support des images overlays
- * - Support des serveurs de tuiles personnalisés
- * - Mode sombre optionnel
- */
+type LeafletFullscreenControlConstructor = new (options?: LeafletFullscreenControlOptions) => {
+  addTo(map: LeafletMapInstance): void;
+};
+
 @Component({
   selector: 'app-leaflet-map',
   standalone: true,
@@ -44,7 +38,7 @@ import { ContentVersionService } from '../../../infrastructure/content-version/c
   templateUrl: './leaflet-map.component.html',
   styleUrls: ['./leaflet-map.component.scss'],
 })
-export class LeafletMapComponent implements AfterViewInit, OnDestroy {
+export class LeafletMapComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('mapContainer', { static: false }) mapContainer!: ElementRef<HTMLElement>;
 
   @Input({ required: true }) block!: LeafletBlock;
@@ -52,39 +46,36 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly ngZone = inject(NgZone);
   private readonly injector = inject(Injector);
-  private readonly contentVersionService = inject(ContentVersionService);
+  private readonly runtimeService = inject(LeafletRuntimeService);
+
   private map: LeafletMapInstance | null = null;
+  private leafletRuntime: LeafletRuntime | null = null;
+  private tileLayer: LeafletLayerInstance | null = null;
+  private markerLayers: LeafletMarkerInstance[] = [];
+  private overlayLayers: LeafletLayerInstance[] = [];
+  private markerZoomSyncCleanup: (() => void) | null = null;
+  private mapViewSyncCleanup: (() => void) | null = null;
   private isBrowser = false;
   private initInProgress = false;
-  private initCompleted = false;
   private isDestroyed = false;
   private initAttemptCount = 0;
-  private overlaysLoaded = 0;
-  private totalOverlays = 0;
-  private viewAdjusted = false; // Flag pour empêcher les fitBounds multiples
-  private pendingRafId: number | null = null;
   private pendingTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private resizeObserver: ResizeObserver | null = null;
-  private resizeInvalidateCount = 0;
   private resizeInvalidateTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private restoreInteractionsTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private fitBoundsTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private globalCleanupFns: Array<() => void> = [];
+  private renderToken = 0;
   private hasLoggedUnmeasurableContainer = false;
-
-  private readonly maxInitAttempts = 30;
-  private readonly maxResizeInvalidations = 12;
 
   ngAfterViewInit(): void {
     this.isBrowser = isPlatformBrowser(this.platformId);
 
     if (!this.isBrowser) {
-      // En mode SSR, on ne fait rien
       return;
     }
 
     this.logInfo('init-started', { stage: 'after-view-init' });
 
-    // Déclencher une tentative post-render explicite + fallback retry borné.
     afterNextRender(
       () => {
         this.tryInitialize('afterNextRender');
@@ -95,54 +86,56 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     this.scheduleRetry('afterViewInit');
   }
 
+  ngOnChanges(changes: SimpleChanges): void {
+    const blockChange = changes['block'];
+    if (!blockChange || blockChange.firstChange || !this.isBrowser || this.isDestroyed) {
+      return;
+    }
+
+    const previous = blockChange.previousValue as LeafletBlock | undefined;
+    const current = blockChange.currentValue as LeafletBlock | undefined;
+    if (!previous || !current) {
+      return;
+    }
+
+    if (!this.map || !this.leafletRuntime) {
+      this.scheduleRetry('block-updated-before-init');
+      return;
+    }
+
+    if (this.requiresFullRebuild(previous, current)) {
+      this.rebuildMap('block-update:structural-change');
+      return;
+    }
+
+    this.reconcileMapContent(this.leafletRuntime, 'block-update', {
+      resetView: this.requiresViewReset(previous, current),
+    });
+  }
+
   ngOnDestroy(): void {
     this.isDestroyed = true;
-
-    if (this.pendingRafId !== null && typeof cancelAnimationFrame === 'function') {
-      cancelAnimationFrame(this.pendingRafId);
-      this.pendingRafId = null;
-    }
-
-    if (this.pendingTimeoutId !== null) {
-      clearTimeout(this.pendingTimeoutId);
-      this.pendingTimeoutId = null;
-    }
-
-    if (this.resizeInvalidateTimeoutId !== null) {
-      clearTimeout(this.resizeInvalidateTimeoutId);
-      this.resizeInvalidateTimeoutId = null;
-    }
-
-    if (this.restoreInteractionsTimeoutId !== null) {
-      clearTimeout(this.restoreInteractionsTimeoutId);
-      this.restoreInteractionsTimeoutId = null;
-    }
-
-    if (this.fitBoundsTimeoutId !== null) {
-      clearTimeout(this.fitBoundsTimeoutId);
-      this.fitBoundsTimeoutId = null;
-    }
-
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-      this.resizeObserver = null;
-    }
-
-    if (this.map) {
-      this.map.remove();
-      this.map = null;
-    }
+    this.teardownMapRuntime();
 
     this.logInfo('destroy-executed', {
       attempts: this.initAttemptCount,
-      initCompleted: this.initCompleted,
-      overlaysLoaded: this.overlaysLoaded,
-      totalOverlays: this.totalOverlays,
     });
   }
 
   private get mapId(): string {
     return this.block?.id ?? 'unknown-map';
+  }
+
+  get containerWidth(): string {
+    return this.block?.width?.trim() || '100%';
+  }
+
+  get containerHeight(): string | null {
+    return this.block?.height?.trim() || null;
+  }
+
+  get containerPaddingBottom(): string | null {
+    return this.containerHeight ? '0' : null;
   }
 
   private hasMeasurableSize(container: HTMLElement): boolean {
@@ -165,13 +158,7 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
   }
 
   private tryInitialize(trigger: string): void {
-    if (
-      !this.isBrowser ||
-      this.isDestroyed ||
-      this.map ||
-      this.initCompleted ||
-      this.initInProgress
-    ) {
+    if (!this.isBrowser || this.isDestroyed || this.map || this.initInProgress) {
       return;
     }
 
@@ -187,16 +174,6 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
           trigger,
           attempt: this.initAttemptCount,
         });
-      }
-
-      if (this.initAttemptCount >= this.maxInitAttempts) {
-        this.logError('init-aborted', {
-          category: 'timing',
-          trigger,
-          attempts: this.maxInitAttempts,
-          reason: readiness.reason,
-        });
-        return;
       }
 
       this.scheduleRetry(`${trigger} -> ${readiness.reason}`);
@@ -225,41 +202,19 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
   }
 
   private scheduleRetry(reason: string): void {
-    if (this.isDestroyed || this.map || this.initCompleted || this.initInProgress) {
-      return;
-    }
-
-    if (this.initAttemptCount >= this.maxInitAttempts) {
-      return;
-    }
-
-    if (this.pendingRafId !== null || this.pendingTimeoutId !== null) {
+    if (this.isDestroyed || this.map || this.initInProgress || this.pendingTimeoutId !== null) {
       return;
     }
 
     this.initAttemptCount++;
-
-    if (typeof requestAnimationFrame === 'function') {
-      this.pendingRafId = requestAnimationFrame(() => {
-        this.pendingRafId = null;
-        this.tryInitialize(`retry#${this.initAttemptCount} (${reason})`);
-      });
-      return;
-    }
-
-    // Fallback sans RAF (environnement browser atypique).
     this.pendingTimeoutId = setTimeout(() => {
       this.pendingTimeoutId = null;
       this.tryInitialize(`retry#${this.initAttemptCount} (${reason})`);
-    }, 16);
+    }, 100);
   }
 
   private queueInvalidateSize(delayMs: number, context: string): void {
     if (!this.map || this.isDestroyed) {
-      return;
-    }
-
-    if (this.resizeInvalidateCount >= this.maxResizeInvalidations) {
       return;
     }
 
@@ -268,16 +223,12 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
       this.resizeInvalidateTimeoutId = null;
     }
 
-    // Counter is incremented per actual execution (not per queued call),
-    // acting as a bounded-execution guard rather than a call counter.
     this.resizeInvalidateTimeoutId = setTimeout(() => {
       this.resizeInvalidateTimeoutId = null;
 
       if (!this.map || this.isDestroyed) {
         return;
       }
-
-      this.resizeInvalidateCount++;
 
       try {
         this.map.invalidateSize();
@@ -298,11 +249,7 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
 
     this.resizeObserver?.disconnect();
     this.resizeObserver = new ResizeObserver((entries) => {
-      if (
-        !this.map ||
-        this.isDestroyed ||
-        this.resizeInvalidateCount >= this.maxResizeInvalidations
-      ) {
+      if (!this.map || this.isDestroyed) {
         return;
       }
 
@@ -320,18 +267,47 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     this.resizeObserver.observe(container);
   }
 
+  private setupGlobalResizeHandling(): void {
+    if (!this.isBrowser || this.isDestroyed || globalThis.window === undefined) {
+      return;
+    }
+
+    this.cleanupGlobalListeners();
+
+    const register = (target: Window | Document, eventName: string, handler: () => void): void => {
+      target.addEventListener(eventName, handler);
+      this.globalCleanupFns.push(() => target.removeEventListener(eventName, handler));
+    };
+
+    register(globalThis.window, 'resize', () => this.queueInvalidateSize(0, 'window-resize'));
+    register(globalThis.window, 'orientationchange', () =>
+      this.queueInvalidateSize(80, 'orientation-change')
+    );
+
+    if (globalThis.document !== undefined) {
+      register(globalThis.document, 'fullscreenchange', () =>
+        this.queueInvalidateSize(50, 'fullscreen-change')
+      );
+      register(globalThis.document, 'visibilitychange', () => {
+        if (globalThis.document.visibilityState === 'visible') {
+          this.queueInvalidateSize(0, 'visibility-change');
+        }
+      });
+    }
+  }
+
   private async loadLeafletAndInitializeMap(trigger: string): Promise<void> {
     let L: unknown;
+    let fullscreenControlCtor: LeafletFullscreenControlConstructor | undefined;
 
     try {
-      // Import dynamique pour éviter les erreurs SSR
       const leafletModule = (await import('leaflet')) as LeafletRuntimeModuleWithDefault;
-
-      // Extraire L depuis le module (support ESM avec .default)
       L = leafletModule.default ?? (leafletModule as unknown as LeafletRuntime);
-
-      // Importer le plugin fullscreen (side-effect: ajoute L.Control.Fullscreen)
-      await import('leaflet.fullscreen');
+      const fullscreenModule = (await import('leaflet.fullscreen')) as {
+        default?: LeafletFullscreenControlConstructor;
+        FullScreen?: LeafletFullscreenControlConstructor;
+      };
+      fullscreenControlCtor = fullscreenModule.default ?? fullscreenModule.FullScreen;
     } catch (error) {
       this.logError('dynamic-import-failed', {
         category: 'import',
@@ -342,251 +318,244 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     }
 
     const leaflet = L as LeafletRuntime;
+    this.leafletRuntime = leaflet;
     if (leaflet.Icon?.Default) {
-      leaflet.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-      });
+      leaflet.Icon.Default.mergeOptions(this.runtimeService.getMarkerIconUrls());
     }
 
-    this.initializeMap(leaflet, trigger);
+    this.initializeMap(leaflet, trigger, fullscreenControlCtor);
   }
 
-  private fitBoundsWithoutAnimation(finalBounds: [[number, number], [number, number]]): void {
-    if (!this.map) {
-      return;
-    }
-
-    this.map.dragging.disable();
-    this.map.scrollWheelZoom.disable();
-
-    this.map.fitBounds(finalBounds, {
-      padding: [20, 20],
-      animate: false,
-      duration: 0,
-    });
-
-    this.queueInvalidateSize(30, 'post-fitBounds');
-    this.restoreInteractionsAfterDelay(50);
-  }
-
-  private restoreInteractionsAfterDelay(delayMs: number): void {
-    if (this.restoreInteractionsTimeoutId !== null) {
-      clearTimeout(this.restoreInteractionsTimeoutId);
-    }
-
-    this.restoreInteractionsTimeoutId = setTimeout(() => {
-      this.restoreInteractionsTimeoutId = null;
-
-      if (!this.map || this.isDestroyed) {
-        return;
-      }
-
-      this.map.dragging.enable();
-      this.map.scrollWheelZoom.enable();
-    }, delayMs);
-  }
-
-  private initializeMap(L: LeafletRuntime, trigger: string): void {
+  private initializeMap(
+    leaflet: LeafletRuntime,
+    trigger: string,
+    fullscreenControlCtor?: LeafletFullscreenControlConstructor
+  ): void {
     const readiness = this.canInitializeNow();
     const container = readiness.container;
     if (!readiness.ok || !container) {
       throw new Error(`container is not ready during initializeMap: ${readiness.reason}`);
     }
 
-    // Exécuter l'initialisation en dehors de la zone Angular
-    // pour éviter le change detection permanent sur les events de la carte
     this.ngZone.runOutsideAngular(() => {
-      this.initializeMapOutsideZone(L, container, trigger);
+      this.initializeMapOutsideZone(leaflet, container, trigger, fullscreenControlCtor);
     });
   }
 
   private initializeMapOutsideZone(
     L: LeafletRuntime,
     container: HTMLElement,
-    trigger: string
+    trigger: string,
+    fullscreenControlCtor?: LeafletFullscreenControlConstructor
   ): void {
-    // Vérifier si on a des images overlays
-    const hasImageOverlays = this.block.imageOverlays && this.block.imageOverlays.length > 0;
-
+    const usesSimpleCrs = this.usesSimpleCrs(this.block);
+    const fallbackZoomWindow = this.getDefaultSimpleCrsZoomWindow(this.block);
     const mapOptions: LeafletMapOptions = {
-      minZoom: this.block.minZoom ?? (hasImageOverlays ? -5 : undefined),
-      maxZoom: this.block.maxZoom ?? (hasImageOverlays ? 2 : undefined),
+      minZoom: this.block.minZoom ?? (usesSimpleCrs ? fallbackZoomWindow.minZoom : undefined),
+      maxZoom: this.block.maxZoom ?? (usesSimpleCrs ? fallbackZoomWindow.maxZoom : undefined),
+      zoomDelta: this.block.zoomDelta,
       zoomControl: true,
-      attributionControl: false, // Désactiver l'attribution Leaflet par défaut
-      scrollWheelZoom: true,
-      doubleClickZoom: true,
-      boxZoom: true,
-      keyboard: true,
-      dragging: true,
-      // Désactiver les animations pour une navigation plus fluide
-      zoomAnimation: false,
-      fadeAnimation: false,
-      markerZoomAnimation: false,
-      // Activer le contrôle fullscreen (le plugin est maintenant chargé)
-      fullscreenControl: true,
+      attributionControl: this.shouldShowAttribution(this.block),
+      scrollWheelZoom: !(this.block.noScrollZoom || this.block.lock),
+      doubleClickZoom: !this.block.lock,
+      boxZoom: !this.block.lock,
+      keyboard: !this.block.lock,
+      dragging: !this.block.lock,
+      touchZoom: !this.block.lock,
+      zoomAnimation: true,
+      fadeAnimation: true,
+      markerZoomAnimation: true,
     };
 
-    // Si on a une image overlay, utiliser CRS.Simple pour coordonnées pixels
-    if (hasImageOverlays && !this.block.tileServer) {
+    if (usesSimpleCrs) {
       mapOptions.crs = L.CRS.Simple;
       mapOptions.center = [0, 0];
       mapOptions.zoom = this.block.defaultZoom ?? 0;
     } else {
-      // Sinon, utiliser les coordonnées géographiques normales
       mapOptions.center = [this.block.lat ?? 0, this.block.long ?? 0];
       mapOptions.zoom = this.block.defaultZoom ?? 13;
     }
 
-    // Création de la carte
     this.map = L.map(container, mapOptions);
-    this.initCompleted = true;
+    this.addFullscreenControl(fullscreenControlCtor);
+    this.setupMapViewPersistence();
+    this.setupFullscreenResizeSync();
     this.logInfo('leaflet-map-created', {
       category: 'timing',
       trigger,
-      hasImageOverlays,
+      hasImageOverlays: (this.block.imageOverlays?.length ?? 0) > 0,
       center: mapOptions.center,
       zoom: mapOptions.zoom,
     });
 
-    // Invalidate initial + second pass après layout différé.
     this.queueInvalidateSize(0, `post-init:${trigger}`);
     this.queueInvalidateSize(150, `post-init-second-pass:${trigger}`);
     this.setupResizeObserver(container);
+    this.setupGlobalResizeHandling();
+    this.reconcileMapContent(L, trigger, { resetView: true, preferPersistedView: true });
+  }
 
-    // N'ajouter la couche de tuiles OSM QUE si on n'a pas d'image overlay
-    // (pour éviter d'afficher une carte du monde réel derrière une carte fantasy)
-    if (!hasImageOverlays || this.block.tileServer) {
+  private reconcileMapContent(
+    L: LeafletRuntime,
+    context: string,
+    opts?: { resetView?: boolean; preferPersistedView?: boolean }
+  ): void {
+    const container = this.mapContainer?.nativeElement;
+    if (!this.map || !container) {
+      return;
+    }
+
+    this.renderToken++;
+    this.clearLayers();
+    this.syncContainerClasses(container);
+
+    if (this.shouldRenderTileLayer(this.block)) {
       this.addTileLayer(L);
     }
 
-    // Ajout des images overlays si présentes
-    if (hasImageOverlays) {
-      this.addImageOverlays(L);
-      // Marquer comme ayant des images pour désactiver le filtre sombre sur les tuiles
-      container.classList.add('has-image-overlay');
+    if ((this.block.imageOverlays?.length ?? 0) > 0) {
+      this.addImageOverlays(L, this.renderToken, {
+        resetView: opts?.resetView ?? false,
+        preferPersistedView: opts?.preferPersistedView ?? false,
+      });
+    } else if (opts?.resetView) {
+      this.setBaseView(opts.preferPersistedView);
     }
 
-    // Ajout des marqueurs si présents
-    if (this.block.markers && this.block.markers.length > 0) {
+    if ((this.block.markers?.length ?? 0) > 0) {
       this.addMarkers(L);
     }
 
-    // Application du mode sombre si spécifié dans le bloc
-    // (force le mode sombre indépendamment du thème du site)
-    if (this.block.darkMode) {
-      container.classList.add('leaflet-dark-mode');
+    this.syncMarkersWithZoom();
+
+    this.queueInvalidateSize(0, `reconcile:${context}`);
+  }
+
+  private addFullscreenControl(fullscreenControlCtor?: LeafletFullscreenControlConstructor): void {
+    if (!this.map || !fullscreenControlCtor) {
+      return;
+    }
+
+    try {
+      new fullscreenControlCtor({ forceSeparateButton: true }).addTo(this.map);
+    } catch (error) {
+      this.logError('fullscreen-control-add-failed', {
+        category: 'import',
+        error,
+      });
     }
   }
 
   private addTileLayer(L: LeafletRuntime): void {
-    const map = this.map;
-    if (!map) {
+    if (!this.map) {
       return;
     }
 
-    // Utiliser le serveur de tuiles personnalisé ou OpenStreetMap par défaut
     const tileUrl =
       this.block.tileServer?.url ?? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-    const attribution =
-      this.block.tileServer?.attribution ??
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-
-    L.tileLayer(tileUrl, {
-      attribution: attribution,
+    this.tileLayer = L.tileLayer(tileUrl, {
+      attribution: this.getTileAttribution(),
       subdomains: this.block.tileServer?.subdomains ?? ['a', 'b', 'c'],
       minZoom: this.block.tileServer?.minZoom,
       maxZoom: this.block.tileServer?.maxZoom,
-    }).addTo(map);
+    }).addTo(this.map);
   }
 
-  private addImageOverlays(L: LeafletRuntime): void {
-    this.totalOverlays = this.block.imageOverlays?.length ?? 0;
-    this.overlaysLoaded = 0;
+  private addImageOverlays(
+    L: LeafletRuntime,
+    renderToken: number,
+    opts: { resetView: boolean; preferPersistedView: boolean }
+  ): void {
+    const overlays = this.block.imageOverlays ?? [];
+    if (overlays.length === 0) {
+      return;
+    }
 
-    // Stocker tous les bounds pour calculer la vue globale
-    const allBounds: [[number, number], [number, number]][] = [];
+    let completed = 0;
+    let unionBounds: [[number, number], [number, number]] | null = null;
 
-    this.block.imageOverlays?.forEach((overlay) => {
-      // Construire l'URL de l'image via l'API d'assets avec cache-busting
-      const cv = this.contentVersionService.currentVersion;
-      const basePath = `/assets/${encodeURI(overlay.path)}`;
-      const imageUrl = cv ? `${basePath}?cv=${encodeURIComponent(cv)}` : basePath;
+    const finalizeOverlay = (bounds: [[number, number], [number, number]] | null): void => {
+      if (this.isDestroyed || renderToken !== this.renderToken) {
+        return;
+      }
 
-      // Charger l'image pour obtenir ses dimensions réelles
+      completed++;
+      if (bounds) {
+        unionBounds = unionBounds ? this.extendBounds(unionBounds, bounds) : bounds;
+      }
+
+      if (completed === overlays.length && opts.resetView) {
+        if (opts.preferPersistedView && this.restorePersistedView()) {
+          return;
+        }
+
+        if (unionBounds) {
+          this.scheduleFitBounds(unionBounds);
+        } else {
+          this.setBaseView(false);
+        }
+      }
+    };
+
+    overlays.forEach((overlay) => {
+      const imageUrl = this.runtimeService.buildOverlayAssetUrl(overlay.path);
+      const explicitBounds = this.getOverlayBoundsFromBlock(overlay);
+
+      if (explicitBounds) {
+        this.addOverlayLayer(L, imageUrl, explicitBounds);
+        finalizeOverlay(explicitBounds);
+        return;
+      }
+
       const img = new Image();
       img.onload = () => {
-        if (this.isDestroyed || !this.map) {
+        if (this.isDestroyed || renderToken !== this.renderToken) {
           return;
         }
 
-        const width = img.naturalWidth;
-        const height = img.naturalHeight;
-
-        // Utiliser les dimensions réelles de l'image comme bounds
-        // Dans CRS.Simple, les coordonnées sont des pixels
-        // On centre l'image à [0, 0]
-        const bounds: [[number, number], [number, number]] = [
-          [0, 0], // coin supérieur gauche
-          [height, width], // coin inférieur droit (attention: [y, x] en Leaflet)
-        ];
-
-        try {
-          const overlay = L.imageOverlay(imageUrl, bounds, {
-            interactive: false, // Désactiver les interactions sur l'image
-            className: 'leaflet-image-overlay-no-animation', // Classe pour CSS custom
-          });
-          overlay.addTo(this.map);
-          allBounds.push(bounds);
-
-          this.overlaysLoaded++;
-
-          // Ajuster la vue UNE SEULE FOIS après que TOUTES les images sont chargées
-          if (
-            this.overlaysLoaded === this.totalOverlays &&
-            allBounds.length > 0 &&
-            !this.viewAdjusted
-          ) {
-            this.viewAdjusted = true; // Marquer pour ne jamais refaire le fit
-            // Utiliser le premier bounds (ou on pourrait calculer l'union de tous)
-            const finalBounds = allBounds[0];
-
-            // Attendre un peu pour laisser les overlays se positionner
-            if (this.fitBoundsTimeoutId !== null) {
-              clearTimeout(this.fitBoundsTimeoutId);
-            }
-            this.fitBoundsTimeoutId = setTimeout(() => {
-              this.fitBoundsTimeoutId = null;
-              if (!this.isDestroyed) {
-                this.fitBoundsWithoutAnimation(finalBounds);
-              }
-            }, 150);
-          }
-        } catch (error) {
-          this.logError('image-overlay-add-failed', {
-            category: 'data',
-            imageUrl,
-            error,
-          });
-        }
+        const bounds = this.deriveImageOverlayBounds(img.naturalWidth, img.naturalHeight);
+        this.addOverlayLayer(L, imageUrl, bounds);
+        finalizeOverlay(bounds);
       };
-
       img.onerror = () => {
-        if (this.isDestroyed) {
+        if (this.isDestroyed || renderToken !== this.renderToken) {
           return;
         }
 
-        this.overlaysLoaded++;
         this.logError('image-overlay-load-failed', {
           category: 'data',
           imageUrl,
         });
+        finalizeOverlay(null);
       };
 
       img.src = imageUrl;
     });
+  }
+
+  private addOverlayLayer(
+    L: LeafletRuntime,
+    imageUrl: string,
+    bounds: [[number, number], [number, number]]
+  ): void {
+    if (!this.map) {
+      return;
+    }
+
+    try {
+      const overlayLayer = L.imageOverlay(imageUrl, bounds, {
+        interactive: false,
+        className: 'leaflet-image-overlay-no-animation',
+      }).addTo(this.map);
+      this.overlayLayers.push(overlayLayer);
+    } catch (error) {
+      this.logError('image-overlay-add-failed', {
+        category: 'data',
+        imageUrl,
+        error,
+      });
+    }
   }
 
   private addMarkers(L: LeafletRuntime): void {
@@ -599,7 +568,6 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     let skippedByZoom = 0;
 
     this.block.markers?.forEach((marker) => {
-      // Vérifier les contraintes de zoom si définies
       if (marker.minZoom && map.getZoom() < marker.minZoom) {
         skippedByZoom++;
         return;
@@ -610,19 +578,21 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
       }
 
       const leafletMarker = L.marker([marker.lat, marker.long]).addTo(map);
+      this.markerLayers.push(leafletMarker);
 
-      // Popup avec description ou lien — HTML-escaped to prevent XSS
       let popupContent = '';
       if (marker.description) {
         popupContent = this.escapeHtml(marker.description);
       }
       if (marker.link) {
-        // Résoudre le lien wikilink en route Angular
-        // Format: [[Page Name]] ou juste le nom de la page
-        const cleanLink = marker.link.replaceAll(/^\[\[|\]\]$/g, '').trim();
-        const route = `/viewer/${encodeURIComponent(cleanLink)}`;
-        const linkHtml = `<a href="${route}">${this.escapeHtml(cleanLink)}</a>`;
-        popupContent = popupContent ? `${popupContent}<br>${linkHtml}` : linkHtml;
+        const resolvedLink = this.runtimeService.resolveMarkerLink(marker.link);
+        if (resolvedLink) {
+          const href = this.escapeHtml(resolvedLink.href);
+          const text = this.escapeHtml(resolvedLink.text);
+          const attrs = resolvedLink.external ? ' target="_blank" rel="noopener"' : '';
+          const linkHtml = `<a href="${href}"${attrs}>${text}</a>`;
+          popupContent = popupContent ? `${popupContent}<br>${linkHtml}` : linkHtml;
+        }
       }
 
       if (popupContent) {
@@ -637,6 +607,391 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
       totalMarkers: this.block.markers?.length ?? 0,
       addedCount,
       skippedByZoom,
+    });
+  }
+
+  private syncMarkersWithZoom(): void {
+    this.markerZoomSyncCleanup?.();
+    this.markerZoomSyncCleanup = null;
+
+    if (!this.map || !this.leafletRuntime || !this.hasZoomConstrainedMarkers()) {
+      return;
+    }
+
+    const handler = () => {
+      if (this.isDestroyed || !this.leafletRuntime) {
+        return;
+      }
+
+      this.refreshMarkers(this.leafletRuntime);
+    };
+
+    this.map.on('zoomend', handler);
+    this.markerZoomSyncCleanup = () => {
+      this.map?.off('zoomend', handler);
+    };
+  }
+
+  private refreshMarkers(L: LeafletRuntime): void {
+    if (!this.map) {
+      return;
+    }
+
+    this.clearMarkerLayers();
+    if ((this.block.markers?.length ?? 0) > 0) {
+      this.addMarkers(L);
+    }
+  }
+
+  private hasZoomConstrainedMarkers(): boolean {
+    return (
+      this.block.markers?.some(
+        (marker) => marker.minZoom !== undefined || marker.maxZoom !== undefined
+      ) ?? false
+    );
+  }
+
+  private fitBoundsWithoutAnimation(finalBounds: [[number, number], [number, number]]): void {
+    if (!this.map) {
+      return;
+    }
+
+    this.map.fitBounds(finalBounds, {
+      padding: [20, 20],
+      animate: false,
+      duration: 0,
+    });
+
+    this.queueInvalidateSize(30, 'post-fitBounds');
+  }
+
+  private setBaseView(preferPersistedView = false): void {
+    if (!this.map) {
+      return;
+    }
+
+    if (preferPersistedView && this.restorePersistedView()) {
+      return;
+    }
+
+    const center = this.usesSimpleCrs(this.block)
+      ? ([0, 0] as [number, number])
+      : ([this.block.lat ?? 0, this.block.long ?? 0] as [number, number]);
+    const zoom = this.usesSimpleCrs(this.block)
+      ? (this.block.defaultZoom ?? 0)
+      : (this.block.defaultZoom ?? 13);
+
+    this.map.setView(center, zoom, { animate: false });
+  }
+
+  private scheduleFitBounds(finalBounds: [[number, number], [number, number]]): void {
+    if (this.fitBoundsTimeoutId !== null) {
+      clearTimeout(this.fitBoundsTimeoutId);
+    }
+
+    this.fitBoundsTimeoutId = setTimeout(() => {
+      this.fitBoundsTimeoutId = null;
+      if (!this.isDestroyed) {
+        this.fitBoundsWithoutAnimation(finalBounds);
+      }
+    }, 150);
+  }
+
+  private requiresFullRebuild(previous: LeafletBlock, current: LeafletBlock): boolean {
+    return this.getRebuildSignature(previous) !== this.getRebuildSignature(current);
+  }
+
+  private requiresViewReset(previous: LeafletBlock, current: LeafletBlock): boolean {
+    if (this.usesSimpleCrs(current)) {
+      return this.getImageViewSignature(previous) !== this.getImageViewSignature(current);
+    }
+
+    return previous.lat !== current.lat || previous.long !== current.long;
+  }
+
+  private getRebuildSignature(block: LeafletBlock): string {
+    return JSON.stringify({
+      simpleCrs: this.usesSimpleCrs(block),
+      minZoom: block.minZoom ?? null,
+      maxZoom: block.maxZoom ?? null,
+      defaultZoom: block.defaultZoom ?? null,
+      zoomDelta: block.zoomDelta ?? null,
+      noScrollZoom: block.noScrollZoom ?? null,
+      lock: block.lock ?? null,
+      tileServer: block.tileServer
+        ? {
+            url: block.tileServer.url,
+            attribution: block.tileServer.attribution ?? null,
+            minZoom: block.tileServer.minZoom ?? null,
+            maxZoom: block.tileServer.maxZoom ?? null,
+            subdomains: block.tileServer.subdomains ?? null,
+          }
+        : null,
+    });
+  }
+
+  private rebuildMap(reason: string): void {
+    if (!this.leafletRuntime) {
+      this.teardownMapRuntime();
+      this.scheduleRetry(`${reason}:runtime-not-ready`);
+      return;
+    }
+
+    this.teardownMapRuntime({ preserveLeafletRuntime: true, preserveRetryState: true });
+    this.tryInitialize(reason);
+  }
+
+  private teardownMapRuntime(opts?: {
+    preserveLeafletRuntime?: boolean;
+    preserveRetryState?: boolean;
+  }): void {
+    this.renderToken++;
+    this.clearPendingTimers();
+    this.clearLayers();
+    this.mapViewSyncCleanup?.();
+    this.mapViewSyncCleanup = null;
+    this.cleanupGlobalListeners();
+
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+    }
+
+    this.initInProgress = false;
+    this.hasLoggedUnmeasurableContainer = false;
+
+    if (!opts?.preserveLeafletRuntime) {
+      this.leafletRuntime = null;
+    }
+
+    if (!opts?.preserveRetryState) {
+      this.initAttemptCount = 0;
+    }
+  }
+
+  private clearPendingTimers(): void {
+    if (this.pendingTimeoutId !== null) {
+      clearTimeout(this.pendingTimeoutId);
+      this.pendingTimeoutId = null;
+    }
+
+    if (this.resizeInvalidateTimeoutId !== null) {
+      clearTimeout(this.resizeInvalidateTimeoutId);
+      this.resizeInvalidateTimeoutId = null;
+    }
+
+    if (this.fitBoundsTimeoutId !== null) {
+      clearTimeout(this.fitBoundsTimeoutId);
+      this.fitBoundsTimeoutId = null;
+    }
+  }
+
+  private clearLayers(): void {
+    this.markerZoomSyncCleanup?.();
+    this.markerZoomSyncCleanup = null;
+
+    if (this.map) {
+      if (this.tileLayer) {
+        this.map.removeLayer(this.tileLayer);
+      }
+
+      this.clearMarkerLayers();
+      this.overlayLayers.forEach((layer) => this.map?.removeLayer(layer));
+    }
+
+    this.tileLayer = null;
+    this.overlayLayers = [];
+  }
+
+  private clearMarkerLayers(): void {
+    if (this.map) {
+      this.markerLayers.forEach((layer) => this.map?.removeLayer(layer));
+    }
+
+    this.markerLayers = [];
+  }
+
+  private cleanupGlobalListeners(): void {
+    while (this.globalCleanupFns.length > 0) {
+      const cleanup = this.globalCleanupFns.pop();
+      cleanup?.();
+    }
+  }
+
+  private shouldRenderTileLayer(block: LeafletBlock): boolean {
+    return !this.usesSimpleCrs(block) || Boolean(block.tileServer);
+  }
+
+  private shouldShowAttribution(block: LeafletBlock): boolean {
+    if (!this.shouldRenderTileLayer(block)) {
+      return false;
+    }
+
+    return !block.tileServer || Boolean(block.tileServer.attribution);
+  }
+
+  private getTileAttribution(): string | undefined {
+    if (!this.shouldShowAttribution(this.block)) {
+      return undefined;
+    }
+
+    return (
+      this.block.tileServer?.attribution ??
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    );
+  }
+
+  private usesSimpleCrs(block: LeafletBlock): boolean {
+    return (block.imageOverlays?.length ?? 0) > 0 && !block.tileServer;
+  }
+
+  private getDefaultSimpleCrsZoomWindow(block: LeafletBlock): { minZoom: number; maxZoom: number } {
+    const baseZoom = block.defaultZoom ?? 0;
+    return {
+      minZoom: Math.min(block.minZoom ?? Number.POSITIVE_INFINITY, baseZoom - 4, -2),
+      maxZoom: Math.max(block.maxZoom ?? Number.NEGATIVE_INFINITY, baseZoom + 4, 8),
+    };
+  }
+
+  private syncContainerClasses(container: HTMLElement): void {
+    container.classList.toggle('has-image-overlay', (this.block.imageOverlays?.length ?? 0) > 0);
+    container.classList.toggle('leaflet-dark-mode', Boolean(this.block.darkMode));
+  }
+
+  private getOverlayBoundsFromBlock(
+    overlay: LeafletImageOverlay
+  ): [[number, number], [number, number]] | null {
+    const [topLat, topLng] = overlay.topLeft;
+    const [bottomLat, bottomLng] = overlay.bottomRight;
+    if (topLat === 0 && topLng === 0 && bottomLat === 0 && bottomLng === 0) {
+      return null;
+    }
+
+    return this.normalizeBounds([overlay.topLeft, overlay.bottomRight]);
+  }
+
+  private normalizeBounds(
+    bounds: [[number, number], [number, number]]
+  ): [[number, number], [number, number]] {
+    const [[latA, lngA], [latB, lngB]] = bounds;
+    return [
+      [Math.min(latA, latB), Math.min(lngA, lngB)],
+      [Math.max(latA, latB), Math.max(lngA, lngB)],
+    ];
+  }
+
+  private extendBounds(
+    current: [[number, number], [number, number]],
+    next: [[number, number], [number, number]]
+  ): [[number, number], [number, number]] {
+    return [
+      [Math.min(current[0][0], next[0][0]), Math.min(current[0][1], next[0][1])],
+      [Math.max(current[1][0], next[1][0]), Math.max(current[1][1], next[1][1])],
+    ];
+  }
+
+  private deriveImageOverlayBounds(
+    naturalWidth: number,
+    naturalHeight: number
+  ): [[number, number], [number, number]] {
+    if (
+      this.block.scale &&
+      Number.isFinite(this.block.scale) &&
+      naturalWidth > 0 &&
+      naturalHeight > 0
+    ) {
+      const widthUnits = this.block.scale;
+      const heightUnits = (widthUnits * naturalHeight) / naturalWidth;
+      const halfWidth = widthUnits / 2;
+      const halfHeight = heightUnits / 2;
+      return this.normalizeBounds([
+        [halfHeight, -halfWidth],
+        [-halfHeight, halfWidth],
+      ]);
+    }
+
+    return this.normalizeBounds([
+      [0, 0],
+      [naturalHeight, naturalWidth],
+    ]);
+  }
+
+  private restorePersistedView(): boolean {
+    if (!this.map) {
+      return false;
+    }
+
+    const state = this.runtimeService.getPersistedViewState(this.mapId, {
+      simpleCrs: this.usesSimpleCrs(this.block),
+    });
+    if (!state) {
+      return false;
+    }
+
+    this.map.setView(state.center, state.zoom, { animate: false });
+    return true;
+  }
+
+  private setupMapViewPersistence(): void {
+    this.mapViewSyncCleanup?.();
+    this.mapViewSyncCleanup = null;
+
+    if (!this.map) {
+      return;
+    }
+
+    const persist = () => {
+      if (!this.map || this.isDestroyed) {
+        return;
+      }
+
+      const center = this.map.getCenter();
+      this.runtimeService.persistViewState(this.mapId, {
+        center: [center.lat, center.lng],
+        zoom: this.map.getZoom(),
+        simpleCrs: this.usesSimpleCrs(this.block),
+      });
+    };
+
+    this.map.on('moveend', persist);
+    this.map.on('zoomend', persist);
+    this.mapViewSyncCleanup = () => {
+      this.map?.off('moveend', persist);
+      this.map?.off('zoomend', persist);
+    };
+  }
+
+  private setupFullscreenResizeSync(): void {
+    if (!this.map) {
+      return;
+    }
+
+    const schedule = () => this.queueInvalidateSize(0, 'leaflet-fullscreen');
+    this.map.on('enterFullscreen', schedule);
+    this.map.on('exitFullscreen', schedule);
+
+    const previousCleanup = this.mapViewSyncCleanup;
+    this.mapViewSyncCleanup = () => {
+      previousCleanup?.();
+      this.map?.off('enterFullscreen', schedule);
+      this.map?.off('exitFullscreen', schedule);
+    };
+  }
+
+  private getImageViewSignature(block: LeafletBlock): string {
+    return JSON.stringify({
+      scale: block.scale ?? null,
+      overlays:
+        block.imageOverlays?.map((overlay) => ({
+          path: overlay.path,
+          topLeft: overlay.topLeft,
+          bottomRight: overlay.bottomRight,
+        })) ?? [],
     });
   }
 
