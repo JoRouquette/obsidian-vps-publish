@@ -8,7 +8,7 @@ import {
   PLATFORM_ID,
   runInInjectionContext,
 } from '@angular/core';
-import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
+import type { LeafletBlock } from '@core-domain';
 
 import { LeafletMapComponent } from '../components/leaflet-map/leaflet-map.component';
 

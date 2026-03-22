@@ -24,8 +24,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
 import { DomSanitizer } from '@angular/platform-browser';
 import { Router } from '@angular/router';
-import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
-import type { ManifestPage } from '@core-domain/entities/manifest-page';
+import type { LeafletBlock, ManifestPage } from '@core-domain';
 import { from } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 

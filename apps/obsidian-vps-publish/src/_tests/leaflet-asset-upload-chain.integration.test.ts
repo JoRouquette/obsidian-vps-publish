@@ -1,5 +1,4 @@
-import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
-import { DetectLeafletBlocksService } from '@core-application/vault-parsing/services/detect-leaflet-blocks.service';
+import { DetectAssetsService, DetectLeafletBlocksService } from '@core-application';
 import type { LoggerPort, PublishableNote } from '@core-domain';
 
 import { AssetsUploaderAdapter } from '../lib/infra/assets-uploader.adapter';

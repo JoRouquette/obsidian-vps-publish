@@ -3,7 +3,7 @@ import { Component, PLATFORM_ID, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { defaultManifest, type Manifest } from '@core-domain';
-import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
+import type { LeafletBlock } from '@core-domain';
 
 import { CatalogFacade } from '../application/facades/catalog-facade';
 import { CONTENT_REPOSITORY } from '../domain/ports/tokens';
