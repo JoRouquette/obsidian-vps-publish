@@ -20,6 +20,7 @@ import { expect, test } from '@playwright/test';
 
 const SINGLE_MAP_URL = '/leaflet-single';
 const MULTI_MAP_URL = '/leaflet-multi';
+const IMAGE_MAP_URL = '/leaflet-image';
 const NON_LEAFLET_URL = '/test-page';
 
 // Leaflet dynamic import takes a moment; wait up to 15 s for the container
@@ -124,6 +125,62 @@ test.describe('Leaflet Map E2E', () => {
     const box = await page.locator('.leaflet-container').first().boundingBox();
     expect(box).toBeTruthy();
     expect(box!.width).toBeGreaterThan(0);
+  });
+
+  test('image map zoom controls, mouse wheel, and fullscreen all work on the rendered overlay', async ({
+    page,
+  }) => {
+    await page.goto(IMAGE_MAP_URL);
+
+    const container = page.locator('.leaflet-container').first();
+    const imageLayer = page.locator('img.leaflet-image-layer').first();
+    const fullscreenButton = page.locator('a.leaflet-control-zoom-fullscreen').first();
+
+    await expect(container).toBeVisible({ timeout: MAP_TIMEOUT });
+    await expect(imageLayer).toBeVisible({ timeout: MAP_TIMEOUT });
+    await expect(fullscreenButton).toBeVisible({ timeout: MAP_TIMEOUT });
+
+    const readState = async () =>
+      page.evaluate(() => {
+        const containerEl = document.querySelector('.leaflet-container') as HTMLElement | null;
+        const imageEl = document.querySelector('img.leaflet-image-layer') as HTMLElement | null;
+        const imageRect = imageEl?.getBoundingClientRect();
+        const containerRect = containerEl?.getBoundingClientRect();
+
+        return {
+          containerWidth: containerRect?.width ?? 0,
+          containerHeight: containerRect?.height ?? 0,
+          imageWidth: imageRect?.width ?? 0,
+          imageHeight: imageRect?.height ?? 0,
+          fullscreen: !!document.fullscreenElement,
+        };
+      });
+
+    const initial = await readState();
+    expect(initial.imageWidth).toBeGreaterThan(0);
+
+    await page.click('a.leaflet-control-zoom-in');
+    await page.waitForTimeout(400);
+    const afterZoomIn = await readState();
+    expect(afterZoomIn.imageWidth).toBeGreaterThan(initial.imageWidth);
+
+    await page.click('a.leaflet-control-zoom-out');
+    await page.waitForTimeout(400);
+    const afterZoomOut = await readState();
+    expect(afterZoomOut.imageWidth).toBeLessThan(afterZoomIn.imageWidth);
+
+    await container.hover();
+    await page.mouse.wheel(0, -120);
+    await page.waitForTimeout(400);
+    const afterWheelZoomIn = await readState();
+    expect(afterWheelZoomIn.imageWidth).toBeGreaterThan(afterZoomOut.imageWidth);
+
+    await fullscreenButton.click();
+    await page.waitForTimeout(400);
+    const afterFullscreen = await readState();
+    expect(afterFullscreen.fullscreen).toBe(true);
+    expect(afterFullscreen.containerWidth).toBeGreaterThan(initial.containerWidth);
+    expect(afterFullscreen.containerHeight).toBeGreaterThan(initial.containerHeight);
   });
 
   test('no blocking Leaflet errors in the console', async ({ page }) => {

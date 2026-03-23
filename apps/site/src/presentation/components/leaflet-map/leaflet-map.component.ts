@@ -64,6 +64,8 @@ export class LeafletMapComponent implements AfterViewInit, OnChanges, OnDestroy 
   private resizeInvalidateTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private fitBoundsTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private globalCleanupFns: Array<() => void> = [];
+  private simpleCrsInteractionCleanupFns: Array<() => void> = [];
+  private lastSimpleCrsWheelZoomAt = 0;
   private renderToken = 0;
   private hasLoggedUnmeasurableContainer = false;
 
@@ -134,8 +136,8 @@ export class LeafletMapComponent implements AfterViewInit, OnChanges, OnDestroy 
     return this.block?.height?.trim() || null;
   }
 
-  get containerPaddingBottom(): string | null {
-    return this.containerHeight ? '0' : null;
+  get containerAspectRatio(): string | null {
+    return this.containerHeight ? null : '16 / 9';
   }
 
   private hasMeasurableSize(container: HTMLElement): boolean {
@@ -354,6 +356,7 @@ export class LeafletMapComponent implements AfterViewInit, OnChanges, OnDestroy 
       minZoom: this.block.minZoom ?? (usesSimpleCrs ? fallbackZoomWindow.minZoom : undefined),
       maxZoom: this.block.maxZoom ?? (usesSimpleCrs ? fallbackZoomWindow.maxZoom : undefined),
       zoomDelta: this.block.zoomDelta,
+      zoomSnap: this.getZoomSnap(),
       zoomControl: true,
       attributionControl: this.shouldShowAttribution(this.block),
       scrollWheelZoom: !(this.block.noScrollZoom || this.block.lock),
@@ -380,6 +383,7 @@ export class LeafletMapComponent implements AfterViewInit, OnChanges, OnDestroy 
     this.addFullscreenControl(fullscreenControlCtor);
     this.setupMapViewPersistence();
     this.setupFullscreenResizeSync();
+    this.setupSimpleCrsInteractionOverrides(container);
     this.logInfo('leaflet-map-created', {
       category: 'timing',
       trigger,
@@ -751,6 +755,7 @@ export class LeafletMapComponent implements AfterViewInit, OnChanges, OnDestroy 
     this.mapViewSyncCleanup?.();
     this.mapViewSyncCleanup = null;
     this.cleanupGlobalListeners();
+    this.cleanupSimpleCrsInteractionOverrides();
 
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
@@ -823,6 +828,13 @@ export class LeafletMapComponent implements AfterViewInit, OnChanges, OnDestroy 
     }
   }
 
+  private cleanupSimpleCrsInteractionOverrides(): void {
+    while (this.simpleCrsInteractionCleanupFns.length > 0) {
+      const cleanup = this.simpleCrsInteractionCleanupFns.pop();
+      cleanup?.();
+    }
+  }
+
   private shouldRenderTileLayer(block: LeafletBlock): boolean {
     return !this.usesSimpleCrs(block) || Boolean(block.tileServer);
   }
@@ -856,6 +868,138 @@ export class LeafletMapComponent implements AfterViewInit, OnChanges, OnDestroy 
       minZoom: Math.min(block.minZoom ?? Number.POSITIVE_INFINITY, baseZoom - 4, -2),
       maxZoom: Math.max(block.maxZoom ?? Number.NEGATIVE_INFINITY, baseZoom + 4, 8),
     };
+  }
+
+  private getEffectiveMinZoom(block: LeafletBlock): number | undefined {
+    if (block.minZoom !== undefined) {
+      return block.minZoom;
+    }
+
+    return this.usesSimpleCrs(block)
+      ? this.getDefaultSimpleCrsZoomWindow(block).minZoom
+      : undefined;
+  }
+
+  private getEffectiveMaxZoom(block: LeafletBlock): number | undefined {
+    if (block.maxZoom !== undefined) {
+      return block.maxZoom;
+    }
+
+    return this.usesSimpleCrs(block)
+      ? this.getDefaultSimpleCrsZoomWindow(block).maxZoom
+      : undefined;
+  }
+
+  private getZoomStep(): number {
+    const zoomDelta = this.block.zoomDelta;
+    return zoomDelta !== undefined && Number.isFinite(zoomDelta) && zoomDelta > 0 ? zoomDelta : 1;
+  }
+
+  private getZoomSnap(): number | undefined {
+    const zoomDelta = this.block.zoomDelta;
+    if (zoomDelta === undefined || !Number.isFinite(zoomDelta) || zoomDelta <= 0) {
+      return undefined;
+    }
+
+    return zoomDelta < 1 ? zoomDelta : 1;
+  }
+
+  private setupSimpleCrsInteractionOverrides(container: HTMLElement): void {
+    this.cleanupSimpleCrsInteractionOverrides();
+
+    if (!this.map || !this.usesSimpleCrs(this.block)) {
+      return;
+    }
+
+    const register = <K extends keyof HTMLElementEventMap>(
+      target: HTMLElement,
+      eventName: K,
+      handler: (event: HTMLElementEventMap[K]) => void,
+      options?: AddEventListenerOptions
+    ): void => {
+      target.addEventListener(eventName, handler as EventListener, options);
+      this.simpleCrsInteractionCleanupFns.push(() =>
+        target.removeEventListener(eventName, handler as EventListener, options)
+      );
+    };
+
+    const bindZoomControl = (
+      selector: 'a.leaflet-control-zoom-in' | 'a.leaflet-control-zoom-out',
+      direction: 1 | -1
+    ): void => {
+      const control = container.querySelector<HTMLElement>(selector);
+      if (!control) {
+        return;
+      }
+
+      register(
+        control,
+        'click',
+        (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          this.applySimpleCrsZoomStep(direction);
+        },
+        { capture: true }
+      );
+    };
+
+    bindZoomControl('a.leaflet-control-zoom-in', 1);
+    bindZoomControl('a.leaflet-control-zoom-out', -1);
+
+    if (this.block.noScrollZoom || this.block.lock) {
+      return;
+    }
+
+    register(
+      container,
+      'wheel',
+      (event) => {
+        if (Math.abs(event.deltaY) < 4) {
+          return;
+        }
+
+        const now = Date.now();
+        if (now - this.lastSimpleCrsWheelZoomAt < 80) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          return;
+        }
+
+        this.lastSimpleCrsWheelZoomAt = now;
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        this.applySimpleCrsZoomStep(event.deltaY < 0 ? 1 : -1);
+      },
+      { capture: true, passive: false }
+    );
+  }
+
+  private applySimpleCrsZoomStep(direction: 1 | -1): void {
+    if (!this.map) {
+      return;
+    }
+
+    const currentZoom = this.map.getZoom();
+    const step = this.getZoomStep();
+    const minZoom = this.getEffectiveMinZoom(this.block);
+    const maxZoom = this.getEffectiveMaxZoom(this.block);
+    const unclampedZoom = currentZoom + direction * step;
+    const nextZoom = Math.max(
+      minZoom ?? Number.NEGATIVE_INFINITY,
+      Math.min(maxZoom ?? Number.POSITIVE_INFINITY, unclampedZoom)
+    );
+
+    if (nextZoom === currentZoom) {
+      return;
+    }
+
+    const center = this.map.getCenter();
+    this.map.setView([center.lat, center.lng], nextZoom, { animate: false });
+    this.queueInvalidateSize(0, 'simple-crs-zoom-step');
   }
 
   private syncContainerClasses(container: HTMLElement): void {
