@@ -124,6 +124,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     for (const link of links) {
       const href = link.getAttribute('href');
       if (!href) continue;
+      if (this.shouldIgnoreDecoratedInternalLink(link)) continue;
 
       // Détecter les liens externes
       const isExternal = /^[a-z]+:\/\//i.test(href) || href.startsWith('mailto:');
@@ -152,6 +153,18 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     event.preventDefault();
     void this.router.navigateByUrl(href);
+  }
+
+  private shouldIgnoreDecoratedInternalLink(link: HTMLAnchorElement): boolean {
+    if (
+      link.classList.contains('leaflet-control-zoom-in') ||
+      link.classList.contains('leaflet-control-zoom-out') ||
+      link.classList.contains('leaflet-control-zoom-fullscreen')
+    ) {
+      return true;
+    }
+
+    return Boolean(link.closest('.leaflet-control-container'));
   }
 
   /**

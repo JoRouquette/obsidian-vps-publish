@@ -91,8 +91,9 @@ export class ViewerComponent implements OnDestroy {
   // Flux réactif moderne avec toSignal (Angular 20 pattern)
   private readonly rawHtml = toSignal(
     this.router.events.pipe(
-      startWith(null),
-      map(() => this.router.url.split('?')[0].split('#')[0]),
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map((event) => event.urlAfterRedirects.split('?')[0].split('#')[0]),
+      startWith(this.getInitialRoutePath()),
       distinctUntilChanged(),
       switchMap((routePath) => {
         const normalized = this.normalizeRoute(routePath);
@@ -201,6 +202,17 @@ export class ViewerComponent implements OnDestroy {
     return routePath.replace(/\/+$/, '') || '/';
   }
 
+  private getInitialRoutePath(): string {
+    if (this.isBrowser && globalThis.window !== undefined) {
+      const browserPath = globalThis.window.location.pathname;
+      if (browserPath) {
+        return browserPath;
+      }
+    }
+
+    return this.router.url.split('?')[0].split('#')[0] || '/';
+  }
+
   private decorateWikilinks(): void {
     this.cleanupWikilinks();
 
@@ -212,6 +224,7 @@ export class ViewerComponent implements OnDestroy {
     for (const link of allLinks) {
       const href = link.getAttribute('href');
       if (!href) continue;
+      if (this.shouldIgnoreDecoratedInternalLink(link)) continue;
 
       // Détecter les liens externes
       const isExternal = /^[a-z]+:\/\//i.test(href) || href.startsWith('mailto:');
@@ -308,6 +321,18 @@ export class ViewerComponent implements OnDestroy {
 
     // Naviguer vers la nouvelle page (le fragment sera géré après le rendu)
     void this.router.navigateByUrl(path);
+  }
+
+  private shouldIgnoreDecoratedInternalLink(link: HTMLAnchorElement): boolean {
+    if (
+      link.classList.contains('leaflet-control-zoom-in') ||
+      link.classList.contains('leaflet-control-zoom-out') ||
+      link.classList.contains('leaflet-control-zoom-fullscreen')
+    ) {
+      return true;
+    }
+
+    return Boolean(link.closest('.leaflet-control-container'));
   }
 
   /**
