@@ -3,7 +3,7 @@ import { Component, PLATFORM_ID, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { defaultManifest, type Manifest } from '@core-domain';
-import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
+import type { LeafletBlock } from '@core-domain';
 
 import { CatalogFacade } from '../application/facades/catalog-facade';
 import { CONTENT_REPOSITORY } from '../domain/ports/tokens';
@@ -45,6 +45,18 @@ const secondMathPageHtml = `
 const leafletPageHtml = `
   <div class="markdown-body">
     <div data-leaflet-map-id="Ektaron-map"></div>
+  </div>
+`;
+
+const leafletControlPageHtml = `
+  <div class="markdown-body">
+    <div class="leaflet-control-container">
+      <div class="leaflet-top leaflet-left">
+        <div class="leaflet-control-zoom leaflet-bar">
+          <a class="leaflet-control-zoom-in" href="#" role="button" aria-label="Zoom in">+</a>
+        </div>
+      </div>
+    </div>
   </div>
 `;
 
@@ -109,6 +121,11 @@ describe('ViewerComponent math HTML rendering', () => {
   const recordVisit = jest.fn();
   let router: Router;
   let manifestSignal: ReturnType<typeof signal<Manifest>>;
+  let anchorScrollService: {
+    navigateToAnchor: jest.Mock;
+    isCurrentPageLink: jest.Mock;
+    scrollToAnchor: jest.Mock;
+  };
   let leafletInjectionService: {
     canRun: boolean;
     findPlaceholders: jest.Mock<HTMLElement[], [HTMLElement, string]>;
@@ -127,6 +144,9 @@ describe('ViewerComponent math HTML rendering', () => {
       if (path === '/ektaron.html') {
         return leafletPageHtml;
       }
+      if (path === '/leaflet-controls.html') {
+        return leafletControlPageHtml;
+      }
       if (path === '/unresolved.html') {
         return unresolvedLinkPageHtml;
       }
@@ -142,6 +162,11 @@ describe('ViewerComponent math HTML rendering', () => {
       runInjectionPass: jest.fn(),
       destroyAll: jest.fn(),
     };
+    anchorScrollService = {
+      navigateToAnchor: jest.fn().mockResolvedValue(undefined),
+      isCurrentPageLink: jest.fn().mockReturnValue(false),
+      scrollToAnchor: jest.fn().mockResolvedValue(undefined),
+    };
 
     await TestBed.configureTestingModule({
       imports: [ViewerComponent, DummyRouteComponent],
@@ -151,6 +176,7 @@ describe('ViewerComponent math HTML rendering', () => {
           { path: 'math-note', component: DummyRouteComponent },
           { path: 'math-note-2', component: DummyRouteComponent },
           { path: 'ektaron', component: DummyRouteComponent },
+          { path: 'leaflet-controls', component: DummyRouteComponent },
           { path: 'unresolved', component: DummyRouteComponent },
         ]),
         provideLocationMocks(),
@@ -160,14 +186,7 @@ describe('ViewerComponent math HTML rendering', () => {
         { provide: LeafletInjectionService, useValue: leafletInjectionService },
         { provide: VisitedPagesService, useValue: { recordVisit } },
         { provide: OfflineDetectionService, useValue: { isOffline: false } },
-        {
-          provide: AnchorScrollService,
-          useValue: {
-            navigateToAnchor: jest.fn().mockResolvedValue(undefined),
-            isCurrentPageLink: jest.fn().mockReturnValue(false),
-            scrollToAnchor: jest.fn().mockResolvedValue(undefined),
-          },
-        },
+        { provide: AnchorScrollService, useValue: anchorScrollService },
       ],
     }).compileComponents();
 
@@ -180,6 +199,7 @@ describe('ViewerComponent math HTML rendering', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     TestBed.resetTestingModule();
+    window.history.replaceState({}, '', '/');
   });
 
   it('injects KaTeX HTML produced by the backend without client-side math rendering', async () => {
@@ -280,6 +300,17 @@ describe('ViewerComponent math HTML rendering', () => {
     );
   });
 
+  it('loads the current deep-linked route on first render instead of defaulting to home', async () => {
+    window.history.replaceState({}, '', '/ektaron');
+
+    const fixture = await createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fetch).toHaveBeenCalledWith('/ektaron.html');
+    expect(leafletInjectionService.runInjectionPass).toHaveBeenCalled();
+  });
+
   it('shows the unavailable-link state on click for unresolved wikilinks', async () => {
     const fixture = await createComponent();
     const component = fixture.componentInstance as unknown as {
@@ -297,5 +328,24 @@ describe('ViewerComponent math HTML rendering', () => {
     unresolvedLink?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
     expect(showTooltipSpy).toHaveBeenCalled();
+  });
+
+  it('does not intercept Leaflet control anchors as internal application links', async () => {
+    const fixture = await createComponent();
+    const navigateByUrlSpy = jest.spyOn(router, 'navigateByUrl');
+
+    await router.navigateByUrl('/leaflet-controls');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const zoomInLink = fixture.nativeElement.querySelector<HTMLAnchorElement>(
+      '.leaflet-control-zoom-in'
+    );
+    expect(zoomInLink).toBeTruthy();
+
+    zoomInLink?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(anchorScrollService.navigateToAnchor).not.toHaveBeenCalled();
+    expect(navigateByUrlSpy).not.toHaveBeenCalledWith('#');
   });
 });

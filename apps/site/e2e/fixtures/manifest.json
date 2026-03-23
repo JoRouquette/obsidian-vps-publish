@@ -105,6 +105,31 @@
           "defaultZoom": 12
         }
       ]
+    },
+    {
+      "id": "leaflet-image",
+      "title": "Leaflet Image Map",
+      "slug": "leaflet-image",
+      "route": "/leaflet-image",
+      "description": "A page with a Leaflet image map",
+      "publishedAt": "2024-01-01T00:00:00.000Z",
+      "tags": ["leaflet", "image", "e2e"],
+      "leafletBlocks": [
+        {
+          "id": "e2e-map-image",
+          "defaultZoom": 6,
+          "scale": 1000,
+          "height": "500px",
+          "width": "100%",
+          "imageOverlays": [
+            {
+              "path": "debug-map.svg",
+              "topLeft": [0, 0],
+              "bottomRight": [0, 0]
+            }
+          ]
+        }
+      ]
     }
   ],
   "canonicalMap": {
@@ -115,7 +140,8 @@
     "nested/deep-page": "/nested/deep-page",
     "wikilink-source": "/wikilink-source",
     "leaflet-single": "/leaflet-single",
-    "leaflet-multi": "/leaflet-multi"
+    "leaflet-multi": "/leaflet-multi",
+    "leaflet-image": "/leaflet-image"
   },
   "folderStructure": {
     "name": "root",
@@ -133,7 +159,8 @@
       "page-with-assets",
       "wikilink-source",
       "leaflet-single",
-      "leaflet-multi"
+      "leaflet-multi",
+      "leaflet-image"
     ]
   }
 }

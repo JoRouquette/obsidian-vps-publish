@@ -27,7 +27,7 @@ fs.mkdirSync(uiServerDir, { recursive: true });
 fs.mkdirSync(contentDir, { recursive: true });
 fs.mkdirSync(assetsDir, { recursive: true });
 
-// Create a minimal CSR index.html (what Angular produces without SSR)
+// Create a minimal CSR index.html (legacy fallback name)
 const CSR_INDEX_HTML = `<!doctype html>
 <html lang="en">
 <head>
@@ -40,6 +40,7 @@ const CSR_INDEX_HTML = `<!doctype html>
 
 // Write test files
 fs.writeFileSync(path.join(uiDir, 'index.html'), CSR_INDEX_HTML);
+fs.writeFileSync(path.join(uiDir, 'index.csr.html'), CSR_INDEX_HTML);
 fs.writeFileSync(path.join(contentDir, '_manifest.json'), '{"pages":{}}');
 
 // SSR_ENABLED is FALSE for this test file
@@ -166,5 +167,19 @@ describe('SSR Disabled (SSR_ENABLED=false)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('api');
+  });
+
+  it('falls back to index.csr.html when index.html is absent', async () => {
+    fs.rmSync(path.join(uiDir, 'index.html'));
+    fs.writeFileSync(
+      path.join(uiDir, 'index.csr.html'),
+      CSR_INDEX_HTML.replace('Test Site', 'Test Site CSR Entry')
+    );
+
+    const { app } = createApp();
+    const res = await request(app).get('/leaflet-single');
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('<title>Test Site CSR Entry</title>');
   });
 });
