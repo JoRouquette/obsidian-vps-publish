@@ -64,6 +64,7 @@ export interface LeafletMapOptions {
   minZoom?: number;
   maxZoom?: number;
   zoomDelta?: number;
+  zoomSnap?: number;
   zoomControl: boolean;
   attributionControl: boolean;
   scrollWheelZoom: boolean;
