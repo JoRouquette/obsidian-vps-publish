@@ -13,8 +13,9 @@ import { defineConfig, devices } from '@playwright/test';
  * - Assets from tmp/e2e-assets (fixtures)
  */
 
+const e2ePort = process.env['SITE_E2E_PORT'] || '3100';
 // Use backend URL since it serves both API and UI
-const baseURL = process.env['BASE_URL'] || 'http://localhost:3000';
+const baseURL = process.env['BASE_URL'] || `http://localhost:${e2ePort}`;
 const isCI = !!process.env.CI;
 
 // E2E fixture paths
@@ -76,7 +77,7 @@ export default defineConfig({
    */
   webServer: {
     command: `node ${path.join(workspaceRoot, 'dist', 'apps', 'node', 'main.js')}`,
-    url: 'http://localhost:3000/health',
+    url: `${baseURL}/health`,
     reuseExistingServer: !isCI,
     cwd: workspaceRoot,
     timeout: 120000,
@@ -84,7 +85,8 @@ export default defineConfig({
     stderr: isCI ? 'pipe' : 'pipe',
     env: {
       NODE_ENV: 'test',
-      PORT: '3000',
+      PORT: e2ePort,
+      BASE_URL: baseURL,
       API_KEY: 'e2e-test-key',
       CONTENT_ROOT: e2eContentRoot,
       ASSETS_ROOT: e2eAssetsRoot,
