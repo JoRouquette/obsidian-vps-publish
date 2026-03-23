@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 
 import {
@@ -534,7 +535,7 @@ export function createApp(rootLogger?: LoggerPort) {
     true // Enable SSR caching
   );
 
-  const staticIndexPath = path.join(ANGULAR_DIST, 'index.html');
+  const staticIndexPath = resolveStaticBrowserEntryPath(ANGULAR_DIST);
 
   app.get('*', (req, res, next) => {
     ssrService.middleware(staticIndexPath)(req, res, next).catch(next);
@@ -544,4 +545,13 @@ export function createApp(rootLogger?: LoggerPort) {
   rootLogger?.debug('Express app initialized');
 
   return { app, logger: rootLogger, perfMonitor };
+}
+
+function resolveStaticBrowserEntryPath(browserDistPath: string): string {
+  const preferredCsrEntry = path.join(browserDistPath, 'index.csr.html');
+  if (fs.existsSync(preferredCsrEntry)) {
+    return preferredCsrEntry;
+  }
+
+  return path.join(browserDistPath, 'index.html');
 }
