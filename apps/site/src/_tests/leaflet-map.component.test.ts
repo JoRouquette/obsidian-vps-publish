@@ -475,6 +475,7 @@ describe('LeafletMapComponent', () => {
       container,
       expect.objectContaining({
         zoomDelta: 0.5,
+        zoomSnap: 0.5,
         scrollWheelZoom: false,
         doubleClickZoom: false,
         boxZoom: false,
@@ -485,7 +486,15 @@ describe('LeafletMapComponent', () => {
     );
     expect(container.style.width).toBe('80%');
     expect(container.style.height).toBe('640px');
-    expect(container.style.paddingBottom).toBe('0px');
+    expect(container.style.getPropertyValue('aspect-ratio')).toBe('');
+  });
+
+  it('uses a real aspect ratio instead of the padding-bottom sizing hack when height is not explicit', () => {
+    const container = fixture.nativeElement.querySelector('.leaflet-map-container') as HTMLElement;
+
+    expect(component.containerAspectRatio).toBe('16 / 9');
+    expect(container.style.height).toBe('');
+    expect(container.style.paddingBottom).toBe('');
   });
 
   it('restores the last persisted view for the same map identity after a rebuild', () => {
