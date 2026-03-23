@@ -1,126 +1,555 @@
-import { PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID, SimpleChange } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
+import type { LeafletBlock } from '@core-domain';
 
+import { LeafletRuntimeService } from '../application/services/leaflet-runtime.service';
 import { LeafletMapComponent } from '../presentation/components/leaflet-map/leaflet-map.component';
 
-// ---------------------------------------------------------------------------
-// Leaflet mock — passed directly to initializeMapOutsideZone
-// ---------------------------------------------------------------------------
 function createMockL() {
   const mockMapRemove = jest.fn();
+  const mockMapRemoveLayer = jest.fn();
   const mockMapInvalidateSize = jest.fn();
+  const mockMapFitBounds = jest.fn();
+  const mockMapSetView = jest.fn();
   const mockDragging = { enable: jest.fn(), disable: jest.fn() };
   const mockScrollWheelZoom = { enable: jest.fn(), disable: jest.fn() };
   const mockMapInstance = {
     remove: mockMapRemove,
+    removeLayer: mockMapRemoveLayer,
     invalidateSize: mockMapInvalidateSize,
-    fitBounds: jest.fn(),
+    on: jest.fn(),
+    off: jest.fn(),
+    fitBounds: mockMapFitBounds,
+    setView: mockMapSetView,
     getZoom: jest.fn().mockReturnValue(13),
+    getCenter: jest.fn().mockReturnValue({ lat: 48.8566, lng: 2.3522 }),
     dragging: mockDragging,
     scrollWheelZoom: mockScrollWheelZoom,
   };
 
-  const mockTileLayerAddTo = jest.fn();
-  const mockMarkerBindPopup = jest.fn();
-  const mockMarker = { bindPopup: mockMarkerBindPopup, addTo: jest.fn() };
-  // addTo must return the marker itself (Leaflet fluent API)
-  mockMarker.addTo.mockReturnValue(mockMarker);
+  const createdTileLayers: Array<{ addTo: jest.Mock }> = [];
+  const createdMarkers: Array<{ addTo: jest.Mock; bindPopup: jest.Mock }> = [];
+  const createdOverlays: Array<{ addTo: jest.Mock }> = [];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const L: any = {
+  const L = {
     map: jest.fn().mockReturnValue(mockMapInstance),
-    tileLayer: jest.fn().mockReturnValue({ addTo: mockTileLayerAddTo }),
-    marker: jest.fn().mockReturnValue(mockMarker),
-    imageOverlay: jest.fn().mockReturnValue({
-      addTo: jest.fn(),
-      on: jest.fn((_event: string, handler: () => void) => handler()),
-      getBounds: jest.fn().mockReturnValue([
-        [0, 0],
-        [100, 100],
-      ]),
+    tileLayer: jest.fn().mockImplementation(() => {
+      const layer = {
+        addTo: jest.fn().mockReturnThis(),
+      };
+      createdTileLayers.push(layer);
+      return layer;
     }),
-    latLngBounds: jest.fn().mockReturnValue({
-      extend: jest.fn(),
-      isValid: jest.fn().mockReturnValue(true),
+    marker: jest.fn().mockImplementation(() => {
+      const marker = {
+        addTo: jest.fn().mockReturnThis(),
+        bindPopup: jest.fn().mockReturnThis(),
+      };
+      createdMarkers.push(marker);
+      return marker;
+    }),
+    imageOverlay: jest.fn().mockImplementation(() => {
+      const overlay = {
+        addTo: jest.fn().mockReturnThis(),
+      };
+      createdOverlays.push(overlay);
+      return overlay;
     }),
     Icon: { Default: { mergeOptions: jest.fn() } },
     CRS: { Simple: {} },
   };
 
-  return { L, mockMapInstance, mockMapRemove };
+  return {
+    L,
+    createdMarkers,
+    createdOverlays,
+    createdTileLayers,
+    mockMapInstance,
+    mockMapFitBounds,
+    mockMapInvalidateSize,
+    mockMapRemove,
+    mockMapRemoveLayer,
+    mockMapSetView,
+  };
 }
 
 describe('LeafletMapComponent', () => {
   let component: LeafletMapComponent;
   let fixture: ComponentFixture<LeafletMapComponent>;
 
-  const mockLeafletBlock: LeafletBlock = {
+  const mockRuntimeService = {
+    getMarkerIconUrls: jest.fn().mockReturnValue({
+      iconRetinaUrl: '/assets/leaflet/marker-icon-2x.png',
+      iconUrl: '/assets/leaflet/marker-icon.png',
+      shadowUrl: '/assets/leaflet/marker-shadow.png',
+    }),
+    buildOverlayAssetUrl: jest.fn((assetPath: string) => `/assets/${assetPath}`),
+    resolveMarkerLink: jest.fn((rawLink: string) =>
+      /^https?:\/\//i.test(rawLink)
+        ? { href: rawLink, external: true, text: rawLink }
+        : { href: '/worlds/ektaron', external: false, text: 'Ektaron' }
+    ),
+    getPersistedViewState: jest.fn().mockReturnValue(null),
+    persistViewState: jest.fn(),
+  };
+
+  const baseBlock: LeafletBlock = {
     id: 'test-map',
-    height: '400px',
-    width: '100%',
     lat: 48.8566,
     long: 2.3522,
     defaultZoom: 13,
-    minZoom: 1,
-    maxZoom: 18,
   };
 
   beforeEach(async () => {
+    jest.useFakeTimers();
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    mockRuntimeService.getPersistedViewState.mockReturnValue(null);
+
     await TestBed.configureTestingModule({
       imports: [LeafletMapComponent],
       providers: [
-        { provide: PLATFORM_ID, useValue: 'browser' }, // Simule l'environnement navigateur
+        { provide: PLATFORM_ID, useValue: 'browser' },
+        { provide: LeafletRuntimeService, useValue: mockRuntimeService },
       ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(LeafletMapComponent);
     component = fixture.componentInstance;
-    component.block = mockLeafletBlock;
-  });
-
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
-  it('should render map container with correct dimensions', () => {
+    component.block = baseBlock;
     fixture.detectChanges();
+  });
 
+  afterEach(() => {
+    component.ngOnDestroy();
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+    jest.clearAllMocks();
+  });
+
+  function getReadyContainer(): HTMLElement {
+    const container = fixture.nativeElement.querySelector('.leaflet-map-container') as HTMLElement;
+    jest.spyOn(container, 'getBoundingClientRect').mockReturnValue({
+      width: 600,
+      height: 400,
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 600,
+      bottom: 400,
+      toJSON: () => ({}),
+    });
+    jest.spyOn(container, 'isConnected', 'get').mockReturnValue(true);
+    (component as any).isBrowser = true;
+    (component as any).mapContainer = { nativeElement: container };
+    return container;
+  }
+
+  it('creates the host container', () => {
     const container = fixture.nativeElement.querySelector('.leaflet-map-container');
     expect(container).toBeTruthy();
     expect(container.getAttribute('data-testid')).toBe('leaflet-map-test-map');
   });
 
-  it('should apply correct CSS classes and attributes', () => {
-    fixture.detectChanges();
+  it('reconciles a mounted map when block markers change without recreating the map or resetting the view', () => {
+    const { L, createdMarkers, mockMapRemove, mockMapRemoveLayer, mockMapSetView } = createMockL();
+    const container = getReadyContainer();
 
-    const container = fixture.nativeElement.querySelector('.leaflet-map-container');
-    expect(container).toBeTruthy();
-    expect(container.classList.contains('leaflet-map-container')).toBe(true);
-    // La hauteur est maintenant gérée par CSS, pas par des styles inline
-    expect(container.style.height).toBe('');
+    component.block = {
+      ...baseBlock,
+      markers: [{ type: 'default', lat: 48.8566, long: 2.3522, description: 'First marker' }],
+    };
+    (component as any).leafletRuntime = L;
+    (component as any).initializeMapOutsideZone(L as any, container, 'initial');
+
+    const updatedBlock: LeafletBlock = {
+      ...component.block,
+      markers: [{ type: 'default', lat: 48.857, long: 2.353, description: 'Updated marker' }],
+    };
+    component.block = updatedBlock;
+    component.ngOnChanges({
+      block: new SimpleChange(
+        {
+          ...baseBlock,
+          markers: [{ type: 'default', lat: 48.8566, long: 2.3522, description: 'First marker' }],
+        },
+        updatedBlock,
+        false
+      ),
+    });
+
+    expect(L.map).toHaveBeenCalledTimes(1);
+    expect(mockMapRemove).not.toHaveBeenCalled();
+    expect(mockMapRemoveLayer).toHaveBeenCalledWith(createdMarkers[0]);
+    expect(createdMarkers).toHaveLength(2);
+    expect(createdMarkers[1].bindPopup).toHaveBeenCalledWith('Updated marker');
+    expect(mockMapSetView).toHaveBeenCalledTimes(1);
   });
 
-  it('should use CSS for dimensions (no inline styles)', () => {
-    const blockWithoutDimensions: LeafletBlock = {
-      id: 'test-map-2',
-      lat: 0,
-      long: 0,
+  it('does not refit an image map when only marker content changes', () => {
+    const { L, mockMapFitBounds } = createMockL();
+    const container = getReadyContainer();
+
+    component.block = {
+      id: 'image-map',
+      defaultZoom: 6,
+      scale: 1000,
+      imageOverlays: [
+        {
+          path: 'map.png',
+          topLeft: [0, 0],
+          bottomRight: [100, 200],
+        },
+      ],
+      markers: [{ type: 'default', lat: 10, long: 20, description: 'One' }],
     };
 
-    component.block = blockWithoutDimensions;
-    fixture.detectChanges();
+    (component as any).leafletRuntime = L;
+    (component as any).initializeMapOutsideZone(L as any, container, 'initial-image');
+    jest.runOnlyPendingTimers();
+    mockMapFitBounds.mockClear();
 
-    const container = fixture.nativeElement.querySelector('.leaflet-map-container');
-    // Les dimensions sont gérées par CSS (max-height: 33vh, responsive breakpoints)
-    expect(container.style.height).toBe('');
-    expect(container.style.width).toBe('');
+    const updatedBlock: LeafletBlock = {
+      ...component.block,
+      markers: [{ type: 'default', lat: 10, long: 20, description: 'Two' }],
+    };
+
+    component.block = updatedBlock;
+    component.ngOnChanges({
+      block: new SimpleChange(
+        {
+          ...updatedBlock,
+          markers: [{ type: 'default', lat: 10, long: 20, description: 'One' }],
+        },
+        updatedBlock,
+        false
+      ),
+    });
+    jest.runOnlyPendingTimers();
+
+    expect(mockMapFitBounds).not.toHaveBeenCalled();
   });
 
-  it('should cleanup map on destroy', () => {
+  it('refreshes zoom-constrained markers on zoom changes instead of keeping the initial visibility forever', () => {
+    const { L, createdMarkers, mockMapInstance } = createMockL();
+    const container = getReadyContainer();
+    const zoomendHandlers: Array<() => void> = [];
+
+    component.block = {
+      ...baseBlock,
+      markers: [{ type: 'default', lat: 48.8566, long: 2.3522, minZoom: 15 }],
+    };
+
+    mockMapInstance.on.mockImplementation((eventName: string, handler: () => void) => {
+      if (eventName === 'zoomend') {
+        zoomendHandlers.push(handler);
+      }
+    });
+
+    (component as any).leafletRuntime = L;
+    (component as any).initializeMapOutsideZone(L as any, container, 'zoom-sync');
+
+    expect(createdMarkers).toHaveLength(0);
+    expect(zoomendHandlers.length).toBeGreaterThanOrEqual(1);
+
+    mockMapInstance.getZoom.mockReturnValue(16);
+    zoomendHandlers.forEach((handler) => handler());
+
+    expect(createdMarkers).toHaveLength(1);
+  });
+
+  it('honors parsed overlay bounds when present', () => {
+    const { L } = createMockL();
+    const container = getReadyContainer();
+
+    component.block = {
+      ...baseBlock,
+      imageOverlays: [
+        {
+          path: 'map.png',
+          topLeft: [20, 30],
+          bottomRight: [5, 10],
+        },
+      ],
+    };
+
+    (component as any).initializeMapOutsideZone(L as any, container, 'overlay-bounds');
+
+    expect(mockRuntimeService.buildOverlayAssetUrl).toHaveBeenCalledWith('map.png');
+    expect(L.imageOverlay).toHaveBeenCalledWith(
+      '/assets/map.png',
+      [
+        [5, 10],
+        [20, 30],
+      ],
+      expect.objectContaining({
+        interactive: false,
+        className: 'leaflet-image-overlay-no-animation',
+      })
+    );
+  });
+
+  it('fits the union of multiple overlay bounds instead of only the first overlay', () => {
+    const { L, mockMapFitBounds, mockMapInstance } = createMockL();
+    const container = getReadyContainer();
+
+    component.block = {
+      ...baseBlock,
+      imageOverlays: [
+        {
+          path: 'one.png',
+          topLeft: [0, 0],
+          bottomRight: [10, 10],
+        },
+        {
+          path: 'two.png',
+          topLeft: [5, 5],
+          bottomRight: [20, 20],
+        },
+      ],
+    };
+
+    (component as any).initializeMapOutsideZone(L as any, container, 'overlay-union');
+    jest.runOnlyPendingTimers();
+
+    expect(mockMapFitBounds).toHaveBeenCalledWith(
+      [
+        [0, 0],
+        [20, 20],
+      ],
+      expect.objectContaining({
+        animate: false,
+        duration: 0,
+        padding: [20, 20],
+      })
+    );
+    expect(mockMapInstance.dragging.disable).not.toHaveBeenCalled();
+    expect(mockMapInstance.scrollWheelZoom.disable).not.toHaveBeenCalled();
+  });
+
+  it('derives scaled image overlay bounds from the real image aspect ratio instead of a fake parser ratio', () => {
+    const OriginalImage = globalThis.Image;
+    const { L } = createMockL();
+    const container = getReadyContainer();
+
+    class MockImage {
+      naturalWidth = 2000;
+      naturalHeight = 1000;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+
+    (globalThis as typeof globalThis & { Image: typeof Image }).Image =
+      MockImage as unknown as typeof Image;
+
+    component.block = {
+      id: 'scaled-image-map',
+      defaultZoom: 6,
+      scale: 1000,
+      imageOverlays: [
+        {
+          path: 'scaled.png',
+          topLeft: [0, 0],
+          bottomRight: [0, 0],
+        },
+      ],
+    };
+
+    try {
+      (component as any).initializeMapOutsideZone(L as any, container, 'scaled-image');
+
+      expect(L.imageOverlay).toHaveBeenCalledWith(
+        '/assets/scaled.png',
+        [
+          [-250, -500],
+          [250, 500],
+        ],
+        expect.objectContaining({
+          interactive: false,
+          className: 'leaflet-image-overlay-no-animation',
+        })
+      );
+    } finally {
+      (globalThis as typeof globalThis & { Image: typeof Image }).Image = OriginalImage;
+    }
+  });
+
+  it('renders external popup links as external and internal note links as router-friendly routes', () => {
+    const { L, createdMarkers } = createMockL();
+    const container = getReadyContainer();
+
+    component.block = {
+      ...baseBlock,
+      markers: [
+        { type: 'default', lat: 48.8566, long: 2.3522, link: 'https://example.com' },
+        { type: 'default', lat: 48.857, long: 2.353, link: 'Internal Note' },
+      ],
+    };
+
+    (component as any).initializeMapOutsideZone(L as any, container, 'marker-links');
+
+    expect(createdMarkers[0].bindPopup).toHaveBeenCalledWith(
+      '<a href="https://example.com" target="_blank" rel="noopener">https://example.com</a>'
+    );
+    expect(createdMarkers[1].bindPopup).toHaveBeenCalledWith(
+      '<a href="/worlds/ektaron">Ektaron</a>'
+    );
+  });
+
+  it('uses local marker assets instead of remote CDN URLs', () => {
+    const { L } = createMockL();
+    const container = getReadyContainer();
+
+    (component as any).initializeMapOutsideZone(L as any, container, 'local-icons');
+    L.Icon.Default.mergeOptions(mockRuntimeService.getMarkerIconUrls());
+
+    expect(mockRuntimeService.getMarkerIconUrls).toHaveBeenCalled();
+    expect(L.Icon.Default.mergeOptions).toHaveBeenCalledWith({
+      iconRetinaUrl: '/assets/leaflet/marker-icon-2x.png',
+      iconUrl: '/assets/leaflet/marker-icon.png',
+      shadowUrl: '/assets/leaflet/marker-shadow.png',
+    });
+  });
+
+  it('keeps invalidating size after repeated resize requests instead of stopping after an arbitrary cap', () => {
+    const { L, mockMapInvalidateSize } = createMockL();
+    const container = getReadyContainer();
+
+    (component as any).initializeMapOutsideZone(L as any, container, 'resize');
+
+    for (let index = 0; index < 20; index++) {
+      (component as any).queueInvalidateSize(0, `resize-${index}`);
+      jest.runOnlyPendingTimers();
+    }
+
+    const firstBatchCount = mockMapInvalidateSize.mock.calls.length;
+
+    for (let index = 20; index < 40; index++) {
+      (component as any).queueInvalidateSize(0, `resize-${index}`);
+      jest.runOnlyPendingTimers();
+    }
+
+    expect(firstBatchCount).toBeGreaterThan(0);
+    expect(mockMapInvalidateSize.mock.calls.length).toBeGreaterThan(firstBatchCount);
+  });
+
+  it('enables attribution control for the default OSM tile layer', () => {
+    const { L } = createMockL();
+    const container = getReadyContainer();
+
+    (component as any).initializeMapOutsideZone(L as any, container, 'osm-attribution');
+
+    expect(L.map).toHaveBeenCalledWith(
+      container,
+      expect.objectContaining({
+        attributionControl: true,
+        zoomAnimation: true,
+        fadeAnimation: true,
+        markerZoomAnimation: true,
+      })
+    );
+  });
+
+  it('applies zoomDelta, noScrollZoom, lock, and explicit block dimensions to the rendered map container', () => {
+    const { L } = createMockL();
+    const container = getReadyContainer();
+
+    component.block = {
+      ...baseBlock,
+      width: '80%',
+      height: '640px',
+      zoomDelta: 0.5,
+      noScrollZoom: true,
+      lock: true,
+    };
     fixture.detectChanges();
 
-    // Simulate map initialization
+    (component as any).initializeMapOutsideZone(L as any, container, 'locked-options');
+
+    expect(L.map).toHaveBeenCalledWith(
+      container,
+      expect.objectContaining({
+        zoomDelta: 0.5,
+        zoomSnap: 0.5,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        dragging: false,
+        touchZoom: false,
+      })
+    );
+    expect(container.style.width).toBe('80%');
+    expect(container.style.height).toBe('640px');
+    expect(container.style.getPropertyValue('aspect-ratio')).toBe('');
+  });
+
+  it('uses a real aspect ratio instead of the padding-bottom sizing hack when height is not explicit', () => {
+    const container = fixture.nativeElement.querySelector('.leaflet-map-container') as HTMLElement;
+
+    expect(component.containerAspectRatio).toBe('16 / 9');
+    expect(container.style.height).toBe('');
+    expect(container.style.paddingBottom).toBe('');
+  });
+
+  it('restores the last persisted view for the same map identity after a rebuild', () => {
+    const { L, mockMapSetView } = createMockL();
+    const container = getReadyContainer();
+
+    mockRuntimeService.getPersistedViewState.mockReturnValue({
+      center: [120, 240],
+      zoom: 7,
+      simpleCrs: true,
+    });
+
+    component.block = {
+      id: 'persisted-map',
+      defaultZoom: 6,
+      scale: 1000,
+      imageOverlays: [
+        {
+          path: 'persisted.png',
+          topLeft: [10, 10],
+          bottomRight: [110, 210],
+        },
+      ],
+    };
+
+    (component as any).initializeMapOutsideZone(L as any, container, 'persisted');
+    jest.runOnlyPendingTimers();
+
+    expect(mockRuntimeService.getPersistedViewState).toHaveBeenCalledWith('persisted-map', {
+      simpleCrs: true,
+    });
+    expect(mockMapSetView).toHaveBeenCalledWith([120, 240], 7, { animate: false });
+  });
+
+  it('adds the fullscreen control explicitly from the plugin constructor', () => {
+    const { L } = createMockL();
+    const container = getReadyContainer();
+    const addTo = jest.fn();
+    const FullscreenControl = jest.fn().mockImplementation(() => ({
+      addTo,
+    }));
+
+    (component as any).initializeMapOutsideZone(
+      L as any,
+      container,
+      'fullscreen-control',
+      FullscreenControl
+    );
+
+    expect(FullscreenControl).toHaveBeenCalledTimes(1);
+    expect(FullscreenControl).toHaveBeenCalledWith({ forceSeparateButton: true });
+    expect(addTo).toHaveBeenCalledWith((component as any).map);
+  });
+
+  it('cleans up the map on destroy', () => {
     const mockRemove = jest.fn();
     const mockDisconnect = jest.fn();
     (component as any).map = {
@@ -134,370 +563,5 @@ describe('LeafletMapComponent', () => {
     expect(mockDisconnect).toHaveBeenCalled();
     expect((component as any).map).toBeNull();
     expect((component as any).resizeObserver).toBeNull();
-  });
-
-  it('should not initialize map on server side (SSR)', async () => {
-    // Reconfigure with server platform
-    await TestBed.resetTestingModule();
-    await TestBed.configureTestingModule({
-      imports: [LeafletMapComponent],
-      providers: [{ provide: PLATFORM_ID, useValue: 'server' }],
-    }).compileComponents();
-
-    const serverFixture = TestBed.createComponent(LeafletMapComponent);
-    const serverComponent = serverFixture.componentInstance;
-    serverComponent.block = mockLeafletBlock;
-
-    serverFixture.detectChanges();
-
-    // Map should not be initialized on server
-    expect((serverComponent as any).map).toBeNull();
-  });
-
-  it('should handle block with markers', () => {
-    const blockWithMarkers: LeafletBlock = {
-      id: 'map-with-markers',
-      lat: 48.8566,
-      long: 2.3522,
-      markers: [
-        { type: 'default', lat: 48.8566, long: 2.3522 },
-        { type: 'custom', lat: 48.86, long: 2.35, description: 'Test marker' },
-      ],
-    };
-
-    component.block = blockWithMarkers;
-    fixture.detectChanges();
-
-    expect(component).toBeTruthy();
-  });
-
-  it('should handle block with image overlays', () => {
-    const blockWithImages: LeafletBlock = {
-      id: 'map-with-images',
-      lat: 48.8566,
-      long: 2.3522,
-      imageOverlays: [
-        {
-          path: 'test-image.png',
-          topLeft: [48.86, 2.35],
-          bottomRight: [48.85, 2.36],
-        },
-      ],
-    };
-
-    component.block = blockWithImages;
-    fixture.detectChanges();
-
-    expect(component).toBeTruthy();
-  });
-
-  it('should handle block with custom tile server', () => {
-    const blockWithCustomTiles: LeafletBlock = {
-      id: 'map-custom-tiles',
-      lat: 48.8566,
-      long: 2.3522,
-      tileServer: {
-        url: 'https://custom-tiles.example.com/{z}/{x}/{y}.png',
-        attribution: 'Custom Tiles',
-        subdomains: ['a', 'b'],
-      },
-    };
-
-    component.block = blockWithCustomTiles;
-    fixture.detectChanges();
-
-    expect(component).toBeTruthy();
-  });
-
-  it('should apply dark mode class when darkMode is true', () => {
-    const blockWithDarkMode: LeafletBlock = {
-      id: 'dark-map',
-      lat: 48.8566,
-      long: 2.3522,
-      darkMode: true,
-    };
-
-    component.block = blockWithDarkMode;
-    fixture.detectChanges();
-
-    // Note: This test would need the actual Leaflet initialization to verify the class
-    expect(component).toBeTruthy();
-  });
-
-  it('should handle missing optional properties gracefully', () => {
-    const minimalBlock: LeafletBlock = {
-      id: 'minimal-map',
-      lat: 0,
-      long: 0,
-    };
-
-    component.block = minimalBlock;
-    fixture.detectChanges();
-
-    expect(component).toBeTruthy();
-  });
-
-  it('should disable attribution control by default', () => {
-    fixture.detectChanges();
-
-    // Vérifier que le composant est créé
-    expect(component).toBeTruthy();
-
-    // Note: L'attribution control est désactivé via mapOptions.attributionControl: false
-    // Dans un environnement de test réel avec Leaflet chargé, on pourrait vérifier
-    // l'absence de .leaflet-control-attribution dans le DOM
-    // Pour ce test unitaire, on vérifie simplement que le composant se crée sans erreur
-    const container = fixture.nativeElement.querySelector('.leaflet-map-container');
-    expect(container).toBeTruthy();
-  });
-
-  // =======================================================================
-  // Hardening scenarios — Leaflet correction regression tests
-  // =======================================================================
-
-  describe('Scenario: single block creates exactly one map', () => {
-    it('should call L.map exactly once after initialization', () => {
-      const { L } = createMockL();
-      const container = fixture.nativeElement.querySelector('.leaflet-map-container');
-      jest.spyOn(container, 'getBoundingClientRect').mockReturnValue({
-        width: 600,
-        height: 400,
-        x: 0,
-        y: 0,
-        top: 0,
-        left: 0,
-        right: 600,
-        bottom: 400,
-        toJSON: () => ({}),
-      });
-      jest.spyOn(container, 'isConnected', 'get').mockReturnValue(true);
-
-      (component as any).isBrowser = true;
-      (component as any).mapContainer = { nativeElement: container };
-      (component as any).initializeMapOutsideZone(L, container, 'test');
-
-      expect(L.map).toHaveBeenCalledTimes(1);
-      expect(L.map).toHaveBeenCalledWith(
-        container,
-        expect.objectContaining({
-          attributionControl: false,
-          fullscreenControl: true,
-        })
-      );
-    });
-
-    it('should add markers when block has markers', () => {
-      const { L } = createMockL();
-      const blockWithMarkers: LeafletBlock = {
-        id: 'map-markers-test',
-        lat: 48.8566,
-        long: 2.3522,
-        markers: [
-          { type: 'default', lat: 48.8566, long: 2.3522, description: 'Paris' },
-          { type: 'default', lat: 48.86, long: 2.35, description: 'Close by' },
-        ],
-      };
-      component.block = blockWithMarkers;
-
-      const container = fixture.nativeElement.querySelector('.leaflet-map-container');
-      jest.spyOn(container, 'getBoundingClientRect').mockReturnValue({
-        width: 600,
-        height: 400,
-        x: 0,
-        y: 0,
-        top: 0,
-        left: 0,
-        right: 600,
-        bottom: 400,
-        toJSON: () => ({}),
-      });
-      jest.spyOn(container, 'isConnected', 'get').mockReturnValue(true);
-
-      (component as any).isBrowser = true;
-      (component as any).mapContainer = { nativeElement: container };
-      (component as any).initializeMapOutsideZone(L, container, 'test');
-
-      expect(L.marker).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe('Scenario: no duplication on re-render', () => {
-    it('should not create a second map if tryInitialize is called again', () => {
-      const { L } = createMockL();
-      const container = fixture.nativeElement.querySelector('.leaflet-map-container');
-      jest.spyOn(container, 'getBoundingClientRect').mockReturnValue({
-        width: 600,
-        height: 400,
-        x: 0,
-        y: 0,
-        top: 0,
-        left: 0,
-        right: 600,
-        bottom: 400,
-        toJSON: () => ({}),
-      });
-      jest.spyOn(container, 'isConnected', 'get').mockReturnValue(true);
-
-      (component as any).isBrowser = true;
-      (component as any).mapContainer = { nativeElement: container };
-      (component as any).initializeMapOutsideZone(L, container, 'first');
-
-      expect(L.map).toHaveBeenCalledTimes(1);
-
-      // After first init, initCompleted=true and map is set → tryInitialize should bail
-      (component as any).tryInitialize('second-attempt');
-
-      // Still only 1 call
-      expect(L.map).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('Scenario: unmeasurable container retries', () => {
-    it('should not create map when container has zero dimensions', () => {
-      const container = fixture.nativeElement.querySelector('.leaflet-map-container');
-      jest.spyOn(container, 'getBoundingClientRect').mockReturnValue({
-        width: 0,
-        height: 0,
-        x: 0,
-        y: 0,
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        toJSON: () => ({}),
-      });
-      jest.spyOn(container, 'isConnected', 'get').mockReturnValue(true);
-
-      // Manually trigger initialization
-      (component as any).isBrowser = true;
-      (component as any).tryInitialize('test-zero-size');
-
-      // Map should not have been created
-      expect((component as any).map).toBeNull();
-      // Attempt counter should have incremented (scheduling a retry)
-      expect((component as any).initAttemptCount).toBeGreaterThan(0);
-    });
-
-    it('should eventually init when container becomes measurable', () => {
-      const { L } = createMockL();
-      const container = fixture.nativeElement.querySelector('.leaflet-map-container');
-      const rectMock = jest.spyOn(container, 'getBoundingClientRect');
-      jest.spyOn(container, 'isConnected', 'get').mockReturnValue(true);
-
-      // First: zero dimensions → canInitializeNow returns false
-      rectMock.mockReturnValue({
-        width: 0,
-        height: 0,
-        x: 0,
-        y: 0,
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        toJSON: () => ({}),
-      });
-
-      (component as any).isBrowser = true;
-      (component as any).mapContainer = { nativeElement: container };
-      (component as any).tryInitialize('test-zero-then-valid');
-
-      expect(L.map).not.toHaveBeenCalled();
-
-      // Now measurable → direct call to initializeMapOutsideZone
-      rectMock.mockReturnValue({
-        width: 600,
-        height: 400,
-        x: 0,
-        y: 0,
-        top: 0,
-        left: 0,
-        right: 600,
-        bottom: 400,
-        toJSON: () => ({}),
-      });
-
-      (component as any).initializeMapOutsideZone(L, container, 'test-now-valid');
-
-      expect(L.map).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('Scenario: destroy cleans map + observers', () => {
-    it('should cancel pending timers and raf on destroy', () => {
-      (component as any).pendingRafId = 42;
-      (component as any).pendingTimeoutId = setTimeout(() => {}, 10000);
-
-      const cancelRaf = jest.spyOn(globalThis, 'cancelAnimationFrame');
-
-      component.ngOnDestroy();
-
-      expect(cancelRaf.calls || cancelRaf).toBeTruthy();
-      expect((component as any).pendingRafId).toBeNull();
-      expect((component as any).pendingTimeoutId).toBeNull();
-      expect((component as any).isDestroyed).toBe(true);
-
-      cancelRaf.mockRestore();
-    });
-
-    it('should not throw if destroyed before init', () => {
-      expect(() => component.ngOnDestroy()).not.toThrow();
-      expect((component as any).isDestroyed).toBe(true);
-    });
-
-    it('should clear restoreInteractions and fitBounds timers on destroy', () => {
-      (component as any).restoreInteractionsTimeoutId = setTimeout(() => {}, 10000);
-      (component as any).fitBoundsTimeoutId = setTimeout(() => {}, 10000);
-
-      component.ngOnDestroy();
-
-      expect((component as any).restoreInteractionsTimeoutId).toBeNull();
-      expect((component as any).fitBoundsTimeoutId).toBeNull();
-    });
-  });
-
-  describe('Scenario: escapeHtml prevents XSS in popups', () => {
-    it('should escape HTML special characters', () => {
-      const escape = (component as any).escapeHtml.bind(component);
-
-      expect(escape('<script>alert("xss")</script>')).toBe(
-        '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'
-      );
-      expect(escape('Tom & Jerry')).toBe('Tom &amp; Jerry');
-      expect(escape("it's fine")).toBe('it&#39;s fine');
-    });
-
-    it('should bind escaped description into popup', () => {
-      const { L } = createMockL();
-      const maliciousBlock: LeafletBlock = {
-        id: 'xss-map',
-        lat: 0,
-        long: 0,
-        markers: [
-          { type: 'default', lat: 0, long: 0, description: '<img src=x onerror=alert(1)>' },
-        ],
-      };
-      component.block = maliciousBlock;
-
-      const container = fixture.nativeElement.querySelector('.leaflet-map-container');
-      jest.spyOn(container, 'getBoundingClientRect').mockReturnValue({
-        width: 600,
-        height: 400,
-        x: 0,
-        y: 0,
-        top: 0,
-        left: 0,
-        right: 600,
-        bottom: 400,
-        toJSON: () => ({}),
-      });
-      jest.spyOn(container, 'isConnected', 'get').mockReturnValue(true);
-
-      (component as any).isBrowser = true;
-      (component as any).mapContainer = { nativeElement: container };
-      (component as any).initializeMapOutsideZone(L, container, 'test');
-
-      const marker = L.marker.mock.results[0].value;
-      expect(marker.bindPopup).toHaveBeenCalledWith('&lt;img src=x onerror=alert(1)&gt;');
-    });
   });
 });

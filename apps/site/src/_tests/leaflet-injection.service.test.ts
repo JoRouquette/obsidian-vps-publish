@@ -1,6 +1,6 @@
 import { ComponentRef, PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { LeafletBlock } from '@core-domain/entities/leaflet-block';
+import type { LeafletBlock } from '@core-domain';
 
 import { LeafletMapComponent } from '../presentation/components/leaflet-map/leaflet-map.component';
 import type {
