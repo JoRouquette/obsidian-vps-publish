@@ -3,6 +3,7 @@
 
 // Import Leaflet CSS for map rendering
 @import 'leaflet/dist/leaflet.css';
+@import 'leaflet.fullscreen/dist/Control.FullScreen.css';
 @import 'katex/dist/katex.min.css';
 
 // Note: Roboto fonts are now loaded via index.html with preload for better LCP
@@ -197,11 +198,23 @@ img.no-auto-contrast {
 }
 
 /* Leaflet assets keep their own rendering model. Do not apply global site image filters. */
-.leaflet-container img,
 .leaflet-container .leaflet-marker-icon,
 .leaflet-container .leaflet-marker-shadow,
 .leaflet-container .leaflet-tile,
+.leaflet-container .leaflet-control-container img {
+  max-width: none !important;
+  max-height: none !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  filter: none !important;
+}
+
+/* Image overlays are actively resized by Leaflet during zoom. Do not override width/height. */
 .leaflet-container img.leaflet-image-layer {
+  max-width: none !important;
+  max-height: none !important;
+  padding: 0 !important;
   filter: none !important;
 }
 
