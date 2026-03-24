@@ -305,19 +305,18 @@ export function createApp(rootLogger?: LoggerPort) {
   apiRouter.use(createMaintenanceController(stagingManager, rootLogger));
 
   apiRouter.use(
-    createSessionController(
+    createSessionController({
       createSessionHandler,
       finishSessionHandler,
       abortSessionHandler,
-      uploadNotesHandler,
-      uploadAssetsHandler,
-      sessionFinalizer,
+      notePublicationHandler: uploadNotesHandler,
+      assetPublicationHandler: uploadAssetsHandler,
       stagingManager,
       calloutRenderer,
       finalizationJobService,
       sessionRepository,
-      rootLogger
-    )
+      logger: rootLogger,
+    })
   );
 
   // Log incoming requests (before routes for accurate timing)

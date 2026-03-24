@@ -16,7 +16,6 @@ import { type Request, type Response, Router } from 'express';
 import { type StagingManager } from '../../../filesystem/staging-manager';
 import { type CalloutRendererService } from '../../../markdown/callout-renderer.service';
 import { type SessionFinalizationJobService } from '../../../sessions/session-finalization-job.service';
-import { type SessionFinalizerService } from '../../../sessions/session-finalizer.service';
 import { BYTES_LIMIT } from '../app';
 import { CreateSessionBodyDto } from '../dto/create-session-body.dto';
 import { FinishSessionBodyDto } from '../dto/finish-session-body.dto';
@@ -24,19 +23,89 @@ import { ApiAssetsBodyDto } from '../dto/upload-assets.dto';
 import { UploadSessionNotesBodyDto } from '../dto/upload-session-notes-body.dto';
 import { asyncRoute } from './async-route.util';
 
-export function createSessionController(
-  createSessionHandler: CreateSessionHandler,
-  finishSessionHandler: FinishSessionHandler,
-  abortSessionHandler: AbortSessionHandler,
-  notePublicationHandler: UploadNotesHandler,
-  assetPublicationHandler: UploadAssetsHandler,
-  sessionFinalizer: SessionFinalizerService,
-  stagingManager: StagingManager,
-  calloutRenderer: CalloutRendererService,
-  finalizationJobService: SessionFinalizationJobService,
-  sessionRepository: SessionRepository,
-  logger?: LoggerPort
-): Router {
+export type SessionControllerDependencies = {
+  createSessionHandler: CreateSessionHandler;
+  finishSessionHandler: FinishSessionHandler;
+  abortSessionHandler: AbortSessionHandler;
+  notePublicationHandler: UploadNotesHandler;
+  assetPublicationHandler: UploadAssetsHandler;
+  stagingManager: StagingManager;
+  calloutRenderer: CalloutRendererService;
+  finalizationJobService: SessionFinalizationJobService;
+  sessionRepository: SessionRepository;
+  logger?: LoggerPort;
+};
+
+export class SessionControllerBuilder {
+  private readonly dependencies: Partial<SessionControllerDependencies> = {};
+
+  withCreateSessionHandler(handler: CreateSessionHandler): this {
+    this.dependencies.createSessionHandler = handler;
+    return this;
+  }
+
+  withFinishSessionHandler(handler: FinishSessionHandler): this {
+    this.dependencies.finishSessionHandler = handler;
+    return this;
+  }
+
+  withAbortSessionHandler(handler: AbortSessionHandler): this {
+    this.dependencies.abortSessionHandler = handler;
+    return this;
+  }
+
+  withNotePublicationHandler(handler: UploadNotesHandler): this {
+    this.dependencies.notePublicationHandler = handler;
+    return this;
+  }
+
+  withAssetPublicationHandler(handler: UploadAssetsHandler): this {
+    this.dependencies.assetPublicationHandler = handler;
+    return this;
+  }
+
+  withStagingManager(stagingManager: StagingManager): this {
+    this.dependencies.stagingManager = stagingManager;
+    return this;
+  }
+
+  withCalloutRenderer(calloutRenderer: CalloutRendererService): this {
+    this.dependencies.calloutRenderer = calloutRenderer;
+    return this;
+  }
+
+  withFinalizationJobService(finalizationJobService: SessionFinalizationJobService): this {
+    this.dependencies.finalizationJobService = finalizationJobService;
+    return this;
+  }
+
+  withSessionRepository(sessionRepository: SessionRepository): this {
+    this.dependencies.sessionRepository = sessionRepository;
+    return this;
+  }
+
+  withLogger(logger?: LoggerPort): this {
+    this.dependencies.logger = logger;
+    return this;
+  }
+
+  build(): Router {
+    return createSessionController(ensureDependencies(this.dependencies));
+  }
+}
+
+export function createSessionController({
+  createSessionHandler,
+  finishSessionHandler,
+  abortSessionHandler,
+  notePublicationHandler,
+  assetPublicationHandler,
+  stagingManager,
+  calloutRenderer,
+  finalizationJobService,
+  sessionRepository,
+  logger,
+}: SessionControllerDependencies): Router {
   const router = Router();
   const log = logger?.child({ module: 'sessionController' });
   const serverBytesLimit = parseBytesLimit(BYTES_LIMIT);
@@ -403,6 +472,28 @@ export function createSessionController(
   );
 
   return router;
+}
+
+function ensureDependencies(
+  dependencies: Partial<SessionControllerDependencies>
+): SessionControllerDependencies {
+  const missing: string[] = [];
+
+  if (!dependencies.createSessionHandler) missing.push('createSessionHandler');
+  if (!dependencies.finishSessionHandler) missing.push('finishSessionHandler');
+  if (!dependencies.abortSessionHandler) missing.push('abortSessionHandler');
+  if (!dependencies.notePublicationHandler) missing.push('notePublicationHandler');
+  if (!dependencies.assetPublicationHandler) missing.push('assetPublicationHandler');
+  if (!dependencies.stagingManager) missing.push('stagingManager');
+  if (!dependencies.calloutRenderer) missing.push('calloutRenderer');
+  if (!dependencies.finalizationJobService) missing.push('finalizationJobService');
+  if (!dependencies.sessionRepository) missing.push('sessionRepository');
+
+  if (missing.length > 0) {
+    throw new Error(`Cannot build session controller, missing dependencies: ${missing.join(', ')}`);
+  }
+
+  return dependencies as SessionControllerDependencies;
 }
 
 function parseBytesLimit(value: string | number): number {
