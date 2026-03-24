@@ -11,6 +11,7 @@ export interface ManifestPage {
 
   vaultPath?: string;
   relativePath?: string;
+  aliases?: string[];
   tags?: string[];
   leafletBlocks?: LeafletBlock[];
 

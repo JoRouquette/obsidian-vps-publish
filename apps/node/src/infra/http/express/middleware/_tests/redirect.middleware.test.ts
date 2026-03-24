@@ -72,8 +72,17 @@ describe('Redirect Middleware', () => {
     });
   };
 
+  const setOriginalUrl = (originalUrl: string) => {
+    Object.defineProperty(mockRequest, 'originalUrl', {
+      value: originalUrl,
+      writable: true,
+      configurable: true,
+    });
+  };
+
   it('should redirect 301 for old route to new route', async () => {
     setRequestPath('/old-route');
+    setOriginalUrl('/old-route');
 
     const middleware = createRedirectMiddleware(manifestLoader, mockLogger);
     await middleware(mockRequest, mockResponse, mockNext);
@@ -84,6 +93,7 @@ describe('Redirect Middleware', () => {
 
   it('should redirect 301 for legacy page to current page', async () => {
     setRequestPath('/legacy-page');
+    setOriginalUrl('/legacy-page');
 
     const middleware = createRedirectMiddleware(manifestLoader, mockLogger);
     await middleware(mockRequest, mockResponse, mockNext);
@@ -94,6 +104,7 @@ describe('Redirect Middleware', () => {
 
   it('should redirect 301 for blog old post', async () => {
     setRequestPath('/blog/old-post');
+    setOriginalUrl('/blog/old-post');
 
     const middleware = createRedirectMiddleware(manifestLoader, mockLogger);
     await middleware(mockRequest, mockResponse, mockNext);
@@ -218,6 +229,7 @@ describe('Redirect Middleware', () => {
 
   it('should normalize trailing slash before checking mapping', async () => {
     setRequestPath('/old-route/'); // Avec trailing slash
+    setOriginalUrl('/old-route/');
 
     const middleware = createRedirectMiddleware(manifestLoader, mockLogger);
     await middleware(mockRequest as Request, mockResponse as Response, mockNext);
@@ -293,10 +305,21 @@ describe('Redirect Middleware', () => {
       '/': '/home',
     };
     setRequestPath('/');
+    setOriginalUrl('/');
 
     const middleware = createRedirectMiddleware(manifestLoader, mockLogger);
     await middleware(mockRequest as Request, mockResponse as Response, mockNext);
 
     expect(mockResponse.redirect).toHaveBeenCalledWith(301, '/home');
+  });
+
+  it('should preserve query strings and fragments when redirecting', async () => {
+    setRequestPath('/old-route');
+    setOriginalUrl('/old-route?view=grid#summary');
+
+    const middleware = createRedirectMiddleware(manifestLoader, mockLogger);
+    await middleware(mockRequest as Request, mockResponse as Response, mockNext);
+
+    expect(mockResponse.redirect).toHaveBeenCalledWith(301, '/new-route?view=grid#summary');
   });
 });

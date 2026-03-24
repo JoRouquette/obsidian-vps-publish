@@ -76,6 +76,18 @@ const unresolvedLinkPageHtml = `
   </div>
 `;
 
+const queryLinkPageHtml = `
+  <div class="markdown-body">
+    <p><a href="/math-note-2?view=grid#chapter-1">Math Note 2</a></p>
+  </div>
+`;
+
+const folderIndexLinkPageHtml = `
+  <div class="markdown-body">
+    <p><a href="/lore/pantheon/index">Panthéon</a></p>
+  </div>
+`;
+
 function createLeafletBlock(path: string): LeafletBlock {
   return {
     id: 'Ektaron-map',
@@ -150,6 +162,12 @@ describe('ViewerComponent math HTML rendering', () => {
       if (path === '/unresolved.html') {
         return unresolvedLinkPageHtml;
       }
+      if (path === '/query-links.html') {
+        return queryLinkPageHtml;
+      }
+      if (path === '/folder-links.html') {
+        return folderIndexLinkPageHtml;
+      }
       return '<div class="markdown-body"><p>Index</p></div>';
     });
 
@@ -178,6 +196,9 @@ describe('ViewerComponent math HTML rendering', () => {
           { path: 'ektaron', component: DummyRouteComponent },
           { path: 'leaflet-controls', component: DummyRouteComponent },
           { path: 'unresolved', component: DummyRouteComponent },
+          { path: 'query-links', component: DummyRouteComponent },
+          { path: 'folder-links', component: DummyRouteComponent },
+          { path: 'lore/pantheon/index', component: DummyRouteComponent },
         ]),
         provideLocationMocks(),
         { provide: PLATFORM_ID, useValue: platformId },
@@ -347,5 +368,41 @@ describe('ViewerComponent math HTML rendering', () => {
 
     expect(anchorScrollService.navigateToAnchor).not.toHaveBeenCalled();
     expect(navigateByUrlSpy).not.toHaveBeenCalledWith('#');
+  });
+
+  it('preserves query strings and fragments when navigating internal links', async () => {
+    const fixture = await createComponent();
+    const navigateByUrlSpy = jest.spyOn(router, 'navigateByUrl');
+
+    await router.navigateByUrl('/query-links');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const internalLink = fixture.nativeElement.querySelector<HTMLAnchorElement>(
+      'a[href="/math-note-2?view=grid#chapter-1"]'
+    );
+    expect(internalLink).toBeTruthy();
+
+    internalLink?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(navigateByUrlSpy).toHaveBeenCalledWith('/math-note-2?view=grid#chapter-1');
+  });
+
+  it('navigates generated folder index links without string mangling', async () => {
+    const fixture = await createComponent();
+    const navigateByUrlSpy = jest.spyOn(router, 'navigateByUrl');
+
+    await router.navigateByUrl('/folder-links');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const internalLink = fixture.nativeElement.querySelector<HTMLAnchorElement>(
+      'a[href="/lore/pantheon/index"]'
+    );
+    expect(internalLink).toBeTruthy();
+
+    internalLink?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(navigateByUrlSpy).toHaveBeenCalledWith('/lore/pantheon/index');
   });
 });

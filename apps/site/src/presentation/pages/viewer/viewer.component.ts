@@ -22,7 +22,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltip, MatTooltipModule } from '@angular/material/tooltip';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { NavigationEnd, Router } from '@angular/router';
-import { type LeafletBlock, UNAVAILABLE_INTERNAL_PAGE_MESSAGE } from '@core-domain';
+import {
+  parseInternalHref,
+  type LeafletBlock,
+  UNAVAILABLE_INTERNAL_PAGE_MESSAGE,
+} from '@core-domain';
 import {
   catchError,
   distinctUntilChanged,
@@ -92,7 +96,7 @@ export class ViewerComponent implements OnDestroy {
   private readonly rawHtml = toSignal(
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
-      map((event) => event.urlAfterRedirects.split('?')[0].split('#')[0]),
+      map((event) => this.extractPathFromUrl(event.urlAfterRedirects)),
       startWith(this.getInitialRoutePath()),
       distinctUntilChanged(),
       switchMap((routePath) => {
@@ -204,13 +208,18 @@ export class ViewerComponent implements OnDestroy {
 
   private getInitialRoutePath(): string {
     if (this.isBrowser && globalThis.window !== undefined) {
-      const browserPath = globalThis.window.location.pathname;
-      if (browserPath) {
-        return browserPath;
+      const browserHref = `${globalThis.window.location.pathname}${globalThis.window.location.search}${globalThis.window.location.hash}`;
+      const parsed = parseInternalHref(
+        browserHref,
+        globalThis.window.location.pathname,
+        globalThis.window.location.search
+      );
+      if (parsed?.path) {
+        return parsed.path;
       }
     }
 
-    return this.router.url.split('?')[0].split('#')[0] || '/';
+    return this.extractPathFromUrl(this.router.url);
   }
 
   private decorateWikilinks(): void {
@@ -285,24 +294,21 @@ export class ViewerComponent implements OnDestroy {
     const href = link.getAttribute('href');
     if (!href) return;
 
-    const isExternal = /^[a-z]+:\/\//i.test(href) || href.startsWith('mailto:');
-    if (isExternal) return;
+    const parsed = this.parseInternalLink(href);
+    if (!parsed) return;
 
     // Handle fragment-only links (footnotes, heading anchors) sur la même page
-    if (href.startsWith('#')) {
+    if (parsed.fragment && parsed.isFragmentOnly) {
       event.preventDefault();
-      const targetId = href.substring(1);
-      // Use AnchorScrollService for SSR-safe scrolling
-      void this.anchorScrollService.navigateToAnchor(targetId);
+      void this.anchorScrollService.navigateToAnchor(parsed.fragment);
       return;
     }
 
     // Check if this is a link to the current page with a different fragment
     if (this.anchorScrollService.isCurrentPageLink(href)) {
       event.preventDefault();
-      const [, fragment] = href.split('#');
-      if (fragment) {
-        void this.anchorScrollService.navigateToAnchor(fragment);
+      if (parsed.fragment) {
+        void this.anchorScrollService.navigateToAnchor(parsed.fragment);
       }
       return;
     }
@@ -310,17 +316,12 @@ export class ViewerComponent implements OnDestroy {
     event.preventDefault();
 
     // Extraire le path et le fragment du href
-    const [path, fragment] = href.split('#');
+    this.pendingScrollFragment.set(parsed.fragment);
 
     // Si le lien contient un fragment, le marquer comme pending
-    if (fragment) {
-      this.pendingScrollFragment.set(fragment);
-    } else {
-      this.pendingScrollFragment.set(null);
-    }
 
     // Naviguer vers la nouvelle page (le fragment sera géré après le rendu)
-    void this.router.navigateByUrl(path);
+    void this.router.navigateByUrl(parsed.normalizedHref);
   }
 
   private shouldIgnoreDecoratedInternalLink(link: HTMLAnchorElement): boolean {
@@ -339,8 +340,7 @@ export class ViewerComponent implements OnDestroy {
    * Extrait le fragment d'une URL complète
    */
   private extractFragmentFromUrl(url: string): string | null {
-    const hashIndex = url.indexOf('#');
-    return hashIndex >= 0 ? url.substring(hashIndex + 1) : null;
+    return this.parseInternalLink(url)?.fragment ?? null;
   }
 
   /**
@@ -349,6 +349,20 @@ export class ViewerComponent implements OnDestroy {
   private scrollToElement(elementId: string): void {
     if (!isPlatformBrowser(this.platformId)) return;
     void this.anchorScrollService.scrollToAnchor(elementId);
+  }
+
+  private extractPathFromUrl(url: string): string {
+    return this.parseInternalLink(url)?.path ?? '/';
+  }
+
+  private parseInternalLink(href: string) {
+    const currentPath =
+      this.isBrowser && globalThis.window !== undefined
+        ? globalThis.window.location.pathname
+        : this.currentRoute();
+    const currentSearch =
+      this.isBrowser && globalThis.window !== undefined ? globalThis.window.location.search : '';
+    return parseInternalHref(href, currentPath || '/', currentSearch);
   }
 
   /**

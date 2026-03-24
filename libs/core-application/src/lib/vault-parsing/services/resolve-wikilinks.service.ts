@@ -16,6 +16,8 @@ interface NoteLookup {
   basename: Map<string, PublishableNote[]>;
   basenameSlug: Map<string, PublishableNote[]>;
   titleSlug: Map<string, PublishableNote[]>;
+  alias: Map<string, PublishableNote[]>;
+  aliasSlug: Map<string, PublishableNote[]>;
 }
 
 export class ResolveWikilinksService implements BaseService {
@@ -99,6 +101,8 @@ export class ResolveWikilinksService implements BaseService {
       basename: new Map<string, PublishableNote[]>(),
       basenameSlug: new Map<string, PublishableNote[]>(),
       titleSlug: new Map<string, PublishableNote[]>(),
+      alias: new Map<string, PublishableNote[]>(),
+      aliasSlug: new Map<string, PublishableNote[]>(),
     };
 
     for (const note of notes) {
@@ -107,12 +111,17 @@ export class ResolveWikilinksService implements BaseService {
       const basenameSlug = this.slugifySegment(basename);
       const slugPath = this.slugifyPath(normalizedPath);
       const titleSlug = this.slugifySegment(note.title);
+      const aliases = this.extractAliases(note);
 
       this.addLookupEntry(lookup.exactPath, normalizedPath, note);
       this.addLookupEntry(lookup.slugPath, slugPath, note);
       this.addLookupEntry(lookup.basename, basename, note);
       this.addLookupEntry(lookup.basenameSlug, basenameSlug, note);
       this.addLookupEntry(lookup.titleSlug, titleSlug, note);
+      for (const alias of aliases) {
+        this.addLookupEntry(lookup.alias, alias, note);
+        this.addLookupEntry(lookup.aliasSlug, this.slugifySegment(alias), note);
+      }
     }
 
     return lookup;
@@ -204,6 +213,8 @@ export class ResolveWikilinksService implements BaseService {
         ...this.getLookupNotes(lookup.basename, getInternalLinkBasename(resolvedRelativeTarget)),
         ...this.getLookupNotes(lookup.basenameSlug, this.slugifySegment(resolvedRelativeTarget)),
         ...this.getLookupNotes(lookup.titleSlug, this.slugifySegment(resolvedRelativeTarget)),
+        ...this.getLookupNotes(lookup.alias, resolvedRelativeTarget),
+        ...this.getLookupNotes(lookup.aliasSlug, this.slugifySegment(resolvedRelativeTarget)),
       ],
       target,
       currentNote,
@@ -284,5 +295,21 @@ export class ResolveWikilinksService implements BaseService {
       .trim()
       .toLowerCase()
       .replace(/\s/g, '-');
+  }
+
+  private extractAliases(note: PublishableNote): string[] {
+    const rawAliases = note.frontmatter?.flat?.['aliases'];
+    if (typeof rawAliases === 'string') {
+      return rawAliases.trim() ? [rawAliases.trim()] : [];
+    }
+
+    if (!Array.isArray(rawAliases)) {
+      return [];
+    }
+
+    return rawAliases
+      .filter((alias): alias is string => typeof alias === 'string')
+      .map((alias) => alias.trim())
+      .filter(Boolean);
   }
 }

@@ -651,5 +651,95 @@ describe('MarkdownItRenderer - cleanAndNormalizeLinks()', () => {
       );
       expect(result).not.toContain('wikilink-unresolved');
     });
+
+    it('should recover unresolved spans without data-wikilink when their text matches a published page title', () => {
+      const title = 'Magie des sceaux \\u2014 Arakishib \\u2014 Araki\\u0161ib'
+        .replaceAll('\\u2014', '—')
+        .replaceAll('\\u0161', 'š');
+      const mockManifest = {
+        sessionId: 'test',
+        createdAt: new Date(),
+        lastUpdatedAt: new Date(),
+        pages: [
+          {
+            id: '1',
+            title,
+            slug: { value: 'index' },
+            route: '/lore/arali/arakishib/index',
+            vaultPath: '_Mecaniques/Magie des sceaux — Arakishib — Arakišib.md',
+            relativePath: '_Mecaniques/Magie des sceaux — Arakishib — Arakišib.md',
+            publishedAt: new Date(),
+          },
+        ],
+      };
+
+      const result = (renderer as any).cleanAndNormalizeLinks(
+        `<span class="wikilink wikilink-unresolved" title="Page inconnue : ${title}">${title}</span>`,
+        mockManifest
+      );
+
+      expect(result).toContain('href="/lore/arali/arakishib/index"');
+      expect(result).toContain(`data-wikilink="${title}"`);
+      expect(result).not.toContain('wikilink-unresolved');
+    });
+
+    it('should resolve folder display-name links to generated folder indexes', () => {
+      const mockManifest = {
+        sessionId: 'test',
+        createdAt: new Date(),
+        lastUpdatedAt: new Date(),
+        folderDisplayNames: {
+          '/lore/pantheon': 'Panthéon',
+        },
+        pages: [
+          {
+            id: '1',
+            title: 'Astraea',
+            slug: { value: 'astraea' },
+            route: '/lore/pantheon/astraea',
+            vaultPath: '_Codex/Puissances/Divinités/Astraea.md',
+            relativePath: '_Codex/Puissances/Divinités/Astraea.md',
+            publishedAt: new Date(),
+          },
+        ],
+      };
+
+      const result = (renderer as any).cleanAndNormalizeLinks(
+        '<a href="Panthéon">Panthéon</a>',
+        mockManifest
+      );
+
+      expect(result).toContain('href="/lore/pantheon/index"');
+      expect(result).toContain('data-wikilink="lore/pantheon"');
+      expect(result).not.toContain('wikilink-unresolved');
+    });
+
+    it('should recover legacy frontmatter unresolved spans without data-wikilink', () => {
+      const mockManifest = {
+        sessionId: 'test',
+        createdAt: new Date(),
+        lastUpdatedAt: new Date(),
+        pages: [
+          {
+            id: '1',
+            title: 'Luminara',
+            slug: { value: 'luminara' },
+            route: '/lore/pantheon/luminara',
+            vaultPath: 'Pantheon/Luminara.md',
+            relativePath: 'Pantheon/Luminara.md',
+            publishedAt: new Date(),
+          },
+        ],
+      };
+
+      const result = (renderer as any).cleanAndNormalizeLinks(
+        '<span class="fm-value fm-wikilink-unresolved">Luminara</span>',
+        mockManifest
+      );
+
+      expect(result).toContain('href="/lore/pantheon/luminara"');
+      expect(result).not.toContain('fm-wikilink-unresolved');
+      expect(result).not.toContain('wikilink-unresolved');
+    });
   });
 });
