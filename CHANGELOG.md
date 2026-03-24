@@ -1,3 +1,21 @@
+## [6.18.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.17.0...6.18.0) (2026-03-24)
+
+### Features
+
+* **leaflet:** support image-map parsing and runtime state ([8c8cdcf](https://github.com/JoRouquette/obsidian-vps-publish/commit/8c8cdcfeeb7d6ed1f18b3caebce861e5cde6e6b3))
+* **publish:** add deduplication toggle to confirmation flow ([88fee71](https://github.com/JoRouquette/obsidian-vps-publish/commit/88fee71a4a5f7bcf83e0716ca9531fb15bda7bac))
+* **site:** harden leaflet runtime updates and fullscreen behavior ([25689d7](https://github.com/JoRouquette/obsidian-vps-publish/commit/25689d796dd9dbe222f6dd92a52e2b3fd4a94c7e))
+
+### Bug Fixes
+
+* **dataview:** support legacy vault-root requires during publish ([8ad9147](https://github.com/JoRouquette/obsidian-vps-publish/commit/8ad91470a094a9bce624604daaf81c5c27512ab2))
+* **links:** unify internal link resolution across packages ([6831fac](https://github.com/JoRouquette/obsidian-vps-publish/commit/6831fac1b1068c5f5cf1569fcc0173fbcd6e1399))
+* lint and test issues ([424a7c8](https://github.com/JoRouquette/obsidian-vps-publish/commit/424a7c8aa82153acafc4789a06b9ecbf5cec4990))
+* **node:** prefer angular csr entry for static fallback ([0b9f53b](https://github.com/JoRouquette/obsidian-vps-publish/commit/0b9f53bc7670a2bb2e9424d2e9df00e098260153))
+* **site:** harden leaflet map sizing and zoom control behavior ([cf6ce2c](https://github.com/JoRouquette/obsidian-vps-publish/commit/cf6ce2c048bc6e7d8d7e710124714c063a9c9a57))
+* **site:** preserve viewer deep links and leaflet control clicks ([76d1f70](https://github.com/JoRouquette/obsidian-vps-publish/commit/76d1f70237ae2be61d453168c5c94c5a8712b11f))
+* **site:** restore leaflet image-map zoom and fullscreen behavior ([1859675](https://github.com/JoRouquette/obsidian-vps-publish/commit/185967579045a574c6223b2b9ef5f7ab086c96e0))
+
 ## [6.17.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.16.1...6.17.0) (2026-03-21)
 
 ### Features
