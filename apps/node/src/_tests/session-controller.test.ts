@@ -2,7 +2,7 @@ import { SessionInvalidError, SessionNotFoundError } from '@core-domain';
 import express from 'express';
 import request from 'supertest';
 
-import { createSessionController } from '../infra/http/express/controllers/session-controller';
+import { SessionControllerBuilder } from '../infra/http/express/controllers/session-controller';
 
 describe('sessionController', () => {
   const createSessionHandler = {
@@ -19,9 +19,6 @@ describe('sessionController', () => {
   };
   const uploadAssetsHandler = {
     handle: jest.fn().mockResolvedValue({ sessionId: 's1', published: 0, errors: [] }),
-  };
-  const sessionFinalizer = {
-    rebuildFromStored: jest.fn().mockResolvedValue(undefined),
   };
   const calloutRenderer = {
     extendFromStyles: jest.fn(),
@@ -65,18 +62,17 @@ describe('sessionController', () => {
     } as any;
 
     app.use(
-      createSessionController(
-        createSessionHandler as any,
-        finishSessionHandler as any,
-        abortSessionHandler as any,
-        uploadNotesHandler as any,
-        uploadAssetsHandler as any,
-        sessionFinalizer as any,
-        stagingManager as any,
-        calloutRenderer as any,
-        finalizationJobService,
-        sessionRepository as any
-      )
+      new SessionControllerBuilder()
+        .withCreateSessionHandler(createSessionHandler as any)
+        .withFinishSessionHandler(finishSessionHandler as any)
+        .withAbortSessionHandler(abortSessionHandler as any)
+        .withNotePublicationHandler(uploadNotesHandler as any)
+        .withAssetPublicationHandler(uploadAssetsHandler as any)
+        .withStagingManager(stagingManager as any)
+        .withCalloutRenderer(calloutRenderer as any)
+        .withFinalizationJobService(finalizationJobService)
+        .withSessionRepository(sessionRepository as any)
+        .build()
     );
     return app;
   };
