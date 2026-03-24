@@ -61,7 +61,11 @@ import { PublishingTraceService } from './lib/infra/publishing-trace.service';
 import { createStepMessages, getStepLabel } from './lib/infra/step-messages.factory';
 import { StepProgressManagerAdapter } from './lib/infra/step-progress-manager.adapter';
 import { UiPressureMonitorAdapter } from './lib/infra/ui-pressure-monitor.adapter';
-import { PublishConfirmModal, type PublishSummary } from './lib/modals/publish-confirm-modal';
+import {
+  PublishConfirmModal,
+  type PublishConfirmOptions,
+  type PublishSummary,
+} from './lib/modals/publish-confirm-modal';
 import { getDataviewPlugin, getSettingsApi } from './lib/obsidian/app-capabilities.util';
 import { testVpsConnection } from './lib/services/http-connection.service';
 import { SessionApiClient } from './lib/services/session-api.client';
@@ -180,6 +184,12 @@ function withDecryptedApiKeys(settings: PluginSettings): PluginSettings {
   return cloned;
 }
 
+type PublishExecutionOptions = PublishConfirmOptions;
+
+const DEFAULT_PUBLISH_OPTIONS: PublishExecutionOptions = {
+  deduplicationEnabled: true,
+};
+
 // -----------------------------------------------------------------------------
 // Main Plugin Class
 // -----------------------------------------------------------------------------
@@ -220,8 +230,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           this.settings.vpsConfigs,
           async (vps) => {
             const summary = this.estimatePublishSummary(vps);
-            new PublishConfirmModal(this.app, summary, t, async () => {
-              await this.uploadToVps(vps);
+            new PublishConfirmModal(this.app, summary, t, async (options) => {
+              await this.uploadToVps(vps, options);
             }).open();
           },
           t
@@ -342,8 +352,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           this.settings.vpsConfigs,
           async (vps) => {
             const summary = this.estimatePublishSummary(vps);
-            new PublishConfirmModal(this.app, summary, t, async () => {
-              await this.uploadToVps(vps);
+            new PublishConfirmModal(this.app, summary, t, async (options) => {
+              await this.uploadToVps(vps, options);
             }).open();
           },
           t
@@ -569,12 +579,15 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     };
   }
 
-  async uploadToVps(vps: VpsConfig): Promise<void> {
+  async uploadToVps(
+    vps: VpsConfig,
+    options: PublishExecutionOptions = DEFAULT_PUBLISH_OPTIONS
+  ): Promise<void> {
     // Temporarily replace first VPS with the selected one for upload
     const originalVpsConfigs = [...this.settings.vpsConfigs];
     this.settings.vpsConfigs = [vps];
     try {
-      await this.publishToSiteAsync();
+      await this.publishToSiteAsync(options);
     } finally {
       // Restore original
       this.settings.vpsConfigs = originalVpsConfigs;
@@ -584,9 +597,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
   // ---------------------------------------------------------------------------
   // Publishing Logic
   // ---------------------------------------------------------------------------
-  async publishToSiteAsync() {
+  async publishToSiteAsync(options: PublishExecutionOptions = DEFAULT_PUBLISH_OPTIONS) {
     const settings = this.settings;
     const { t, locale } = getTranslations(this.app, this.settings);
+    const deduplicationEnabled = options.deduplicationEnabled !== false;
 
     if (!settings.vpsConfigs || settings.vpsConfigs.length === 0) {
       this.logger.error('No VPS config defined');
@@ -808,8 +822,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
       const deduplicateSpan = perfTracker.startSpan('deduplicate-notes');
 
-      const deduplicateService = new DeduplicateNotesService(scopedLogger);
-      const deduplicated = deduplicateService.process(publishables);
+      const deduplicated = deduplicationEnabled
+        ? new DeduplicateNotesService(scopedLogger).process(publishables)
+        : publishables;
 
       perfTracker.endSpan(deduplicateSpan, {
         inputCount: publishables.length,
@@ -822,11 +837,17 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         outputCount: deduplicated.length,
       });
 
-      scopedLogger.debug('Notes deduplicated', {
-        inputCount: publishables.length,
-        outputCount: deduplicated.length,
-        removed: publishables.length - deduplicated.length,
-      });
+      if (deduplicationEnabled) {
+        scopedLogger.debug('Notes deduplicated', {
+          inputCount: publishables.length,
+          outputCount: deduplicated.length,
+          removed: publishables.length - deduplicated.length,
+        });
+      } else {
+        scopedLogger.info('Deduplication disabled for this publication', {
+          publishablesCount: publishables.length,
+        });
+      }
 
       const publishableCount = deduplicated.length;
       stats.notesEligible = publishableCount;
@@ -980,13 +1001,15 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         folderDisplayNames, // Send displayNames upfront
         pipelineSignature, // Include pipeline signature for inter-publication deduplication
         locale, // Site language from plugin settings
+        deduplicationEnabled,
       });
 
       sessionId = started.sessionId;
       const serverRequestLimit = started.maxBytesPerRequest;
-      const existingAssetHashes = started.existingAssetHashes ?? [];
-      const existingNoteHashes = started.existingNoteHashes ?? {};
-      const pipelineChanged = started.pipelineChanged ?? true;
+      const existingAssetHashes = deduplicationEnabled ? (started.existingAssetHashes ?? []) : [];
+      const existingNoteHashes = deduplicationEnabled ? (started.existingNoteHashes ?? {}) : {};
+      const pipelineChanged = deduplicationEnabled ? (started.pipelineChanged ?? true) : true;
+      const uploadConcurrency = deduplicationEnabled ? settings.maxConcurrentUploads || 3 : 1;
 
       trace.endStep('6-session-start', {
         sessionId,
@@ -994,6 +1017,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         existingAssetHashesCount: existingAssetHashes.length,
         existingNoteHashesCount: Object.keys(existingNoteHashes).length,
         pipelineChanged,
+        deduplicationEnabled,
       });
 
       this.logger.debug('Session started', {
@@ -1001,6 +1025,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         maxBytesPerRequest: serverRequestLimit,
         existingNoteHashesCount: Object.keys(existingNoteHashes).length,
         pipelineChanged,
+        deduplicationEnabled,
       });
 
       // ====================================================================
@@ -1015,7 +1040,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ====================================================================
       let notesToUpload = deduplicated;
 
-      if (!pipelineChanged && Object.keys(existingNoteHashes).length > 0) {
+      if (deduplicationEnabled && !pipelineChanged && Object.keys(existingNoteHashes).length > 0) {
         trace.checkpoint('7-upload-notes', 'filtering-unchanged-notes');
         const hashService = new BrowserHashService();
         const filteredNotes: PublishableNote[] = [];
@@ -1056,6 +1081,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           skippedCount,
           uploadCount: notesToUpload.length,
         });
+      } else if (!deduplicationEnabled) {
+        this.logger.info('Deduplication disabled, uploading all notes', {
+          totalNotes: deduplicated.length,
+        });
       } else if (pipelineChanged) {
         this.logger.info('Pipeline changed, uploading all notes (full re-render)', {
           totalNotes: deduplicated.length,
@@ -1070,7 +1099,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         serverRequestLimit,
         stepProgressManager,
         validCleanupRules,
-        settings.maxConcurrentUploads || 3
+        uploadConcurrency
       );
 
       // Calculer le nombre de batchs
@@ -1124,8 +1153,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           this.logger,
           serverRequestLimit,
           stepProgressManager,
-          settings.maxConcurrentUploads || 3,
-          existingAssetHashes
+          uploadConcurrency,
+          existingAssetHashes,
+          deduplicationEnabled
         );
 
         // Log assets to be resolved for debugging

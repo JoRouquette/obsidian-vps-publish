@@ -98,6 +98,25 @@ describe('sessionController', () => {
     expect(createSessionHandler.handle).toHaveBeenCalled();
   });
 
+  it('transmet le flag de déduplication à la création de session', async () => {
+    const app = buildApp();
+    const res = await request(app)
+      .post('/session/start')
+      .send({
+        notesPlanned: 1,
+        assetsPlanned: 1,
+        batchConfig: { maxBytesPerRequest: 1000 },
+        deduplicationEnabled: false,
+      });
+
+    expect(res.status).toBe(201);
+    expect(createSessionHandler.handle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deduplicationEnabled: false,
+      })
+    );
+  });
+
   it('rejects invalid create payload', async () => {
     const app = buildApp();
     const res = await request(app).post('/session/start').send({});
@@ -194,6 +213,35 @@ describe('sessionController', () => {
       });
     expect(assetsRes.status).toBe(200);
     expect(uploadAssetsHandler.handle).toHaveBeenCalled();
+  });
+
+  it('propage le mode sans déduplication à l’upload des assets', async () => {
+    sessionRepository.findById.mockResolvedValueOnce({
+      id: 'abc',
+      deduplicationEnabled: false,
+    } as any);
+
+    const app = buildApp();
+    const assetsRes = await request(app)
+      .post('/session/abc/assets/upload')
+      .send({
+        assets: [
+          {
+            fileName: 'a',
+            mimeType: 'text/plain',
+            contentBase64: 'YQ==',
+            relativePath: 'a',
+            vaultPath: 'a',
+          },
+        ],
+      });
+
+    expect(assetsRes.status).toBe(200);
+    expect(uploadAssetsHandler.handle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deduplicationEnabled: false,
+      })
+    );
   });
 
   it('rejects invalid notes payload', async () => {

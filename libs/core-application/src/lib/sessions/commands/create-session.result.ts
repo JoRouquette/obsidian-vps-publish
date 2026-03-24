@@ -1,6 +1,7 @@
 export interface CreateSessionResult {
   sessionId: string;
   success: boolean;
+  deduplicationEnabled?: boolean;
   existingAssetHashes?: string[];
   /**
    * Map of note routes to their sourceHash from production manifest

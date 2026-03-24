@@ -276,9 +276,9 @@ function renderVpsActions(container: HTMLElement, vps: VpsConfig, ctx: SettingsV
   uploadBtn.onclick = () => {
     logger.debug('Starting upload to VPS', { vpsId: vps.id, vpsName: vps.name });
     const summary = ctx.plugin.estimatePublishSummary(vps);
-    new PublishConfirmModal(ctx.app, summary, ctx.t, async () => {
+    new PublishConfirmModal(ctx.app, summary, ctx.t, async (options) => {
       try {
-        await ctx.plugin.uploadToVps(vps);
+        await ctx.plugin.uploadToVps(vps, options);
         logger.debug('Upload to VPS succeeded', { vpsId: vps.id });
       } catch (e) {
         logger.error('Upload to VPS failed', { vpsId: vps.id, error: e });

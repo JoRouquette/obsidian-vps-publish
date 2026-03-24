@@ -40,8 +40,36 @@ describe('SessionApiClient', () => {
     });
 
     expect(res.sessionId).toBe('s1');
-    // Selon la réponse, parseLimit renvoie la valeur ou le fallback (8MB)
     expect(res.maxBytesPerRequest).toBeGreaterThan(0);
+  });
+
+  it('transmet le flag de déduplication au démarrage de session', async () => {
+    const requestUrl = jest.fn().mockResolvedValue({
+      status: 200,
+      headers: {},
+      text: JSON.stringify({ sessionId: 's1', maxBytesPerRequest: 1024 }),
+    });
+    const handler = {
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValue(responseOk('{"sessionId":"s1","maxBytesPerRequest":1024}')),
+    };
+    jest.doMock('obsidian', () => ({ requestUrl }));
+
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, mockLogger());
+    await client.startSession({
+      notesPlanned: 1,
+      assetsPlanned: 0,
+      maxBytesPerRequest: 1024,
+      deduplicationEnabled: false,
+    });
+
+    expect(requestUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining('"deduplicationEnabled":false'),
+      })
+    );
   });
 
   it('uploadNotes lève en cas d’erreur', async () => {
