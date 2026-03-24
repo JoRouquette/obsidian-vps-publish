@@ -66,6 +66,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
     // Initialize chunked upload service from core-application
     this.chunkedUploadService = new ChunkedUploadService(compression, encoding, this._logger, {
       maxChunkSize: Math.min(maxBytesPerRequest / 2, 5 * 1024 * 1024), // Half of max or 5MB
+      maxRequestBytes: maxBytesPerRequest,
       compressionLevel: 6,
       retryAttempts: 3,
     });

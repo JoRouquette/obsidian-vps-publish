@@ -95,10 +95,11 @@ describe('sessionController', () => {
         batchConfig: { maxBytesPerRequest: 1000 },
       });
     expect(res.status).toBe(201);
+    expect(res.body.maxBytesPerRequest).toBe(1000);
     expect(createSessionHandler.handle).toHaveBeenCalled();
   });
 
-  it('transmet le flag de déduplication à la création de session', async () => {
+  it('passes the deduplication flag to session creation', async () => {
     const app = buildApp();
     const res = await request(app)
       .post('/session/start')
@@ -168,6 +169,16 @@ describe('sessionController', () => {
     expect(abortSessionHandler.handle).toHaveBeenCalledWith({ sessionId: 'abc' });
   });
 
+  it('returns 200 when abort cleanup fails after session state update', async () => {
+    stagingManager.discardSession.mockRejectedValueOnce(new Error('cleanup failed'));
+
+    const app = buildApp();
+    const res = await request(app).post('/session/abc/abort').send({});
+
+    expect(res.status).toBe(200);
+    expect(abortSessionHandler.handle).toHaveBeenCalledWith({ sessionId: 'abc' });
+  });
+
   it('uploads notes and assets', async () => {
     const app = buildApp();
 
@@ -215,7 +226,7 @@ describe('sessionController', () => {
     expect(uploadAssetsHandler.handle).toHaveBeenCalled();
   });
 
-  it('propage le mode sans déduplication à l’upload des assets', async () => {
+  it('propagates non-deduplicated mode to asset uploads', async () => {
     sessionRepository.findById.mockResolvedValueOnce({
       id: 'abc',
       deduplicationEnabled: false,

@@ -39,6 +39,7 @@ export function createSessionController(
 ): Router {
   const router = Router();
   const log = logger?.child({ module: 'sessionController' });
+  const serverBytesLimit = parseBytesLimit(BYTES_LIMIT);
 
   // Création de session
   router.post(
@@ -99,11 +100,15 @@ export function createSessionController(
 
         const result = await createSessionHandler.handle(command);
         routeLogger?.debug('Session created', { sessionId: result.sessionId });
+        const effectiveMaxBytesPerRequest = Math.min(
+          batchConfig.maxBytesPerRequest,
+          serverBytesLimit
+        );
 
         return res.status(201).json({
           sessionId: result.sessionId,
           success: result.success,
-          maxBytesPerRequest: BYTES_LIMIT,
+          maxBytesPerRequest: effectiveMaxBytesPerRequest,
           existingAssetHashes: result.existingAssetHashes ?? [],
           existingNoteHashes: result.existingNoteHashes ?? {},
           pipelineChanged: result.pipelineChanged,
@@ -369,8 +374,13 @@ export function createSessionController(
       try {
         const result = await abortSessionHandler.handle(command);
         routeLogger?.debug('Session aborted', { sessionId: result.sessionId });
-
-        await stagingManager.discardSession(req.params.sessionId);
+        try {
+          await stagingManager.discardSession(req.params.sessionId);
+        } catch (cleanupError) {
+          routeLogger?.warn('Session aborted but staging cleanup failed', {
+            error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+          });
+        }
 
         return res.status(200).json(result);
       } catch (err) {
@@ -393,4 +403,24 @@ export function createSessionController(
   );
 
   return router;
+}
+
+function parseBytesLimit(value: string | number): number {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const match = new RegExp(/^(\d+(?:\.\d+)?)\s*(kb|mb|gb)?$/i).exec(value.trim());
+    if (match) {
+      const amount = Number.parseFloat(match[1]);
+      const unit = match[2]?.toLowerCase();
+      if (unit === 'gb') return Math.floor(amount * 1024 * 1024 * 1024);
+      if (unit === 'mb') return Math.floor(amount * 1024 * 1024);
+      if (unit === 'kb') return Math.floor(amount * 1024);
+      return Math.floor(amount);
+    }
+  }
+
+  return 50 * 1024 * 1024;
 }

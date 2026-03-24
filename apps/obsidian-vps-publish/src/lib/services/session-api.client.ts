@@ -88,10 +88,21 @@ export class SessionApiClient {
       throw result.error ?? new Error(errorMsg);
     }
     const parsed = JSON.parse(result.text ?? '{}');
+    const serverLimit = parseLimit(parsed.maxBytesPerRequest);
+    const effectiveLimit =
+      payload.maxBytesPerRequest > 0
+        ? Math.min(payload.maxBytesPerRequest, serverLimit)
+        : serverLimit;
+
+    this.logger.debug('Resolved effective request size limit', {
+      requestedMaxBytesPerRequest: payload.maxBytesPerRequest,
+      serverMaxBytesPerRequest: serverLimit,
+      effectiveMaxBytesPerRequest: effectiveLimit,
+    });
 
     return {
       sessionId: parsed.sessionId,
-      maxBytesPerRequest: parseLimit(parsed.maxBytesPerRequest),
+      maxBytesPerRequest: effectiveLimit,
       existingAssetHashes: parsed.existingAssetHashes ?? [],
       existingNoteHashes: parsed.existingNoteHashes ?? {},
       pipelineChanged: parsed.pipelineChanged,
