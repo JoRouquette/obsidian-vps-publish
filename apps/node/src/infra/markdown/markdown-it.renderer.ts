@@ -367,7 +367,51 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       const classNames = ($element.attr('class') || '')
         .split(/\s+/)
         .filter(Boolean)
-        .filter((cls) => cls !== 'wikilink-unresolved');
+        .filter((cls) => cls !== 'wikilink-unresolved' && cls !== 'fm-wikilink-unresolved');
+
+      if (!classNames.includes('wikilink')) {
+        classNames.push('wikilink');
+      }
+
+      const $anchor = $('<a></a>');
+      $anchor.attr('href', this.encodeInternalHref(resolved.path));
+      $anchor.attr('data-wikilink', cleanedTarget);
+      $anchor.attr('class', classNames.join(' '));
+      $anchor.html($element.html() || this.escapeHtml($element.text()));
+
+      $element.replaceWith($anchor);
+    });
+
+    $('.wikilink-unresolved, .fm-wikilink-unresolved').each((_, element) => {
+      const $element = $(element);
+      if ($element.is('a') || $element.attr('data-wikilink')) {
+        return;
+      }
+
+      const rawTarget = ($element.text() || '').trim();
+      if (!rawTarget) {
+        return;
+      }
+
+      const cleanedTarget = this.cleanLinkPath(rawTarget);
+      if (!cleanedTarget) {
+        return;
+      }
+
+      const resolved = this.translateToRoutedPathWithValidation(
+        cleanedTarget,
+        manifest,
+        currentRoutePath
+      );
+      if (!resolved.matchedPage) {
+        this.normalizeUnavailableWikilinkElement($element, cleanedTarget);
+        return;
+      }
+
+      const classNames = ($element.attr('class') || '')
+        .split(/\s+/)
+        .filter(Boolean)
+        .filter((cls) => cls !== 'wikilink-unresolved' && cls !== 'fm-wikilink-unresolved');
 
       if (!classNames.includes('wikilink')) {
         classNames.push('wikilink');
@@ -640,7 +684,12 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     manifest: Manifest,
     currentRoutePath?: string
   ): { path: string; matchedPage?: ManifestPage } {
-    const resolved = resolveManifestLinkCandidate(path, manifest.pages, currentRoutePath);
+    const resolved = resolveManifestLinkCandidate(
+      path,
+      manifest.pages,
+      currentRoutePath,
+      manifest.folderDisplayNames
+    );
 
     if (resolved.ambiguousCandidates?.length) {
       this.logger?.warn('Ambiguous internal link left unresolved during HTML normalization', {
@@ -650,25 +699,29 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     }
 
     if (resolved.page) {
-      const normalizedAnchor = resolved.fragment
-        ? `#${this.normalizeFragment(resolved.fragment)}`
-        : '';
+      const normalizedAnchor = resolved.fragmentCanonical
+        ? `#${resolved.fragmentCanonical}`
+        : resolved.fragment
+          ? `#${this.normalizeFragment(resolved.fragment)}`
+          : '';
       return {
-        path: resolved.page.route + normalizedAnchor,
+        path: `${resolved.page.route}${resolved.query ?? ''}${normalizedAnchor}`,
         matchedPage: resolved.page,
       };
     }
 
-    const normalizedAnchor = resolved.fragment
-      ? `#${this.normalizeFragment(resolved.fragment)}`
-      : '';
+    const normalizedAnchor = resolved.fragmentCanonical
+      ? `#${resolved.fragmentCanonical}`
+      : resolved.fragment
+        ? `#${this.normalizeFragment(resolved.fragment)}`
+        : '';
     const normalizedBasePath = resolved.normalizedBasePath
       ? `/${resolved.normalizedBasePath}`
       : path.startsWith('/')
         ? path
         : `/${path}`;
     return {
-      path: `${normalizedBasePath}${normalizedAnchor}`,
+      path: `${normalizedBasePath}${resolved.query ?? ''}${normalizedAnchor}`,
       matchedPage: undefined,
     };
   }

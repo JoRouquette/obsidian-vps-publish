@@ -103,6 +103,8 @@ type ConfirmationTranslations = {
   notesLabel: string;
   assetsLabel: string;
   estimatedHint: string;
+  deduplicationLabel: string;
+  deduplicationDescription: string;
   publishButton: string;
   cancelButton: string;
 };
@@ -968,6 +970,9 @@ export const en: Translations = {
     notesLabel: 'Notes',
     assetsLabel: 'Assets',
     estimatedHint: 'Counts are estimated. Actual numbers may differ after parsing.',
+    deduplicationLabel: 'Enable deduplication',
+    deduplicationDescription:
+      'Disable this to republish and overwrite every planned note and asset.',
     publishButton: 'Publish',
     cancelButton: 'Cancel',
   },
@@ -1519,6 +1524,9 @@ export const fr: Translations = {
     notesLabel: 'Notes',
     assetsLabel: 'Ressources',
     estimatedHint: 'Les nombres sont estimés. Le total réel peut varier après analyse.',
+    deduplicationLabel: 'Activer la déduplication',
+    deduplicationDescription:
+      'Décochez pour republier et écraser toutes les notes et ressources prévues.',
     publishButton: 'Publier',
     cancelButton: 'Annuler',
   },

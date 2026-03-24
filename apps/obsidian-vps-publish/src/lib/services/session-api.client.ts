@@ -66,6 +66,7 @@ export class SessionApiClient {
     folderDisplayNames?: Record<string, string>;
     pipelineSignature?: { version: string; renderSettingsHash: string };
     locale?: 'en' | 'fr';
+    deduplicationEnabled?: boolean;
   }): Promise<StartSessionResponse> {
     const result = await this.postJson('/api/session/start', {
       notesPlanned: payload.notesPlanned,
@@ -77,6 +78,7 @@ export class SessionApiClient {
       folderDisplayNames: payload.folderDisplayNames ?? {},
       pipelineSignature: payload.pipelineSignature,
       locale: payload.locale,
+      deduplicationEnabled: payload.deduplicationEnabled ?? true,
     });
 
     if (result.isError) {

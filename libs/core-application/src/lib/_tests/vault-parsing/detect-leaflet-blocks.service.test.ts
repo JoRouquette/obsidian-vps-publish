@@ -1,6 +1,6 @@
 import type { PublishableNote } from '@core-domain';
 
-import { DetectLeafletBlocksService } from '@core-application';
+import { DetectLeafletBlocksService } from '../../vault-parsing';
 import { NoopLogger } from '../helpers/fake-logger';
 
 describe('DetectLeafletBlocksService', () => {

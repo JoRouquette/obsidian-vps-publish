@@ -60,10 +60,9 @@ describe('AssetsUploaderAdapter', () => {
 
     await adapter.upload([asset, asset]);
 
-    // Should upload via chunks
     expect(sessionClient.uploadAssetChunk).toHaveBeenCalled();
     const firstCall = sessionClient.uploadAssetChunk.mock.calls[0];
-    expect(firstCall[0]).toBe('s1'); // sessionId
+    expect(firstCall[0]).toBe('s1');
     expect(firstCall[1]).toHaveProperty('metadata');
     expect(firstCall[1]).toHaveProperty('data');
   });
@@ -85,5 +84,32 @@ describe('AssetsUploaderAdapter', () => {
     } as any;
 
     await expect(adapter.upload([bad])).rejects.toThrow('ResolvedAssetFile has no content');
+  });
+
+  it('désactive la déduplication client des assets quand l’option est décochée', async () => {
+    const hasher = makeAssetHasher();
+    const adapter = new AssetsUploaderAdapter(
+      sessionClient,
+      's1',
+      makeGuidGenerator(),
+      hasher,
+      makeLogger(),
+      200,
+      undefined,
+      1,
+      ['mock-hash-abc123'],
+      false
+    );
+    const asset = {
+      relativeAssetPath: 'img/a.png',
+      vaultPath: '/vault/img/a.png',
+      fileName: 'a.png',
+      content: new TextEncoder().encode('data'),
+    } as any;
+
+    await expect(adapter.upload([asset])).resolves.toBe(true);
+
+    expect(hasher.computeHash).not.toHaveBeenCalled();
+    expect(sessionClient.uploadAssetChunk).toHaveBeenCalled();
   });
 });

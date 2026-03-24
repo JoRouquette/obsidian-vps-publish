@@ -47,6 +47,7 @@ export class UploadAssetsHandler implements CommandHandler<
   async handle(command: UploadAssetsCommand): Promise<UploadAssetsResult> {
     const storage = this.resolveAssetStorage(command.sessionId);
     const manifest = this.manifestStorage ? this.resolveManifestStorage(command.sessionId) : null;
+    const deduplicationEnabled = command.deduplicationEnabled !== false;
 
     const errors: { assetName: string; message: string }[] = [];
     const skippedAssets: string[] = [];
@@ -58,7 +59,7 @@ export class UploadAssetsHandler implements CommandHandler<
     const existingManifest = manifest ? await manifest.load() : null;
     const existingAssetsByHash = new Map<string, ManifestAsset>();
 
-    if (existingManifest?.assets) {
+    if (deduplicationEnabled && existingManifest?.assets) {
       for (const asset of existingManifest.assets) {
         existingAssetsByHash.set(asset.hash, asset);
       }
@@ -160,7 +161,7 @@ export class UploadAssetsHandler implements CommandHandler<
           const hash = this.assetHasher ? await this.assetHasher.computeHash(content) : undefined;
 
           // Check if asset with this hash already exists
-          if (hash) {
+          if (deduplicationEnabled && hash) {
             const existingAsset = existingAssetsByHash.get(hash);
             if (existingAsset) {
               // Use the path actually stored on disk (existingAsset.path) as the

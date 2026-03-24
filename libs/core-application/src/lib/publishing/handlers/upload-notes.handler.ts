@@ -163,6 +163,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
               publishedAt: n.publishedAt,
               vaultPath: n.vaultPath,
               relativePath: n.relativePath,
+              aliases: this.extractAliases(n),
               tags: n.frontmatter.tags ?? [],
               leafletBlocks: n.leafletBlocks,
               sourceHash,
@@ -264,6 +265,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       publishedAt: note.publishedAt,
       vaultPath: note.vaultPath,
       relativePath: note.relativePath,
+      aliases: this.extractAliases(note),
       tags: note.frontmatter.tags ?? [],
       leafletBlocks: note.leafletBlocks,
     };
@@ -619,11 +621,10 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       }
 
       // canonicalSlug: for redirect management when slug changes
-      const rawCanonical = flat['canonicalslug'] ?? flat['canonical'] ?? flat['alias'];
+      const rawCanonical = flat['canonicalslug'] ?? flat['canonical'];
       if (typeof rawCanonical === 'string' && rawCanonical.trim()) {
         result.canonicalSlug = rawCanonical.trim();
       } else if (Array.isArray(rawCanonical) && rawCanonical.length > 0) {
-        // If alias is an array (common in Obsidian), take the first one
         const first = rawCanonical[0];
         if (typeof first === 'string' && first.trim()) {
           result.canonicalSlug = first.trim();
@@ -668,6 +669,25 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     }
 
     return result;
+  }
+
+  private extractAliases(note: PublishableNote): string[] | undefined {
+    const rawAliases = note.frontmatter?.flat?.['aliases'];
+    if (typeof rawAliases === 'string') {
+      const trimmed = rawAliases.trim();
+      return trimmed ? [trimmed] : undefined;
+    }
+
+    if (!Array.isArray(rawAliases)) {
+      return undefined;
+    }
+
+    const aliases = rawAliases
+      .filter((alias): alias is string => typeof alias === 'string')
+      .map((alias) => alias.trim())
+      .filter(Boolean);
+
+    return aliases.length > 0 ? aliases : undefined;
   }
 
   /**
