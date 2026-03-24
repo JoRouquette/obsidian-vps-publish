@@ -8,6 +8,7 @@ import type { LoggerPort } from '@core-domain/ports/logger-port';
 
 export interface ChunkedUploadOptions {
   maxChunkSize?: number; // in bytes, default 5MB
+  maxRequestBytes?: number; // serialized request body size limit
   compressionLevel?: number; // 0-9, default 6
   retryAttempts?: number; // default 3
 }
@@ -19,6 +20,7 @@ export interface ChunkedUploadOptions {
 export class ChunkedUploadService {
   private readonly logger: LoggerPort;
   private readonly maxChunkSize: number;
+  private readonly maxRequestBytes?: number;
   private readonly compressionLevel: number;
   private readonly retryAttempts: number;
 
@@ -30,6 +32,7 @@ export class ChunkedUploadService {
   ) {
     this.logger = logger.child({ service: 'ChunkedUploadService' });
     this.maxChunkSize = options.maxChunkSize ?? 5 * 1024 * 1024; // 5MB default
+    this.maxRequestBytes = options.maxRequestBytes;
     this.compressionLevel = options.compressionLevel ?? 6;
     this.retryAttempts = options.retryAttempts ?? 3;
   }
@@ -63,13 +66,16 @@ export class ChunkedUploadService {
       compressedSizeMB: (compressedSize / 1024 / 1024).toFixed(2),
     });
 
-    // 3. Split into chunks
+    // 3. Split into chunks.
+    // maxChunkSize is a binary payload limit, but the actual HTTP request transports
+    // base64 JSON. We must keep the serialized request body under maxRequestBytes.
+    const safeChunkSize = this.computeSafeChunkSize(uploadId, originalSize, compressedSize);
     const chunks: ChunkedData[] = [];
-    const totalChunks = Math.ceil(compressedSize / this.maxChunkSize);
+    const totalChunks = Math.ceil(compressedSize / safeChunkSize);
 
     for (let i = 0; i < totalChunks; i++) {
-      const start = i * this.maxChunkSize;
-      const end = Math.min(start + this.maxChunkSize, compressedSize);
+      const start = i * safeChunkSize;
+      const end = Math.min(start + safeChunkSize, compressedSize);
       const chunk = compressed.slice(start, end);
 
       // Convert to base64 for JSON transport
@@ -91,12 +97,20 @@ export class ChunkedUploadService {
         chunkIndex: i,
         chunkSize: chunk.length,
         base64Size: base64Chunk.length,
+        requestBodySize: this.estimateSerializedChunkSize(
+          uploadId,
+          chunk.length,
+          totalChunks,
+          originalSize,
+          compressedSize
+        ),
       });
     }
 
     this.logger.debug('Upload prepared', {
       uploadId,
       totalChunks,
+      safeChunkSize,
       avgChunkSizeMB: (compressedSize / totalChunks / 1024 / 1024).toFixed(2),
     });
 
@@ -137,6 +151,10 @@ export class ChunkedUploadService {
           attempt,
           error: lastError.message,
         });
+
+        if (!this.isRetryableError(lastError)) {
+          break;
+        }
 
         if (attempt < this.retryAttempts) {
           // Exponential backoff
@@ -196,5 +214,93 @@ export class ChunkedUploadService {
 
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private computeSafeChunkSize(
+    uploadId: string,
+    originalSize: number,
+    compressedSize: number
+  ): number {
+    const upperBound = Math.max(1, Math.min(this.maxChunkSize, compressedSize || 1));
+    if (!this.maxRequestBytes || this.maxRequestBytes <= 0) {
+      return upperBound;
+    }
+
+    let low = 1;
+    let high = upperBound;
+    let best = 0;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const totalChunks = Math.ceil(compressedSize / mid);
+      const estimatedRequestSize = this.estimateSerializedChunkSize(
+        uploadId,
+        mid,
+        totalChunks,
+        originalSize,
+        compressedSize
+      );
+
+      if (estimatedRequestSize <= this.maxRequestBytes) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    if (best <= 0) {
+      throw new Error(
+        `Unable to fit chunk metadata within maxRequestBytes=${this.maxRequestBytes} for ${uploadId}`
+      );
+    }
+
+    if (best < upperBound) {
+      this.logger.debug('Adjusted chunk size to fit request body limit', {
+        uploadId,
+        requestedChunkSize: upperBound,
+        safeChunkSize: best,
+        maxRequestBytes: this.maxRequestBytes,
+      });
+    }
+
+    return best;
+  }
+
+  private estimateSerializedChunkSize(
+    uploadId: string,
+    chunkSize: number,
+    totalChunks: number,
+    originalSize: number,
+    compressedSize: number
+  ): number {
+    const chunk: ChunkedData = {
+      metadata: {
+        uploadId,
+        chunkIndex: Math.max(0, totalChunks - 1),
+        totalChunks,
+        originalSize,
+        compressedSize,
+      },
+      data: 'A'.repeat(this.estimateBase64Size(chunkSize)),
+    };
+
+    return new TextEncoder().encode(JSON.stringify(chunk)).length;
+  }
+
+  private estimateBase64Size(byteLength: number): number {
+    return Math.ceil(byteLength / 3) * 4;
+  }
+
+  private isRetryableError(error: Error): boolean {
+    const message = error.message.toLowerCase();
+    return !(
+      message.includes('413') ||
+      message.includes('payload too large') ||
+      message.includes('400') ||
+      message.includes('401') ||
+      message.includes('403') ||
+      message.includes('404')
+    );
   }
 }

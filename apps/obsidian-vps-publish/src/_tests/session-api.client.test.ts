@@ -18,7 +18,7 @@ describe('SessionApiClient', () => {
     jest.resetAllMocks();
   });
 
-  it('utilise la valeur maxBytesPerRequest renvoyée ou le fallback', async () => {
+  it('uses the strictest request size limit between client and server', async () => {
     const requestUrl = jest.fn().mockResolvedValue({
       status: 200,
       headers: {},
@@ -40,10 +40,34 @@ describe('SessionApiClient', () => {
     });
 
     expect(res.sessionId).toBe('s1');
-    expect(res.maxBytesPerRequest).toBeGreaterThan(0);
+    expect(res.maxBytesPerRequest).toBe(1024);
   });
 
-  it('transmet le flag de déduplication au démarrage de session', async () => {
+  it('accepts a smaller server limit than the plugin requested', async () => {
+    const requestUrl = jest.fn().mockResolvedValue({
+      status: 200,
+      headers: {},
+      text: JSON.stringify({ sessionId: 's1', maxBytesPerRequest: 512 }),
+    });
+    const handler = {
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValue(responseOk('{"sessionId":"s1","maxBytesPerRequest":512}')),
+    };
+    jest.doMock('obsidian', () => ({ requestUrl }));
+
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, mockLogger());
+    const res = await client.startSession({
+      notesPlanned: 1,
+      assetsPlanned: 0,
+      maxBytesPerRequest: 1024,
+    });
+
+    expect(res.maxBytesPerRequest).toBe(512);
+  });
+
+  it('passes the deduplication flag when starting a session', async () => {
     const requestUrl = jest.fn().mockResolvedValue({
       status: 200,
       headers: {},
@@ -72,7 +96,7 @@ describe('SessionApiClient', () => {
     );
   });
 
-  it('uploadNotes lève en cas d’erreur', async () => {
+  it('throws when uploadNotes fails', async () => {
     const requestUrl = jest.fn().mockResolvedValue({ status: 500, headers: {}, text: 'err' });
     const handler = {
       handleResponseAsync: jest.fn().mockResolvedValue({ isError: true, error: new Error('fail') }),
@@ -85,7 +109,7 @@ describe('SessionApiClient', () => {
     await expect(client.uploadNotes('s1', [])).rejects.toThrow('fail');
   });
 
-  it('abortSession utilise le bon endpoint', async () => {
+  it('uses the correct abortSession endpoint', async () => {
     const requestUrl = jest.fn().mockResolvedValue({ status: 200, headers: {}, text: '{}' });
     const handler = {
       handleResponseAsync: jest.fn().mockResolvedValue({ isError: false, text: '{}' }),
