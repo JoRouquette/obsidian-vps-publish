@@ -1,3 +1,9 @@
+## [6.18.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.18.0...6.18.1) (2026-03-24)
+
+### Bug Fixes
+
+* **upload:** enforce effective request size limits ([1121239](https://github.com/JoRouquette/obsidian-vps-publish/commit/1121239152565a7799f5d08584eaad3fe2af301e))
+
 ## [6.18.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.17.0...6.18.0) (2026-03-24)
 
 ### Features
