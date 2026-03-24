@@ -26,6 +26,7 @@ export class CreateSessionHandler implements CommandHandler<
     const startTime = Date.now();
     const sessionId = this.idGenerator.generateId();
     const logger = this.logger?.child({ sessionId });
+    const deduplicationEnabled = command.deduplicationEnabled !== false;
 
     const now = new Date();
 
@@ -44,6 +45,8 @@ export class CreateSessionHandler implements CommandHandler<
       pipelineSignature: command.pipelineSignature, // PHASE 7: Store for later injection into manifest
       locale: command.locale, // Store locale for manifest generation
     };
+    (session as Session & { deduplicationEnabled?: boolean }).deduplicationEnabled =
+      deduplicationEnabled;
 
     await this.sessionRepository.create(session);
 
@@ -52,7 +55,7 @@ export class CreateSessionHandler implements CommandHandler<
     let existingNoteHashes: Record<string, string> | undefined;
     let pipelineChanged: boolean | undefined;
 
-    if (this.manifestStorage) {
+    if (this.manifestStorage && deduplicationEnabled) {
       try {
         const manifest: Manifest | null = await this.manifestStorage.load();
         if (manifest) {
@@ -116,6 +119,9 @@ export class CreateSessionHandler implements CommandHandler<
         // Manifest doesn't exist yet or can't be loaded - that's fine
         logger?.debug('No existing manifest found (first publish)', { error: err });
       }
+    } else if (!deduplicationEnabled) {
+      pipelineChanged = true;
+      logger?.info('Deduplication disabled, skipping manifest hash extraction');
     }
 
     const duration = Date.now() - startTime;
@@ -127,12 +133,14 @@ export class CreateSessionHandler implements CommandHandler<
       existingAssetHashesCount: existingAssetHashes?.length ?? 0,
       existingNoteHashesCount: existingNoteHashes ? Object.keys(existingNoteHashes).length : 0,
       pipelineChanged: pipelineChanged ?? 'unknown',
+      deduplicationEnabled,
       durationMs: duration,
     });
 
     return {
       sessionId,
       success: true,
+      deduplicationEnabled,
       existingAssetHashes,
       existingNoteHashes,
       pipelineChanged,

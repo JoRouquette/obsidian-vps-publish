@@ -16,6 +16,14 @@ describe('LeafletRuntimeService', () => {
         route: '/worlds/ektaron',
         publishedAt: new Date('2026-03-22T00:00:00.000Z'),
       },
+      {
+        id: 'page-2',
+        title: 'Luminara (V)',
+        aliases: ['Luminara'],
+        slug: Slug.from('luminara-v'),
+        route: '/anorin-sirdalea/amel-fass/luminara-v',
+        publishedAt: new Date('2026-03-22T00:00:00.000Z'),
+      },
     ],
   };
 
@@ -67,13 +75,25 @@ describe('LeafletRuntimeService', () => {
     );
   });
 
-  it('falls back to a slug-like internal path when no manifest page matches a bare note title', () => {
+  it('resolves alias-based marker links using the same canonical resolver as Node', () => {
+    const service = TestBed.inject(LeafletRuntimeService);
+
+    expect(service.resolveMarkerLink('Luminara')).toEqual({
+      href: '/anorin-sirdalea/amel-fass/luminara-v',
+      external: false,
+      text: 'Luminara (V)',
+    });
+  });
+
+  it('keeps unresolved marker links unresolved instead of guessing a route', () => {
     const service = TestBed.inject(LeafletRuntimeService);
 
     expect(service.resolveMarkerLink('Unknown Note')).toEqual({
-      href: '/unknown-note',
+      href: '',
       external: false,
       text: 'Unknown Note',
+      unresolved: true,
+      unresolvedReason: 'not-found',
     });
   });
 

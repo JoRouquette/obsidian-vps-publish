@@ -14,7 +14,11 @@ import {
   SimpleChanges,
   ViewChild,
 } from '@angular/core';
-import type { LeafletBlock, LeafletImageOverlay } from '@core-domain';
+import {
+  UNAVAILABLE_INTERNAL_PAGE_MESSAGE,
+  type LeafletBlock,
+  type LeafletImageOverlay,
+} from '@core-domain';
 
 import { LeafletRuntimeService } from '../../../application/services/leaflet-runtime.service';
 import type {
@@ -591,10 +595,14 @@ export class LeafletMapComponent implements AfterViewInit, OnChanges, OnDestroy 
       if (marker.link) {
         const resolvedLink = this.runtimeService.resolveMarkerLink(marker.link);
         if (resolvedLink) {
-          const href = this.escapeHtml(resolvedLink.href);
           const text = this.escapeHtml(resolvedLink.text);
-          const attrs = resolvedLink.external ? ' target="_blank" rel="noopener"' : '';
-          const linkHtml = `<a href="${href}"${attrs}>${text}</a>`;
+          const linkHtml = resolvedLink.unresolved
+            ? `<span class="wikilink wikilink-unresolved" title="${this.escapeHtml(
+                resolvedLink.unresolvedReason ?? UNAVAILABLE_INTERNAL_PAGE_MESSAGE
+              )}">${text}</span>`
+            : `<a href="${this.escapeHtml(resolvedLink.href)}"${
+                resolvedLink.external ? ' target="_blank" rel="noopener"' : ''
+              }>${text}</a>`;
           popupContent = popupContent ? `${popupContent}<br>${linkHtml}` : linkHtml;
         }
       }

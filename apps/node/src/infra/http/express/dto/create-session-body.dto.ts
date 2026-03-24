@@ -36,4 +36,5 @@ export const CreateSessionBodyDto = z.object({
    * Resolved from plugin settings (en/fr/system → en/fr).
    */
   locale: z.enum(['en', 'fr']).optional(),
+  deduplicationEnabled: z.boolean().optional(),
 });

@@ -2,6 +2,7 @@ import { isPlatformBrowser, ViewportScroller } from '@angular/common';
 import { DestroyRef, Inject, Injectable, NgZone, PLATFORM_ID } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
+import { parseInternalHref } from '@core-domain';
 import { filter } from 'rxjs';
 
 /**
@@ -139,28 +140,27 @@ export class AnchorScrollService {
       return false;
     }
 
-    // Fragment-only link
-    if (href.startsWith('#')) {
-      return true;
+    const parsed = parseInternalHref(
+      href,
+      globalThis.location.pathname,
+      globalThis.location.search
+    );
+    if (!parsed) {
+      return false;
     }
 
-    // Parse the href
-    const [path] = href.split('#');
-    const currentPath = globalThis.location.pathname;
-
-    // Normalize paths for comparison
-    const normalizedHref = path.replace(/\/+$/, '') || '/';
-    const normalizedCurrent = currentPath.replace(/\/+$/, '') || '/';
-
-    return normalizedHref === normalizedCurrent;
+    const currentPath = globalThis.location.pathname.replace(/\/+$/, '') || '/';
+    return parsed.path === currentPath && parsed.search === (globalThis.location.search || '');
   }
 
   /**
    * Extract fragment from URL
    */
   private extractFragment(url: string): string | null {
-    const hashIndex = url.indexOf('#');
-    return hashIndex >= 0 ? url.substring(hashIndex + 1) : null;
+    return (
+      parseInternalHref(url, globalThis.location.pathname, globalThis.location.search)?.fragment ??
+      null
+    );
   }
 
   /**

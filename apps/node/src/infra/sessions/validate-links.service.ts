@@ -66,7 +66,8 @@ export class ValidateLinksService {
           originalHtml,
           manifest.pages,
           currentRoutePath,
-          log
+          log,
+          (manifest as { folderDisplayNames?: Record<string, string> }).folderDisplayNames
         );
 
         // Only write if content changed
@@ -129,7 +130,8 @@ export class ValidateLinksService {
     html: string,
     pages: ManifestPage[],
     currentRoutePath: string,
-    log?: LoggerPort
+    log?: LoggerPort,
+    folderDisplayNames?: Record<string, string>
   ): string {
     const $ = cheerio.load(html);
     let linksProcessed = 0;
@@ -138,9 +140,10 @@ export class ValidateLinksService {
     $('a').each((_, el) => {
       const $el = $(el);
       const href = $el.attr('href');
+      const dataHref = $el.attr('data-href');
       const dataWikilink = $el.attr('data-wikilink');
 
-      if (!href && !dataWikilink) {
+      if (!href && !dataHref && !dataWikilink) {
         return;
       }
 
@@ -158,23 +161,41 @@ export class ValidateLinksService {
       }
 
       const hrefResolution = href
-        ? this.resolveLinkCandidate(href, pages, currentRoutePath, log)
+        ? this.resolveLinkCandidate(href, pages, currentRoutePath, log, folderDisplayNames)
+        : undefined;
+      const dataHrefResolution = dataHref
+        ? this.resolveLinkCandidate(dataHref, pages, currentRoutePath, log, folderDisplayNames)
         : undefined;
       const wikilinkResolution = dataWikilink
         ? this.resolveLinkCandidate(
             this.normalizeWikilinkTarget(dataWikilink),
             pages,
             currentRoutePath,
-            log
+            log,
+            folderDisplayNames
           )
         : undefined;
-      const resolved = hrefResolution?.page ? hrefResolution : wikilinkResolution;
+      const resolved = hrefResolution?.page
+        ? hrefResolution
+        : dataHrefResolution?.page
+          ? dataHrefResolution
+          : wikilinkResolution;
 
       if (resolved?.page) {
-        const correctHref = this.buildResolvedHref(resolved.page.route, resolved.fragment);
+        const correctHref = this.buildResolvedHref(
+          resolved.page.route,
+          resolved.query,
+          resolved.fragmentCanonical ??
+            (resolved.fragment ? this.normalizeFragment(resolved.fragment) : undefined)
+        );
 
         if ($el.attr('href') !== correctHref) {
           $el.attr('href', correctHref);
+          linksTransformed++;
+        }
+
+        if (dataHref && $el.attr('data-href') !== correctHref) {
+          $el.attr('data-href', correctHref);
           linksTransformed++;
         }
 
@@ -216,13 +237,73 @@ export class ValidateLinksService {
         return;
       }
 
-      const href = resolved.fragment
-        ? this.buildResolvedHref(resolved.page.route, resolved.fragment)
-        : this.encodeInternalHref(resolved.page.route);
+      const href =
+        resolved.fragment || resolved.query
+          ? this.buildResolvedHref(
+              resolved.page.route,
+              resolved.query,
+              resolved.fragmentCanonical ??
+                (resolved.fragment ? this.normalizeFragment(resolved.fragment) : undefined)
+            )
+          : this.encodeInternalHref(resolved.page.route);
       const classNames = ($el.attr('class') || '')
         .split(/\s+/)
         .filter(Boolean)
-        .filter((cls) => cls !== 'wikilink-unresolved');
+        .filter((cls) => cls !== 'wikilink-unresolved' && cls !== 'fm-wikilink-unresolved');
+
+      if (!classNames.includes('wikilink')) {
+        classNames.push('wikilink');
+      }
+
+      const $anchor = $('<a></a>');
+      $anchor.attr('href', href);
+      $anchor.attr('data-wikilink', normalizedTarget);
+      $anchor.attr('class', classNames.join(' '));
+      $anchor.html($el.html() || this.escapeHtml($el.text()));
+
+      $el.replaceWith($anchor);
+      linksTransformed++;
+    });
+
+    $('.wikilink-unresolved, .fm-wikilink-unresolved').each((_, el) => {
+      const $el = $(el);
+      if ($el.is('a') || $el.attr('data-wikilink')) {
+        return;
+      }
+
+      const rawTarget = ($el.text() || '').trim();
+      if (!rawTarget) {
+        return;
+      }
+
+      linksProcessed++;
+
+      const normalizedTarget = this.normalizeWikilinkTarget(rawTarget);
+      const resolved = this.resolveLinkCandidate(
+        normalizedTarget,
+        pages,
+        currentRoutePath,
+        log,
+        folderDisplayNames
+      );
+      if (!resolved.page) {
+        this.normalizeUnavailableWikilinkElement($el, normalizedTarget);
+        return;
+      }
+
+      const href =
+        resolved.fragment || resolved.query
+          ? this.buildResolvedHref(
+              resolved.page.route,
+              resolved.query,
+              resolved.fragmentCanonical ??
+                (resolved.fragment ? this.normalizeFragment(resolved.fragment) : undefined)
+            )
+          : this.encodeInternalHref(resolved.page.route);
+      const classNames = ($el.attr('class') || '')
+        .split(/\s+/)
+        .filter(Boolean)
+        .filter((cls) => cls !== 'wikilink-unresolved' && cls !== 'fm-wikilink-unresolved');
 
       if (!classNames.includes('wikilink')) {
         classNames.push('wikilink');
@@ -256,9 +337,15 @@ export class ValidateLinksService {
     rawValue: string,
     pages: ManifestPage[],
     currentRoutePath: string,
-    log?: LoggerPort
-  ): { page?: ManifestPage; fragment?: string } {
-    const resolved = resolveManifestLinkCandidate(rawValue, pages, currentRoutePath);
+    log?: LoggerPort,
+    folderDisplayNames?: Record<string, string>
+  ): { page?: ManifestPage; query?: string; fragment?: string; fragmentCanonical?: string } {
+    const resolved = resolveManifestLinkCandidate(
+      rawValue,
+      pages,
+      currentRoutePath,
+      folderDisplayNames
+    );
 
     if (resolved.ambiguousCandidates?.length) {
       log?.warn('Ambiguous internal link left unresolved during post-build validation', {
@@ -269,7 +356,9 @@ export class ValidateLinksService {
 
     return {
       page: resolved.page,
+      query: resolved.query,
       fragment: resolved.fragment,
+      fragmentCanonical: resolved.fragmentCanonical,
     };
   }
 
@@ -283,9 +372,9 @@ export class ValidateLinksService {
     return withoutExtension ? `/${withoutExtension}` : '/';
   }
 
-  private buildResolvedHref(route: string, fragment?: string): string {
-    const normalizedFragment = fragment ? `#${this.normalizeFragment(fragment)}` : '';
-    return this.encodeInternalHref(`${route}${normalizedFragment}`);
+  private buildResolvedHref(route: string, query?: string, fragment?: string): string {
+    const normalizedFragment = fragment ? `#${fragment}` : '';
+    return this.encodeInternalHref(`${route}${query ?? ''}${normalizedFragment}`);
   }
 
   private normalizeFragment(fragment: string): string {

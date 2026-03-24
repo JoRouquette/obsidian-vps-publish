@@ -494,6 +494,121 @@ describe('ValidateLinksService', () => {
       expect(fixedHtml).toContain('href="/mundis/ektaron"');
     });
 
+    it('should resolve alias-based internal links to an existing published page instead of marking them unresolved', async () => {
+      const manifest = {
+        pages: [
+          ...createMockManifest().pages,
+          {
+            id: 'page-4',
+            vaultPath: 'Anorin Sirdalea/Amel Fass/Luminara (V)/Luminara (V).md',
+            relativePath: 'Amel Fass/Luminara (V)/Luminara (V).md',
+            aliases: ['Luminara'],
+            route: '/anorin-sirdalea/amel-fass/luminara-v',
+            slug: { value: 'luminara-v' },
+            title: 'Luminara (V)',
+            folders: ['Amel Fass', 'Luminara (V)'],
+            publishedAt: new Date(),
+          } as ManifestPage,
+        ],
+      };
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <p><a href="Luminara">Luminara</a></p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const htmlPath = path.join(tempDir, 'test.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      await service.validateAllLinks(tempDir, manifest);
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      expect(fixedHtml).toContain('href="/anorin-sirdalea/amel-fass/luminara-v"');
+      expect(fixedHtml).not.toContain('wikilink-unresolved');
+    });
+
+    it('should recover unresolved spans without data-wikilink when their visible text matches a published page title', async () => {
+      const manifest = {
+        pages: [
+          ...createMockManifest().pages,
+          {
+            id: 'page-4',
+            vaultPath: '_Mecaniques/Magie des sceaux — Arakishib — Arakišib.md',
+            relativePath: '_Mecaniques/Magie des sceaux — Arakishib — Arakišib.md',
+            route: '/lore/arali/arakishib/index',
+            slug: { value: 'index' },
+            title: 'Magie des sceaux — Arakishib — Arakišib',
+            publishedAt: new Date(),
+          } as ManifestPage,
+        ],
+      };
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <ul class="index-list">
+                <li><span class="wikilink wikilink-unresolved" title="Page inconnue : Magie des sceaux — Arakishib — Arakišib">Magie des sceaux — Arakishib — Arakišib</span></li>
+              </ul>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const htmlPath = path.join(tempDir, 'test.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      await service.validateAllLinks(tempDir, manifest);
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      expect(fixedHtml).toContain('href="/lore/arali/arakishib/index"');
+      expect(fixedHtml).toContain('data-wikilink="Magie des sceaux — Arakishib — Arakišib"');
+      expect(fixedHtml).not.toContain('wikilink-unresolved');
+    });
+
+    it('should resolve anchors using data-href when href is missing', async () => {
+      const manifest = {
+        pages: [
+          ...createMockManifest().pages,
+          {
+            id: 'page-4',
+            vaultPath: 'Anorin Sirdalea/Amel Fass/Luminara (V)/Luminara (V).md',
+            relativePath: 'Amel Fass/Luminara (V)/Luminara (V).md',
+            aliases: ['Luminara'],
+            route: '/anorin-sirdalea/amel-fass/luminara-v',
+            slug: { value: 'luminara-v' },
+            title: 'Luminara (V)',
+            publishedAt: new Date(),
+          } as ManifestPage,
+        ],
+      };
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <p><a data-href="Luminara">Luminara</a></p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const htmlPath = path.join(tempDir, 'test.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      await service.validateAllLinks(tempDir, manifest);
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      expect(fixedHtml).toContain('href="/anorin-sirdalea/amel-fass/luminara-v"');
+      expect(fixedHtml).toContain('data-href="/anorin-sirdalea/amel-fass/luminara-v"');
+      expect(fixedHtml).not.toContain('wikilink-unresolved');
+    });
+
     it('should not modify files without invalid links', async () => {
       const manifest = createMockManifest();
 
@@ -556,6 +671,81 @@ describe('ValidateLinksService', () => {
       expect($('a[href="/mundis/index"]').length).toBe(1);
       expect($('a[href="/lore/index"]').length).toBe(1);
       expect($('a[href="/pantheon/index"]').length).toBe(1);
+    });
+
+    it('should resolve links to generated folder indexes that are servable but not present in manifest.pages', async () => {
+      const manifest = {
+        pages: [
+          {
+            id: 'page-1',
+            vaultPath: '_Codex/Puissances/Divinités/Astraea.md',
+            relativePath: 'Astraea.md',
+            route: '/lore/pantheon/astraea',
+            slug: { value: 'astraea' },
+            title: 'Astraea',
+            publishedAt: new Date(),
+          } as ManifestPage,
+        ],
+        folderDisplayNames: {
+          '/lore/pantheon': 'Panthéon',
+        },
+      };
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <p><a href="Panthéon">Panthéon</a></p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const htmlPath = path.join(tempDir, 'test.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      await service.validateAllLinks(tempDir, manifest);
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      expect(fixedHtml).toContain('href="/lore/pantheon/index"');
+      expect(fixedHtml).not.toContain('wikilink-unresolved');
+    });
+
+    it('should recover legacy frontmatter unresolved spans without data-wikilink when their text matches a published page', async () => {
+      const manifest = {
+        pages: [
+          ...createMockManifest().pages,
+          {
+            id: 'page-4',
+            vaultPath: 'Pantheon/Luminara.md',
+            relativePath: 'Pantheon/Luminara.md',
+            route: '/lore/pantheon/luminara',
+            slug: { value: 'luminara' },
+            title: 'Luminara',
+            publishedAt: new Date(),
+          } as ManifestPage,
+        ],
+      };
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <div class="fm-array"><span class="fm-value"><span class="fm-value fm-wikilink-unresolved">Luminara</span></span></div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const htmlPath = path.join(tempDir, 'test.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      await service.validateAllLinks(tempDir, manifest);
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      expect(fixedHtml).toContain('href="/lore/pantheon/luminara"');
+      expect(fixedHtml).not.toContain('fm-wikilink-unresolved');
+      expect(fixedHtml).not.toContain('wikilink-unresolved');
     });
 
     it('should handle empty directories gracefully', async () => {

@@ -24,7 +24,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
 import { DomSanitizer } from '@angular/platform-browser';
 import { Router } from '@angular/router';
-import type { LeafletBlock, ManifestPage } from '@core-domain';
+import { parseInternalHref, type LeafletBlock, type ManifestPage } from '@core-domain';
 import { from } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
@@ -33,6 +33,7 @@ import { ConfigFacade } from '../../../application/facades/config-facade';
 import type { ContentRepository } from '../../../domain/ports/content-repository.port';
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
 import { LeafletMapComponent } from '../../components/leaflet-map/leaflet-map.component';
+import { AnchorScrollService } from '../../services/anchor-scroll.service';
 import type { LeafletLogSink } from '../../services/leaflet-injection.service';
 import { LeafletInjectionService } from '../../services/leaflet-injection.service';
 
@@ -83,6 +84,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     @Inject(CONTENT_REPOSITORY) private readonly contentRepo: ContentRepository,
     private readonly sanitizer: DomSanitizer,
     private readonly router: Router,
+    private readonly anchorScrollService: AnchorScrollService,
     private readonly environmentInjector: EnvironmentInjector
   ) {
     // Effect pour décorer les liens après chargement du HTML
@@ -148,11 +150,21 @@ export class HomeComponent implements OnInit, OnDestroy {
     const href = link.getAttribute('href');
     if (!href) return;
 
-    const isExternal = /^[a-z]+:\/\//i.test(href) || href.startsWith('mailto:');
-    if (isExternal) return;
+    const parsed = parseInternalHref(
+      href,
+      globalThis.location.pathname,
+      globalThis.location.search
+    );
+    if (!parsed) return;
 
     event.preventDefault();
-    void this.router.navigateByUrl(href);
+
+    if (parsed.fragment && this.anchorScrollService.isCurrentPageLink(href)) {
+      void this.anchorScrollService.navigateToAnchor(parsed.fragment);
+      return;
+    }
+
+    void this.router.navigateByUrl(parsed.normalizedHref);
   }
 
   private shouldIgnoreDecoratedInternalLink(link: HTMLAnchorElement): boolean {

@@ -251,6 +251,19 @@ describe('AnchorScrollService', () => {
       expect(service.isCurrentPageLink('#section')).toBe(true);
       expect(service.isCurrentPageLink('/other#section')).toBe(false);
     });
+
+    it('should treat query params as part of same-page detection', () => {
+      Object.defineProperty(globalThis, 'location', {
+        value: { pathname: '/my-page', search: '?tab=overview', hash: '' },
+        writable: true,
+        configurable: true,
+      });
+
+      const service = createService();
+
+      expect(service.isCurrentPageLink('/my-page?tab=overview#section')).toBe(true);
+      expect(service.isCurrentPageLink('/my-page?tab=details#section')).toBe(false);
+    });
   });
 
   describe('router integration', () => {

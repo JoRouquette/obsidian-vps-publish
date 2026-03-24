@@ -44,11 +44,36 @@ describe('CreateSessionHandler', () => {
         updatedAt: expect.any(Date),
       })
     );
-    expect(result).toEqual({ sessionId: 'session-123', success: true });
+    expect(result).toMatchObject({
+      sessionId: 'session-123',
+      success: true,
+      deduplicationEnabled: true,
+    });
     const infoLogs = logger.getByLevel('info');
     expect(infoLogs).toHaveLength(1);
     expect(infoLogs[0].message).toBe('Session created successfully');
     expect(infoLogs[0].meta).toMatchObject({ sessionId: 'session-123' });
+  });
+
+  it('should persist deduplicationEnabled=false on the session', async () => {
+    const command: CreateSessionCommand = {
+      notesPlanned: 5,
+      assetsPlanned: 2,
+      batchConfig: {
+        maxBytesPerRequest: 10,
+      },
+      deduplicationEnabled: false,
+    };
+
+    const result = await handler.handle(command);
+
+    expect(sessionRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deduplicationEnabled: false,
+      })
+    );
+    expect(result.deduplicationEnabled).toBe(false);
+    expect(result.pipelineChanged).toBe(true);
   });
 
   it('should handle missing logger gracefully', async () => {
@@ -60,9 +85,10 @@ describe('CreateSessionHandler', () => {
         maxBytesPerRequest: 10,
       },
     };
-    await expect(handler.handle(command)).resolves.toEqual({
+    await expect(handler.handle(command)).resolves.toMatchObject({
       sessionId: 'session-123',
       success: true,
+      deduplicationEnabled: true,
     });
     // No logger methods should be called
   });
@@ -104,6 +130,31 @@ describe('CreateSessionHandler', () => {
         rebuildIndex: jest.fn(),
       } as any;
       handler = new CreateSessionHandler(idGenerator, sessionRepository, manifestStorage, logger);
+    });
+
+    it('should skip manifest hash extraction when deduplication is disabled', async () => {
+      manifestStorage.load.mockResolvedValue({
+        sessionId: 'prev-session',
+        createdAt: new Date('2024-01-01'),
+        lastUpdatedAt: new Date('2024-01-01'),
+        pages: [],
+        assets: [],
+      } as Manifest);
+
+      const command: CreateSessionCommand = {
+        notesPlanned: 1,
+        assetsPlanned: 1,
+        batchConfig: { maxBytesPerRequest: 10 },
+        deduplicationEnabled: false,
+      };
+
+      const result = await handler.handle(command);
+
+      expect(manifestStorage.load).not.toHaveBeenCalled();
+      expect(result.deduplicationEnabled).toBe(false);
+      expect(result.existingAssetHashes).toBeUndefined();
+      expect(result.existingNoteHashes).toBeUndefined();
+      expect(result.pipelineChanged).toBe(true);
     });
 
     it('should return existingNoteHashes when pipeline signature is identical', async () => {

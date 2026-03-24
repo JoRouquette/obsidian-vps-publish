@@ -15,4 +15,5 @@ export interface CreateSessionCommand {
    * Resolved from plugin settings (en/fr/system → en/fr).
    */
   locale?: SiteLocale;
+  deduplicationEnabled?: boolean;
 }

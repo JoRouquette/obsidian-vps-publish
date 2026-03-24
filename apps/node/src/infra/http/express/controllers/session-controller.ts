@@ -63,6 +63,7 @@ export function createSessionController(
         folderDisplayNames,
         pipelineSignature,
         locale,
+        deduplicationEnabled,
       } = parsed.data;
       if (typeof notesPlanned !== 'number' || typeof assetsPlanned !== 'number') {
         routeLogger?.warn('Missing required fields for session creation', {
@@ -85,6 +86,7 @@ export function createSessionController(
         folderDisplayNames,
         pipelineSignature,
         locale,
+        deduplicationEnabled,
       };
 
       try {
@@ -105,6 +107,7 @@ export function createSessionController(
           existingAssetHashes: result.existingAssetHashes ?? [],
           existingNoteHashes: result.existingNoteHashes ?? {},
           pipelineChanged: result.pipelineChanged,
+          deduplicationEnabled: result.deduplicationEnabled ?? true,
         });
       } catch (err) {
         routeLogger?.error('Error while creating session', {
@@ -184,12 +187,14 @@ export function createSessionController(
         return res.status(400).json({ status: 'invalid_payload' });
       }
 
-      const command: UploadAssetsCommand = {
-        sessionId: req.params.sessionId,
-        assets: parsed.data.assets,
-      };
-
       try {
+        const session = await sessionRepository.findById(req.params.sessionId);
+        const command: UploadAssetsCommand = {
+          sessionId: req.params.sessionId,
+          assets: parsed.data.assets,
+          deduplicationEnabled: session?.deduplicationEnabled !== false,
+        };
+
         routeLogger?.debug('Publishing assets batch', {
           sessionId: req.params.sessionId,
           count: parsed.data.assets.length,
@@ -208,7 +213,6 @@ export function createSessionController(
 
         // If any assets were renamed (e.g., .png → .webp), save mappings to session
         if (result.renamedAssets && Object.keys(result.renamedAssets).length > 0) {
-          const session = await sessionRepository.findById(req.params.sessionId);
           if (session) {
             // Merge with existing mappings (multiple batches may add more)
             const existingMappings = session.assetPathMappings ?? {};

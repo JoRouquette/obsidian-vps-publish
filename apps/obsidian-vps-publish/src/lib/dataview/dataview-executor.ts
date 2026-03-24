@@ -23,6 +23,8 @@
  * ```
  */
 
+import path from 'node:path';
+
 import type { DataviewBlock } from '@core-domain/dataview/dataview-block';
 import type { Component } from 'obsidian';
 
@@ -56,7 +58,12 @@ export interface ObsidianApp {
   workspace: {
     getActiveFile(): { path: string } | null;
   };
+  vault?: {
+    adapter?: unknown;
+  };
 }
+
+type RequireLike = typeof require;
 
 /**
  * Dataview query result value (from Dataview API).
@@ -176,8 +183,16 @@ export class DataviewExecutor {
         registerInterval: () => 0,
       } as unknown as Component;
 
-      // Execute the JavaScript
-      await this.dataviewApi.executeJs(code, container, component, filePath);
+      // Execute the JavaScript.
+      // Legacy DataviewJS views in some vaults still use require("//_assets/..."),
+      // which Electron treats as an invalid absolute module path. During publishing,
+      // shim require() so these old-style vault-root imports still resolve.
+      const restoreRequire = this.installVaultRootRequireShim();
+      try {
+        await this.dataviewApi.executeJs(code, container, component, filePath);
+      } finally {
+        restoreRequire?.();
+      }
 
       // Wait for DOM updates to complete (Dataview may render asynchronously)
       const maxWaitMs = 500;
@@ -256,5 +271,101 @@ export class DataviewExecutor {
     }
 
     return count;
+  }
+
+  private installVaultRootRequireShim(): (() => void) | null {
+    const basePath = this.getVaultBasePath();
+    if (!basePath) {
+      return null;
+    }
+
+    const globalScope = globalThis as typeof globalThis & {
+      require?: RequireLike;
+      window?: Window & { require?: RequireLike };
+    };
+
+    const originalRequire =
+      typeof globalScope.require === 'function'
+        ? globalScope.require
+        : typeof globalScope.window?.require === 'function'
+          ? globalScope.window.require
+          : null;
+
+    if (!originalRequire) {
+      return null;
+    }
+
+    const wrappedRequire = ((request: string) => {
+      if (this.isLegacyVaultRootRequire(request)) {
+        const vaultRelativePath = request.replace(/^\/+/, '').replace(/[\\/]+/g, path.sep);
+        return originalRequire(path.join(basePath, vaultRelativePath));
+      }
+
+      return originalRequire(request);
+    }) as RequireLike;
+
+    wrappedRequire.resolve = originalRequire.resolve?.bind(originalRequire);
+    wrappedRequire.cache = originalRequire.cache;
+    wrappedRequire.extensions = originalRequire.extensions;
+    wrappedRequire.main = originalRequire.main;
+
+    const previousGlobalRequire = globalScope.require;
+    const previousWindowRequire = globalScope.window?.require;
+
+    globalScope.require = wrappedRequire;
+    if (globalScope.window) {
+      globalScope.window.require = wrappedRequire;
+    }
+
+    return () => {
+      if (previousGlobalRequire) {
+        globalScope.require = previousGlobalRequire;
+      } else {
+        Reflect.deleteProperty(globalScope, 'require');
+      }
+
+      if (globalScope.window) {
+        if (previousWindowRequire) {
+          globalScope.window.require = previousWindowRequire;
+        } else {
+          Reflect.deleteProperty(globalScope.window, 'require');
+        }
+      }
+    };
+  }
+
+  private getVaultBasePath(): string | null {
+    const adapter = this.app.vault?.adapter as
+      | {
+          getBasePath?: () => string;
+          basePath?: string;
+        }
+      | undefined;
+    if (!adapter) {
+      return null;
+    }
+
+    if (typeof adapter.getBasePath === 'function') {
+      const value = adapter.getBasePath();
+      return typeof value === 'string' && value.trim().length > 0 ? value : null;
+    }
+
+    if (typeof adapter.basePath === 'string' && adapter.basePath.trim().length > 0) {
+      return adapter.basePath;
+    }
+
+    return null;
+  }
+
+  private isLegacyVaultRootRequire(request: string): boolean {
+    if (typeof request !== 'string') {
+      return false;
+    }
+
+    if (!request.startsWith('/')) {
+      return false;
+    }
+
+    return !/^[a-zA-Z]+:/.test(request);
   }
 }
