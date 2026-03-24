@@ -1,183 +1,113 @@
-import path from 'node:path';
-
 import type { ManifestPage } from '@core-domain';
-
-function safeDecodeURIComponent(value: string): string {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-}
-
-function normalizeComparablePath(value: string): string {
-  return safeDecodeURIComponent(value)
-    .replace(/\.md(?=#|$)/i, '')
-    .replace(/\\/g, '/')
-    .replace(/(^|\/)\.\//g, '$1')
-    .replace(/\/{2,}/g, '/')
-    .replace(/^\/+|\/+$/g, '')
-    .trim()
-    .toLowerCase();
-}
-
-function splitLinkTarget(rawValue: string): { basePath: string; fragment?: string } {
-  const hashIndex = rawValue.indexOf('#');
-  return {
-    basePath: hashIndex >= 0 ? rawValue.slice(0, hashIndex) : rawValue,
-    fragment: hashIndex >= 0 ? rawValue.slice(hashIndex + 1) || undefined : undefined,
-  };
-}
-
-function normalizeCurrentRoutePath(currentRoutePath: string): string {
-  const normalized = safeDecodeURIComponent(currentRoutePath)
-    .replace(/\\/g, '/')
-    .replace(/\.html$/i, '')
-    .replace(/^\/+|\/+$/g, '')
-    .trim();
-
-  return normalized ? `/${normalized}` : '/';
-}
-
-function resolveRelativeLinkTarget(
-  rawValue: string,
-  currentRoutePath?: string
-): { basePath: string; fragment?: string } {
-  const split = splitLinkTarget(rawValue);
-
-  if (!currentRoutePath || !/^(?:\.\.\/|\.\/)/.test(split.basePath)) {
-    return split;
-  }
-
-  const currentDirectory = path.posix.dirname(normalizeCurrentRoutePath(currentRoutePath));
-  const resolvedBasePath = path.posix.normalize(path.posix.join(currentDirectory, split.basePath));
-
-  return {
-    basePath: resolvedBasePath,
-    fragment: split.fragment,
-  };
-}
-
-function getPageComparableKeys(page: ManifestPage): string[] {
-  const keys = new Set<string>();
-
-  const route = normalizeComparablePath(page.route);
-  if (route) {
-    keys.add(route);
-  }
-
-  if (page.relativePath) {
-    keys.add(normalizeComparablePath(page.relativePath));
-  }
-
-  if (page.vaultPath) {
-    keys.add(normalizeComparablePath(page.vaultPath));
-  }
-
-  if (page.slug?.value) {
-    keys.add(normalizeComparablePath(page.slug.value));
-  }
-
-  return Array.from(keys.values());
-}
-
-function collectUniqueMatches(
-  pages: ManifestPage[],
-  predicate: (page: ManifestPage, keys: string[]) => boolean
-): ManifestPage[] {
-  const matches = pages.filter((page) => predicate(page, getPageComparableKeys(page)));
-  return Array.from(new Map(matches.map((page) => [page.id, page])).values());
-}
+import {
+  type InternalLinkFragmentType,
+  type InternalLinkMatchSource,
+  normalizeManifestWikilinkTarget as normalizeSharedManifestWikilinkTarget,
+  resolveCanonicalInternalLink,
+} from '@core-domain';
 
 export interface ResolvedManifestLinkCandidate {
   page?: ManifestPage;
+  query?: string;
   fragment?: string;
+  fragmentCanonical?: string;
+  fragmentType?: InternalLinkFragmentType;
   normalizedBasePath: string;
+  matchSource?: InternalLinkMatchSource | null;
+  aliasMatched?: boolean;
+  unresolvedReason?: 'empty' | 'not-found' | 'ambiguous' | null;
   ambiguousCandidates?: ManifestPage[];
 }
 
 export function normalizeManifestWikilinkTarget(target: string): string {
-  return safeDecodeURIComponent(target)
-    .replace(/\.md(?=#|$)/i, '')
-    .replace(/^\/+/, '');
+  return normalizeSharedManifestWikilinkTarget(target).replace(/^\/+/, '');
+}
+
+function humanizeRouteSegment(segment: string): string {
+  if (!segment) {
+    return '';
+  }
+
+  const decoded = decodeURIComponent(segment).replace(/[-_]+/g, ' ').trim();
+  return decoded ? decoded.charAt(0).toUpperCase() + decoded.slice(1) : '';
+}
+
+function buildSyntheticFolderIndexPages(
+  pages: ManifestPage[],
+  folderDisplayNames?: Record<string, string>
+): ManifestPage[] {
+  const syntheticPages: ManifestPage[] = [];
+  const existingRoutes = new Set(pages.map((page) => page.route));
+  const seenRoutes = new Set<string>();
+
+  for (const page of pages) {
+    const segments = page.route.split('/').filter(Boolean);
+    let currentSegments: string[] = [];
+
+    for (let i = 0; i < segments.length - 1; i++) {
+      currentSegments = [...currentSegments, segments[i]];
+      const folderRoute = `/${currentSegments.join('/')}`;
+      const indexRoute = `${folderRoute}/index`;
+
+      if (existingRoutes.has(indexRoute) || seenRoutes.has(indexRoute)) {
+        continue;
+      }
+
+      const lastSegment = currentSegments[currentSegments.length - 1] ?? '';
+      const displayName = folderDisplayNames?.[folderRoute] ?? humanizeRouteSegment(lastSegment);
+      const relativePath = currentSegments.join('/');
+      const aliases = Array.from(
+        new Set([displayName, humanizeRouteSegment(lastSegment), decodeURIComponent(lastSegment)])
+      ).filter(Boolean);
+
+      syntheticPages.push({
+        id: `__generated-index__${folderRoute}`,
+        title: displayName || humanizeRouteSegment(lastSegment) || relativePath,
+        route: indexRoute,
+        slug: { value: 'index' } as ManifestPage['slug'],
+        publishedAt: new Date(0),
+        relativePath,
+        aliases: aliases.length > 0 ? aliases : undefined,
+        isCustomIndex: true,
+      });
+
+      seenRoutes.add(indexRoute);
+    }
+  }
+
+  return syntheticPages;
 }
 
 export function resolveManifestLinkCandidate(
   rawValue: string,
   pages: ManifestPage[],
-  currentRoutePath?: string
+  currentRoutePath?: string,
+  folderDisplayNames?: Record<string, string>
 ): ResolvedManifestLinkCandidate {
-  const split = resolveRelativeLinkTarget(rawValue, currentRoutePath);
-  const normalizedBasePath = normalizeComparablePath(split.basePath || rawValue);
-
-  if (!normalizedBasePath) {
-    return {
-      fragment: split.fragment,
-      normalizedBasePath,
-    };
-  }
-
-  const exactMatches = collectUniqueMatches(pages, (_page, keys) =>
-    keys.includes(normalizedBasePath)
-  );
-  if (exactMatches.length === 1) {
-    return {
-      page: exactMatches[0],
-      fragment: split.fragment,
-      normalizedBasePath,
-    };
-  }
-  if (exactMatches.length > 1) {
-    return {
-      fragment: split.fragment,
-      normalizedBasePath,
-      ambiguousCandidates: exactMatches,
-    };
-  }
-
-  if (normalizedBasePath.includes('/')) {
-    const tailMatches = collectUniqueMatches(pages, (_page, keys) =>
-      keys.some((key) => key.endsWith(`/${normalizedBasePath}`))
-    );
-
-    if (tailMatches.length === 1) {
-      return {
-        page: tailMatches[0],
-        fragment: split.fragment,
-        normalizedBasePath,
-      };
-    }
-    if (tailMatches.length > 1) {
-      return {
-        fragment: split.fragment,
-        normalizedBasePath,
-        ambiguousCandidates: tailMatches,
-      };
-    }
-  }
-
-  const basename = normalizedBasePath.split('/').pop() ?? normalizedBasePath;
-  const basenameMatches = collectUniqueMatches(pages, (_page, keys) =>
-    keys.some((key) => key === basename || key.endsWith(`/${basename}`))
-  );
-
-  if (basenameMatches.length === 1) {
-    return {
-      page: basenameMatches[0],
-      fragment: split.fragment,
-      normalizedBasePath,
-    };
-  }
-  if (basenameMatches.length > 1) {
-    return {
-      fragment: split.fragment,
-      normalizedBasePath,
-      ambiguousCandidates: basenameMatches,
-    };
-  }
-
+  const resolved = resolveCanonicalInternalLink(rawValue, pages, currentRoutePath);
+  const fallbackResolved =
+    !resolved.resolved && resolved.unresolvedReason === 'not-found'
+      ? resolveCanonicalInternalLink(
+          rawValue,
+          buildSyntheticFolderIndexPages(pages, folderDisplayNames),
+          currentRoutePath
+        )
+      : undefined;
+  const effectiveResolved =
+    fallbackResolved &&
+    (fallbackResolved.resolved || fallbackResolved.unresolvedReason === 'ambiguous')
+      ? fallbackResolved
+      : resolved;
   return {
-    fragment: split.fragment,
-    normalizedBasePath,
+    page: effectiveResolved.page,
+    query: effectiveResolved.query || undefined,
+    fragment: effectiveResolved.fragmentRaw ?? undefined,
+    fragmentCanonical: effectiveResolved.fragmentCanonical ?? undefined,
+    fragmentType: effectiveResolved.fragmentType ?? undefined,
+    normalizedBasePath: effectiveResolved.normalizedBasePath,
+    matchSource: effectiveResolved.matchSource,
+    aliasMatched: effectiveResolved.aliasMatched,
+    unresolvedReason: effectiveResolved.unresolvedReason,
+    ambiguousCandidates: effectiveResolved.ambiguousCandidates,
   };
 }

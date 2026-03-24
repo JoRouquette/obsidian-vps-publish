@@ -12,10 +12,16 @@
  * - cleanAndNormalizeLinks invalide ce lien
  */
 
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 import { Manifest, Slug } from '@core-domain';
 import { describe, expect, it } from '@jest/globals';
+import * as cheerio from 'cheerio';
 
 import { MarkdownItRenderer } from '../infra/markdown/markdown-it.renderer';
+import { ValidateLinksService } from '../infra/sessions/validate-links.service';
 
 describe('Bug: Wikilink avec header - [[Sens et capacités#Vision thermique]]', () => {
   let renderer: MarkdownItRenderer;
@@ -138,5 +144,45 @@ describe('Bug: Wikilink avec header - [[Sens et capacités#Vision thermique]]', 
     expect(result).toContain('<a');
     expect(result).toContain('href="/regles-de-la-table/sens-et-capacites#vision-thermique"');
     expect(result).not.toContain('wikilink-unresolved');
+  });
+
+  it('should keep the rendered and validated href identical for the same canonical heading link', async () => {
+    const mockManifest: Manifest = {
+      sessionId: 'test',
+      createdAt: new Date(),
+      lastUpdatedAt: new Date(),
+      pages: [
+        {
+          id: '1',
+          title: 'Sens et capacités',
+          slug: Slug.from('sens-et-capacites'),
+          route: '/regles-de-la-table/sens-et-capacites',
+          vaultPath: '_Mecaniques/Homebrew/Regles/Sens et capacités.md',
+          relativePath: '_Mecaniques/Homebrew/Regles/Sens et capacités.md',
+          publishedAt: new Date(),
+        },
+      ],
+    };
+    const html = `<a class="wikilink" data-wikilink="Sens et capacités" href="/regles-de-la-table/sens-et-capacites#vision-thermique">vision thermique</a>`;
+    const rendered = (renderer as any).cleanAndNormalizeLinks(html, mockManifest);
+
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wikilink-parity-'));
+    const htmlPath = path.join(tempDir, 'page.html');
+    await fs.writeFile(
+      htmlPath,
+      `<html><body><div class="markdown-body">${rendered}</div></body></html>`,
+      'utf-8'
+    );
+
+    const validator = new ValidateLinksService();
+    await validator.validateAllLinks(tempDir, { pages: mockManifest.pages });
+
+    const validated = await fs.readFile(htmlPath, 'utf-8');
+    const renderedHref = cheerio.load(rendered)('a').attr('href');
+    const validatedHref = cheerio.load(validated)('a').attr('href');
+
+    expect(validatedHref).toBe(renderedHref);
+
+    await fs.rm(tempDir, { recursive: true, force: true });
   });
 });

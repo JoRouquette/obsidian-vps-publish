@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { Slug, type ManifestPage } from '@core-domain';
+import { resolveCanonicalInternalLink, UNAVAILABLE_INTERNAL_PAGE_MESSAGE } from '@core-domain';
 
 import { CatalogFacade } from '../facades/catalog-facade';
 import { ContentVersionService } from '../../infrastructure/content-version/content-version.service';
@@ -8,6 +8,8 @@ export interface LeafletResolvedLink {
   href: string;
   external: boolean;
   text: string;
+  unresolved?: boolean;
+  unresolvedReason?: string | null;
 }
 
 export interface LeafletPersistedViewState {
@@ -55,11 +57,21 @@ export class LeafletRuntimeService {
       return null;
     }
 
-    const page = this.findPageForMarkerLink(clean);
+    const resolved = resolveCanonicalInternalLink(clean, this.catalog.manifest().pages);
+    if (!resolved.page || !resolved.resolvedHref) {
+      return {
+        href: '',
+        external: false,
+        text: clean,
+        unresolved: true,
+        unresolvedReason: resolved.unresolvedReason ?? UNAVAILABLE_INTERNAL_PAGE_MESSAGE,
+      };
+    }
+
     return {
-      href: page?.route ?? this.buildFallbackInternalHref(clean),
+      href: resolved.resolvedHref,
       external: false,
-      text: page?.title ?? clean,
+      text: resolved.page.title ?? clean,
     };
   }
 
@@ -81,41 +93,5 @@ export class LeafletRuntimeService {
 
   persistViewState(mapId: string, state: LeafletPersistedViewState): void {
     this.viewStateByMapId.set(mapId, state);
-  }
-
-  private findPageForMarkerLink(cleanLink: string): ManifestPage | undefined {
-    const manifest = this.catalog.manifest();
-    const lower = cleanLink.toLowerCase();
-    const routeCandidate = this.normalizeRouteCandidate(cleanLink);
-    const slugCandidate = Slug.fromRoute(cleanLink).value;
-
-    return manifest.pages.find((page) => {
-      const title = page.title?.toLowerCase?.() ?? '';
-      return (
-        page.route === cleanLink ||
-        page.route === routeCandidate ||
-        page.slug.value === cleanLink ||
-        page.slug.value === slugCandidate ||
-        title === lower
-      );
-    });
-  }
-
-  private buildFallbackInternalHref(cleanLink: string): string {
-    if (cleanLink.includes('/')) {
-      return this.normalizeRouteCandidate(cleanLink);
-    }
-
-    return `/${Slug.fromRoute(cleanLink).value}`;
-  }
-
-  private normalizeRouteCandidate(value: string): string {
-    const stripped = value.replace(/^\/+|\/+$/g, '');
-    if (!stripped) {
-      return '/';
-    }
-
-    const encoded = stripped.split('/').map(encodeURIComponent).join('/');
-    return `/${encoded}`;
   }
 }
