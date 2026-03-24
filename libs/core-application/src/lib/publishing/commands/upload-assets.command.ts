@@ -3,6 +3,7 @@ import { type Asset } from '@core-domain';
 export interface UploadAssetsCommand {
   sessionId: string;
   assets: Asset[];
+  deduplicationEnabled?: boolean;
 }
 
 export interface UploadAssetsResult {

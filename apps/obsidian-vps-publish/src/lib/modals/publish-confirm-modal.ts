@@ -9,17 +9,22 @@ export interface PublishSummary {
   assetsCount: number;
 }
 
+export interface PublishConfirmOptions {
+  deduplicationEnabled: boolean;
+}
+
 export class PublishConfirmModal extends Modal {
   private readonly summary: PublishSummary;
   private readonly t: Translations['confirmation'];
-  private readonly onConfirm: () => void | Promise<void>;
+  private readonly onConfirm: (options: PublishConfirmOptions) => void | Promise<void>;
   private confirmed = false;
+  private deduplicationEnabled = true;
 
   constructor(
     app: App,
     summary: PublishSummary,
     translations: Translations,
-    onConfirm: () => void | Promise<void>
+    onConfirm: (options: PublishConfirmOptions) => void | Promise<void>
   ) {
     super(app);
     this.summary = summary;
@@ -31,7 +36,6 @@ export class PublishConfirmModal extends Modal {
     const { contentEl, titleEl } = this;
     const { t, summary } = this;
 
-    // Native Obsidian title bar
     titleEl.empty();
     const iconSpan = titleEl.createSpan({ cls: 'ptpv-confirm-modal__icon' });
     setIcon(iconSpan, 'upload-cloud');
@@ -40,7 +44,6 @@ export class PublishConfirmModal extends Modal {
     contentEl.empty();
     contentEl.addClass('ptpv-confirm-modal');
 
-    // Summary table
     const table = contentEl.createEl('table', { cls: 'ptpv-confirm-modal__table' });
     const tbody = table.createEl('tbody');
 
@@ -49,13 +52,34 @@ export class PublishConfirmModal extends Modal {
     this.addRow(tbody, t.notesLabel, `~ ${summary.notesCount}`);
     this.addRow(tbody, t.assetsLabel, `~ ${summary.assetsCount}`);
 
-    // Estimated hint
     contentEl.createEl('p', {
       text: t.estimatedHint,
       cls: 'ptpv-confirm-modal__hint',
     });
 
-    // Buttons — Obsidian-native layout
+    const deduplicationRow = contentEl.createEl('label', {
+      cls: 'ptpv-confirm-modal__checkbox',
+    });
+    const deduplicationCheckbox = deduplicationRow.createEl('input', {
+      type: 'checkbox',
+    });
+    deduplicationCheckbox.checked = true;
+    deduplicationCheckbox.addEventListener('change', () => {
+      this.deduplicationEnabled = deduplicationCheckbox.checked;
+    });
+
+    const deduplicationText = deduplicationRow.createDiv({
+      cls: 'ptpv-confirm-modal__checkbox-text',
+    });
+    deduplicationText.createEl('div', {
+      text: t.deduplicationLabel,
+      cls: 'ptpv-confirm-modal__checkbox-label',
+    });
+    deduplicationText.createEl('div', {
+      text: t.deduplicationDescription,
+      cls: 'ptpv-confirm-modal__checkbox-description',
+    });
+
     const buttons = contentEl.createDiv({ cls: 'modal-button-container' });
 
     const cancelBtn = buttons.createEl('button', { text: t.cancelButton });
@@ -70,14 +94,15 @@ export class PublishConfirmModal extends Modal {
       this.close();
     });
 
-    // Focus cancel for safety (Escape already closes via Modal base)
     cancelBtn.focus();
   }
 
   onClose(): void {
     this.contentEl.empty();
     if (this.confirmed) {
-      void this.onConfirm();
+      void this.onConfirm({
+        deduplicationEnabled: this.deduplicationEnabled,
+      });
     }
   }
 

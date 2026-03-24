@@ -38,4 +38,5 @@ export interface Session {
    * Used by SessionFinalizerService to update references in rendered HTML
    */
   assetPathMappings?: Record<string, string>;
+  deduplicationEnabled?: boolean;
 }

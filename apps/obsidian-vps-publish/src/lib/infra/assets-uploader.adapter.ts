@@ -29,6 +29,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
   private readonly chunkedUploadService: ChunkedUploadService;
   private readonly concurrencyLimit: number;
   private readonly existingAssetHashes: Set<string>;
+  private readonly deduplicationEnabled: boolean;
 
   constructor(
     private readonly sessionClient: SessionApiClient,
@@ -39,17 +40,23 @@ export class AssetsUploaderAdapter implements UploaderPort {
     private readonly maxBytesPerRequest: number,
     private readonly progress?: ProgressPort | StepProgressManagerPort,
     concurrencyLimit?: number,
-    existingAssetHashes?: string[]
+    existingAssetHashes?: string[],
+    deduplicationEnabled = true
   ) {
     this._logger = logger.child({ adapter: 'AssetsUploaderAdapter' });
     this._logger.debug('AssetsUploaderAdapter initialized');
     this.concurrencyLimit = concurrencyLimit || 3; // Default to 3
-    this.existingAssetHashes = new Set(existingAssetHashes ?? []);
+    this.deduplicationEnabled = deduplicationEnabled;
+    this.existingAssetHashes = new Set(
+      this.deduplicationEnabled ? (existingAssetHashes ?? []) : []
+    );
 
     if (this.existingAssetHashes.size > 0) {
       this._logger.debug('Client-side deduplication enabled', {
         existingAssetHashesCount: this.existingAssetHashes.size,
       });
+    } else if (!this.deduplicationEnabled) {
+      this._logger.info('Client-side deduplication disabled for assets upload');
     }
 
     // Initialize dependencies (infrastructure adapters)
@@ -101,7 +108,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
     let filteredAssets = apiAssets;
     let skippedCount = 0;
 
-    if (this.existingAssetHashes.size > 0) {
+    if (this.deduplicationEnabled && this.existingAssetHashes.size > 0) {
       this._logger.debug('Computing asset hashes for client-side deduplication');
       const assetsWithHashes = await Promise.all(
         apiAssets.map(async (apiAsset, index) => {

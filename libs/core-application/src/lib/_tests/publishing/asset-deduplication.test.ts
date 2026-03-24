@@ -162,6 +162,46 @@ describe('Asset Deduplication (B4)', () => {
       expect(savedManifest.assets![0].hash).toBe(newHash);
     });
 
+    it('should upload identical assets when deduplication is disabled', async () => {
+      const assetContent = Buffer.from('test content for image');
+      const assetBase64 = assetContent.toString('base64');
+      const assetHash = await assetHasher.computeHash(assetContent);
+
+      const existingManifest: Manifest = {
+        sessionId: 'old-session',
+        createdAt: new Date('2026-01-01'),
+        lastUpdatedAt: new Date('2026-01-01'),
+        pages: [],
+        assets: [
+          {
+            path: '_assets/existing-image.png',
+            hash: assetHash,
+            size: assetContent.length,
+            mimeType: 'image/png',
+            uploadedAt: new Date('2026-01-01'),
+          },
+        ],
+      };
+
+      manifestStorage.load.mockResolvedValue(existingManifest);
+
+      const asset = createMockAsset('duplicate-image.png', assetBase64);
+
+      const result = await handler.handle({
+        sessionId: mockSessionId,
+        assets: [asset],
+        deduplicationEnabled: false,
+      });
+
+      expect(result.published).toBe(1);
+      expect(result.skipped).toBeUndefined();
+      expect(storage.save).toHaveBeenCalledTimes(1);
+
+      const savedManifest = manifestStorage.save.mock.calls[0][0];
+      expect(savedManifest.assets).toHaveLength(1);
+      expect(savedManifest.assets![0].path).toBe('_assets/duplicate-image.png');
+    });
+
     it('should handle mixed batch: skip duplicates + upload new assets', async () => {
       const asset1Content = Buffer.from('asset1 content');
       const asset1Hash = await assetHasher.computeHash(asset1Content);
