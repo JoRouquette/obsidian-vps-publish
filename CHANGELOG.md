@@ -1,3 +1,10 @@
+## [6.18.2](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.18.1...6.18.2) (2026-03-25)
+
+### Bug Fixes
+
+* **finalization:** poll async session completion ([861debd](https://github.com/JoRouquette/obsidian-vps-publish/commit/861debd3ad2db370bb69ce2c6d1fe48a0313f8d7))
+* **upload:** skip redundant index rebuilds during note batches ([2f95436](https://github.com/JoRouquette/obsidian-vps-publish/commit/2f95436a8b421fafb3e383ddfb10c6cd6c8fa630))
+
 ## [6.18.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.18.0...6.18.1) (2026-03-24)
 
 ### Bug Fixes
