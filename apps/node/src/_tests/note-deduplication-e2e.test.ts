@@ -41,6 +41,7 @@ describe('E2E: Inter-publication Note Deduplication', () => {
   let noteHashService: NoteHashService;
   let markdownRenderer: MarkdownItRenderer;
   let stagingManager: StagingManager;
+  let sessionNotesStorage: SessionNotesFileStorage;
   let sessionFinalizer: SessionFinalizerService;
   let finalizationJobService: SessionFinalizationJobService;
 
@@ -70,7 +71,7 @@ describe('E2E: Inter-publication Note Deduplication', () => {
 
     stagingManager = new StagingManager(contentRoot, assetsRoot);
 
-    const sessionNotesStorage = new SessionNotesFileStorage(contentRoot);
+    sessionNotesStorage = new SessionNotesFileStorage(contentRoot);
     sessionFinalizer = new SessionFinalizerService(
       sessionNotesStorage,
       stagingManager,
@@ -103,7 +104,7 @@ describe('E2E: Inter-publication Note Deduplication', () => {
       (sessionId) => new NotesFileSystemStorage(path.join(contentRoot, '.staging', sessionId)),
       (sessionId) => new ManifestFileSystem(path.join(contentRoot, '.staging', sessionId)),
       undefined, // logger
-      undefined, // notesStorage (SessionNotesStoragePort) - optional
+      sessionNotesStorage,
       undefined, // ignoredTags - optional
       noteHashService
     );
@@ -159,7 +160,7 @@ describe('E2E: Inter-publication Note Deduplication', () => {
   async function publishNotes(
     notes: PublishableNote[],
     pipelineSignature: { version: string; renderSettingsHash: string }
-  ): Promise<{ session: Session; manifest: Manifest | null }> {
+  ): Promise<{ session: Session; manifest: Manifest | null; sessionId: string }> {
     // Step 1: Create session
     const createResult = await createSessionHandler.handle({
       notesPlanned: notes.length,
@@ -177,6 +178,18 @@ describe('E2E: Inter-publication Note Deduplication', () => {
       sessionId,
       notes: notes, // Pass full notes with publishedAt
     });
+
+    if (notes.length > 0) {
+      const routeSegments = notes[0].routing.fullPath.split('/').filter(Boolean);
+      const stagedHtmlPath = path.join(
+        contentRoot,
+        '.staging',
+        sessionId,
+        ...routeSegments.slice(0, -1),
+        `${routeSegments[routeSegments.length - 1]}.html`
+      );
+      await expect(fs.access(stagedHtmlPath)).rejects.toThrow();
+    }
 
     // Step 3: Finish session (with allCollectedRoutes)
     const allCollectedRoutes = notes.map((n) => n.routing.fullPath);
@@ -219,7 +232,7 @@ describe('E2E: Inter-publication Note Deduplication', () => {
     const session = await sessionRepository.findById(sessionId);
     const manifest = await manifestFileSystem.load();
 
-    return { session: session!, manifest };
+    return { session: session!, manifest, sessionId };
   }
 
   /**
@@ -419,7 +432,8 @@ describe('E2E: Inter-publication Note Deduplication', () => {
    */
   it('should skip note when renamed but route unchanged (hash match)', async () => {
     // Arrange: Initial note with stable route
-    const note1 = createNote('note1', 'Original Title', '/notes/stable-route', '# Content\n\nText');
+    const stableRoute = '/notes/note1';
+    const note1 = createNote('note1', 'Original Title', stableRoute, '# Content\n\nText');
 
     const pipelineSignature = {
       version: '1.0.0',
@@ -429,25 +443,25 @@ describe('E2E: Inter-publication Note Deduplication', () => {
     // Act 1: First publish
     const { manifest: manifest1 } = await publishNotes([note1], pipelineSignature);
 
-    const hash1 = manifest1!.pages.find((p) => p.route === '/notes/stable-route')?.sourceHash;
+    const hash1 = manifest1!.pages.find((p) => p.route === stableRoute)?.sourceHash;
     expect(hash1).toBeDefined();
 
     // Act 2: "Rename" note (change title, but keep route and content stable)
     const note1Renamed = createNote(
       'note1',
       'NEW Title After Rename',
-      '/notes/stable-route', // Route unchanged
+      stableRoute, // Route unchanged
       '# Content\n\nText' // Content unchanged
     );
 
     const { manifest: manifest2 } = await publishNotes([note1Renamed], pipelineSignature);
 
     // Assert: Route still present with SAME hash (proves skip optimization works)
-    const hash2 = manifest2!.pages.find((p) => p.route === '/notes/stable-route')?.sourceHash;
+    const hash2 = manifest2!.pages.find((p) => p.route === stableRoute)?.sourceHash;
     expect(hash2).toBe(hash1);
 
     // Title in manifest should be updated (from staging)
-    const page2 = manifest2!.pages.find((p) => p.route === '/notes/stable-route');
+    const page2 = manifest2!.pages.find((p) => p.route === stableRoute);
     expect(page2?.title).toBe('NEW Title After Rename');
   }, 15000);
 });
