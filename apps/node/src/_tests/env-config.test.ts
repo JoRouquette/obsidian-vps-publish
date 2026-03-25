@@ -38,6 +38,7 @@ describe('EnvConfig', () => {
     expect(EnvConfig.logFilePath()).toBe(path.resolve('./node.log'));
     expect(EnvConfig.maxEventLoopLagMs()).toBe(5000);
     expect(EnvConfig.maxMemoryUsageMB()).toBe(2048);
+    expect(EnvConfig.finalizationSseEnabled()).toBe(true);
   });
 
   it('should coerce and clamp logger level to allowed values', () => {
@@ -62,6 +63,12 @@ describe('EnvConfig', () => {
 
     expect(EnvConfig.maxEventLoopLagMs()).toBe(750);
     expect(EnvConfig.maxMemoryUsageMB()).toBe(768);
+  });
+
+  it('should allow realtime finalization SSE to be disabled explicitly', () => {
+    process.env.FINALIZATION_SSE_ENABLED = 'false';
+
+    expect(EnvConfig.finalizationSseEnabled()).toBe(false);
   });
 
   it('should normalize admin dashboard configuration', () => {

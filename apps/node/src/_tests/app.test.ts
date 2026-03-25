@@ -39,6 +39,7 @@ jest.mock('../infra/config/env-config', () => ({
     maxEventLoopLagMs: jest.fn(() => 5000),
     maxMemoryUsageMB: jest.fn(() => 2048),
     maxConcurrentFinalizationJobs: jest.fn(() => 3),
+    finalizationSseEnabled: jest.fn(() => true),
     maxAssetSizeBytes: jest.fn(() => 10 * 1024 * 1024), // 10MB
     virusScannerEnabled: jest.fn(() => false), // Disable scanner in tests
     clamavHost: jest.fn(() => 'localhost'),
