@@ -43,22 +43,6 @@ describe('sessionController', () => {
       queueFinalization: jest.fn().mockResolvedValue('test-job-id'),
       getJobBySessionId: jest.fn(),
       getJobStatus: jest.fn(),
-      waitForJob: jest.fn().mockResolvedValue({
-        id: 'test-job-id',
-        sessionId: 's1',
-        status: 'completed' as const,
-        startedAt: new Date(),
-        completedAt: new Date(),
-        result: {
-          promotionStats: {
-            notesPublished: 10,
-            notesDeduplicated: 5,
-            notesDeleted: 2,
-            assetsPublished: 8,
-            assetsDeduplicated: 3,
-          },
-        },
-      }),
     } as any;
 
     app.use(
@@ -141,14 +125,12 @@ describe('sessionController', () => {
       notesProcessed: 1,
       assetsProcessed: 1,
     });
-    expect(resOk.status).toBe(200);
-    expect(resOk.body).toHaveProperty('promotionStats');
-    expect(resOk.body.promotionStats).toMatchObject({
-      notesPublished: expect.any(Number),
-      notesDeduplicated: expect.any(Number),
-      notesDeleted: expect.any(Number),
-      assetsPublished: expect.any(Number),
-      assetsDeduplicated: expect.any(Number),
+    expect(resOk.status).toBe(202);
+    expect(resOk.body).toMatchObject({
+      sessionId: 'abc',
+      success: true,
+      jobId: 'test-job-id',
+      status: 'queued',
     });
   });
 

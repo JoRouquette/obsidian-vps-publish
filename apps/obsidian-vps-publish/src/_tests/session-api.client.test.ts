@@ -124,4 +124,73 @@ describe('SessionApiClient', () => {
       expect.objectContaining({ url: 'http://api/api/session/s42/abort', method: 'POST' })
     );
   });
+
+  it('polls finalization status until completion after finish is accepted', async () => {
+    const requestUrl = jest
+      .fn()
+      .mockResolvedValueOnce({
+        status: 202,
+        headers: {},
+        text: JSON.stringify({ sessionId: 's1', jobId: 'job-1', status: 'queued' }),
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        text: JSON.stringify({
+          jobId: 'job-1',
+          sessionId: 's1',
+          status: 'processing',
+          progress: 50,
+        }),
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        text: JSON.stringify({
+          jobId: 'job-1',
+          sessionId: 's1',
+          status: 'completed',
+          progress: 100,
+          result: {
+            promotionStats: {
+              notesPublished: 1,
+              notesDeduplicated: 0,
+              notesDeleted: 0,
+              assetsPublished: 0,
+              assetsDeduplicated: 0,
+            },
+          },
+        }),
+      });
+    const handler = {
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValueOnce({
+          isError: false,
+          text: '{"sessionId":"s1","jobId":"job-1","status":"queued"}',
+        })
+        .mockResolvedValueOnce({
+          isError: false,
+          text: '{"jobId":"job-1","sessionId":"s1","status":"processing","progress":50}',
+        })
+        .mockResolvedValueOnce({
+          isError: false,
+          text: '{"jobId":"job-1","sessionId":"s1","status":"completed","progress":100,"result":{"promotionStats":{"notesPublished":1,"notesDeduplicated":0,"notesDeleted":0,"assetsPublished":0,"assetsDeduplicated":0}}}',
+        }),
+    };
+    jest.doMock('obsidian', () => ({ requestUrl }));
+
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, mockLogger());
+    const result = await client.finishSession('s1', {
+      notesProcessed: 1,
+      assetsProcessed: 0,
+    });
+
+    expect(result.promotionStats?.notesPublished).toBe(1);
+    expect(requestUrl).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ url: 'http://api/api/session/s1/status', method: 'GET' })
+    );
+  });
 });

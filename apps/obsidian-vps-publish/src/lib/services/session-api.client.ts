@@ -17,6 +17,24 @@ export interface StartSessionResponse {
   pipelineChanged?: boolean;
 }
 
+interface FinalizationStatusResponse {
+  jobId: string;
+  sessionId: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  progress: number;
+  error?: string;
+  result?: {
+    promotionStats?: {
+      notesPublished: number;
+      notesDeduplicated: number;
+      notesDeleted: number;
+      assetsPublished: number;
+      assetsDeduplicated: number;
+    };
+    contentRevision?: string;
+  };
+}
+
 export class SessionApiClient {
   constructor(
     private readonly baseUrl: string,
@@ -34,16 +52,28 @@ export class SessionApiClient {
   }
 
   private async postJson<TBody>(path: string, body: TBody): Promise<HttpResponse> {
+    return this.requestJson(path, 'POST', body);
+  }
+
+  private async getJson(path: string): Promise<HttpResponse> {
+    return this.requestJson(path, 'GET');
+  }
+
+  private async requestJson<TBody>(
+    path: string,
+    method: 'GET' | 'POST',
+    body?: TBody
+  ): Promise<HttpResponse> {
     const url = this.buildUrl(path);
     const res = await requestUrlWithRetry(
       {
         url,
-        method: 'POST',
+        method,
         headers: {
-          'Content-Type': 'application/json',
           'x-api-key': this.apiKey,
+          ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
         },
-        body: JSON.stringify(body),
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
         throw: false,
       },
       undefined, // Use default retry config
@@ -192,9 +222,25 @@ export class SessionApiClient {
         : 'finishSession failed';
       throw result.error ?? new Error(errorMsg);
     }
-    const parsed = JSON.parse(result.text ?? '{}');
+    const parsed = JSON.parse(result.text ?? '{}') as
+      | {
+          promotionStats?: {
+            notesPublished: number;
+            notesDeduplicated: number;
+            notesDeleted: number;
+            assetsPublished: number;
+            assetsDeduplicated: number;
+          };
+          jobId?: string;
+        }
+      | undefined;
+
+    if (parsed?.jobId) {
+      return this.waitForFinalization(sessionId, parsed.jobId);
+    }
+
     return {
-      promotionStats: parsed.promotionStats,
+      promotionStats: parsed?.promotionStats,
     };
   }
 
@@ -218,6 +264,52 @@ export class SessionApiClient {
     }
     this.logger.debug('VPS cleanup completed', { targetName });
   }
+
+  private async waitForFinalization(
+    sessionId: string,
+    jobId: string
+  ): Promise<{
+    promotionStats?: {
+      notesPublished: number;
+      notesDeduplicated: number;
+      notesDeleted: number;
+      assetsPublished: number;
+      assetsDeduplicated: number;
+    };
+  }> {
+    const timeoutMs = 10 * 60 * 1000;
+    const pollIntervalMs = 1500;
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeoutMs) {
+      const result = await this.getJson(`/api/session/${sessionId}/status`);
+      if (result.isError) {
+        throw result.error ?? new Error('finalization status polling failed');
+      }
+
+      const parsed = JSON.parse(result.text ?? '{}') as FinalizationStatusResponse;
+      this.logger.debug('Finalization job status polled', {
+        sessionId,
+        jobId,
+        status: parsed.status,
+        progress: parsed.progress,
+      });
+
+      if (parsed.status === 'completed') {
+        return {
+          promotionStats: parsed.result?.promotionStats,
+        };
+      }
+
+      if (parsed.status === 'failed') {
+        throw new Error(parsed.error || `Finalization job failed: ${jobId}`);
+      }
+
+      await sleep(pollIntervalMs);
+    }
+
+    throw new Error(`Finalization polling timed out after ${timeoutMs}ms for ${jobId}`);
+  }
 }
 
 function parseLimit(value: unknown): number {
@@ -233,4 +325,8 @@ function parseLimit(value: unknown): number {
     }
   }
   return 8 * 1024 * 1024; // fallback 8MB
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

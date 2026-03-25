@@ -345,26 +345,17 @@ export function createSessionController({
         // Queue heavy finalization work
         const jobId = await finalizationJobService.queueFinalization(req.params.sessionId);
 
-        routeLogger?.info('Session finalization queued, waiting for completion', {
+        routeLogger?.info('Session finalization queued', {
           sessionId: req.params.sessionId,
           jobId,
         });
 
-        // Wait for job to complete (with 2 minutes timeout)
-        const completedJob = await finalizationJobService.waitForJob(jobId, 120000);
-
-        routeLogger?.info('Session finalization completed', {
-          sessionId: req.params.sessionId,
-          jobId,
-          promotionStats: completedJob.result?.promotionStats,
-        });
-
-        // Return 200 OK with promotion stats
-        return res.status(200).json({
+        // Return immediately and let clients poll /status.
+        return res.status(202).json({
           sessionId: result.sessionId,
           success: true,
-          contentRevision: completedJob.result?.contentRevision,
-          promotionStats: completedJob.result?.promotionStats,
+          jobId,
+          status: 'queued',
         });
       } catch (err) {
         if (err instanceof SessionNotFoundError) {
