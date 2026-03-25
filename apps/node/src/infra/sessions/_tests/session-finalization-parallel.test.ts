@@ -267,4 +267,41 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
       expect(statsFinal.completed).toBe(6);
     });
   });
+
+  describe('phase metadata', () => {
+    it('tracks current phase, contentRevision, and finalization timings', async () => {
+      service = new SessionFinalizationJobService(
+        mockFinalizer,
+        mockStagingManager,
+        mockSessionRepository,
+        mockLogger,
+        1
+      );
+
+      const jobId = await service.queueFinalization('session-phase');
+      const started = Date.now();
+      let job = service.getJobStatus(jobId);
+
+      while (job?.status !== 'completed' && Date.now() - started < 5000) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        job = service.getJobStatus(jobId);
+      }
+
+      expect(job?.status).toBe('completed');
+      expect(job?.phase).toBe('completed');
+      expect(job?.contentRevision).toEqual(expect.any(String));
+      expect(job?.phaseTimings).toEqual(
+        expect.objectContaining({
+          load_session: expect.any(Number),
+          rebuild_from_stored: expect.any(Number),
+          promote_session: expect.any(Number),
+          rebuild_html_indexes: expect.any(Number),
+          rebuild_search_index: expect.any(Number),
+          validate_post_promotion: expect.any(Number),
+          trigger_completion_callbacks: expect.any(Number),
+        })
+      );
+      expect(job?.result?.finalizationTimings).toEqual(job?.phaseTimings);
+    });
+  });
 });

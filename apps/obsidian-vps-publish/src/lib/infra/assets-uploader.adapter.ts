@@ -81,6 +81,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
     this._logger.debug('Preparing to upload assets', {
       assetCount: assets.length,
     });
+    const uploadPrepStart = performance.now();
 
     let apiAssets: ApiAsset[];
     try {
@@ -142,6 +143,12 @@ export class AssetsUploaderAdapter implements UploaderPort {
 
       // If all assets are duplicates, we're done
       if (filteredAssets.length === 0) {
+        this._logger.debug('Asset upload preparation completed', {
+          asset_upload_prep_duration_ms: performance.now() - uploadPrepStart,
+          totalAssets: apiAssets.length,
+          filteredAssets: filteredAssets.length,
+          skippedAssets: skippedCount,
+        });
         this._logger.debug('All assets already exist on server, nothing to upload');
         return true;
       }
@@ -150,6 +157,13 @@ export class AssetsUploaderAdapter implements UploaderPort {
     const batches = await batchByBytesAsync(filteredAssets, this.maxBytesPerRequest, (batch) => ({
       assets: batch,
     }));
+    this._logger.debug('Asset upload preparation completed', {
+      asset_upload_prep_duration_ms: performance.now() - uploadPrepStart,
+      totalAssets: apiAssets.length,
+      filteredAssets: filteredAssets.length,
+      skippedAssets: skippedCount,
+      batchCount: batches.length,
+    });
 
     this._logger.debug('Uploading assets to session with concurrency=3', {
       batchCount: batches.length,
@@ -219,6 +233,7 @@ export class AssetsUploaderAdapter implements UploaderPort {
     if (!Array.isArray(assets) || assets.length === 0) {
       return { batchCount: 0 };
     }
+    const batchInfoStart = performance.now();
 
     // Use controlled concurrency for batch info calculation too
     const apiAssets = await processWithConcurrencyControl(
@@ -230,6 +245,11 @@ export class AssetsUploaderAdapter implements UploaderPort {
     const batches = await batchByBytesAsync(apiAssets, this.maxBytesPerRequest, (batch) => ({
       assets: batch,
     }));
+    this._logger.debug('Asset batch info computed', {
+      asset_batch_info_duration_ms: performance.now() - batchInfoStart,
+      assetCount: assets.length,
+      batchCount: batches.length,
+    });
 
     return {
       batchCount: batches.length,
