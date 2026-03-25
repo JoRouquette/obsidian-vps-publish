@@ -19,6 +19,7 @@ export class NotesUploaderAdapter implements UploaderPort {
   private readonly _logger: LoggerPort;
   private readonly chunkedUploadService: ChunkedUploadService;
   private readonly concurrencyLimit: number;
+  private readonly batchesByNotes = new WeakMap<PublishableNote[], PublishableNote[][]>();
 
   constructor(
     private readonly sessionClient: SessionApiClient,
@@ -52,9 +53,16 @@ export class NotesUploaderAdapter implements UploaderPort {
       return false;
     }
 
-    const batches = await batchByBytesAsync(notes, this.maxBytesPerRequest, (batch) => ({
-      notes: batch,
-    }));
+    const cachedBatches = this.batchesByNotes.get(notes);
+    const batches =
+      cachedBatches ??
+      (await batchByBytesAsync(notes, this.maxBytesPerRequest, (batch) => ({
+        notes: batch,
+      })));
+
+    if (!cachedBatches) {
+      this.batchesByNotes.set(notes, batches);
+    }
 
     this._logger.debug(
       `Uploading ${notes.length} notes in ${batches.length} batch(es) with concurrency=3 (maxBytes=${this.maxBytesPerRequest})`
@@ -136,9 +144,13 @@ export class NotesUploaderAdapter implements UploaderPort {
       return { batchCount: 0 };
     }
 
-    const batches = batchByBytes(notes, this.maxBytesPerRequest, (batch) => ({
-      notes: batch,
-    }));
+    const batches =
+      this.batchesByNotes.get(notes) ??
+      batchByBytes(notes, this.maxBytesPerRequest, (batch) => ({
+        notes: batch,
+      }));
+
+    this.batchesByNotes.set(notes, batches);
 
     return {
       batchCount: batches.length,

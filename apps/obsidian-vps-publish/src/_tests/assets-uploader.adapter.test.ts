@@ -112,4 +112,35 @@ describe('AssetsUploaderAdapter', () => {
     expect(hasher.computeHash).not.toHaveBeenCalled();
     expect(sessionClient.uploadAssetChunk).toHaveBeenCalled();
   });
+  it('reuses prepared asset payloads between getBatchInfo and upload', async () => {
+    const adapter = new AssetsUploaderAdapter(
+      sessionClient,
+      's1',
+      makeGuidGenerator(),
+      makeAssetHasher(),
+      makeLogger(),
+      200
+    );
+    const buildApiAssetSpy = jest.spyOn(adapter as any, 'buildApiAsset');
+    const assets = [
+      {
+        relativeAssetPath: 'img/a.png',
+        vaultPath: '/vault/img/a.png',
+        fileName: 'a.png',
+        content: new TextEncoder().encode('data-a'),
+      },
+      {
+        relativeAssetPath: 'img/b.png',
+        vaultPath: '/vault/img/b.png',
+        fileName: 'b.png',
+        content: new TextEncoder().encode('data-b'),
+      },
+    ] as any;
+
+    const batchInfo = await adapter.getBatchInfo(assets);
+    await adapter.upload(assets);
+
+    expect(batchInfo.batchCount).toBeGreaterThan(0);
+    expect(buildApiAssetSpy).toHaveBeenCalledTimes(2);
+  });
 });
