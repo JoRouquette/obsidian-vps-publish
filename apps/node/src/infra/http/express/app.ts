@@ -36,11 +36,13 @@ import { AssetHashService } from '../../utils/asset-hash.service';
 import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
 import { createAdminDashboardController } from './controllers/admin-dashboard.controller';
 import { createContentVersionController } from './controllers/content-version.controller';
+import { createFinalizationEventsController } from './controllers/finalization-events.controller';
 import { createHealthCheckController } from './controllers/health-check.controller';
 import { createMaintenanceController } from './controllers/maintenance-controller';
 import { createPingController } from './controllers/ping.controller';
 import { createSeoController } from './controllers/seo.controller';
 import { createSessionController } from './controllers/session-controller';
+import { FinalizationStreamTokenService } from './finalization-stream-token.service';
 import { createAdminAuthMiddleware } from './middleware/admin-auth.middleware';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
 import { BackpressureMiddleware } from './middleware/backpressure.middleware';
@@ -168,6 +170,7 @@ export function createApp(rootLogger?: LoggerPort) {
     uiRoot: EnvConfig.uiRoot(),
     loggerLevel: EnvConfig.loggerLevel(),
     allowedOrigins: EnvConfig.allowedOrigins(),
+    finalizationSseEnabled: EnvConfig.finalizationSseEnabled(),
   });
 
   const calloutRenderer = new CalloutRendererService();
@@ -262,6 +265,9 @@ export function createApp(rootLogger?: LoggerPort) {
     rootLogger,
     EnvConfig.maxConcurrentFinalizationJobs()
   );
+  const finalizationStreamTokenService = new FinalizationStreamTokenService(
+    `${EnvConfig.apiKey()}:finalization-sse`
+  );
 
   // Content version service for PWA cache invalidation
   const contentVersionService = new ContentVersionService(EnvConfig.contentRoot(), rootLogger);
@@ -314,7 +320,9 @@ export function createApp(rootLogger?: LoggerPort) {
       stagingManager,
       calloutRenderer,
       finalizationJobService,
+      finalizationStreamTokenService,
       sessionRepository,
+      finalizationRealtimeEnabled: EnvConfig.finalizationSseEnabled(),
       logger: rootLogger,
     })
   );
@@ -326,7 +334,7 @@ export function createApp(rootLogger?: LoggerPort) {
       const duration = Date.now() - startTime;
       rootLogger?.debug('Request completed', {
         method: req.method,
-        url: req.originalUrl,
+        url: sanitizeLogUrl(req.originalUrl),
         status: res.statusCode,
         duration: `${duration}ms`,
         ip: req.ip,
@@ -356,6 +364,13 @@ export function createApp(rootLogger?: LoggerPort) {
   // These must be before static file handlers to ensure they're handled by Express
   const contentVersionRouter = createContentVersionController(contentVersionService, rootLogger);
   app.use(contentVersionRouter);
+  app.use(
+    createFinalizationEventsController(
+      finalizationJobService,
+      finalizationStreamTokenService,
+      rootLogger
+    )
+  );
 
   // SEO routes (sitemap.xml, robots.txt)
   const manifestLoader = async (): Promise<Manifest> => {
@@ -553,4 +568,19 @@ function resolveStaticBrowserEntryPath(browserDistPath: string): string {
   }
 
   return path.join(browserDistPath, 'index.html');
+}
+
+function sanitizeLogUrl(originalUrl: string): string {
+  const [pathname, queryString] = originalUrl.split('?', 2);
+  if (!queryString) {
+    return pathname;
+  }
+
+  const params = new URLSearchParams(queryString);
+  if (params.has('token')) {
+    params.set('token', '[redacted]');
+  }
+
+  const redactedQuery = params.toString();
+  return redactedQuery ? `${pathname}?${redactedQuery}` : pathname;
 }

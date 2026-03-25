@@ -161,6 +161,12 @@ export class EnvConfig {
     return Number.isFinite(val) && val > 0 ? val : 8;
   }
 
+  static finalizationSseEnabled(): boolean {
+    const val = this.norm(process.env.FINALIZATION_SSE_ENABLED).toLowerCase();
+    if (val === 'false' || val === '0') return false;
+    return true;
+  }
+
   /**
    * Maximum allowed asset size in bytes.
    * Default: 10MB (10 * 1024 * 1024 bytes)

@@ -145,6 +145,36 @@ describe('Backpressure Middleware', () => {
       const metrics2 = middleware.getLoadMetrics();
       expect(metrics2.activeRequests).toBe(initialActive);
     });
+
+    it('should not count SSE requests against the active request quota', () => {
+      const strictMiddleware = new BackpressureMiddleware({
+        maxEventLoopLagMs: Number.MAX_SAFE_INTEGER,
+        maxMemoryUsageMB: Number.MAX_SAFE_INTEGER,
+        maxActiveRequests: 0,
+      });
+      const handler = strictMiddleware.handle();
+      const next = jest.fn();
+
+      const sseReq = {
+        headers: {
+          accept: 'text/event-stream',
+        },
+      } as any;
+      const sseRes = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+        header: jest.fn().mockReturnThis(),
+        on: jest.fn().mockReturnThis(),
+      } as any;
+
+      handler(sseReq, sseRes, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(sseRes.status).not.toHaveBeenCalled();
+      expect(strictMiddleware.getLoadMetrics().activeRequests).toBe(0);
+
+      strictMiddleware.stopEventLoopMonitoring();
+    });
   });
 
   describe('Load metrics', () => {

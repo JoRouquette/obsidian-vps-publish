@@ -46,6 +46,8 @@ export interface FinalizationJobHistoryEntry {
   result?: FinalizationJob['result'];
 }
 
+export type FinalizationJobListener = (job: FinalizationJob) => void;
+
 export class SessionFinalizationJobService {
   private jobs: Map<string, FinalizationJob> = new Map();
   private processingQueue: string[] = [];
@@ -53,6 +55,7 @@ export class SessionFinalizationJobService {
   private maxConcurrentJobs: number;
   private completionCallbacks: Array<() => Promise<void>> = [];
   private readonly historyFilePath: string;
+  private readonly listenersByJobId = new Map<string, Set<FinalizationJobListener>>();
 
   constructor(
     private readonly sessionFinalizer: SessionFinalizerService,
@@ -94,6 +97,7 @@ export class SessionFinalizationJobService {
 
     this.jobs.set(jobId, job);
     this.processingQueue.push(jobId);
+    this.notifyListeners(job);
 
     this.logger?.info('[JOB] Finalization job queued', {
       jobId,
@@ -112,6 +116,28 @@ export class SessionFinalizationJobService {
    */
   getJobStatus(jobId: string): FinalizationJob | undefined {
     return this.jobs.get(jobId);
+  }
+
+  subscribe(jobId: string, listener: FinalizationJobListener): () => void {
+    const listeners = this.listenersByJobId.get(jobId) ?? new Set<FinalizationJobListener>();
+    listeners.add(listener);
+    this.listenersByJobId.set(jobId, listeners);
+
+    return () => {
+      const currentListeners = this.listenersByJobId.get(jobId);
+      if (!currentListeners) {
+        return;
+      }
+
+      currentListeners.delete(listener);
+      if (currentListeners.size === 0) {
+        this.listenersByJobId.delete(jobId);
+      }
+    };
+  }
+
+  getListenerCount(jobId: string): number {
+    return this.listenersByJobId.get(jobId)?.size ?? 0;
   }
 
   /**
@@ -254,6 +280,7 @@ export class SessionFinalizationJobService {
     job.status = 'processing';
     job.startedAt = new Date();
     job.progress = 10;
+    this.notifyListeners(job);
 
     this.logger?.info('[JOB] Starting finalization job', {
       jobId: job.jobId,
@@ -286,13 +313,16 @@ export class SessionFinalizationJobService {
 
       // STEP 1: Rebuild from stored notes (heaviest operation)
       job.progress = 20;
+      this.notifyListeners(job);
       const rebuildStart = Date.now();
       const customIndexesHtml = await this.sessionFinalizer.rebuildFromStored(job.sessionId);
       timings.rebuildFromStored = Date.now() - rebuildStart;
       job.progress = 80;
+      this.notifyListeners(job);
 
       // STEP 2: Promote staging to production (with deleted page detection and pipelineSignature injection)
       job.progress = 85;
+      this.notifyListeners(job);
       const promoteStart = Date.now();
       const promotionStats = await this.stagingManager.promoteSession(
         job.sessionId,
@@ -303,6 +333,7 @@ export class SessionFinalizationJobService {
       );
       timings.promoteSession = Date.now() - promoteStart;
       job.progress = 90;
+      this.notifyListeners(job);
 
       // STEP 2.5: Rebuild HTML indexes from PRODUCTION manifest (after merge)
       // CRITICAL: rebuildFromStored writes indexes to staging using only the
@@ -339,6 +370,7 @@ export class SessionFinalizationJobService {
       job.result = result;
       job.completedAt = completedAt;
       job.status = 'completed';
+      this.notifyListeners(job);
       await this.appendHistory(job);
 
       const totalDuration = Date.now() - startTime;
@@ -354,6 +386,7 @@ export class SessionFinalizationJobService {
       job.error = error instanceof Error ? error.message : 'Unknown error';
       job.completedAt = new Date();
       job.status = 'failed';
+      this.notifyListeners(job);
       await this.appendHistory(job);
 
       const totalDuration = Date.now() - startTime;
@@ -431,6 +464,25 @@ export class SessionFinalizationJobService {
 
     await fs.mkdir(path.dirname(this.historyFilePath), { recursive: true });
     await fs.appendFile(this.historyFilePath, `${JSON.stringify(entry)}\n`, 'utf8');
+  }
+
+  private notifyListeners(job: FinalizationJob): void {
+    const listeners = this.listenersByJobId.get(job.jobId);
+    if (!listeners || listeners.size === 0) {
+      return;
+    }
+
+    for (const listener of listeners) {
+      try {
+        listener(job);
+      } catch (error) {
+        this.logger?.warn('[JOB] Listener notification failed', {
+          jobId: job.jobId,
+          sessionId: job.sessionId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
   }
 
   /**

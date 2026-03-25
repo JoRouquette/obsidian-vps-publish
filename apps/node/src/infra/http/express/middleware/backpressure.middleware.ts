@@ -79,9 +79,10 @@ export class BackpressureMiddleware {
   handle() {
     return (req: Request, res: Response, next: NextFunction) => {
       const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
+      const isSseRequest = this.isSseRequest(req);
 
       // Check active requests
-      if (this.activeRequests >= this.config.maxActiveRequests) {
+      if (!isSseRequest && this.activeRequests >= this.config.maxActiveRequests) {
         this.rejectionCounters.active_requests++;
         const retryAfterMs = 5000;
         this.logger?.warn('[BACKPRESSURE] Too many active requests', {
@@ -165,16 +166,21 @@ export class BackpressureMiddleware {
       }
 
       // Track active requests
-      this.activeRequests++;
+      if (!isSseRequest) {
+        this.activeRequests++;
+        let released = false;
+        const release = () => {
+          if (released) {
+            return;
+          }
 
-      res.on('finish', () => {
-        this.activeRequests--;
-      });
+          released = true;
+          this.activeRequests--;
+        };
 
-      res.on('close', () => {
-        // Client disconnected before response finished
-        this.activeRequests--;
-      });
+        res.on('finish', release);
+        res.on('close', release);
+      }
 
       next();
     };
@@ -232,5 +238,10 @@ export class BackpressureMiddleware {
 
   private normalizePositiveNumber(value: number | undefined): number | null {
     return Number.isFinite(value) && (value ?? 0) > 0 ? (value ?? null) : null;
+  }
+
+  private isSseRequest(req: Request): boolean {
+    const accept = req.headers?.accept;
+    return typeof accept === 'string' && accept.includes('text/event-stream');
   }
 }

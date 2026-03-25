@@ -35,14 +35,30 @@ describe('sessionController', () => {
     }),
   };
 
-  const buildApp = () => {
+  const buildApp = (options?: { finalizationRealtimeEnabled?: boolean }) => {
     const app = express();
     app.use(express.json());
 
     const finalizationJobService = {
       queueFinalization: jest.fn().mockResolvedValue('test-job-id'),
-      getJobBySessionId: jest.fn(),
+      getJobBySessionId: jest.fn().mockReturnValue({
+        jobId: 'test-job-id',
+        sessionId: 'abc',
+        status: 'processing',
+        progress: 50,
+        createdAt: '2026-03-25T09:00:00.000Z',
+        startedAt: '2026-03-25T09:00:01.000Z',
+        completedAt: undefined,
+        error: undefined,
+        result: undefined,
+      }),
       getJobStatus: jest.fn(),
+    } as any;
+    const finalizationStreamTokenService = {
+      createToken: jest.fn().mockReturnValue({
+        token: 'signed-token',
+        expiresAt: '2026-03-25T09:15:00.000Z',
+      }),
     } as any;
 
     app.use(
@@ -55,7 +71,9 @@ describe('sessionController', () => {
         .withStagingManager(stagingManager as any)
         .withCalloutRenderer(calloutRenderer as any)
         .withFinalizationJobService(finalizationJobService)
+        .withFinalizationStreamTokenService(finalizationStreamTokenService)
         .withSessionRepository(sessionRepository as any)
+        .withFinalizationRealtimeEnabled(options?.finalizationRealtimeEnabled ?? true)
         .build()
     );
     return app;
@@ -131,7 +149,50 @@ describe('sessionController', () => {
       success: true,
       jobId: 'test-job-id',
       status: 'queued',
+      realtime: {
+        transport: 'sse',
+        streamUrl: '/events/session/abc/finalization?jobId=test-job-id',
+        token: 'signed-token',
+        expiresAt: '2026-03-25T09:15:00.000Z',
+      },
     });
+    expect(resOk.body.realtime.streamUrl).not.toContain('token=');
+    expect(resOk.body.realtime.token).toBe('signed-token');
+  });
+
+  it('can omit realtime metadata for a poll-only rollout', async () => {
+    finishSessionHandler.handle.mockResolvedValueOnce({ sessionId: 'abc', success: true });
+    const app = buildApp({ finalizationRealtimeEnabled: false });
+
+    const res = await request(app).post('/session/abc/finish').send({
+      notesProcessed: 1,
+      assetsProcessed: 1,
+    });
+
+    expect(res.status).toBe(202);
+    expect(res.body).toMatchObject({
+      sessionId: 'abc',
+      success: true,
+      jobId: 'test-job-id',
+      status: 'queued',
+    });
+    expect(res.body).not.toHaveProperty('realtime');
+  });
+
+  it('returns the existing polling status payload unchanged', async () => {
+    const app = buildApp();
+    const res = await request(app).get('/session/abc/status');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      jobId: 'test-job-id',
+      sessionId: 'abc',
+      status: 'processing',
+      progress: 50,
+      createdAt: '2026-03-25T09:00:00.000Z',
+      startedAt: '2026-03-25T09:00:01.000Z',
+    });
+    expect(res.body).not.toHaveProperty('realtime');
   });
 
   it('returns 400 on invalid finish payload', async () => {
