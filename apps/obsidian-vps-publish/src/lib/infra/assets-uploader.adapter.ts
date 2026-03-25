@@ -24,12 +24,24 @@ type ApiAsset = {
   contentBase64: string;
 };
 
+type PreparedAssetUpload = {
+  apiAssets: ApiAsset[];
+  filteredAssets: ApiAsset[];
+  skippedCount: number;
+  batches: ApiAsset[][];
+};
+
 export class AssetsUploaderAdapter implements UploaderPort {
   private readonly _logger: LoggerPort;
   private readonly chunkedUploadService: ChunkedUploadService;
   private readonly concurrencyLimit: number;
   private readonly existingAssetHashes: Set<string>;
   private readonly deduplicationEnabled: boolean;
+  private readonly preparedUploadsByAssetList = new WeakMap<
+    ResolvedAssetFile[],
+    Promise<PreparedAssetUpload>
+  >();
+  private readonly apiAssetsBySourceAsset = new WeakMap<ResolvedAssetFile, Promise<ApiAsset>>();
 
   constructor(
     private readonly sessionClient: SessionApiClient,
@@ -83,80 +95,8 @@ export class AssetsUploaderAdapter implements UploaderPort {
     });
     const uploadPrepStart = performance.now();
 
-    let apiAssets: ApiAsset[];
-    try {
-      // Use controlled concurrency instead of Promise.all to avoid blocking
-      apiAssets = await processWithConcurrencyControl(
-        assets,
-        async (asset) => await this.buildApiAsset(asset),
-        {
-          concurrency: this.concurrencyLimit, // Use same limit as upload batches
-          batchSize: 10, // Yield to event loop every 10 assets
-          onProgress: (completed, total) => {
-            this._logger.debug('Assets preparation progress', {
-              completed,
-              total,
-              percent: ((completed / total) * 100).toFixed(1),
-            });
-          },
-        }
-      );
-    } catch (err) {
-      this._logger.error('Failed to build API assets', { error: err });
-      throw err;
-    }
-
-    // Client-side deduplication: filter out assets that already exist on server
-    let filteredAssets = apiAssets;
-    let skippedCount = 0;
-
-    if (this.deduplicationEnabled && this.existingAssetHashes.size > 0) {
-      this._logger.debug('Computing asset hashes for client-side deduplication');
-      const assetsWithHashes = await Promise.all(
-        apiAssets.map(async (apiAsset, index) => {
-          const assetBuffer = Buffer.from(apiAsset.contentBase64, 'base64');
-          const hash = await this.assetHasher.computeHash(assetBuffer);
-          return { apiAsset, hash, originalIndex: index };
-        })
-      );
-
-      // Filter out assets whose hash exists on server
-      const newAssets = assetsWithHashes.filter((item) => {
-        const exists = this.existingAssetHashes.has(item.hash);
-        if (exists) {
-          this._logger.debug('Asset already exists on server, skipping', {
-            fileName: item.apiAsset.fileName,
-            hash: item.hash,
-          });
-        }
-        return !exists;
-      });
-
-      skippedCount = apiAssets.length - newAssets.length;
-      filteredAssets = newAssets.map((item) => item.apiAsset);
-
-      this._logger.info('Client-side deduplication completed', {
-        totalAssets: apiAssets.length,
-        skippedAssets: skippedCount,
-        newAssets: filteredAssets.length,
-      });
-
-      // If all assets are duplicates, we're done
-      if (filteredAssets.length === 0) {
-        this._logger.debug('Asset upload preparation completed', {
-          asset_upload_prep_duration_ms: performance.now() - uploadPrepStart,
-          totalAssets: apiAssets.length,
-          filteredAssets: filteredAssets.length,
-          skippedAssets: skippedCount,
-        });
-        this._logger.debug('All assets already exist on server, nothing to upload');
-        return true;
-      }
-    }
-
-    const batches = await batchByBytesAsync(filteredAssets, this.maxBytesPerRequest, (batch) => ({
-      assets: batch,
-    }));
+    const prepared = await this.getOrPrepareUpload(assets);
+    const { apiAssets, filteredAssets, skippedCount, batches } = prepared;
     this._logger.debug('Asset upload preparation completed', {
       asset_upload_prep_duration_ms: performance.now() - uploadPrepStart,
       totalAssets: apiAssets.length,
@@ -234,25 +174,15 @@ export class AssetsUploaderAdapter implements UploaderPort {
       return { batchCount: 0 };
     }
     const batchInfoStart = performance.now();
-
-    // Use controlled concurrency for batch info calculation too
-    const apiAssets = await processWithConcurrencyControl(
-      assets,
-      async (asset) => await this.buildApiAsset(asset),
-      { concurrency: 5, batchSize: 10 }
-    );
-
-    const batches = await batchByBytesAsync(apiAssets, this.maxBytesPerRequest, (batch) => ({
-      assets: batch,
-    }));
+    const prepared = await this.getOrPrepareUpload(assets);
     this._logger.debug('Asset batch info computed', {
       asset_batch_info_duration_ms: performance.now() - batchInfoStart,
       assetCount: assets.length,
-      batchCount: batches.length,
+      batchCount: prepared.batches.length,
     });
 
     return {
-      batchCount: batches.length,
+      batchCount: prepared.batches.length,
     };
   }
 
@@ -289,6 +219,97 @@ export class AssetsUploaderAdapter implements UploaderPort {
       mimeType,
       contentBase64,
     };
+  }
+
+  private async getOrPrepareUpload(assets: ResolvedAssetFile[]): Promise<PreparedAssetUpload> {
+    const existing = this.preparedUploadsByAssetList.get(assets);
+    if (existing) {
+      return existing;
+    }
+
+    const preparedUploadPromise = this.prepareUploadInternal(assets);
+    this.preparedUploadsByAssetList.set(assets, preparedUploadPromise);
+    return preparedUploadPromise;
+  }
+
+  private async prepareUploadInternal(assets: ResolvedAssetFile[]): Promise<PreparedAssetUpload> {
+    let apiAssets: ApiAsset[];
+    try {
+      apiAssets = await processWithConcurrencyControl(
+        assets,
+        async (asset) => await this.getOrBuildApiAsset(asset),
+        {
+          concurrency: this.concurrencyLimit,
+          batchSize: 10,
+          onProgress: (completed, total) => {
+            this._logger.debug('Assets preparation progress', {
+              completed,
+              total,
+              percent: ((completed / total) * 100).toFixed(1),
+            });
+          },
+        }
+      );
+    } catch (err) {
+      this._logger.error('Failed to build API assets', { error: err });
+      throw err;
+    }
+
+    let filteredAssets = apiAssets;
+    let skippedCount = 0;
+
+    if (this.deduplicationEnabled && this.existingAssetHashes.size > 0) {
+      this._logger.debug('Computing asset hashes for client-side deduplication');
+      const assetsWithHashes = await Promise.all(
+        apiAssets.map(async (apiAsset) => {
+          const assetBuffer = Buffer.from(apiAsset.contentBase64, 'base64');
+          const hash = await this.assetHasher.computeHash(assetBuffer);
+          return { apiAsset, hash };
+        })
+      );
+
+      const newAssets = assetsWithHashes.filter((item) => {
+        const exists = this.existingAssetHashes.has(item.hash);
+        if (exists) {
+          this._logger.debug('Asset already exists on server, skipping', {
+            fileName: item.apiAsset.fileName,
+            hash: item.hash,
+          });
+        }
+        return !exists;
+      });
+
+      skippedCount = apiAssets.length - newAssets.length;
+      filteredAssets = newAssets.map((item) => item.apiAsset);
+
+      this._logger.info('Client-side deduplication completed', {
+        totalAssets: apiAssets.length,
+        skippedAssets: skippedCount,
+        newAssets: filteredAssets.length,
+      });
+    }
+
+    const batches = await batchByBytesAsync(filteredAssets, this.maxBytesPerRequest, (batch) => ({
+      assets: batch,
+    }));
+
+    return {
+      apiAssets,
+      filteredAssets,
+      skippedCount,
+      batches,
+    };
+  }
+
+  private async getOrBuildApiAsset(asset: ResolvedAssetFile): Promise<ApiAsset> {
+    const existing = this.apiAssetsBySourceAsset.get(asset);
+    if (existing) {
+      return existing;
+    }
+
+    const buildPromise = this.buildApiAsset(asset);
+    this.apiAssetsBySourceAsset.set(asset, buildPromise);
+    return buildPromise;
   }
 
   private async toBase64(content: ArrayBuffer | Uint8Array): Promise<string> {

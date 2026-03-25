@@ -70,4 +70,31 @@ describe('NotesUploaderAdapter', () => {
     expect(firstCall[1]).toHaveProperty('metadata');
     expect(firstCall[1]).toHaveProperty('data');
   });
+
+  it('reuses cached batch plans between getBatchInfo and upload', async () => {
+    const adapter = new NotesUploaderAdapter(
+      sessionClient,
+      's1',
+      makeGuidGenerator(),
+      makeLogger(),
+      10_000
+    );
+    const notes = [
+      sampleNote,
+      {
+        ...sampleNote,
+        noteId: 'n2',
+        vaultPath: 'v2',
+        relativePath: 'r2',
+        routing: { fullPath: '/r2', path: '/r2', slug: 'r2', routeBase: '/' },
+      },
+    ];
+
+    const batchInfo = adapter.getBatchInfo(notes as any);
+
+    await adapter.upload(notes as any);
+
+    expect(batchInfo.batchCount).toBeGreaterThan(0);
+    expect((adapter as any).batchesByNotes.get(notes)).toHaveLength(batchInfo.batchCount);
+  });
 });

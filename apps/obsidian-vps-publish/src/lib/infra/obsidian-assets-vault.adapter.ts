@@ -5,6 +5,11 @@ import { type AssetsVaultPort } from '@core-domain/ports/assets-vault-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 import { type App, type TFile } from 'obsidian';
 
+type AssetLookupIndex = {
+  byPathSuffix: Map<string, TFile[]>;
+  byName: Map<string, TFile[]>;
+};
+
 export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
   private readonly _logger: LoggerPort;
 
@@ -23,6 +28,7 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
   ): Promise<ResolvedAssetFile[]> {
     const normalizedAssetsFolder = this.normalizeFolder(assetsFolder);
     const allFiles = this.app.vault.getFiles();
+    const lookupIndex = this.buildLookupIndex(allFiles);
     const resolvedAssets: ResolvedAssetFile[] = [];
 
     for (const note of notes) {
@@ -62,13 +68,9 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
         let file: TFile | undefined;
 
         if (normalizedAssetsFolder) {
-          file = allFiles.find((f) => {
-            if (!this.isUnderFolder(f.path, normalizedAssetsFolder)) return false;
-
-            if (f.path.endsWith('/' + normalizedTarget) || f.path === normalizedTarget) return true;
-
-            return f.name === baseName;
-          });
+          file = this.findIndexedFile(lookupIndex, normalizedTarget, baseName, (candidate) =>
+            this.isUnderFolder(candidate.path, normalizedAssetsFolder)
+          );
 
           if (file) {
             this._logger.debug('Asset found in assets folder', {
@@ -85,10 +87,7 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
 
         // 3. Fallback : tout le vault
         if (!file && enableVaultFallback) {
-          file = allFiles.find((f) => {
-            if (f.path.endsWith('/' + normalizedTarget) || f.path === normalizedTarget) return true;
-            return f.name === baseName;
-          });
+          file = this.findIndexedFile(lookupIndex, normalizedTarget, baseName);
 
           if (file) {
             this._logger.debug('Asset found in vault (fallback)', {
@@ -237,5 +236,61 @@ export class ObsidianAssetsVaultAdapter implements AssetsVaultPort {
     t = t.replace(/^\.\/+/, '');
     t = t.replace(/^\/+/, '');
     return t;
+  }
+
+  private buildLookupIndex(files: TFile[]): AssetLookupIndex {
+    const byPathSuffix = new Map<string, TFile[]>();
+    const byName = new Map<string, TFile[]>();
+
+    for (const file of files) {
+      this.addToIndex(byName, file.name, file);
+
+      const normalizedPath = this.normalizeTarget(file.path);
+      const segments = normalizedPath.split('/');
+
+      for (let index = 0; index < segments.length; index++) {
+        this.addToIndex(byPathSuffix, segments.slice(index).join('/'), file);
+      }
+    }
+
+    return { byPathSuffix, byName };
+  }
+
+  private addToIndex(index: Map<string, TFile[]>, key: string, file: TFile): void {
+    const files = index.get(key);
+    if (files) {
+      files.push(file);
+      return;
+    }
+
+    index.set(key, [file]);
+  }
+
+  private findIndexedFile(
+    lookupIndex: AssetLookupIndex,
+    normalizedTarget: string,
+    baseName: string,
+    predicate?: (file: TFile) => boolean
+  ): TFile | undefined {
+    const seenPaths = new Set<string>();
+    const candidateGroups = [
+      lookupIndex.byPathSuffix.get(normalizedTarget),
+      lookupIndex.byName.get(baseName),
+    ];
+
+    for (const candidates of candidateGroups) {
+      for (const candidate of candidates ?? []) {
+        if (seenPaths.has(candidate.path)) {
+          continue;
+        }
+
+        seenPaths.add(candidate.path);
+        if (!predicate || predicate(candidate)) {
+          return candidate;
+        }
+      }
+    }
+
+    return undefined;
   }
 }
