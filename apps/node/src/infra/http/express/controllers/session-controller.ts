@@ -442,6 +442,9 @@ export function createSessionController({
         sessionId: job.sessionId,
         status: job.status,
         progress: job.progress,
+        phase: job.phase,
+        phaseTimings: job.phaseTimings,
+        contentRevision: job.contentRevision,
         createdAt: job.createdAt,
         startedAt: job.startedAt,
         completedAt: job.completedAt,
@@ -510,8 +513,7 @@ function ensureDependencies(
   if (!dependencies.stagingManager) missing.push('stagingManager');
   if (!dependencies.calloutRenderer) missing.push('calloutRenderer');
   if (!dependencies.finalizationJobService) missing.push('finalizationJobService');
-  if (!dependencies.finalizationStreamTokenService)
-    missing.push('finalizationStreamTokenService');
+  if (!dependencies.finalizationStreamTokenService) missing.push('finalizationStreamTokenService');
   if (!dependencies.sessionRepository) missing.push('sessionRepository');
 
   if (missing.length > 0) {

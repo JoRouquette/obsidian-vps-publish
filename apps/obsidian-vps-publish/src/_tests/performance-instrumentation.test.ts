@@ -273,6 +273,28 @@ describe('PublishingTraceService', () => {
         expect.objectContaining({ completed: true })
       );
     });
+
+    it('should record point metrics and events', () => {
+      const logger = createMockLogger();
+      const trace = new PublishingTraceService(mockUploadRunId, logger);
+
+      trace.markEvent('publication_start', { source: 'command' });
+      trace.recordMetric('time_to_first_request_ms', 123.45, { requestPath: '/api/session/start' });
+
+      expect(trace.getMetrics().get('time_to_first_request_ms')).toBe(123.45);
+      expect(logger.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Event recorded'),
+        expect.objectContaining({ event: 'publication_start', source: 'command' })
+      );
+      expect(logger.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Metric recorded'),
+        expect.objectContaining({
+          metric: 'time_to_first_request_ms',
+          value: 123.45,
+          requestPath: '/api/session/start',
+        })
+      );
+    });
   });
 
   describe('checkpoints', () => {
@@ -356,6 +378,7 @@ describe('PublishingTraceService', () => {
       trace.endStep('step1');
       trace.startStep('step2');
       trace.endStep('step2');
+      trace.recordMetric('parse_and_transform_duration_ms', 42);
 
       const data = trace.getStructuredData();
 
@@ -365,6 +388,10 @@ describe('PublishingTraceService', () => {
         name: expect.any(String),
         durationMs: expect.any(Number),
         durationSec: expect.any(Number),
+      });
+      expect(data.metrics).toContainEqual({
+        name: 'parse_and_transform_duration_ms',
+        value: 42,
       });
       expect(data.totalDurationMs).toBeGreaterThan(0);
       expect(data.totalDurationSec).toBe(data.totalDurationMs / 1000);

@@ -630,19 +630,25 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     const scopedLogger = this.logger.child({ vps: vps.id ?? 'default' });
     const guidGenerator = new GuidGeneratorAdapter();
+    const publishStartTime = performance.now();
 
     // ========================================================================
     // PHASE 1: PERFORMANCE INSTRUMENTATION
     // ========================================================================
     // Generate unique upload run ID for correlation
     const uploadRunId = guidGenerator.generateGuid();
+    const runLogger = scopedLogger.child({ uploadRunId });
 
     // Enable performance debug mode if configured
     const enablePerfDebug = settings.enablePerformanceDebug ?? false;
     const enableBgThrottleDebug = settings.enableBackgroundThrottleDebug ?? false;
 
     // Initialize publishing trace service
-    const trace = new PublishingTraceService(uploadRunId, scopedLogger);
+    const trace = new PublishingTraceService(uploadRunId, runLogger);
+    trace.markEvent('publication_start', {
+      vpsId: vps.id,
+      vpsName: vps.name,
+    });
     scopedLogger.info('🚀 Publishing started', {
       uploadRunId,
       vpsId: vps.id,
@@ -652,13 +658,13 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     });
 
     // Start event loop lag monitor
-    const eventLoopMonitor = new EventLoopMonitorAdapter(scopedLogger, 100);
+    const eventLoopMonitor = new EventLoopMonitorAdapter(runLogger, 100);
     eventLoopMonitor.start();
 
     // Start background throttle monitor (if enabled)
     let backgroundThrottleMonitor: BackgroundThrottleMonitorAdapter | null = null;
     if (enableBgThrottleDebug) {
-      backgroundThrottleMonitor = new BackgroundThrottleMonitorAdapter(scopedLogger, 250);
+      backgroundThrottleMonitor = new BackgroundThrottleMonitorAdapter(runLogger, 250);
       backgroundThrottleMonitor.start();
       scopedLogger.info('🔍 Background throttle monitoring enabled (heartbeat: 250ms)');
     }
@@ -666,14 +672,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     // Initialize performance tracker
     // Debug mode enabled if logLevel is 'debug'
     const debugMode = settings.logLevel === LogLevel.debug;
-    const perfTracker = new PerformanceTrackerAdapter(scopedLogger, debugMode);
+    const perfTracker = new PerformanceTrackerAdapter(runLogger, debugMode);
     const sessionPerfSpan = perfTracker.startSpan('publishing-session', {
       vpsId: vps.id,
       vpsName: vps.name,
     });
 
     // Initialize UI pressure monitor
-    const uiMonitor = new UiPressureMonitorAdapter(scopedLogger);
+    const uiMonitor = new UiPressureMonitorAdapter(runLogger);
 
     // Initialiser les statistiques de publication
     const stats: PublishingStats = createPublishingStats();
@@ -721,7 +727,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const vault = new ObsidianVaultAdapter(
         this.app,
         guidGenerator,
-        scopedLogger,
+        runLogger,
         vps.customRootIndexFile
       );
 
@@ -729,6 +735,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       trace.endStep('1-parse-vault-init');
 
       trace.startStep('2-collect-notes');
+      const parseAndTransformStart = performance.now();
 
       // Use route tree if available, otherwise fallback to legacy folders
       let notes: CollectedNote[];
@@ -789,7 +796,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const parseContentHandler = this.buildParseContentHandler(
         vps,
         settings,
-        scopedLogger,
+        runLogger,
         dataviewApi,
         perfTracker.child('content-pipeline'),
         cancellation
@@ -806,6 +813,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const publishables = await parseContentHandler.handle(notes);
 
       trace.endStep('5-parse-content', { publishablesCount: publishables.length });
+      trace.recordMetric(
+        'parse_and_transform_duration_ms',
+        performance.now() - parseAndTransformStart,
+        {
+          notesCollected: notes.length,
+          publishablesCount: publishables.length,
+        }
+      );
 
       perfTracker.endSpan(parseVaultSpan, {
         notesCollected: notes.length,
@@ -822,6 +837,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       trace.startStep('5b-deduplicate-notes');
 
       const deduplicateSpan = perfTracker.startSpan('deduplicate-notes');
+      const dedupStart = performance.now();
 
       const deduplicated = deduplicationEnabled
         ? new DeduplicateNotesService(scopedLogger).process(publishables)
@@ -831,6 +847,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         inputCount: publishables.length,
         outputCount: deduplicated.length,
         duplicatesRemoved: publishables.length - deduplicated.length,
+      });
+      trace.recordMetric('dedup_duration_ms', performance.now() - dedupStart, {
+        inputCount: publishables.length,
+        outputCount: deduplicated.length,
       });
 
       trace.endStep('5b-deduplicate-notes', {
@@ -887,13 +907,20 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         vps.baseUrl,
         vps.apiKey,
         this.responseHandler,
-        this.logger,
-        t
+        runLogger,
+        t,
+        { uploadRunId }
       );
 
       trace.checkpoint('6-session-start', 'loading-callout-styles');
 
+      const calloutStyleLoadStart = performance.now();
       const calloutStyles = await this.loadCalloutStyles(settings.calloutStylePaths ?? []);
+      trace.recordMetric(
+        'callout_style_loading_duration_ms',
+        performance.now() - calloutStyleLoadStart,
+        { calloutStylesCount: calloutStyles.length }
+      );
 
       trace.checkpoint('6-session-start', 'building-custom-index-configs');
 
@@ -990,6 +1017,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       });
 
       trace.checkpoint('6-session-start', 'calling-startSession-api');
+      trace.recordMetric('time_to_first_request_ms', performance.now() - publishStartTime, {
+        requestPath: '/api/session/start',
+      });
 
       const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
       const started = await sessionClient.startSession({
@@ -1040,8 +1070,11 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // 2a: FILTER UNCHANGED NOTES (inter-publication deduplication)
       // ====================================================================
       let notesToUpload = deduplicated;
+      const noteHashFilterStart = performance.now();
+      let noteHashFilterApplied = false;
 
       if (deduplicationEnabled && !pipelineChanged && Object.keys(existingNoteHashes).length > 0) {
+        noteHashFilterApplied = true;
         trace.checkpoint('7-upload-notes', 'filtering-unchanged-notes');
         const hashService = new BrowserHashService();
         const filteredNotes: PublishableNote[] = [];
@@ -1091,12 +1124,21 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           totalNotes: deduplicated.length,
         });
       }
+      trace.recordMetric(
+        'note_hash_filter_duration_ms',
+        noteHashFilterApplied ? performance.now() - noteHashFilterStart : 0,
+        {
+          applied: noteHashFilterApplied,
+          totalNotes: deduplicated.length,
+          notesToUpload: notesToUpload.length,
+        }
+      );
 
       const notesUploader = new NotesUploaderAdapter(
         sessionClient,
         sessionId,
         new GuidGeneratorAdapter(),
-        this.logger,
+        runLogger,
         serverRequestLimit,
         stepProgressManager,
         validCleanupRules,
@@ -1104,7 +1146,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       );
 
       // Calculer le nombre de batchs
+      const notesBatchInfoStart = performance.now();
       const notesBatchInfo = notesUploader.getBatchInfo(notesToUpload);
+      trace.recordMetric('notes_batch_info_duration_ms', performance.now() - notesBatchInfoStart, {
+        notesCount: notesToUpload.length,
+        batchCount: notesBatchInfo.batchCount,
+      });
       stats.notesBatchCount = notesBatchInfo.batchCount;
 
       stepProgressManager.startStep(
@@ -1145,13 +1192,13 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         const uploadAssetsSpan = perfTracker.startSpan('upload-assets');
 
         const assetHasher = new AssetHashService();
-        const assetsVault = new ObsidianAssetsVaultAdapter(this.app, this.logger);
+        const assetsVault = new ObsidianAssetsVaultAdapter(this.app, runLogger);
         const assetsUploader = new AssetsUploaderAdapter(
           sessionClient,
           sessionId,
           new GuidGeneratorAdapter(),
           assetHasher,
-          this.logger,
+          runLogger,
           serverRequestLimit,
           stepProgressManager,
           uploadConcurrency,
@@ -1211,7 +1258,16 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         }
 
         // Calculer le nombre de batchs
+        const assetBatchInfoStart = performance.now();
         const assetsBatchInfo = await assetsUploader.getBatchInfo(resolvedAssets);
+        trace.recordMetric(
+          'asset_batch_info_duration_ms',
+          performance.now() - assetBatchInfoStart,
+          {
+            assetCount: resolvedAssets.length,
+            batchCount: assetsBatchInfo.batchCount,
+          }
+        );
         stats.assetsBatchCount = assetsBatchInfo.batchCount;
 
         stepProgressManager.startStep(

@@ -22,6 +22,9 @@ interface FinalizationStatusResponse {
   sessionId: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   progress: number;
+  phase?: string;
+  phaseTimings?: Record<string, number>;
+  contentRevision?: string;
   createdAt?: string;
   startedAt?: string | null;
   completedAt?: string | null;
@@ -64,14 +67,8 @@ interface EventSourceMessageLike {
 }
 
 interface EventSourceLike {
-  addEventListener(
-    type: string,
-    listener: (event: EventSourceMessageLike) => void
-  ): void;
-  removeEventListener(
-    type: string,
-    listener: (event: EventSourceMessageLike) => void
-  ): void;
+  addEventListener(type: string, listener: (event: EventSourceMessageLike) => void): void;
+  removeEventListener(type: string, listener: (event: EventSourceMessageLike) => void): void;
   close(): void;
 }
 
@@ -93,9 +90,13 @@ export class SessionApiClient {
     private readonly apiKey: VpsConfig['apiKey'],
     private readonly responseHandler: HttpResponseHandler<RequestUrlResponse>,
     private readonly logger: LoggerPort,
-    private readonly translations?: Translations
+    private readonly translations?: Translations,
+    private readonly requestContext?: { uploadRunId?: string }
   ) {
-    this.logger = logger.child({ component: 'SessionApiClient' });
+    this.logger = logger.child({
+      component: 'SessionApiClient',
+      ...(requestContext?.uploadRunId ? { uploadRunId: requestContext.uploadRunId } : {}),
+    });
     this.logger.debug('SessionApiClient initialized', { baseUrl });
   }
 
@@ -128,6 +129,9 @@ export class SessionApiClient {
         method,
         headers: {
           'x-api-key': this.apiKey,
+          ...(this.requestContext?.uploadRunId
+            ? { 'x-upload-run-id': this.requestContext.uploadRunId }
+            : {}),
           ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
         },
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
@@ -424,10 +428,7 @@ export class SessionApiClient {
     }
 
     if (!realtime.streamUrl || !realtime.token) {
-      throw new FinalizationRealtimeError(
-        'invalid_metadata',
-        'Realtime metadata is incomplete'
-      );
+      throw new FinalizationRealtimeError('invalid_metadata', 'Realtime metadata is incomplete');
     }
 
     const expiresAtMs = Date.parse(realtime.expiresAt);
@@ -471,11 +472,7 @@ export class SessionApiClient {
         eventSource.close();
       };
 
-      const settle = (
-        callback: () => void,
-        error?: Error,
-        onBeforeSettle?: () => void
-      ): void => {
+      const settle = (callback: () => void, error?: Error, onBeforeSettle?: () => void): void => {
         if (settled) {
           return;
         }
@@ -574,10 +571,7 @@ export class SessionApiClient {
             () => undefined,
             error instanceof Error
               ? error
-              : new FinalizationRealtimeError(
-                  'invalid_payload',
-                  'Failed to parse SSE status event'
-                )
+              : new FinalizationRealtimeError('invalid_payload', 'Failed to parse SSE status event')
           );
         }
       };
@@ -615,10 +609,7 @@ export class SessionApiClient {
             () => undefined,
             error instanceof Error
               ? error
-              : new FinalizationRealtimeError(
-                  'invalid_payload',
-                  'Failed to parse SSE failed event'
-                )
+              : new FinalizationRealtimeError('invalid_payload', 'Failed to parse SSE failed event')
           );
         }
       };

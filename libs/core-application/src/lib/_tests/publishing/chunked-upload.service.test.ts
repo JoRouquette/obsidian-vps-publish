@@ -18,7 +18,8 @@ describe('ChunkedUploadService', () => {
       toBase64: jest.fn((bytes: Uint8Array) => Buffer.from(bytes).toString('base64')),
     } as any;
 
-    const service = new ChunkedUploadService(compression, encoding, makeLogger(), {
+    const logger = makeLogger();
+    const service = new ChunkedUploadService(compression, encoding, logger, {
       maxChunkSize: 512,
       maxRequestBytes: 700,
       retryAttempts: 1,
@@ -43,6 +44,13 @@ describe('ChunkedUploadService', () => {
       const requestBodySize = new TextEncoder().encode(JSON.stringify(chunk)).length;
       expect(requestBodySize).toBeLessThanOrEqual(700);
     }
+    expect(logger.debug).toHaveBeenCalledWith(
+      'Upload prepared',
+      expect.objectContaining({
+        uploadId: 'upload-1',
+        chunk_prepare_duration_ms: expect.any(Number),
+      })
+    );
   });
 
   it('does not retry non-retryable payload-too-large errors', async () => {

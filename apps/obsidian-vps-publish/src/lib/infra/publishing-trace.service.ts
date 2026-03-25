@@ -14,6 +14,7 @@ export class PublishingTraceService {
   private readonly logger: LoggerPort;
   private readonly timers = new Map<string, number>();
   private readonly durations = new Map<string, number>();
+  private readonly metrics = new Map<string, number>();
 
   constructor(uploadRunId: string, logger: LoggerPort) {
     this.uploadRunId = uploadRunId;
@@ -82,10 +83,42 @@ export class PublishingTraceService {
   }
 
   /**
+   * Record a point-in-time event without a duration.
+   */
+  markEvent(eventName: string, metadata?: Record<string, unknown>): void {
+    this.logger.debug(`Event recorded: ${eventName}`, {
+      uploadRunId: this.uploadRunId,
+      event: eventName,
+      ...metadata,
+    });
+  }
+
+  /**
+   * Record a numeric metric for the current publishing run.
+   */
+  recordMetric(name: string, value: number, metadata?: Record<string, unknown>): number {
+    this.metrics.set(name, value);
+    this.logger.debug(`Metric recorded: ${name}`, {
+      uploadRunId: this.uploadRunId,
+      metric: name,
+      value,
+      ...metadata,
+    });
+    return value;
+  }
+
+  /**
    * Get all recorded durations
    */
   getDurations(): Map<string, number> {
     return new Map(this.durations);
+  }
+
+  /**
+   * Get all recorded point metrics.
+   */
+  getMetrics(): Map<string, number> {
+    return new Map(this.metrics);
   }
 
   /**
@@ -122,6 +155,7 @@ export class PublishingTraceService {
    */
   getStructuredData(): PublishingTraceData {
     const steps: StepTrace[] = [];
+    const metrics: TraceMetric[] = [];
     let totalDuration = 0;
 
     for (const [step, duration] of this.durations.entries()) {
@@ -133,9 +167,14 @@ export class PublishingTraceService {
       });
     }
 
+    for (const [name, value] of this.metrics.entries()) {
+      metrics.push({ name, value });
+    }
+
     return {
       uploadRunId: this.uploadRunId,
       steps,
+      metrics,
       totalDurationMs: totalDuration,
       totalDurationSec: totalDuration / 1000,
     };
@@ -151,6 +190,12 @@ export interface StepTrace {
 export interface PublishingTraceData {
   uploadRunId: string;
   steps: StepTrace[];
+  metrics: TraceMetric[];
   totalDurationMs: number;
   totalDurationSec: number;
+}
+
+export interface TraceMetric {
+  name: string;
+  value: number;
 }

@@ -21,6 +21,9 @@ export interface FinalizationJob {
   sessionId: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   progress: number; // 0-100
+  phase?: FinalizationPhase;
+  phaseTimings?: Partial<Record<FinalizationPhase, number>>;
+  contentRevision?: string;
   createdAt: Date;
   startedAt?: Date;
   completedAt?: Date;
@@ -31,14 +34,30 @@ export interface FinalizationJob {
     promotionStats?: PromotionStats;
     /** Unique revision identifier for this publication. */
     contentRevision?: string;
+    finalizationTimings?: Partial<Record<FinalizationPhase, number>>;
   };
 }
+
+export type FinalizationPhase =
+  | 'queued'
+  | 'load_session'
+  | 'rebuild_from_stored'
+  | 'promote_session'
+  | 'rebuild_html_indexes'
+  | 'rebuild_search_index'
+  | 'validate_post_promotion'
+  | 'trigger_completion_callbacks'
+  | 'completed'
+  | 'failed';
 
 export interface FinalizationJobHistoryEntry {
   jobId: string;
   sessionId: string;
   status: FinalizationJob['status'];
   progress: number;
+  phase?: FinalizationPhase;
+  phaseTimings?: Partial<Record<FinalizationPhase, number>>;
+  contentRevision?: string;
   createdAt: string;
   startedAt?: string;
   completedAt?: string;
@@ -92,6 +111,8 @@ export class SessionFinalizationJobService {
       sessionId,
       status: 'pending',
       progress: 0,
+      phase: 'queued',
+      phaseTimings: {},
       createdAt: new Date(),
     };
 
@@ -274,13 +295,12 @@ export class SessionFinalizationJobService {
    */
   private async executeJob(job: FinalizationJob): Promise<void> {
     const startTime = Date.now();
-    const timings: Record<string, number> = {};
     const contentRevision = randomUUID();
 
     job.status = 'processing';
     job.startedAt = new Date();
-    job.progress = 10;
-    this.notifyListeners(job);
+    job.contentRevision = contentRevision;
+    this.setJobPhase(job, 'load_session', 10);
 
     this.logger?.info('[JOB] Starting finalization job', {
       jobId: job.jobId,
@@ -292,7 +312,9 @@ export class SessionFinalizationJobService {
 
     try {
       // STEP 0: Load session to get allCollectedRoutes and pipelineSignature (PHASE 6.1, PHASE 7)
-      const session = await this.sessionRepository.findById(job.sessionId);
+      const session = await this.measurePhase(job, 'load_session', 10, async () =>
+        this.sessionRepository.findById(job.sessionId)
+      );
       const allCollectedRoutes = session?.allCollectedRoutes;
       const pipelineSignature = session?.pipelineSignature;
 
@@ -312,61 +334,57 @@ export class SessionFinalizationJobService {
       }
 
       // STEP 1: Rebuild from stored notes (heaviest operation)
-      job.progress = 20;
-      this.notifyListeners(job);
-      const rebuildStart = Date.now();
-      const customIndexesHtml = await this.sessionFinalizer.rebuildFromStored(job.sessionId);
-      timings.rebuildFromStored = Date.now() - rebuildStart;
-      job.progress = 80;
-      this.notifyListeners(job);
+      const customIndexesHtml = await this.measurePhase(job, 'rebuild_from_stored', 20, async () =>
+        this.sessionFinalizer.rebuildFromStored(job.sessionId)
+      );
 
       // STEP 2: Promote staging to production (with deleted page detection and pipelineSignature injection)
-      job.progress = 85;
-      this.notifyListeners(job);
-      const promoteStart = Date.now();
-      const promotionStats = await this.stagingManager.promoteSession(
-        job.sessionId,
-        allCollectedRoutes,
-        pipelineSignature,
-        session?.locale,
-        contentRevision
+      const promotionStats = await this.measurePhase(job, 'promote_session', 85, async () =>
+        this.stagingManager.promoteSession(
+          job.sessionId,
+          allCollectedRoutes,
+          pipelineSignature,
+          session?.locale,
+          contentRevision
+        )
       );
-      timings.promoteSession = Date.now() - promoteStart;
-      job.progress = 90;
-      this.notifyListeners(job);
 
       // STEP 2.5: Rebuild HTML indexes from PRODUCTION manifest (after merge)
       // CRITICAL: rebuildFromStored writes indexes to staging using only the
       // current session's pages. After promoteSession merges staging + production
       // manifests, we must regenerate indexes so they reflect ALL pages.
-      const indexRebuildStart = Date.now();
-      await this.rebuildProductionHtmlIndexes(customIndexesHtml);
-      timings.rebuildHtmlIndexes = Date.now() - indexRebuildStart;
+      await this.measurePhase(job, 'rebuild_html_indexes', 90, async () =>
+        this.rebuildProductionHtmlIndexes(customIndexesHtml)
+      );
 
       // STEP 3: Rebuild search index from PRODUCTION manifest (after merge)
       // CRITICAL: This must happen AFTER promoteSession to include all pages
       // (staging pages + unchanged production pages from deduplication)
-      const searchIndexStart = Date.now();
-      await this.rebuildProductionSearchIndex(contentRevision);
-      timings.rebuildSearchIndex = Date.now() - searchIndexStart;
+      await this.measurePhase(job, 'rebuild_search_index', 92, async () =>
+        this.rebuildProductionSearchIndex(contentRevision)
+      );
 
       // STEP 4: Validate post-promotion consistency (manifest vs search index)
-      const validationStart = Date.now();
-      await this.validatePostPromotion();
-      timings.validation = Date.now() - validationStart;
+      await this.measurePhase(job, 'validate_post_promotion', 95, async () =>
+        this.validatePostPromotion()
+      );
+      // Trigger completion callbacks before exposing the job as completed so
+      // queue stats only count fully finalized publications.
+      await this.measurePhase(job, 'trigger_completion_callbacks', 98, async () =>
+        this.triggerCompletionCallbacks()
+      );
+
       const completedAt = new Date();
       const result: FinalizationJob['result'] = {
         notesProcessed: session?.notesProcessed ?? 0,
         assetsProcessed: session?.assetsProcessed ?? 0,
         promotionStats,
         contentRevision,
+        finalizationTimings: { ...(job.phaseTimings ?? {}) },
       };
 
-      // Trigger completion callbacks before exposing the job as completed so
-      // queue stats only count fully finalized publications.
-      await this.triggerCompletionCallbacks();
-
       job.progress = 100;
+      job.phase = 'completed';
       job.result = result;
       job.completedAt = completedAt;
       job.status = 'completed';
@@ -379,13 +397,14 @@ export class SessionFinalizationJobService {
         sessionId: job.sessionId,
         contentRevision,
         durationMs: totalDuration,
-        timings,
+        phaseTimings: job.phaseTimings,
         activeJobs: this.activeJobs,
       });
     } catch (error) {
       job.error = error instanceof Error ? error.message : 'Unknown error';
       job.completedAt = new Date();
       job.status = 'failed';
+      job.phase = 'failed';
       this.notifyListeners(job);
       await this.appendHistory(job);
 
@@ -396,7 +415,7 @@ export class SessionFinalizationJobService {
         contentRevision,
         error: job.error,
         durationMs: totalDuration,
-        timings,
+        phaseTimings: job.phaseTimings,
       });
     }
   }
@@ -455,6 +474,9 @@ export class SessionFinalizationJobService {
       sessionId: job.sessionId,
       status: job.status,
       progress: job.progress,
+      phase: job.phase,
+      phaseTimings: job.phaseTimings,
+      contentRevision: job.contentRevision,
       createdAt: job.createdAt.toISOString(),
       startedAt: job.startedAt?.toISOString(),
       completedAt: job.completedAt?.toISOString(),
@@ -482,6 +504,39 @@ export class SessionFinalizationJobService {
           error: error instanceof Error ? error.message : String(error),
         });
       }
+    }
+  }
+
+  private setJobPhase(job: FinalizationJob, phase: FinalizationPhase, progress: number): void {
+    job.phase = phase;
+    job.progress = progress;
+    this.notifyListeners(job);
+  }
+
+  private async measurePhase<T>(
+    job: FinalizationJob,
+    phase: FinalizationPhase,
+    progress: number,
+    action: () => Promise<T>
+  ): Promise<T> {
+    this.setJobPhase(job, phase, progress);
+    const startedAt = Date.now();
+
+    try {
+      return await action();
+    } finally {
+      const durationMs = Date.now() - startedAt;
+      job.phaseTimings = {
+        ...(job.phaseTimings ?? {}),
+        [phase]: durationMs,
+      };
+      this.logger?.debug('[JOB] Finalization phase measured', {
+        jobId: job.jobId,
+        sessionId: job.sessionId,
+        phase,
+        durationMs,
+        contentRevision: job.contentRevision,
+      });
     }
   }
 
