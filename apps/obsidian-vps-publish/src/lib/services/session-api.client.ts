@@ -7,7 +7,7 @@ import type { RequestUrlResponse } from 'obsidian';
 
 import { translate } from '../../i18n';
 import type { Translations } from '../../i18n/locales';
-import { requestUrlWithRetry } from '../utils/request-with-retry.util';
+import { requestUrlWithRetry, type RetryConfig } from '../utils/request-with-retry.util';
 
 export interface StartSessionResponse {
   sessionId: string;
@@ -35,6 +35,13 @@ interface FinalizationStatusResponse {
   };
 }
 
+const FINALIZATION_STATUS_RETRY_CONFIG: RetryConfig = {
+  maxRetries: 0,
+  initialDelayMs: 1000,
+  maxDelayMs: 1000,
+  backoffMultiplier: 1,
+};
+
 export class SessionApiClient {
   constructor(
     private readonly baseUrl: string,
@@ -51,18 +58,23 @@ export class SessionApiClient {
     return `${this.baseUrl.replace(/\/$/, '')}${path}`;
   }
 
-  private async postJson<TBody>(path: string, body: TBody): Promise<HttpResponse> {
-    return this.requestJson(path, 'POST', body);
+  private async postJson<TBody>(
+    path: string,
+    body: TBody,
+    retryConfig?: RetryConfig
+  ): Promise<HttpResponse> {
+    return this.requestJson(path, 'POST', body, retryConfig);
   }
 
-  private async getJson(path: string): Promise<HttpResponse> {
-    return this.requestJson(path, 'GET');
+  private async getJson(path: string, retryConfig?: RetryConfig): Promise<HttpResponse> {
+    return this.requestJson(path, 'GET', undefined, retryConfig);
   }
 
   private async requestJson<TBody>(
     path: string,
     method: 'GET' | 'POST',
-    body?: TBody
+    body?: TBody,
+    retryConfig?: RetryConfig
   ): Promise<HttpResponse> {
     const url = this.buildUrl(path);
     const res = await requestUrlWithRetry(
@@ -76,7 +88,7 @@ export class SessionApiClient {
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
         throw: false,
       },
-      undefined, // Use default retry config
+      retryConfig,
       this.logger
     );
 
@@ -282,8 +294,35 @@ export class SessionApiClient {
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeoutMs) {
-      const result = await this.getJson(`/api/session/${sessionId}/status`);
+      let result: HttpResponse;
+      try {
+        result = await this.getJson(
+          `/api/session/${sessionId}/status`,
+          FINALIZATION_STATUS_RETRY_CONFIG
+        );
+      } catch (error) {
+        if (isTransientBackpressureError(error)) {
+          this.logger.warn('Finalization status polling throttled by server backpressure', {
+            sessionId,
+            jobId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          await sleep(pollIntervalMs);
+          continue;
+        }
+        throw error;
+      }
+
       if (result.isError) {
+        if (isTransientBackpressureResponse(result)) {
+          this.logger.warn('Finalization status polling returned HTTP 429', {
+            sessionId,
+            jobId,
+            httpStatus: result.httpStatus,
+          });
+          await sleep(pollIntervalMs);
+          continue;
+        }
         throw result.error ?? new Error('finalization status polling failed');
       }
 
@@ -310,6 +349,18 @@ export class SessionApiClient {
 
     throw new Error(`Finalization polling timed out after ${timeoutMs}ms for ${jobId}`);
   }
+}
+
+function isTransientBackpressureError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return /(?:^|\s)429(?:\s|$)/.test(error.message) || /server under load/i.test(error.message);
+}
+
+function isTransientBackpressureResponse(response: HttpResponse): boolean {
+  return response.isError && response.httpStatus?.startsWith('429') === true;
 }
 
 function parseLimit(value: unknown): number {

@@ -14,6 +14,7 @@ const responseOk = (text: string) => ({
 
 describe('SessionApiClient', () => {
   afterEach(() => {
+    jest.useRealTimers();
     jest.resetModules();
     jest.resetAllMocks();
   });
@@ -192,5 +193,68 @@ describe('SessionApiClient', () => {
       2,
       expect.objectContaining({ url: 'http://api/api/session/s1/status', method: 'GET' })
     );
+  });
+
+  it('keeps polling finalization status when status requests are temporarily throttled', async () => {
+    jest.useFakeTimers();
+
+    const requestUrlWithRetry = jest
+      .fn()
+      .mockResolvedValueOnce({
+        status: 202,
+        headers: {},
+        text: JSON.stringify({ sessionId: 's1', jobId: 'job-1', status: 'queued' }),
+      })
+      .mockRejectedValueOnce(new Error('Server under load after 0 retries (429)'))
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        text: JSON.stringify({
+          jobId: 'job-1',
+          sessionId: 's1',
+          status: 'completed',
+          progress: 100,
+          result: {
+            promotionStats: {
+              notesPublished: 2,
+              notesDeduplicated: 0,
+              notesDeleted: 0,
+              assetsPublished: 0,
+              assetsDeduplicated: 0,
+            },
+          },
+        }),
+      });
+    const handler = {
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValueOnce({
+          isError: false,
+          text: '{"sessionId":"s1","jobId":"job-1","status":"queued"}',
+        })
+        .mockResolvedValueOnce({
+          isError: false,
+          text: '{"jobId":"job-1","sessionId":"s1","status":"completed","progress":100,"result":{"promotionStats":{"notesPublished":2,"notesDeduplicated":0,"notesDeleted":0,"assetsPublished":0,"assetsDeduplicated":0}}}',
+        }),
+    };
+
+    jest.doMock('obsidian', () => ({ requestUrl: jest.fn() }));
+    jest.doMock('../lib/utils/request-with-retry.util', () => ({
+      requestUrlWithRetry,
+    }));
+
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, mockLogger());
+
+    const resultPromise = client.finishSession('s1', {
+      notesProcessed: 1,
+      assetsProcessed: 0,
+    });
+
+    await jest.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result.promotionStats?.notesPublished).toBe(2);
+    expect(requestUrlWithRetry).toHaveBeenCalledTimes(3);
   });
 });
