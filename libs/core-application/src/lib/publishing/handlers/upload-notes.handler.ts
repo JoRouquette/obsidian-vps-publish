@@ -343,16 +343,25 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       return manifest;
     });
 
-    // Rebuild index after atomic update (outside mutex to allow parallel reads)
+    // Rebuild indexes only when this handler is used as the final rendering pass.
+    // During session uploads, raw notes are persisted and SessionFinalizerService runs a
+    // full rebuild at the end of the workflow; rebuilding indexes on every HTTP batch
+    // is redundant and increases request latency enough to hit upstream proxy timeouts.
     const updatedManifest = await manifestStorage.load();
-    if (updatedManifest) {
+    const rebuildIndexes = this.shouldRebuildIndexesAfterUpload();
+    if (updatedManifest && rebuildIndexes) {
       await manifestStorage.rebuildIndex(updatedManifest);
     }
 
-    logger?.debug('Site manifest and indexes updated', {
+    logger?.debug('Site manifest updated', {
       sessionId,
       pageCount: updatedManifest?.pages.length ?? 0,
+      indexesRebuilt: rebuildIndexes,
     });
+  }
+
+  private shouldRebuildIndexesAfterUpload(): boolean {
+    return !this.notesStorage;
   }
 
   private buildHtmlPage(note: PublishableNote, bodyHtml: string): string {
