@@ -22,6 +22,9 @@ interface FinalizationStatusResponse {
   sessionId: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   progress: number;
+  createdAt?: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
   error?: string;
   result?: {
     promotionStats?: {
@@ -35,12 +38,54 @@ interface FinalizationStatusResponse {
   };
 }
 
+interface FinalizationRealtimeMetadata {
+  transport: 'sse';
+  streamUrl: string;
+  token: string;
+  expiresAt: string;
+}
+
+interface FinishSessionResponse {
+  promotionStats?: {
+    notesPublished: number;
+    notesDeduplicated: number;
+    notesDeleted: number;
+    assetsPublished: number;
+    assetsDeduplicated: number;
+  };
+  jobId?: string;
+  realtime?: FinalizationRealtimeMetadata;
+}
+
+type FinalizationEventName = 'connected' | 'status' | 'completed' | 'failed' | 'heartbeat';
+
+interface EventSourceMessageLike {
+  data?: string;
+}
+
+interface EventSourceLike {
+  addEventListener(
+    type: string,
+    listener: (event: EventSourceMessageLike) => void
+  ): void;
+  removeEventListener(
+    type: string,
+    listener: (event: EventSourceMessageLike) => void
+  ): void;
+  close(): void;
+}
+
+type EventSourceConstructor = new (url: string) => EventSourceLike;
+
 const FINALIZATION_STATUS_RETRY_CONFIG: RetryConfig = {
   maxRetries: 0,
   initialDelayMs: 1000,
   maxDelayMs: 1000,
   backoffMultiplier: 1,
 };
+
+const FINALIZATION_SSE_CONNECT_TIMEOUT_MS = 10000;
+const FINALIZATION_SSE_IDLE_TIMEOUT_MS = 45000;
 
 export class SessionApiClient {
   constructor(
@@ -234,20 +279,27 @@ export class SessionApiClient {
         : 'finishSession failed';
       throw result.error ?? new Error(errorMsg);
     }
-    const parsed = JSON.parse(result.text ?? '{}') as
-      | {
-          promotionStats?: {
-            notesPublished: number;
-            notesDeduplicated: number;
-            notesDeleted: number;
-            assetsPublished: number;
-            assetsDeduplicated: number;
-          };
-          jobId?: string;
-        }
-      | undefined;
+    const parsed = JSON.parse(result.text ?? '{}') as FinishSessionResponse | undefined;
 
     if (parsed?.jobId) {
+      if (parsed.realtime?.transport === 'sse') {
+        try {
+          return await this.waitForFinalizationViaSse(sessionId, parsed.jobId, parsed.realtime);
+        } catch (error) {
+          if (error instanceof FinalizationTerminalError) {
+            throw error;
+          }
+
+          const realtimeError = error as FinalizationRealtimeError;
+          this.logger.warn('SSE finalization failed, falling back to polling', {
+            sessionId,
+            jobId: parsed.jobId,
+            reason: realtimeError.reason ?? 'unknown',
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
       return this.waitForFinalization(sessionId, parsed.jobId);
     }
 
@@ -348,6 +400,294 @@ export class SessionApiClient {
     }
 
     throw new Error(`Finalization polling timed out after ${timeoutMs}ms for ${jobId}`);
+  }
+
+  private async waitForFinalizationViaSse(
+    sessionId: string,
+    jobId: string,
+    realtime: FinalizationRealtimeMetadata
+  ): Promise<{
+    promotionStats?: {
+      notesPublished: number;
+      notesDeduplicated: number;
+      notesDeleted: number;
+      assetsPublished: number;
+      assetsDeduplicated: number;
+    };
+  }> {
+    const eventSourceCtor = this.getEventSourceConstructor();
+    if (!eventSourceCtor) {
+      throw new FinalizationRealtimeError(
+        'unsupported',
+        'EventSource is not available in this runtime'
+      );
+    }
+
+    if (!realtime.streamUrl || !realtime.token) {
+      throw new FinalizationRealtimeError(
+        'invalid_metadata',
+        'Realtime metadata is incomplete'
+      );
+    }
+
+    const expiresAtMs = Date.parse(realtime.expiresAt);
+    if (Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now()) {
+      throw new FinalizationRealtimeError('auth_expired', 'Realtime token is already expired');
+    }
+
+    const streamUrl = new URL(this.buildUrl(realtime.streamUrl));
+    streamUrl.searchParams.set('token', realtime.token);
+
+    this.logger.debug('Connecting to finalization SSE stream', {
+      sessionId,
+      jobId,
+      streamUrl: streamUrl.pathname,
+    });
+
+    return new Promise((resolve, reject) => {
+      const eventSource = new eventSourceCtor(streamUrl.toString());
+      let settled = false;
+      let connected = false;
+      let connectTimeout: ReturnType<typeof setTimeout> | null = null;
+      let idleTimeout: ReturnType<typeof setTimeout> | null = null;
+
+      const cleanup = () => {
+        if (connectTimeout) {
+          clearTimeout(connectTimeout);
+          connectTimeout = null;
+        }
+
+        if (idleTimeout) {
+          clearTimeout(idleTimeout);
+          idleTimeout = null;
+        }
+
+        eventSource.removeEventListener('connected', handleConnected);
+        eventSource.removeEventListener('status', handleStatus);
+        eventSource.removeEventListener('completed', handleCompleted);
+        eventSource.removeEventListener('failed', handleFailed);
+        eventSource.removeEventListener('heartbeat', handleHeartbeat);
+        eventSource.removeEventListener('error', handleError);
+        eventSource.close();
+      };
+
+      const settle = (
+        callback: () => void,
+        error?: Error,
+        onBeforeSettle?: () => void
+      ): void => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        onBeforeSettle?.();
+        cleanup();
+        callback();
+
+        if (error) {
+          reject(error);
+        }
+      };
+
+      const resetIdleTimeout = () => {
+        if (idleTimeout) {
+          clearTimeout(idleTimeout);
+        }
+
+        idleTimeout = setTimeout(() => {
+          settle(
+            () => undefined,
+            new FinalizationRealtimeError(
+              'timeout',
+              `SSE finalization stream timed out after ${FINALIZATION_SSE_IDLE_TIMEOUT_MS}ms`
+            )
+          );
+        }, FINALIZATION_SSE_IDLE_TIMEOUT_MS);
+      };
+
+      const markConnected = () => {
+        connected = true;
+        if (connectTimeout) {
+          clearTimeout(connectTimeout);
+          connectTimeout = null;
+        }
+        resetIdleTimeout();
+      };
+
+      const parseStatusEvent = (
+        eventName: FinalizationEventName,
+        event: EventSourceMessageLike
+      ): FinalizationStatusResponse => {
+        if (typeof event.data !== 'string') {
+          throw new FinalizationRealtimeError(
+            'invalid_payload',
+            `SSE ${eventName} event did not include JSON data`
+          );
+        }
+
+        try {
+          return JSON.parse(event.data) as FinalizationStatusResponse;
+        } catch {
+          throw new FinalizationRealtimeError(
+            'invalid_payload',
+            `SSE ${eventName} event contained invalid JSON`
+          );
+        }
+      };
+
+      const logStatus = (source: FinalizationEventName, payload: FinalizationStatusResponse) => {
+        this.logger.debug('Finalization SSE event received', {
+          sessionId,
+          jobId,
+          source,
+          status: payload.status,
+          progress: payload.progress,
+        });
+      };
+
+      const handleConnected = (event: EventSourceMessageLike) => {
+        try {
+          const payload = parseStatusEvent('connected', event);
+          markConnected();
+          logStatus('connected', payload);
+        } catch (error) {
+          settle(
+            () => undefined,
+            error instanceof Error
+              ? error
+              : new FinalizationRealtimeError(
+                  'invalid_payload',
+                  'Failed to parse SSE connected event'
+                )
+          );
+        }
+      };
+
+      const handleStatus = (event: EventSourceMessageLike) => {
+        try {
+          const payload = parseStatusEvent('status', event);
+          markConnected();
+          logStatus('status', payload);
+        } catch (error) {
+          settle(
+            () => undefined,
+            error instanceof Error
+              ? error
+              : new FinalizationRealtimeError(
+                  'invalid_payload',
+                  'Failed to parse SSE status event'
+                )
+          );
+        }
+      };
+
+      const handleCompleted = (event: EventSourceMessageLike) => {
+        try {
+          const payload = parseStatusEvent('completed', event);
+          markConnected();
+          logStatus('completed', payload);
+          settle(() => resolve({ promotionStats: payload.result?.promotionStats }));
+        } catch (error) {
+          settle(
+            () => undefined,
+            error instanceof Error
+              ? error
+              : new FinalizationRealtimeError(
+                  'invalid_payload',
+                  'Failed to parse SSE completed event'
+                )
+          );
+        }
+      };
+
+      const handleFailed = (event: EventSourceMessageLike) => {
+        try {
+          const payload = parseStatusEvent('failed', event);
+          markConnected();
+          logStatus('failed', payload);
+          settle(
+            () => undefined,
+            new FinalizationTerminalError(payload.error || `Finalization job failed: ${jobId}`)
+          );
+        } catch (error) {
+          settle(
+            () => undefined,
+            error instanceof Error
+              ? error
+              : new FinalizationRealtimeError(
+                  'invalid_payload',
+                  'Failed to parse SSE failed event'
+                )
+          );
+        }
+      };
+
+      const handleHeartbeat = () => {
+        markConnected();
+        this.logger.debug('Finalization SSE heartbeat received', { sessionId, jobId });
+      };
+
+      const handleError = () => {
+        const reason = connected ? 'network_error' : 'connection_error';
+        const message = connected
+          ? 'Finalization SSE stream disconnected before terminal status'
+          : 'Finalization SSE connection could not be established';
+
+        settle(() => undefined, new FinalizationRealtimeError(reason, message));
+      };
+
+      eventSource.addEventListener('connected', handleConnected);
+      eventSource.addEventListener('status', handleStatus);
+      eventSource.addEventListener('completed', handleCompleted);
+      eventSource.addEventListener('failed', handleFailed);
+      eventSource.addEventListener('heartbeat', handleHeartbeat);
+      eventSource.addEventListener('error', handleError);
+
+      connectTimeout = setTimeout(() => {
+        settle(
+          () => undefined,
+          new FinalizationRealtimeError(
+            'timeout',
+            `SSE connection was not established within ${FINALIZATION_SSE_CONNECT_TIMEOUT_MS}ms`
+          )
+        );
+      }, FINALIZATION_SSE_CONNECT_TIMEOUT_MS);
+    });
+  }
+
+  private getEventSourceConstructor(): EventSourceConstructor | undefined {
+    const candidate = (
+      globalThis as typeof globalThis & {
+        EventSource?: EventSourceConstructor;
+      }
+    ).EventSource;
+
+    return typeof candidate === 'function' ? candidate : undefined;
+  }
+}
+
+class FinalizationTerminalError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FinalizationTerminalError';
+  }
+}
+
+class FinalizationRealtimeError extends Error {
+  constructor(
+    readonly reason:
+      | 'unsupported'
+      | 'invalid_metadata'
+      | 'auth_expired'
+      | 'invalid_payload'
+      | 'timeout'
+      | 'connection_error'
+      | 'network_error',
+    message: string
+  ) {
+    super(message);
+    this.name = 'FinalizationRealtimeError';
   }
 }
 
