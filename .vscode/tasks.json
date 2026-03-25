@@ -78,12 +78,18 @@
       "type": "shell",
       "command": "npx",
       "args": ["nx", "run", "obsidian-vps-publish:package", "--tui false"],
-      "dependsOn": ["Plugin: build"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Plugin: update test vault",
+      "type": "shell",
+      "command": "npx",
+      "args": ["nx", "run", "obsidian-vps-publish:update-test-vault", "--tui false"],
       "problemMatcher": []
     },
     {
       "label": "Dev refresh",
-      "dependsOn": ["Docker: dev up", "Plugin: package"],
+      "dependsOn": ["Docker: dev up", "Plugin: update test vault"],
       "dependsOrder": "parallel",
       "problemMatcher": []
     },
