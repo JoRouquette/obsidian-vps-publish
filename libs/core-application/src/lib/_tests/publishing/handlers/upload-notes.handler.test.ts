@@ -315,6 +315,7 @@ describe('UploadNotesHandler', () => {
   it('persists raw notes when a storage adapter is provided', async () => {
     const notesStorage = {
       append: jest.fn(async () => {}),
+      saveCleanupRules: jest.fn(async () => {}),
     };
     const handler = new UploadNotesHandler(
       markdownRenderer,
@@ -329,9 +330,10 @@ describe('UploadNotesHandler', () => {
     expect(notesStorage.append).toHaveBeenCalledWith('s-raw', [note]);
   });
 
-  it('skips index rebuild during upload batches when finalization will rebuild later', async () => {
+  it('skips upload-time rendering and index rebuild when finalization will rebuild later', async () => {
     const notesStorage = {
       append: jest.fn(async () => {}),
+      saveCleanupRules: jest.fn(async () => {}),
     };
     const handler = new UploadNotesHandler(
       markdownRenderer,
@@ -344,6 +346,8 @@ describe('UploadNotesHandler', () => {
 
     await handler.handle({ sessionId: 's-no-index-rebuild', notes: [note] });
 
+    expect(markdownRenderer.render).not.toHaveBeenCalled();
+    expect(contentStorage.save).not.toHaveBeenCalled();
     expect(manifestStorage.save).toHaveBeenCalled();
     expect(manifestStorage.rebuildIndex).not.toHaveBeenCalled();
   });

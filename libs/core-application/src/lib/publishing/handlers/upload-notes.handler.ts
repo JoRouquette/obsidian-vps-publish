@@ -43,7 +43,6 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
 
   async handle(command: UploadNotesCommand): Promise<UploadNotesResult> {
     const { sessionId, notes, cleanupRules, folderDisplayNames } = command;
-    const contentStorage = this.resolveContentStorage(sessionId);
     const manifestStorage = this.resolveManifestStorage(sessionId);
     const logger = this.logger?.child({ method: 'handle', sessionId });
 
@@ -60,8 +59,34 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       } catch (err) {
         logger?.warn('Failed to persist raw notes for session', { error: err });
       }
+
+      const manifestPages = notes.map((note) => this.buildManifestPage(note));
+      if (manifestPages.length > 0) {
+        await this.updateManifestForSession(
+          sessionId,
+          manifestPages,
+          notes,
+          manifestStorage,
+          logger,
+          folderDisplayNames
+        );
+      }
+
+      logger?.debug(
+        'Upload batch persisted without rendering; finalization remains authoritative',
+        {
+          count: notes.length,
+        }
+      );
+
+      return {
+        sessionId,
+        published: notes.length,
+        errors: [],
+      };
     }
 
+    const contentStorage = this.resolveContentStorage(sessionId);
     const errors: { noteId: string; message: string }[] = [];
     const succeeded: PublishableNote[] = [];
 
@@ -236,7 +261,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     const pagesById = new Map<string, ManifestPage>(basePages.map((page) => [page.id, page]));
 
     for (const note of notes) {
-      pagesById.set(note.noteId, this.buildRenderManifestPage(note));
+      pagesById.set(note.noteId, this.buildManifestPage(note));
     }
 
     if (pagesById.size === 0) {
@@ -256,7 +281,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     };
   }
 
-  private buildRenderManifestPage(note: PublishableNote): ManifestPage {
+  private buildManifestPage(note: PublishableNote): ManifestPage {
     return {
       id: note.noteId,
       title: note.title,
