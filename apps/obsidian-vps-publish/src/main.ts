@@ -704,6 +704,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     let sessionId: string | null = null;
     let sessionClient: SessionApiClient | null = null;
+    let finalizationRequested = false;
 
     try {
       // ====================================================================
@@ -1268,6 +1269,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // to ensure backend receives complete list of vault routes for manifest merge
       const allCollectedRoutes = publishables.map((note) => note.routing.fullPath);
 
+      finalizationRequested = true;
       const finishResult = await sessionClient.finishSession(sessionId, {
         notesProcessed: stats.notesUploaded,
         assetsProcessed: stats.assetsUploaded,
@@ -1416,7 +1418,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       }
 
       // Abort session si elle a été créée
-      if (sessionId && sessionClient) {
+      if (sessionId && sessionClient && !finalizationRequested) {
         try {
           await sessionClient.abortSession(sessionId);
         } catch (abortErr) {
