@@ -329,6 +329,25 @@ describe('UploadNotesHandler', () => {
     expect(notesStorage.append).toHaveBeenCalledWith('s-raw', [note]);
   });
 
+  it('skips index rebuild during upload batches when finalization will rebuild later', async () => {
+    const notesStorage = {
+      append: jest.fn(async () => {}),
+    };
+    const handler = new UploadNotesHandler(
+      markdownRenderer,
+      contentStorage,
+      manifestStorage,
+      logger,
+      notesStorage as any
+    );
+    const note = createNote();
+
+    await handler.handle({ sessionId: 's-no-index-rebuild', notes: [note] });
+
+    expect(manifestStorage.save).toHaveBeenCalled();
+    expect(manifestStorage.rebuildIndex).not.toHaveBeenCalled();
+  });
+
   it('renders unresolved frontmatter wikilinks with the shared unavailable state markup', async () => {
     const handler = new UploadNotesHandler(
       markdownRenderer,
