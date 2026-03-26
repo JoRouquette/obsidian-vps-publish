@@ -21,6 +21,7 @@ import { CreateSessionBodyDto } from '../dto/create-session-body.dto';
 import { FinishSessionBodyDto } from '../dto/finish-session-body.dto';
 import { ApiAssetsBodyDto } from '../dto/upload-assets.dto';
 import { UploadSessionNotesBodyDto } from '../dto/upload-session-notes-body.dto';
+import { type FinalizationStreamTokenService } from '../finalization-stream-token.service';
 import { asyncRoute } from './async-route.util';
 
 export type SessionControllerDependencies = {
@@ -32,7 +33,9 @@ export type SessionControllerDependencies = {
   stagingManager: StagingManager;
   calloutRenderer: CalloutRendererService;
   finalizationJobService: SessionFinalizationJobService;
+  finalizationStreamTokenService: FinalizationStreamTokenService;
   sessionRepository: SessionRepository;
+  finalizationRealtimeEnabled?: boolean;
   logger?: LoggerPort;
 };
 
@@ -79,6 +82,13 @@ export class SessionControllerBuilder {
     return this;
   }
 
+  withFinalizationStreamTokenService(
+    finalizationStreamTokenService: FinalizationStreamTokenService
+  ): this {
+    this.dependencies.finalizationStreamTokenService = finalizationStreamTokenService;
+    return this;
+  }
+
   withSessionRepository(sessionRepository: SessionRepository): this {
     this.dependencies.sessionRepository = sessionRepository;
     return this;
@@ -86,6 +96,11 @@ export class SessionControllerBuilder {
 
   withLogger(logger?: LoggerPort): this {
     this.dependencies.logger = logger;
+    return this;
+  }
+
+  withFinalizationRealtimeEnabled(finalizationRealtimeEnabled: boolean): this {
+    this.dependencies.finalizationRealtimeEnabled = finalizationRealtimeEnabled;
     return this;
   }
 
@@ -103,7 +118,9 @@ export function createSessionController({
   stagingManager,
   calloutRenderer,
   finalizationJobService,
+  finalizationStreamTokenService,
   sessionRepository,
+  finalizationRealtimeEnabled = true,
   logger,
 }: SessionControllerDependencies): Router {
   const router = Router();
@@ -129,6 +146,7 @@ export function createSessionController({
         batchConfig,
         calloutStyles,
         customIndexConfigs,
+        ignoreRules,
         ignoredTags,
         folderDisplayNames,
         pipelineSignature,
@@ -152,6 +170,7 @@ export function createSessionController({
           maxBytesPerRequest: batchConfig.maxBytesPerRequest,
         },
         customIndexConfigs,
+        ignoreRules,
         ignoredTags,
         folderDisplayNames,
         pipelineSignature,
@@ -179,7 +198,7 @@ export function createSessionController({
           success: result.success,
           maxBytesPerRequest: effectiveMaxBytesPerRequest,
           existingAssetHashes: result.existingAssetHashes ?? [],
-          existingNoteHashes: result.existingNoteHashes ?? {},
+          existingSourceNoteHashesByVaultPath: result.existingSourceNoteHashesByVaultPath ?? {},
           pipelineChanged: result.pipelineChanged,
           deduplicationEnabled: result.deduplicationEnabled ?? true,
         });
@@ -344,19 +363,34 @@ export function createSessionController({
 
         // Queue heavy finalization work
         const jobId = await finalizationJobService.queueFinalization(req.params.sessionId);
+        const realtimeToken = finalizationRealtimeEnabled
+          ? finalizationStreamTokenService.createToken(req.params.sessionId, jobId)
+          : null;
 
         routeLogger?.info('Session finalization queued', {
           sessionId: req.params.sessionId,
           jobId,
+          realtimeEnabled: finalizationRealtimeEnabled,
         });
 
-        // Return immediately and let clients poll /status.
-        return res.status(202).json({
+        const responseBody: Record<string, unknown> = {
           sessionId: result.sessionId,
           success: true,
           jobId,
           status: 'queued',
-        });
+        };
+
+        if (finalizationRealtimeEnabled) {
+          responseBody.realtime = {
+            transport: 'sse',
+            streamUrl: `/events/session/${encodeURIComponent(req.params.sessionId)}/finalization?jobId=${encodeURIComponent(jobId)}`,
+            token: realtimeToken!.token,
+            expiresAt: realtimeToken!.expiresAt,
+          };
+        }
+
+        // Return immediately and let clients poll /status.
+        return res.status(202).json(responseBody);
       } catch (err) {
         if (err instanceof SessionNotFoundError) {
           routeLogger?.warn('Session not found', { error: err.message });
@@ -410,6 +444,9 @@ export function createSessionController({
         sessionId: job.sessionId,
         status: job.status,
         progress: job.progress,
+        phase: job.phase,
+        phaseTimings: job.phaseTimings,
+        contentRevision: job.contentRevision,
         createdAt: job.createdAt,
         startedAt: job.startedAt,
         completedAt: job.completedAt,
@@ -478,6 +515,7 @@ function ensureDependencies(
   if (!dependencies.stagingManager) missing.push('stagingManager');
   if (!dependencies.calloutRenderer) missing.push('calloutRenderer');
   if (!dependencies.finalizationJobService) missing.push('finalizationJobService');
+  if (!dependencies.finalizationStreamTokenService) missing.push('finalizationStreamTokenService');
   if (!dependencies.sessionRepository) missing.push('sessionRepository');
 
   if (missing.length > 0) {

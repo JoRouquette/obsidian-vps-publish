@@ -313,9 +313,7 @@ describe('Leaflet asset republication integration', () => {
     );
     expect(firstPublication.parsedNote.assets?.[0].target).toBe('Ektaron.png');
     expect(firstPublication.createResult.existingAssetHashes).toBeUndefined();
-    expect(
-      firstPublication.preAssetsManifest?.pages[0].leafletBlocks?.[0].imageOverlays?.[0].path
-    ).toBe('Ektaron.png');
+    expect(firstPublication.preAssetsManifest?.pages ?? []).toHaveLength(0);
     expect(firstPublication.uploadResult.published).toBe(1);
     expect(firstPublication.uploadResult.skipped).toBeUndefined();
     expect(firstPublication.uploadResult.renamedAssets).toEqual({
@@ -332,9 +330,7 @@ describe('Leaflet asset republication integration', () => {
       'Ektaron.png'
     );
     expect(secondPublication.createResult.existingAssetHashes).toBeUndefined();
-    expect(
-      secondPublication.preAssetsManifest?.pages[0].leafletBlocks?.[0].imageOverlays?.[0].path
-    ).toBe('Ektaron.png');
+    expect(secondPublication.preAssetsManifest?.pages ?? []).toHaveLength(0);
     expect(secondPublication.uploadResult.published).toBe(1);
     expect(secondPublication.uploadResult.skipped).toBeUndefined();
     expect(secondPublication.uploadResult.renamedAssets).toEqual({

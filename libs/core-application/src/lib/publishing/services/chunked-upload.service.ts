@@ -42,21 +42,27 @@ export class ChunkedUploadService {
    */
   async prepareUpload<T>(uploadId: string, data: T): Promise<ChunkedData[]> {
     this.logger.debug('Preparing chunked upload', { uploadId });
+    const prepareStart = performance.now();
 
     // 1. Serialize to JSON
+    const serializeStart = performance.now();
     const jsonString = JSON.stringify(data);
     const originalSize = new TextEncoder().encode(jsonString).length;
+    const serializeDurationMs = performance.now() - serializeStart;
 
     this.logger.debug('Data serialized', {
       uploadId,
       originalSize,
       originalSizeMB: (originalSize / 1024 / 1024).toFixed(2),
+      serialize_duration_ms: serializeDurationMs,
     });
 
     // 2. Compress with gzip
+    const compressStart = performance.now();
     const compressed = await this.compression.compress(jsonString, this.compressionLevel);
     const compressedSize = compressed.length;
     const compressionRatio = ((1 - compressedSize / originalSize) * 100).toFixed(2);
+    const compressDurationMs = performance.now() - compressStart;
 
     this.logger.debug('Data compressed', {
       uploadId,
@@ -64,6 +70,7 @@ export class ChunkedUploadService {
       compressedSize,
       compressionRatio: `${compressionRatio}%`,
       compressedSizeMB: (compressedSize / 1024 / 1024).toFixed(2),
+      compress_duration_ms: compressDurationMs,
     });
 
     // 3. Split into chunks.
@@ -72,6 +79,7 @@ export class ChunkedUploadService {
     const safeChunkSize = this.computeSafeChunkSize(uploadId, originalSize, compressedSize);
     const chunks: ChunkedData[] = [];
     const totalChunks = Math.ceil(compressedSize / safeChunkSize);
+    const chunkEncodeStart = performance.now();
 
     for (let i = 0; i < totalChunks; i++) {
       const start = i * safeChunkSize;
@@ -112,6 +120,8 @@ export class ChunkedUploadService {
       totalChunks,
       safeChunkSize,
       avgChunkSizeMB: (compressedSize / totalChunks / 1024 / 1024).toFixed(2),
+      chunk_prepare_duration_ms: performance.now() - prepareStart,
+      chunk_encode_duration_ms: performance.now() - chunkEncodeStart,
     });
 
     return chunks;

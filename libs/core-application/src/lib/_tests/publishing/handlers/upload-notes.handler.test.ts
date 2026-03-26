@@ -315,6 +315,7 @@ describe('UploadNotesHandler', () => {
   it('persists raw notes when a storage adapter is provided', async () => {
     const notesStorage = {
       append: jest.fn(async () => {}),
+      saveCleanupRules: jest.fn(async () => {}),
     };
     const handler = new UploadNotesHandler(
       markdownRenderer,
@@ -329,9 +330,10 @@ describe('UploadNotesHandler', () => {
     expect(notesStorage.append).toHaveBeenCalledWith('s-raw', [note]);
   });
 
-  it('skips index rebuild during upload batches when finalization will rebuild later', async () => {
+  it('skips upload-time rendering and index rebuild when finalization will rebuild later', async () => {
     const notesStorage = {
       append: jest.fn(async () => {}),
+      saveCleanupRules: jest.fn(async () => {}),
     };
     const handler = new UploadNotesHandler(
       markdownRenderer,
@@ -344,8 +346,89 @@ describe('UploadNotesHandler', () => {
 
     await handler.handle({ sessionId: 's-no-index-rebuild', notes: [note] });
 
+    expect(markdownRenderer.render).not.toHaveBeenCalled();
+    expect(contentStorage.save).not.toHaveBeenCalled();
     expect(manifestStorage.save).toHaveBeenCalled();
     expect(manifestStorage.rebuildIndex).not.toHaveBeenCalled();
+  });
+
+  it('defers manifest page materialization until backend finalization', async () => {
+    const notesStorage = {
+      append: jest.fn(async () => {}),
+      saveCleanupRules: jest.fn(async () => {}),
+    };
+    const handler = new UploadNotesHandler(
+      markdownRenderer,
+      contentStorage,
+      manifestStorage,
+      logger,
+      notesStorage as any
+    );
+    const note = createNote({
+      folderConfig: {
+        ...createNote().folderConfig,
+        displayName: 'Notes',
+      },
+      routing: {
+        fullPath: 'Vault/Test Note.md',
+        path: '',
+        slug: '',
+        routeBase: '/notes',
+      },
+    });
+
+    await handler.handle({
+      sessionId: 's-finalization',
+      notes: [note],
+    });
+
+    expect(markdownRenderer.render).not.toHaveBeenCalled();
+    expect(contentStorage.save).not.toHaveBeenCalled();
+    expect(manifestStorage.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 's-finalization',
+        pages: [],
+        folderDisplayNames: expect.objectContaining({
+          '/notes': note.folderConfig.displayName,
+        }),
+      })
+    );
+  });
+
+  it('hydrates lean source-package notes for the canonical upload path', async () => {
+    const notesStorage = {
+      append: jest.fn(async () => {}),
+      saveCleanupRules: jest.fn(async () => {}),
+    };
+    const handler = new UploadNotesHandler(
+      markdownRenderer,
+      contentStorage,
+      manifestStorage,
+      logger,
+      notesStorage as any
+    );
+    const note = createNote();
+    const { routing: _routing, resolvedWikilinks: _resolvedWikilinks, ...leanNote } = note as any;
+
+    await handler.handle({
+      sessionId: 's-lean',
+      notes: [leanNote],
+    });
+
+    expect(notesStorage.append).toHaveBeenCalledWith(
+      's-lean',
+      expect.arrayContaining([
+        expect.objectContaining({
+          noteId: note.noteId,
+          routing: {
+            slug: '',
+            path: '',
+            fullPath: note.vaultPath,
+            routeBase: note.folderConfig.routeBase,
+          },
+        }),
+      ])
+    );
   });
 
   it('renders unresolved frontmatter wikilinks with the shared unavailable state markup', async () => {

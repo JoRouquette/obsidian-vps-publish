@@ -70,4 +70,69 @@ describe('NotesUploaderAdapter', () => {
     expect(firstCall[1]).toHaveProperty('metadata');
     expect(firstCall[1]).toHaveProperty('data');
   });
+
+  it('reuses cached batch plans between getBatchInfo and upload', async () => {
+    const adapter = new NotesUploaderAdapter(
+      sessionClient,
+      's1',
+      makeGuidGenerator(),
+      makeLogger(),
+      10_000
+    );
+    const notes = [
+      sampleNote,
+      {
+        ...sampleNote,
+        noteId: 'n2',
+        vaultPath: 'v2',
+        relativePath: 'r2',
+        routing: { fullPath: '/r2', path: '/r2', slug: 'r2', routeBase: '/' },
+      },
+    ];
+
+    const batchInfo = adapter.getBatchInfo(notes as any);
+
+    await adapter.upload(notes as any);
+
+    expect(batchInfo.batchCount).toBeGreaterThan(0);
+    expect((adapter as any).batchesByNotes.get(notes)).toHaveLength(batchInfo.batchCount);
+  });
+
+  it('builds lean upload notes for the canonical upload payload', async () => {
+    const adapter = new NotesUploaderAdapter(
+      sessionClient,
+      's1',
+      makeGuidGenerator(),
+      makeLogger(),
+      10_000,
+      undefined,
+      undefined,
+      undefined
+    );
+
+    const notes = [
+      {
+        ...sampleNote,
+        assets: [
+          {
+            raw: '![[cover.png]]',
+            target: 'cover.png',
+            kind: 'image',
+            display: { classes: [], rawModifiers: [] },
+          },
+        ],
+        resolvedWikilinks: [
+          { raw: '[[Target]]', target: 'Target', path: '/target', kind: 'note', isResolved: true },
+        ],
+      },
+    ];
+
+    adapter.getBatchInfo(notes as any);
+
+    const uploadNotes = (adapter as any).uploadNotesByNotes.get(notes);
+    expect(uploadNotes).toHaveLength(1);
+    expect(uploadNotes[0]).not.toHaveProperty('routing');
+    expect(uploadNotes[0]).not.toHaveProperty('resolvedWikilinks');
+    expect(uploadNotes[0]).toHaveProperty('assets');
+  });
 });

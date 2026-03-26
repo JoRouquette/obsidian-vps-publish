@@ -147,16 +147,14 @@ export const NoteEligibilityDto = z.object({
   ignoredByRule: NoteIgnoredByRuleDto.optional(),
 });
 
-// PublishableNote
-export const PublishableNoteDto = NoteCoreDto.extend({
+export const SourcePackageNoteDto = NoteCoreDto.extend({
   publishedAt: z.coerce.date(),
-  routing: NoteRoutingInfoDto,
   eligibility: NoteEligibilityDto,
   assets: z.array(AssetRefDto).optional(),
-  wikilinks: z.array(WikilinkRefDto).optional(),
-  resolvedWikilinks: z.array(ResolvedWikilinkDto).optional(),
   leafletBlocks: z.array(LeafletBlockDto).optional(),
 });
+
+export const UploadSessionNoteDto = SourcePackageNoteDto;
 
 // NoteWithAssets
 export const NoteWithAssetsDto = NoteCoreDto.extend({
@@ -169,8 +167,6 @@ export const NoteWithWikiLinksDto = NoteCoreDto.extend({
   resolvedWikilinks: z.array(ResolvedWikilinkDto),
 });
 
-// Types
-export type PublishableNoteDtoType = z.infer<typeof PublishableNoteDto>;
 export type NoteCoreDtoType = z.infer<typeof NoteCoreDto>;
 export type NoteWithAssetsDtoType = z.infer<typeof NoteWithAssetsDto>;
 export type NoteWithWikiLinksDtoType = z.infer<typeof NoteWithWikiLinksDto>;

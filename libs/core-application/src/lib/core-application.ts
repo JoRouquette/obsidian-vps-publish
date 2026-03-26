@@ -40,6 +40,7 @@ export * from './publishing/ports/manifest-storage.port';
 export * from './publishing/ports/session-notes-storage.port';
 export * from './publishing/services/chunk-assembler.service';
 export * from './publishing/services/chunked-upload.service';
+export * from './publishing/utils/build-upload-session-notes.util';
 // NOTE: NoteHashService not exported here (uses node:crypto, not SSR-compatible)
 // Backend projects should import directly from './publishing/services/note-hash.service'
 

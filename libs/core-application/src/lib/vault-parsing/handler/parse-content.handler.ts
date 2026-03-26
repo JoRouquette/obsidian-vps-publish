@@ -9,14 +9,11 @@ import {
 
 import { type CommandHandler } from '../../common/command-handler';
 import { YieldScheduler } from '../../utils/concurrency.util';
-import { type ComputeRoutingService } from '../services/compute-routing.service';
 import { type DetectAssetsService } from '../services/detect-assets.service';
 import { type DetectLeafletBlocksService } from '../services/detect-leaflet-blocks.service';
-import { type EnsureTitleHeaderService } from '../services/ensure-title-header.service';
 import { type NormalizeFrontmatterService } from '../services/normalize-frontmatter.service';
 import { type RemoveNoPublishingMarkerService } from '../services/remove-no-publishing-marker.service';
 import { type RenderInlineDataviewService } from '../services/render-inline-dataview.service';
-import { type ResolveWikilinksService } from '../services/resolve-wikilinks.service';
 import { type EvaluateIgnoreRulesHandler } from './evaluate-ignore-rules.handler';
 
 export class ParseContentHandler implements CommandHandler<CollectedNote[], PublishableNote[]> {
@@ -26,11 +23,8 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
     private readonly noteMapper: Mapper<CollectedNote, PublishableNote>,
     private readonly inlineDataviewRenderer: RenderInlineDataviewService,
     private readonly leafletBlocksDetector: DetectLeafletBlocksService,
-    private readonly ensureTitleHeaderService: EnsureTitleHeaderService,
     private readonly removeNoPublishingMarkerService: RemoveNoPublishingMarkerService,
     private readonly assetsDetector: DetectAssetsService,
-    private readonly wikilinkResolver: ResolveWikilinksService,
-    private readonly computeRoutingService: ComputeRoutingService,
     private readonly logger: LoggerPort,
     private readonly dataviewProcessor?: (
       notes: PublishableNote[],
@@ -111,19 +105,7 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
 
     await yieldScheduler.maybeYield();
 
-    // Step 5: Inline dataview
-    this.cancellation?.throwIfCancelled();
-    stepSpan = this.perfTracker?.startSpan('inline-dataview-render');
-    publishableNotes = this.inlineDataviewRenderer.process(publishableNotes);
-    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
-
-    this.logger?.debug('Inline dataview processed', {
-      notesCount: publishableNotes.length,
-    });
-
-    await yieldScheduler.maybeYield();
-
-    // Step 6: Process Dataview blocks (async, potentially slow)
+    // Step 5: Process Dataview blocks (async, potentially slow)
     if (this.dataviewProcessor) {
       this.cancellation?.throwIfCancelled();
       stepSpan = this.perfTracker?.startSpan('dataview-blocks-process');
@@ -143,7 +125,7 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
       await yieldScheduler.maybeYield();
     }
 
-    // Step 7: Remove no-publishing markers after Dataview rendering
+    // Step 6: Remove no-publishing markers after Dataview rendering
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('remove-no-publishing-markers-post-dataview');
     publishableNotes = this.removeNoPublishingMarkerService.process(publishableNotes);
@@ -151,7 +133,7 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
 
     await yieldScheduler.maybeYield();
 
-    // Step 8: Leaflet blocks
+    // Step 7: Leaflet blocks
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('detect-leaflet-blocks');
     publishableNotes = this.leafletBlocksDetector.process(publishableNotes);
@@ -159,35 +141,24 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
 
     await yieldScheduler.maybeYield();
 
-    // Step 9: Ensure title header
-    this.cancellation?.throwIfCancelled();
-    stepSpan = this.perfTracker?.startSpan('ensure-title-header');
-    publishableNotes = this.ensureTitleHeaderService.process(publishableNotes);
-    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
-
-    await yieldScheduler.maybeYield();
-
-    // Step 10: Detect assets
+    // Step 8: Detect assets from content with inline Dataview expressions rendered locally.
+    // Final deterministic transforms remain server-owned.
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('detect-assets');
-    publishableNotes = this.assetsDetector.process(publishableNotes);
+    publishableNotes = publishableNotes.map((note) => ({
+      ...note,
+      assets: this.assetsDetector.detectForContentOverride(
+        note,
+        this.inlineDataviewRenderer.renderContent(note.content, note.frontmatter)
+      ),
+    }));
     this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
     await yieldScheduler.maybeYield();
 
-    // Step 11: Resolve wikilinks
-    this.cancellation?.throwIfCancelled();
-    stepSpan = this.perfTracker?.startSpan('resolve-wikilinks');
-    publishableNotes = this.wikilinkResolver.process(publishableNotes);
-    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
-
-    await yieldScheduler.maybeYield();
-
-    // Step 12: Compute routing
-    this.cancellation?.throwIfCancelled();
-    stepSpan = this.perfTracker?.startSpan('compute-routing');
-    publishableNotes = this.computeRoutingService.process(publishableNotes);
-    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
+    this.logger?.debug('Deterministic note transforms deferred to API finalization', {
+      notesCount: publishableNotes.length,
+    });
 
     this.perfTracker?.endSpan(spanId!, {
       totalNotesProcessed: publishableNotes.length,

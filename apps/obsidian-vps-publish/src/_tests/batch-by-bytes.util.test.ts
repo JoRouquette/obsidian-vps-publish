@@ -57,6 +57,21 @@ describe('batchByBytes', () => {
     expect(result[1]).toEqual([huge2]);
     expect(result[2]).toEqual([small]);
   });
+
+  it('keeps every produced wrapped batch within the byte limit', () => {
+    const items = [
+      { id: 'a', content: 'x'.repeat(20) },
+      { id: 'b', content: 'y'.repeat(60) },
+      { id: 'c', content: 'z'.repeat(15) },
+      { id: 'd', content: 'w'.repeat(40) },
+    ];
+    const maxBytes = jsonSizeBytes(wrap(items.slice(0, 2)));
+
+    const result = batchByBytes(items, maxBytes, wrap);
+
+    expect(result.every((batch) => jsonSizeBytes(wrap(batch)) <= maxBytes)).toBe(true);
+    expect(result.flat()).toEqual(items);
+  });
 });
 
 describe('batchByBytesAsync', () => {

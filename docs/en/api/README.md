@@ -1,109 +1,58 @@
 # Node.js Backend Documentation (API)
 
-> **Version française :** [docs/api/](../../api/)
+> French version: [docs/api/](../../api/)
 
-This section contains documentation for the Node.js backend (`apps/node`): the Express API that manages upload, storage, and rendering of published content.
+This section covers the Node.js backend (`apps/node`) that receives publish sessions, stores staged source packages, rebuilds the final site, and serves the published output.
 
-## 🎯 Overview
+## Overview
 
 The Node.js/Express backend:
 
-- Exposes a secure REST API (`/api/**`) with `x-api-key` authentication
-- Manages publication workflow through sessions (start, upload notes/assets, finish/abort)
-- Renders Markdown to HTML with advanced support (wikilinks, footnotes, Dataview)
-- Serves static content (pages, assets, Angular SPA)
-- Maintains a content manifest (`_manifest.json`)
+- exposes a secure REST API (`/api/**`) with `x-api-key` authentication
+- manages publication through sessions
+- accepts note source packages and binary assets
+- performs the authoritative deterministic transforms and HTML rendering during finalization
+- exposes finalization progress over SSE and polling
+- maintains `_manifest.json` as the canonical publication state
 
-## 📄 Available Documentation
+## Session workflow
 
-See French documentation for logging and performance details.
+1. **`POST /api/session/start`**
+   - Creates a publication session
+   - Accepts planned counts, ignore rules, folder metadata, and the current pipeline signature
+   - Returns `sessionId` plus authoritative deduplication metadata
 
-## 🚀 Quick Start
+2. **`POST /api/session/:sessionId/notes/upload`**
+   - Uploads note source packages
+   - Each note carries raw Markdown, normalized frontmatter, and Obsidian-only enrichments
 
-### Prerequisites
+3. **`POST /api/session/:sessionId/assets/upload`**
+   - Uploads binary assets
 
-- Node.js 20+
-- Environment variables configured (see `.env.dev.example`)
+4. **`POST /api/session/:sessionId/finish`**
+   - Marks the session ready
+   - Enqueues backend finalization: note rebuild, HTML rendering, promotion, index rebuilds, and validation
 
-### Dev Mode
+5. **`POST /api/session/:sessionId/abort`**
+   - Cancels the session and removes staging state
 
-```bash
-npm install
-npm run start node
-```
+## Finalization phases
 
-The API starts at `http://localhost:3000`.
+The backend exposes these stable phases over SSE and polling:
 
-### Production Build
+- `queued`
+- `rebuilding_notes`
+- `rendering_html`
+- `promoting_content`
+- `rebuilding_indexes`
+- `validating_links`
+- `completing_publication`
+- `completed`
+- `failed`
 
-```bash
-npm run build node
-```
+## Useful links
 
-Artifacts are generated in `dist/apps/node/`.
-
-## 🛠️ Configuration
-
-The backend uses environment variables:
-
-### Required Variables
-
-- **`API_KEY`**: Authentication key for `/api/**`
-
-### Storage Variables
-
-- **`CONTENT_ROOT`** (default `/content`): Rendered HTML + `_manifest.json` storage
-- **`ASSETS_ROOT`** (default `/assets`): Binary files storage (images, PDFs, etc.)
-- **`UI_ROOT`** (default `/ui`): Angular SPA static files
-
-### Network Variables
-
-- **`PORT`** (default `3000`): HTTP listening port
-- **`ALLOWED_ORIGINS`**: CORS allowed origins (comma-separated)
-
-### Metadata Variables
-
-- **`SITE_NAME`**: Site name (exposed via `/public-config`)
-- **`AUTHOR`**: Site author
-- **`REPO_URL`**: GitHub repository URL
-- **`REPORT_ISSUES_URL`**: Bug report URL
-
-### Logging Variables
-
-- **`LOGGER_LEVEL`** (default `info`): Log level (`debug`, `info`, `warn`, `error`)
-- **`NODE_ENV`**: Environment (`development`, `production`)
-
-See `.env.dev.example` for the development template and `docker-compose.prod.yml` for the production configuration.
-
-## 📡 API Endpoints
-
-### Public (no authentication)
-
-- **`GET /health`**: Healthcheck (returns `{ status: 'ok' }`)
-- **`GET /public-config`**: Public configuration (siteName, author, repoUrl, reportIssuesUrl)
-
-### Secured (`x-api-key` header required)
-
-#### Session Workflow
-
-1. **`POST /api/session/start`**: Create publication session
-2. **`POST /api/session/:sessionId/notes/upload`**: Upload notes (batch)
-3. **`POST /api/session/:sessionId/assets/upload`**: Upload assets (batch)
-4. **`POST /api/session/:sessionId/finish`**: Finalize and publish
-5. **`POST /api/session/:sessionId/abort`**: Cancel and delete
-
-#### Cleanup
-
-- **`POST /api/cleanup`**: Delete all published content (⚠️ irreversible)
-
-## 🔗 Useful Links
-
-- [General Architecture](../architecture.md)
-- [Development Workflow](../development.md)
-- [Docker](../../docker.md) (French)
-- [Frontend Site](../site/)
-- Source code: `apps/node/src/`
-
----
-
-**Last Updated**: 2025-12-25
+- [Architecture](../architecture.md)
+- [Publication trace benchmark](../../api/publication-trace-benchmark.md)
+- [Performance](../../api/performance.md)
+- [Asset deduplication](../../api/asset-deduplication.md)

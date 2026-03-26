@@ -1,4 +1,5 @@
 import type { CustomIndexConfig } from './custom-index-config';
+import type { IgnoreRule } from './ignore-rule';
 import type { SiteLocale } from './manifest';
 import type { PipelineSignature } from './pipeline-signature';
 import type { SanitizationRules } from './sanitization-rules';
@@ -16,6 +17,7 @@ export interface Session {
   updatedAt: Date;
   cleanupRules?: SanitizationRules[];
   customIndexConfigs?: CustomIndexConfig[];
+  ignoreRules?: IgnoreRule[];
   ignoredTags?: string[];
   folderDisplayNames?: Record<string, string>;
   /**
@@ -23,11 +25,6 @@ export interface Session {
    * Resolved from plugin settings before sending.
    */
   locale?: SiteLocale;
-  /**
-   * All routes collected from vault during publish (PHASE 6.1)
-   * Used to detect deleted pages: production pages not in this set were deleted
-   */
-  allCollectedRoutes?: string[];
   /**
    * Pipeline signature at time of session creation (PHASE 3, PHASE 7)
    * Used to detect render pipeline changes and trigger full re-render

@@ -3,6 +3,9 @@
  * Validates that multiple jobs can run concurrently with controlled parallelism
  */
 
+import os from 'node:os';
+import path from 'node:path';
+
 import type { LoggerPort } from '@core-domain';
 
 import type { StagingManager } from '../../filesystem/staging-manager';
@@ -19,10 +22,20 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
   beforeEach(() => {
     mockFinalizer = {
       rebuildFromStored: jest.fn().mockImplementation(
-        () =>
+        async (_sessionId: string, reportPhase?: (phase: string) => void) =>
           new Promise((resolve) => {
             // Simulate realistic async work (200ms)
-            setTimeout(resolve, 200);
+            reportPhase?.('rebuilding_notes');
+            setTimeout(() => {
+              reportPhase?.('rendering_html');
+              setTimeout(() => {
+                reportPhase?.('rebuilding_indexes');
+                setTimeout(() => {
+                  reportPhase?.('validating_links');
+                  resolve(undefined);
+                }, 50);
+              }, 50);
+            }, 50);
           })
       ),
     } as unknown as jest.Mocked<SessionFinalizerService>;
@@ -30,6 +43,11 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
     mockStagingManager = {
       promoteSession: jest.fn().mockResolvedValue(undefined),
       contentRootPath: '/tmp/test-content',
+      contentStagingPath: jest
+        .fn()
+        .mockImplementation((sessionId: string) =>
+          path.join(os.tmpdir(), 'test-content', '.staging', sessionId)
+        ),
     } as unknown as jest.Mocked<StagingManager>;
 
     mockSessionRepository = {
@@ -265,6 +283,86 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
       }
       expect(statsFinal.activeJobs).toBe(0);
       expect(statsFinal.completed).toBe(6);
+    });
+  });
+
+  describe('phase metadata', () => {
+    it('tracks current phase, contentRevision, and finalization timings', async () => {
+      service = new SessionFinalizationJobService(
+        mockFinalizer,
+        mockStagingManager,
+        mockSessionRepository,
+        mockLogger,
+        1
+      );
+
+      const jobId = await service.queueFinalization('session-phase');
+      const started = Date.now();
+      let job = service.getJobStatus(jobId);
+
+      while (job?.status !== 'completed' && Date.now() - started < 5000) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        job = service.getJobStatus(jobId);
+      }
+
+      expect(job?.status).toBe('completed');
+      expect(job?.phase).toBe('completed');
+      expect(job?.contentRevision).toEqual(expect.any(String));
+      expect(job?.phaseTimings).toEqual(
+        expect.objectContaining({
+          queued: expect.any(Number),
+          rebuilding_notes: expect.any(Number),
+          rendering_html: expect.any(Number),
+          promoting_content: expect.any(Number),
+          rebuilding_indexes: expect.any(Number),
+          validating_links: expect.any(Number),
+          completing_publication: expect.any(Number),
+        })
+      );
+      expect(job?.result?.finalizationTimings).toEqual(job?.phaseTimings);
+    });
+
+    it('emits human-readable backend phases to listeners in order', async () => {
+      service = new SessionFinalizationJobService(
+        mockFinalizer,
+        mockStagingManager,
+        mockSessionRepository,
+        mockLogger,
+        1
+      );
+
+      const jobId = await service.queueFinalization('session-phase-events');
+      const phases: string[] = [];
+      const unsubscribe = service.subscribe(jobId, (job) => {
+        if (!job.phase) {
+          return;
+        }
+
+        if (phases[phases.length - 1] !== job.phase) {
+          phases.push(job.phase);
+        }
+      });
+
+      const started = Date.now();
+      let job = service.getJobStatus(jobId);
+
+      while (job?.status !== 'completed' && Date.now() - started < 5000) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        job = service.getJobStatus(jobId);
+      }
+
+      unsubscribe();
+
+      expect(phases).toEqual(
+        expect.arrayContaining([
+          'rendering_html',
+          'promoting_content',
+          'rebuilding_indexes',
+          'validating_links',
+          'completing_publication',
+          'completed',
+        ])
+      );
     });
   });
 });

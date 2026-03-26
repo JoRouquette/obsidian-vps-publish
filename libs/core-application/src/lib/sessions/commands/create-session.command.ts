@@ -1,4 +1,4 @@
-import type { CustomIndexConfig, PipelineSignature, SiteLocale } from '@core-domain';
+import type { CustomIndexConfig, IgnoreRule, PipelineSignature, SiteLocale } from '@core-domain';
 
 export interface CreateSessionCommand {
   notesPlanned: number;
@@ -7,6 +7,7 @@ export interface CreateSessionCommand {
     maxBytesPerRequest: number;
   };
   customIndexConfigs?: CustomIndexConfig[];
+  ignoreRules?: IgnoreRule[];
   ignoredTags?: string[];
   folderDisplayNames?: Record<string, string>;
   pipelineSignature?: PipelineSignature;

@@ -4,11 +4,11 @@ export interface CreateSessionResult {
   deduplicationEnabled?: boolean;
   existingAssetHashes?: string[];
   /**
-   * Map of note routes to their sourceHash from production manifest
-   * Only populated if pipeline signature is unchanged
-   * Used for client-side note deduplication
+   * Map of source note vault paths to their sourceHash from the production manifest.
+   * Only populated if pipeline signature is unchanged.
+   * Used to skip unchanged uploads without relying on client-owned route authority.
    */
-  existingNoteHashes?: Record<string, string>;
+  existingSourceNoteHashesByVaultPath?: Record<string, string>;
   /**
    * True if pipeline signature changed (version or renderSettingsHash),
    * indicating that all notes must be re-rendered

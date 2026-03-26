@@ -114,6 +114,24 @@ describe('DetectAssetsService', () => {
     expect(targets).toContain('map.png');
   });
 
+  it('detects assets from a rendered content override without mutating the note content', () => {
+    const noteWithInlineDataview: PublishableNote = {
+      ...note,
+      content: 'Resolved asset: `= this.cover`',
+      frontmatter: { flat: {}, nested: { cover: '![[cover.png]]' }, tags: [] },
+    };
+
+    const assets = service.detectForContentOverride(
+      noteWithInlineDataview,
+      'Resolved asset: ![[rendered-cover.png]]'
+    );
+
+    expect(noteWithInlineDataview.content).toBe('Resolved asset: `= this.cover`');
+    expect(assets.map((asset) => asset.target)).toEqual(
+      expect.arrayContaining(['rendered-cover.png', 'cover.png'])
+    );
+  });
+
   it('skips Leaflet blocks without imageOverlays', () => {
     const noteWithEmptyLeaflet: PublishableNote = {
       ...note,

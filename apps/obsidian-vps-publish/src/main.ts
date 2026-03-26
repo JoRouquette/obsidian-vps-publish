@@ -5,22 +5,15 @@ import { EvaluateIgnoreRulesHandler } from '@core-application/vault-parsing/hand
 import { HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
 import { ParseContentHandler } from '@core-application/vault-parsing/handler/parse-content.handler';
 import { NotesMapper } from '@core-application/vault-parsing/mappers/notes.mapper';
-import { ComputeRoutingService } from '@core-application/vault-parsing/services/compute-routing.service';
-import { DeduplicateNotesService } from '@core-application/vault-parsing/services/deduplicate-notes.service';
 import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
-import { DetectWikilinksService } from '@core-application/vault-parsing/services/detect-wikilinks.service';
-import { EnsureTitleHeaderService } from '@core-application/vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';
 import { RemoveNoPublishingMarkerService } from '@core-application/vault-parsing/services/remove-no-publishing-marker.service';
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
-import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
 import {
   applyCustomIndexesToRouteTree,
   CancellationError,
   type CancellationPort,
-  collectDisplayNamesFromRouteTree,
   type CollectedNote,
-  type CustomIndexConfig,
   migrateLegacyFoldersToRouteTree,
   validateRouteTree,
   type VpsConfig,
@@ -51,6 +44,7 @@ import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
 import { AssetHashService } from './lib/infra/crypto/asset-hash.service';
 import { BrowserHashService } from './lib/infra/crypto/browser-hash.service';
 import { EventLoopMonitorAdapter } from './lib/infra/event-loop-monitor.adapter';
+import { applyFinalizationProgressUpdate } from './lib/infra/finalization-progress.util';
 import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
 import { NotesUploaderAdapter } from './lib/infra/notes-uploader.adapter';
 import { NoticeNotificationAdapter } from './lib/infra/notice-notification.adapter';
@@ -72,9 +66,13 @@ import { SessionApiClient } from './lib/services/session-api.client';
 import { ObsidianVpsPublishSettingTab } from './lib/setting-tab.view';
 import type { PluginSettings } from './lib/settings/plugin-settings.type';
 import { enrichCleanupRules } from './lib/utils/create-default-folder-config.util';
-import { getEffectiveFolders } from './lib/utils/get-effective-folders.util';
+import { filterUnchangedNotes } from './lib/utils/filter-unchanged-notes.util';
 import { RequestUrlResponseMapper } from './lib/utils/http-response-status.mapper';
 import { insertNoPublishingMarker } from './lib/utils/insert-no-publishing-marker.util';
+import {
+  prepareSessionBootstrapPlan,
+  startSessionBootstrapEarly,
+} from './lib/utils/session-bootstrap-plan.util';
 import { selectVpsOrAuto } from './lib/utils/vps-selector';
 
 const defaultSettings: PluginSettings = {
@@ -630,19 +628,25 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     const scopedLogger = this.logger.child({ vps: vps.id ?? 'default' });
     const guidGenerator = new GuidGeneratorAdapter();
+    const publishStartTime = performance.now();
 
     // ========================================================================
     // PHASE 1: PERFORMANCE INSTRUMENTATION
     // ========================================================================
     // Generate unique upload run ID for correlation
     const uploadRunId = guidGenerator.generateGuid();
+    const runLogger = scopedLogger.child({ uploadRunId });
 
     // Enable performance debug mode if configured
     const enablePerfDebug = settings.enablePerformanceDebug ?? false;
     const enableBgThrottleDebug = settings.enableBackgroundThrottleDebug ?? false;
 
     // Initialize publishing trace service
-    const trace = new PublishingTraceService(uploadRunId, scopedLogger);
+    const trace = new PublishingTraceService(uploadRunId, runLogger);
+    trace.markEvent('publication_start', {
+      vpsId: vps.id,
+      vpsName: vps.name,
+    });
     scopedLogger.info('🚀 Publishing started', {
       uploadRunId,
       vpsId: vps.id,
@@ -652,13 +656,13 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     });
 
     // Start event loop lag monitor
-    const eventLoopMonitor = new EventLoopMonitorAdapter(scopedLogger, 100);
+    const eventLoopMonitor = new EventLoopMonitorAdapter(runLogger, 100);
     eventLoopMonitor.start();
 
     // Start background throttle monitor (if enabled)
     let backgroundThrottleMonitor: BackgroundThrottleMonitorAdapter | null = null;
     if (enableBgThrottleDebug) {
-      backgroundThrottleMonitor = new BackgroundThrottleMonitorAdapter(scopedLogger, 250);
+      backgroundThrottleMonitor = new BackgroundThrottleMonitorAdapter(runLogger, 250);
       backgroundThrottleMonitor.start();
       scopedLogger.info('🔍 Background throttle monitoring enabled (heartbeat: 250ms)');
     }
@@ -666,14 +670,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     // Initialize performance tracker
     // Debug mode enabled if logLevel is 'debug'
     const debugMode = settings.logLevel === LogLevel.debug;
-    const perfTracker = new PerformanceTrackerAdapter(scopedLogger, debugMode);
+    const perfTracker = new PerformanceTrackerAdapter(runLogger, debugMode);
     const sessionPerfSpan = perfTracker.startSpan('publishing-session', {
       vpsId: vps.id,
       vpsName: vps.name,
     });
 
     // Initialize UI pressure monitor
-    const uiMonitor = new UiPressureMonitorAdapter(scopedLogger);
+    const uiMonitor = new UiPressureMonitorAdapter(runLogger);
 
     // Initialiser les statistiques de publication
     const stats: PublishingStats = createPublishingStats();
@@ -705,8 +709,58 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     let sessionId: string | null = null;
     let sessionClient: SessionApiClient | null = null;
     let finalizationRequested = false;
+    let startSessionPromise: Promise<{
+      startedSession: Awaited<ReturnType<SessionApiClient['startSession']>>;
+      calloutStyles: Array<{ path: string; css: string }>;
+      pipelineSignature: { version: string; renderSettingsHash: string };
+      calloutStyleLoadingDurationMs: number;
+    }> | null = null;
 
     try {
+      sessionClient = new SessionApiClient(
+        vps.baseUrl,
+        vps.apiKey,
+        this.responseHandler,
+        runLogger,
+        t,
+        { uploadRunId }
+      );
+
+      const sessionBootstrapPlan = prepareSessionBootstrapPlan({
+        vps,
+        settings,
+        manifestVersion: this.manifest.version,
+        generateGuid: () => guidGenerator.generateGuid(),
+        loadCalloutStyles: (paths) => this.loadCalloutStyles(paths),
+        computePipelineSignature,
+      });
+
+      const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
+
+      startSessionPromise = startSessionBootstrapEarly({
+        sessionBootstrapPlan,
+        notesPlanned: 0,
+        assetsPlanned: 0,
+        maxBytesPerRequest: defaultNginxLimit,
+        ignoreRules: vps.ignoreRules ?? [],
+        ignoredTags: settings.frontmatterTagsToExclude || [],
+        locale,
+        deduplicationEnabled,
+        startSession: (payload) => sessionClient!.startSession(payload),
+        onCalloutStylesLoaded: ({ durationMs, value }) => {
+          trace.recordMetric('callout_style_loading_duration_ms', durationMs, {
+            calloutStylesCount: value.length,
+          });
+        },
+        onBeforeStartSession: () => {
+          trace.startStep('6-session-start');
+          trace.checkpoint('6-session-start', 'calling-startSession-api');
+          trace.recordMetric('time_to_first_request_ms', performance.now() - publishStartTime, {
+            requestPath: '/api/session/start',
+          });
+        },
+      });
+
       // ====================================================================
       // ÉTAPE 1: PARSE_VAULT - Parsing du vault
       // ====================================================================
@@ -721,7 +775,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const vault = new ObsidianVaultAdapter(
         this.app,
         guidGenerator,
-        scopedLogger,
+        runLogger,
         vps.customRootIndexFile
       );
 
@@ -729,6 +783,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       trace.endStep('1-parse-vault-init');
 
       trace.startStep('2-collect-notes');
+      const parseAndTransformStart = performance.now();
 
       // Use route tree if available, otherwise fallback to legacy folders
       let notes: CollectedNote[];
@@ -748,10 +803,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           folderCount: vps.folders?.length || 0,
         });
         // Extract effective folders from route tree (or legacy folders)
-        const effectiveFolders = getEffectiveFolders(vps);
         notes = await vault.collectFromFolder(
           {
-            folderConfig: effectiveFolders,
+            folderConfig: sessionBootstrapPlan.effectiveFolders,
           },
           cancellation
         );
@@ -789,7 +843,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const parseContentHandler = this.buildParseContentHandler(
         vps,
         settings,
-        scopedLogger,
+        runLogger,
         dataviewApi,
         perfTracker.child('content-pipeline'),
         cancellation
@@ -806,6 +860,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const publishables = await parseContentHandler.handle(notes);
 
       trace.endStep('5-parse-content', { publishablesCount: publishables.length });
+      trace.recordMetric(
+        'parse_and_transform_duration_ms',
+        performance.now() - parseAndTransformStart,
+        {
+          notesCollected: notes.length,
+          publishablesCount: publishables.length,
+        }
+      );
 
       perfTracker.endSpan(parseVaultSpan, {
         notesCollected: notes.length,
@@ -822,15 +884,18 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       trace.startStep('5b-deduplicate-notes');
 
       const deduplicateSpan = perfTracker.startSpan('deduplicate-notes');
+      const dedupStart = performance.now();
 
-      const deduplicated = deduplicationEnabled
-        ? new DeduplicateNotesService(scopedLogger).process(publishables)
-        : publishables;
+      const deduplicated = publishables;
 
       perfTracker.endSpan(deduplicateSpan, {
         inputCount: publishables.length,
         outputCount: deduplicated.length,
         duplicatesRemoved: publishables.length - deduplicated.length,
+      });
+      trace.recordMetric('dedup_duration_ms', performance.now() - dedupStart, {
+        inputCount: publishables.length,
+        outputCount: deduplicated.length,
       });
 
       trace.endStep('5b-deduplicate-notes', {
@@ -870,6 +935,15 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
       if (publishableCount === 0) {
         this.logger.warn('No publishable notes after filtering; aborting upload.');
+        if (startSessionPromise !== null && sessionClient) {
+          try {
+            const startedBootstrap = await startSessionPromise;
+            sessionId = startedBootstrap.startedSession.sessionId;
+            await sessionClient.abortSession(sessionId);
+          } catch (abortErr) {
+            this.logger.error('Failed to abort early-started empty session', { error: abortErr });
+          }
+        }
         new Notice(translate(t, 'notice.noPublishableNotes'));
         totalProgressAdapter.finish();
         return;
@@ -881,68 +955,25 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ====================================================================
       // SESSION START - Démarrage de la session
       // ====================================================================
-      trace.startStep('6-session-start');
+      trace.checkpoint('6-session-start', 'awaiting-startSession-response');
 
-      sessionClient = new SessionApiClient(
-        vps.baseUrl,
-        vps.apiKey,
-        this.responseHandler,
-        this.logger,
-        t
-      );
+      const {
+        startedSession: started,
+        calloutStyles,
+        pipelineSignature,
+      } = await startSessionPromise;
 
-      trace.checkpoint('6-session-start', 'loading-callout-styles');
-
-      const calloutStyles = await this.loadCalloutStyles(settings.calloutStylePaths ?? []);
-
-      trace.checkpoint('6-session-start', 'building-custom-index-configs');
-
-      // Build custom index configs from VPS and folder settings
-      const customIndexConfigs: CustomIndexConfig[] = [];
-      const guidGen = new GuidGeneratorAdapter();
-
-      // Add root index if configured
-      if (vps.customRootIndexFile) {
-        customIndexConfigs.push({
-          id: guidGen.generateGuid(),
-          folderPath: '',
-          indexFilePath: vps.customRootIndexFile,
-          isRootIndex: true,
-        });
-      }
-
-      // Add folder indexes if configured (use getEffectiveFolders for route tree compatibility)
-      const effectiveFolders = getEffectiveFolders(vps);
-      for (const folder of effectiveFolders) {
-        if (folder.customIndexFile) {
-          customIndexConfigs.push({
-            id: guidGen.generateGuid(),
-            folderPath: folder.routeBase, // Use routeBase (published route) not vaultFolder
-            indexFilePath: folder.customIndexFile,
-          });
-        }
-      }
+      const { customIndexConfigs, folderDisplayNames, validCleanupRules } = sessionBootstrapPlan;
 
       this.logger.debug('Custom index configs built', {
         count: customIndexConfigs.length,
         configs: customIndexConfigs,
       });
 
-      // Collect all displayNames from route tree
-      const folderDisplayNames = vps.routeTree
-        ? collectDisplayNamesFromRouteTree(vps.routeTree)
-        : {};
-
       this.logger.debug('Folder display names collected', {
         count: Object.keys(folderDisplayNames).length,
         displayNames: folderDisplayNames,
       });
-
-      // Filtrer les règles de nettoyage : ne garder que celles activées avec regex valide
-      // (Moved before startSession for pipeline signature computation)
-      const validCleanupRules = (vps.cleanupRules ?? []).filter(
-        (rule) => rule.isEnabled && rule.regex && rule.regex.trim().length > 0
-      );
 
       this.logger.debug('Cleanup rules filtering', {
         total: vps.cleanupRules?.length ?? 0,
@@ -955,68 +986,33 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         })),
       });
 
-      trace.checkpoint('6-session-start', 'computing-pipeline-signature');
-
-      // Transform calloutStyles array to Record for pipeline signature
-      const calloutStylesRecord: Record<string, string> = calloutStyles.reduce(
-        (acc, { path, css }) => {
-          acc[path] = css;
-          return acc;
-        },
-        {} as Record<string, string>
-      );
-
-      // Transform cleanupRules to match expected signature (rename 'replacement' to 'replace')
-      const transformedCleanupRules = validCleanupRules.map((rule) => ({
-        id: rule.id,
-        isEnabled: rule.isEnabled,
-        regex: rule.regex,
-        replace: rule.replacement,
-      }));
-
-      // Compute pipeline signature for note deduplication
-      const pipelineSignature = await computePipelineSignature(this.manifest.version, {
-        calloutStyles: calloutStylesRecord,
-        cleanupRules: transformedCleanupRules,
-        ignoredTags: settings.frontmatterTagsToExclude || [],
-      });
-
       this.logger.info('🔑 Pipeline signature computed', {
         version: pipelineSignature.version,
         renderSettingsHash: pipelineSignature.renderSettingsHash,
-        calloutStylesCount: Object.keys(calloutStylesRecord).length,
-        cleanupRulesCount: transformedCleanupRules.length,
+        calloutStylesCount: calloutStyles.length,
+        cleanupRulesCount: validCleanupRules.length,
         ignoredTagsCount: (settings.frontmatterTagsToExclude || []).length,
-      });
-
-      trace.checkpoint('6-session-start', 'calling-startSession-api');
-
-      const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
-      const started = await sessionClient.startSession({
-        notesPlanned: publishableCount,
-        assetsPlanned: assetsPlanned,
-        maxBytesPerRequest: defaultNginxLimit,
-        calloutStyles,
-        customIndexConfigs,
-        ignoredTags: settings.frontmatterTagsToExclude || [],
-        folderDisplayNames, // Send displayNames upfront
-        pipelineSignature, // Include pipeline signature for inter-publication deduplication
-        locale, // Site language from plugin settings
-        deduplicationEnabled,
       });
 
       sessionId = started.sessionId;
       const serverRequestLimit = started.maxBytesPerRequest;
       const existingAssetHashes = deduplicationEnabled ? (started.existingAssetHashes ?? []) : [];
-      const existingNoteHashes = deduplicationEnabled ? (started.existingNoteHashes ?? {}) : {};
+      const existingSourceNoteHashesByVaultPath = deduplicationEnabled
+        ? (started.existingSourceNoteHashesByVaultPath ?? {})
+        : {};
       const pipelineChanged = deduplicationEnabled ? (started.pipelineChanged ?? true) : true;
       const uploadConcurrency = deduplicationEnabled ? settings.maxConcurrentUploads || 3 : 1;
 
       trace.endStep('6-session-start', {
         sessionId,
         maxBytesPerRequest: serverRequestLimit,
+        provisionalNotesPlanned: 0,
+        provisionalAssetsPlanned: 0,
+        actualPublishableNotes: publishableCount,
+        actualAssetsPlanned: assetsPlanned,
         existingAssetHashesCount: existingAssetHashes.length,
-        existingNoteHashesCount: Object.keys(existingNoteHashes).length,
+        existingSourceNoteHashesByVaultPathCount: Object.keys(existingSourceNoteHashesByVaultPath)
+          .length,
         pipelineChanged,
         deduplicationEnabled,
       });
@@ -1024,7 +1020,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       this.logger.debug('Session started', {
         sessionId,
         maxBytesPerRequest: serverRequestLimit,
-        existingNoteHashesCount: Object.keys(existingNoteHashes).length,
+        provisionalNotesPlanned: 0,
+        provisionalAssetsPlanned: 0,
+        actualPublishableNotes: publishableCount,
+        actualAssetsPlanned: assetsPlanned,
+        existingSourceNoteHashesByVaultPathCount: Object.keys(existingSourceNoteHashesByVaultPath)
+          .length,
         pipelineChanged,
         deduplicationEnabled,
       });
@@ -1040,48 +1041,36 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // 2a: FILTER UNCHANGED NOTES (inter-publication deduplication)
       // ====================================================================
       let notesToUpload = deduplicated;
+      const noteHashFilterStart = performance.now();
+      let noteHashFilterApplied = false;
 
-      if (deduplicationEnabled && !pipelineChanged && Object.keys(existingNoteHashes).length > 0) {
+      if (deduplicationEnabled && !pipelineChanged) {
+        noteHashFilterApplied = true;
         trace.checkpoint('7-upload-notes', 'filtering-unchanged-notes');
         const hashService = new BrowserHashService();
-        const filteredNotes: PublishableNote[] = [];
-        let skippedCount = 0;
+        const filterResult = await filterUnchangedNotes({
+          notes: deduplicated,
+          existingSourceNoteHashesByVaultPath,
+          pipelineChanged,
+          hashService,
+        });
 
-        for (const note of deduplicated) {
-          const route = note.routing.fullPath;
-          const existingHash = existingNoteHashes[route];
+        noteHashFilterApplied = filterResult.applied;
+        notesToUpload = filterResult.notesToUpload;
 
-          if (existingHash) {
-            // Compute hash of current note content
-            const currentHash = await hashService.computeHash(note.content);
+        if (filterResult.applied) {
+          this.logger.info('Notes filtered by inter-publication deduplication', {
+            totalNotes: deduplicated.length,
+            toUpload: notesToUpload.length,
+            skipped: filterResult.skippedCount,
+            strategy: 'source-hash-by-vault-path',
+          });
 
-            if (currentHash === existingHash) {
-              // Note unchanged, skip
-              this.logger.debug('Note unchanged, skipping', {
-                route,
-                hash: currentHash,
-              });
-              skippedCount++;
-              continue;
-            }
-          }
-
-          // Note changed or new, include for upload
-          filteredNotes.push(note);
+          trace.checkpoint('7-upload-notes', 'filtering-complete', {
+            skippedCount: filterResult.skippedCount,
+            uploadCount: notesToUpload.length,
+          });
         }
-
-        notesToUpload = filteredNotes;
-
-        this.logger.info('Notes filtered by inter-publication deduplication', {
-          totalNotes: deduplicated.length,
-          toUpload: notesToUpload.length,
-          skipped: skippedCount,
-        });
-
-        trace.checkpoint('7-upload-notes', 'filtering-complete', {
-          skippedCount,
-          uploadCount: notesToUpload.length,
-        });
       } else if (!deduplicationEnabled) {
         this.logger.info('Deduplication disabled, uploading all notes', {
           totalNotes: deduplicated.length,
@@ -1091,12 +1080,21 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           totalNotes: deduplicated.length,
         });
       }
+      trace.recordMetric(
+        'note_hash_filter_duration_ms',
+        noteHashFilterApplied ? performance.now() - noteHashFilterStart : 0,
+        {
+          applied: noteHashFilterApplied,
+          totalNotes: deduplicated.length,
+          notesToUpload: notesToUpload.length,
+        }
+      );
 
       const notesUploader = new NotesUploaderAdapter(
         sessionClient,
         sessionId,
         new GuidGeneratorAdapter(),
-        this.logger,
+        runLogger,
         serverRequestLimit,
         stepProgressManager,
         validCleanupRules,
@@ -1104,7 +1102,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       );
 
       // Calculer le nombre de batchs
+      const notesBatchInfoStart = performance.now();
       const notesBatchInfo = notesUploader.getBatchInfo(notesToUpload);
+      trace.recordMetric('notes_batch_info_duration_ms', performance.now() - notesBatchInfoStart, {
+        notesCount: notesToUpload.length,
+        batchCount: notesBatchInfo.batchCount,
+      });
       stats.notesBatchCount = notesBatchInfo.batchCount;
 
       stepProgressManager.startStep(
@@ -1145,13 +1148,13 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         const uploadAssetsSpan = perfTracker.startSpan('upload-assets');
 
         const assetHasher = new AssetHashService();
-        const assetsVault = new ObsidianAssetsVaultAdapter(this.app, this.logger);
+        const assetsVault = new ObsidianAssetsVaultAdapter(this.app, runLogger);
         const assetsUploader = new AssetsUploaderAdapter(
           sessionClient,
           sessionId,
           new GuidGeneratorAdapter(),
           assetHasher,
-          this.logger,
+          runLogger,
           serverRequestLimit,
           stepProgressManager,
           uploadConcurrency,
@@ -1211,7 +1214,16 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         }
 
         // Calculer le nombre de batchs
+        const assetBatchInfoStart = performance.now();
         const assetsBatchInfo = await assetsUploader.getBatchInfo(resolvedAssets);
+        trace.recordMetric(
+          'asset_batch_info_duration_ms',
+          performance.now() - assetBatchInfoStart,
+          {
+            assetCount: resolvedAssets.length,
+            batchCount: assetsBatchInfo.batchCount,
+          }
+        );
         stats.assetsBatchCount = assetsBatchInfo.batchCount;
 
         stepProgressManager.startStep(
@@ -1261,20 +1273,25 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       stepProgressManager.startStep(
         ProgressStepId.FINALIZE_SESSION,
         getStepLabel(t, ProgressStepId.FINALIZE_SESSION),
-        1
+        100
       );
 
-      // PHASE 6.1: Extract all routes collected from vault (for deleted page detection)
+      // Extract all routes collected from the vault for deleted-page detection.
       // CRITICAL: Use publishables (all eligible notes) not deduplicated (only unique ones)
       // to ensure backend receives complete list of vault routes for manifest merge
-      const allCollectedRoutes = publishables.map((note) => note.routing.fullPath);
-
       finalizationRequested = true;
-      const finishResult = await sessionClient.finishSession(sessionId, {
-        notesProcessed: stats.notesUploaded,
-        assetsProcessed: stats.assetsUploaded,
-        allCollectedRoutes, // PHASE 6.1: send to backend for deleted page detection
-      });
+      const finishResult = await sessionClient.finishSession(
+        sessionId,
+        {
+          notesProcessed: stats.notesUploaded,
+          assetsProcessed: stats.assetsUploaded,
+        },
+        {
+          onFinalizationUpdate: (update) => {
+            applyFinalizationProgressUpdate(stepProgressManager, t, update);
+          },
+        }
+      );
 
       // Capture promotion stats from finalization
       if (finishResult.promotionStats) {
@@ -1283,7 +1300,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         stats.notesDeleted = finishResult.promotionStats.notesDeleted;
       }
 
-      stepProgressManager.advanceStep(ProgressStepId.FINALIZE_SESSION, 1);
       stepProgressManager.completeStep(ProgressStepId.FINALIZE_SESSION);
 
       perfTracker.endSpan(finalizeSpan);
@@ -1418,6 +1434,16 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       }
 
       // Abort session si elle a été créée
+      if (!sessionId && startSessionPromise !== null) {
+        try {
+          const startedBootstrap = await startSessionPromise;
+          sessionId = startedBootstrap.startedSession.sessionId;
+        } catch (startErr) {
+          this.logger.debug('Early startSession did not yield an abortable session', {
+            error: startErr,
+          });
+        }
+      }
       if (sessionId && sessionClient && !finalizationRequested) {
         try {
           await sessionClient.abortSession(sessionId);
@@ -1635,10 +1661,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     // Note: ContentSanitizerService est maintenant appliqué côté backend après la finalisation
     const removeNoPublishingMarkerService = new RemoveNoPublishingMarkerService(logger);
     const assetsDetector = new DetectAssetsService(logger);
-    const detectWikilinks = new DetectWikilinksService(logger);
-    const resolveWikilinks = new ResolveWikilinksService(logger, detectWikilinks);
-    const computeRoutingService = new ComputeRoutingService(logger);
-    const ensureTitleHeaderService = new EnsureTitleHeaderService(logger);
 
     return new ParseContentHandler(
       normalizeFrontmatterService,
@@ -1646,11 +1668,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       noteMapper,
       inlineDataviewRenderer,
       leafletBlocksDetector,
-      ensureTitleHeaderService,
       removeNoPublishingMarkerService,
       assetsDetector,
-      resolveWikilinks,
-      computeRoutingService,
       logger,
       dataviewProcessor, // Plugin-side Dataview processing
       perfTracker, // Performance tracking

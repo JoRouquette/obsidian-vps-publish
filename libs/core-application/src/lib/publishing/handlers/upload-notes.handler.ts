@@ -7,13 +7,18 @@ import {
   type PublishableNote,
   type ResolvedWikilink,
   Slug,
+  type SourcePackageNote,
   UNAVAILABLE_INTERNAL_PAGE_MESSAGE,
 } from '@core-domain';
 import { humanizePropertyKey } from '@core-domain/utils/string.utils';
 
 import { type CommandHandler } from '../../common/command-handler';
 import type { MarkdownRendererPort } from '../../ports/markdown-renderer.port';
-import { type UploadNotesCommand, type UploadNotesResult } from '../commands/upload-notes.command';
+import {
+  type UploadNotesCommand,
+  type UploadNotesResult,
+  type UploadSessionNote,
+} from '../commands/upload-notes.command';
 import { type ContentStoragePort } from '../ports/content-storage.port';
 import type { ManifestPort } from '../ports/manifest-storage.port';
 import type { SessionNotesStoragePort } from '../ports/session-notes-storage.port';
@@ -42,8 +47,8 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
   }
 
   async handle(command: UploadNotesCommand): Promise<UploadNotesResult> {
-    const { sessionId, notes, cleanupRules, folderDisplayNames } = command;
-    const contentStorage = this.resolveContentStorage(sessionId);
+    const { sessionId, notes: uploadedNotes, cleanupRules, folderDisplayNames } = command;
+    const notes = this.normalizeUploadedNotes(uploadedNotes);
     const manifestStorage = this.resolveManifestStorage(sessionId);
     const logger = this.logger?.child({ method: 'handle', sessionId });
 
@@ -60,8 +65,31 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       } catch (err) {
         logger?.warn('Failed to persist raw notes for session', { error: err });
       }
+
+      await this.updateManifestForSession(
+        sessionId,
+        [],
+        notes,
+        manifestStorage,
+        logger,
+        folderDisplayNames
+      );
+
+      logger?.debug(
+        'Upload batch persisted without rendering; finalization remains authoritative',
+        {
+          count: notes.length,
+        }
+      );
+
+      return {
+        sessionId,
+        published: notes.length,
+        errors: [],
+      };
     }
 
+    const contentStorage = this.resolveContentStorage(sessionId);
     const errors: { noteId: string; message: string }[] = [];
     const succeeded: PublishableNote[] = [];
 
@@ -226,6 +254,43 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     return { sessionId, published, errors };
   }
 
+  private normalizeUploadedNotes(notes: UploadSessionNote[]): PublishableNote[] {
+    return notes.map((note) => {
+      if (this.hasRouting(note)) {
+        return note;
+      }
+
+      return this.hydrateSourcePackageNote(note);
+    });
+  }
+
+  private hasRouting(note: UploadSessionNote): note is PublishableNote {
+    const routing =
+      'routing' in note && typeof note.routing === 'object' && note.routing !== null
+        ? (note.routing as Record<string, unknown>)
+        : null;
+
+    return (
+      routing !== null &&
+      typeof routing['fullPath'] === 'string' &&
+      typeof routing['slug'] === 'string' &&
+      typeof routing['path'] === 'string' &&
+      typeof routing['routeBase'] === 'string'
+    );
+  }
+
+  private hydrateSourcePackageNote(note: SourcePackageNote): PublishableNote {
+    return {
+      ...note,
+      routing: {
+        slug: '',
+        path: '',
+        fullPath: note.vaultPath,
+        routeBase: note.folderConfig.routeBase || '',
+      },
+    };
+  }
+
   private buildRenderManifest(
     sessionId: string,
     existingManifest: Manifest | null,
@@ -236,7 +301,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     const pagesById = new Map<string, ManifestPage>(basePages.map((page) => [page.id, page]));
 
     for (const note of notes) {
-      pagesById.set(note.noteId, this.buildRenderManifestPage(note));
+      pagesById.set(note.noteId, this.buildManifestPage(note));
     }
 
     if (pagesById.size === 0) {
@@ -256,7 +321,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     };
   }
 
-  private buildRenderManifestPage(note: PublishableNote): ManifestPage {
+  private buildManifestPage(note: PublishableNote): ManifestPage {
     return {
       id: note.noteId,
       title: note.title,
