@@ -481,6 +481,112 @@ describe('SessionApiClient', () => {
     expect(eventSource.close).toHaveBeenCalledTimes(1);
   });
 
+  it('forwards backend finalization phases from SSE updates', async () => {
+    installMockEventSource();
+
+    const requestUrlWithRetry = jest.fn().mockResolvedValueOnce({
+      status: 202,
+      headers: {},
+      text: JSON.stringify({
+        sessionId: 's1',
+        jobId: 'job-1',
+        status: 'queued',
+        realtime: {
+          transport: 'sse',
+          streamUrl: '/events/session/s1/finalization?jobId=job-1',
+          token: 'signed-token',
+          expiresAt: '2099-01-01T00:00:00.000Z',
+        },
+      }),
+    });
+    const handler = {
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValueOnce(
+          responseOk(
+            '{"sessionId":"s1","jobId":"job-1","status":"queued","realtime":{"transport":"sse","streamUrl":"/events/session/s1/finalization?jobId=job-1","token":"signed-token","expiresAt":"2099-01-01T00:00:00.000Z"}}'
+          )
+        ),
+    };
+    const onFinalizationUpdate = jest.fn();
+
+    jest.doMock('obsidian', () => ({ requestUrl: jest.fn() }));
+    jest.doMock('../lib/utils/request-with-retry.util', () => ({
+      requestUrlWithRetry,
+    }));
+
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, mockLogger());
+
+    const resultPromise = client.finishSession(
+      's1',
+      {
+        notesProcessed: 1,
+        assetsProcessed: 0,
+      },
+      { onFinalizationUpdate }
+    );
+
+    const eventSource = await getCreatedEventSource();
+    eventSource.emitJson('connected', {
+      jobId: 'job-1',
+      sessionId: 's1',
+      status: 'processing',
+      progress: 20,
+      phase: 'rebuilding_notes',
+    });
+    eventSource.emitJson('status', {
+      jobId: 'job-1',
+      sessionId: 's1',
+      status: 'processing',
+      progress: 45,
+      phase: 'rendering_html',
+    });
+    eventSource.emitJson('completed', {
+      jobId: 'job-1',
+      sessionId: 's1',
+      status: 'completed',
+      progress: 100,
+      phase: 'completed',
+      result: {
+        promotionStats: {
+          notesPublished: 3,
+          notesDeduplicated: 0,
+          notesDeleted: 0,
+          assetsPublished: 0,
+          assetsDeduplicated: 0,
+        },
+      },
+    });
+
+    await expect(resultPromise).resolves.toEqual({
+      promotionStats: {
+        notesPublished: 3,
+        notesDeduplicated: 0,
+        notesDeleted: 0,
+        assetsPublished: 0,
+        assetsDeduplicated: 0,
+      },
+    });
+
+    expect(onFinalizationUpdate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ phase: 'queued', progress: 0 })
+    );
+    expect(onFinalizationUpdate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ phase: 'rebuilding_notes', progress: 20 })
+    );
+    expect(onFinalizationUpdate).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ phase: 'rendering_html', progress: 45 })
+    );
+    expect(onFinalizationUpdate).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({ phase: 'completed', progress: 100 })
+    );
+  });
+
   it('resolves the publish flow when SSE emits completed', async () => {
     installMockEventSource();
 
@@ -1026,6 +1132,103 @@ describe('SessionApiClient', () => {
 
     expect(MockEventSource.instances).toHaveLength(0);
     expect(requestUrlWithRetry).toHaveBeenCalledTimes(2);
+  });
+
+  it('forwards backend phases through the polling fallback', async () => {
+    const requestUrlWithRetry = jest
+      .fn()
+      .mockResolvedValueOnce({
+        status: 202,
+        headers: {},
+        text: JSON.stringify({ sessionId: 's1', jobId: 'job-1', status: 'queued' }),
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        text: JSON.stringify({
+          jobId: 'job-1',
+          sessionId: 's1',
+          status: 'processing',
+          progress: 85,
+          phase: 'rebuilding_indexes',
+        }),
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        text: JSON.stringify({
+          jobId: 'job-1',
+          sessionId: 's1',
+          status: 'completed',
+          progress: 100,
+          phase: 'completed',
+          result: {
+            promotionStats: {
+              notesPublished: 11,
+              notesDeduplicated: 0,
+              notesDeleted: 0,
+              assetsPublished: 0,
+              assetsDeduplicated: 0,
+            },
+          },
+        }),
+      });
+    const handler = {
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValueOnce(responseOk('{"sessionId":"s1","jobId":"job-1","status":"queued"}'))
+        .mockResolvedValueOnce(
+          responseOk(
+            '{"jobId":"job-1","sessionId":"s1","status":"processing","progress":85,"phase":"rebuilding_indexes"}'
+          )
+        )
+        .mockResolvedValueOnce(
+          responseOk(
+            '{"jobId":"job-1","sessionId":"s1","status":"completed","progress":100,"phase":"completed","result":{"promotionStats":{"notesPublished":11,"notesDeduplicated":0,"notesDeleted":0,"assetsPublished":0,"assetsDeduplicated":0}}}'
+          )
+        ),
+    };
+    const onFinalizationUpdate = jest.fn();
+
+    jest.doMock('obsidian', () => ({ requestUrl: jest.fn() }));
+    jest.doMock('../lib/utils/request-with-retry.util', () => ({
+      requestUrlWithRetry,
+    }));
+
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, mockLogger());
+
+    await expect(
+      client.finishSession(
+        's1',
+        {
+          notesProcessed: 1,
+          assetsProcessed: 0,
+        },
+        { onFinalizationUpdate }
+      )
+    ).resolves.toEqual({
+      promotionStats: {
+        notesPublished: 11,
+        notesDeduplicated: 0,
+        notesDeleted: 0,
+        assetsPublished: 0,
+        assetsDeduplicated: 0,
+      },
+    });
+
+    expect(onFinalizationUpdate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ phase: 'queued', progress: 0 })
+    );
+    expect(onFinalizationUpdate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ phase: 'rebuilding_indexes', progress: 85 })
+    );
+    expect(onFinalizationUpdate).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ phase: 'completed', progress: 100 })
+    );
   });
 
   it('ignores duplicate terminal SSE events safely', async () => {

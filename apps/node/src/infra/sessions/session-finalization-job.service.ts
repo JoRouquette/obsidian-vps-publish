@@ -9,7 +9,13 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
 import { type SessionRepository } from '@core-application';
-import { type ContentSearchIndex, type LoggerPort, type PromotionStats } from '@core-domain';
+import {
+  type ContentSearchIndex,
+  FINALIZATION_PHASE_PROGRESS,
+  type FinalizationPhase,
+  type LoggerPort,
+  type PromotionStats,
+} from '@core-domain';
 
 import { ManifestFileSystem } from '../filesystem/manifest-file-system';
 import { type StagingManager } from '../filesystem/staging-manager';
@@ -37,18 +43,6 @@ export interface FinalizationJob {
     finalizationTimings?: Partial<Record<FinalizationPhase, number>>;
   };
 }
-
-export type FinalizationPhase =
-  | 'queued'
-  | 'load_session'
-  | 'rebuild_from_stored'
-  | 'promote_session'
-  | 'rebuild_html_indexes'
-  | 'rebuild_search_index'
-  | 'validate_post_promotion'
-  | 'trigger_completion_callbacks'
-  | 'completed'
-  | 'failed';
 
 export interface FinalizationJobHistoryEntry {
   jobId: string;
@@ -296,11 +290,12 @@ export class SessionFinalizationJobService {
   private async executeJob(job: FinalizationJob): Promise<void> {
     const startTime = Date.now();
     const contentRevision = randomUUID();
+    let activePhase: FinalizationPhase = 'queued';
+    let activePhaseStartedAt = job.createdAt.getTime();
 
     job.status = 'processing';
     job.startedAt = new Date();
     job.contentRevision = contentRevision;
-    this.setJobPhase(job, 'load_session', 10);
 
     this.logger?.info('[JOB] Starting finalization job', {
       jobId: job.jobId,
@@ -310,11 +305,35 @@ export class SessionFinalizationJobService {
       queueLength: this.processingQueue.length,
     });
 
+    const flushActivePhaseTiming = () => {
+      const durationMs = Math.max(0, Date.now() - activePhaseStartedAt);
+      job.phaseTimings = {
+        ...(job.phaseTimings ?? {}),
+        [activePhase]: (job.phaseTimings?.[activePhase] ?? 0) + durationMs,
+      };
+      this.logger?.debug('[JOB] Finalization phase measured', {
+        jobId: job.jobId,
+        sessionId: job.sessionId,
+        phase: activePhase,
+        durationMs,
+        contentRevision: job.contentRevision,
+      });
+    };
+
+    const transitionToPhase = (phase: FinalizationPhase) => {
+      if (phase === activePhase) {
+        return;
+      }
+
+      flushActivePhaseTiming();
+      activePhase = phase;
+      activePhaseStartedAt = Date.now();
+      this.setJobPhase(job, phase);
+    };
+
     try {
       // STEP 0: Load session to get allCollectedRoutes and pipelineSignature (PHASE 6.1, PHASE 7)
-      const session = await this.measurePhase(job, 'load_session', 10, async () =>
-        this.sessionRepository.findById(job.sessionId)
-      );
+      const session = await this.sessionRepository.findById(job.sessionId);
       let allCollectedRoutes = session?.allCollectedRoutes;
       const pipelineSignature = session?.pipelineSignature;
 
@@ -334,8 +353,9 @@ export class SessionFinalizationJobService {
       }
 
       // STEP 1: Rebuild from stored notes (heaviest operation)
-      const customIndexesHtml = await this.measurePhase(job, 'rebuild_from_stored', 20, async () =>
-        this.sessionFinalizer.rebuildFromStored(job.sessionId)
+      const customIndexesHtml = await this.sessionFinalizer.rebuildFromStored(
+        job.sessionId,
+        transitionToPhase
       );
 
       if (session?.apiOwnedDeterministicNoteTransformsEnabled === true) {
@@ -343,40 +363,35 @@ export class SessionFinalizationJobService {
       }
 
       // STEP 2: Promote staging to production (with deleted page detection and pipelineSignature injection)
-      const promotionStats = await this.measurePhase(job, 'promote_session', 85, async () =>
-        this.stagingManager.promoteSession(
-          job.sessionId,
-          allCollectedRoutes,
-          pipelineSignature,
-          session?.locale,
-          contentRevision
-        )
+      transitionToPhase('promoting_content');
+      const promotionStats = await this.stagingManager.promoteSession(
+        job.sessionId,
+        allCollectedRoutes,
+        pipelineSignature,
+        session?.locale,
+        contentRevision
       );
 
       // STEP 2.5: Rebuild HTML indexes from PRODUCTION manifest (after merge)
       // CRITICAL: rebuildFromStored writes indexes to staging using only the
       // current session's pages. After promoteSession merges staging + production
       // manifests, we must regenerate indexes so they reflect ALL pages.
-      await this.measurePhase(job, 'rebuild_html_indexes', 90, async () =>
-        this.rebuildProductionHtmlIndexes(customIndexesHtml)
-      );
+      transitionToPhase('rebuilding_indexes');
+      await this.rebuildProductionHtmlIndexes(customIndexesHtml);
 
       // STEP 3: Rebuild search index from PRODUCTION manifest (after merge)
       // CRITICAL: This must happen AFTER promoteSession to include all pages
       // (staging pages + unchanged production pages from deduplication)
-      await this.measurePhase(job, 'rebuild_search_index', 92, async () =>
-        this.rebuildProductionSearchIndex(contentRevision)
-      );
+      await this.rebuildProductionSearchIndex(contentRevision);
 
       // STEP 4: Validate post-promotion consistency (manifest vs search index)
-      await this.measurePhase(job, 'validate_post_promotion', 95, async () =>
-        this.validatePostPromotion()
-      );
+      transitionToPhase('validating_links');
+      await this.validatePostPromotion();
       // Trigger completion callbacks before exposing the job as completed so
       // queue stats only count fully finalized publications.
-      await this.measurePhase(job, 'trigger_completion_callbacks', 98, async () =>
-        this.triggerCompletionCallbacks()
-      );
+      transitionToPhase('completing_publication');
+      await this.triggerCompletionCallbacks();
+      flushActivePhaseTiming();
 
       const completedAt = new Date();
       const result: FinalizationJob['result'] = {
@@ -387,7 +402,7 @@ export class SessionFinalizationJobService {
         finalizationTimings: { ...(job.phaseTimings ?? {}) },
       };
 
-      job.progress = 100;
+      job.progress = FINALIZATION_PHASE_PROGRESS.completed;
       job.phase = 'completed';
       job.result = result;
       job.completedAt = completedAt;
@@ -405,10 +420,14 @@ export class SessionFinalizationJobService {
         activeJobs: this.activeJobs,
       });
     } catch (error) {
+      if (job.status !== 'completed') {
+        flushActivePhaseTiming();
+      }
       job.error = error instanceof Error ? error.message : 'Unknown error';
       job.completedAt = new Date();
       job.status = 'failed';
       job.phase = 'failed';
+      job.progress = FINALIZATION_PHASE_PROGRESS.failed;
       this.notifyListeners(job);
       await this.appendHistory(job);
 
@@ -511,37 +530,18 @@ export class SessionFinalizationJobService {
     }
   }
 
-  private setJobPhase(job: FinalizationJob, phase: FinalizationPhase, progress: number): void {
+  private setJobPhase(job: FinalizationJob, phase: FinalizationPhase): void {
+    this.setJobPhaseWithProgress(job, phase, FINALIZATION_PHASE_PROGRESS[phase]);
+  }
+
+  private setJobPhaseWithProgress(
+    job: FinalizationJob,
+    phase: FinalizationPhase,
+    progress: number
+  ): void {
     job.phase = phase;
     job.progress = progress;
     this.notifyListeners(job);
-  }
-
-  private async measurePhase<T>(
-    job: FinalizationJob,
-    phase: FinalizationPhase,
-    progress: number,
-    action: () => Promise<T>
-  ): Promise<T> {
-    this.setJobPhase(job, phase, progress);
-    const startedAt = Date.now();
-
-    try {
-      return await action();
-    } finally {
-      const durationMs = Date.now() - startedAt;
-      job.phaseTimings = {
-        ...(job.phaseTimings ?? {}),
-        [phase]: durationMs,
-      };
-      this.logger?.debug('[JOB] Finalization phase measured', {
-        jobId: job.jobId,
-        sessionId: job.sessionId,
-        phase,
-        durationMs,
-        contentRevision: job.contentRevision,
-      });
-    }
   }
 
   /**

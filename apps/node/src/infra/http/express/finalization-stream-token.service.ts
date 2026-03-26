@@ -22,7 +22,10 @@ export class FinalizationStreamTokenService {
     private readonly ttlMs: number = 15 * 60 * 1000
   ) {}
 
-  createToken(sessionId: string, jobId: string): {
+  createToken(
+    sessionId: string,
+    jobId: string
+  ): {
     token: string;
     expiresAt: string;
     expiresAtMs: number;

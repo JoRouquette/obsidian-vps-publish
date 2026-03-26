@@ -16,7 +16,12 @@ import {
   UploadNotesHandler,
 } from '@core-application';
 import { NoteHashService } from '@core-application/publishing/services/note-hash.service';
-import { type CustomIndexConfig, type LoggerPort, LogLevel } from '@core-domain';
+import {
+  type CustomIndexConfig,
+  type FinalizationPhase,
+  type LoggerPort,
+  LogLevel,
+} from '@core-domain';
 import { load } from 'cheerio';
 
 import { type StagingManager } from '../filesystem/staging-manager';
@@ -30,6 +35,7 @@ import { ValidateLinksService } from './validate-links.service';
 
 type ContentStorageFactory = (sessionId: string) => ContentStoragePort;
 type ManifestStorageFactory = (sessionId: string) => ManifestPort;
+type FinalizationPhaseReporter = (phase: FinalizationPhase) => void;
 
 class NullLogger implements LoggerPort {
   private _level: LogLevel = LogLevel.info;
@@ -70,7 +76,10 @@ export class SessionFinalizerService {
     this.logger = logger?.child({ service: 'SessionFinalizerService' }) ?? new NullLogger();
   }
 
-  async rebuildFromStored(sessionId: string): Promise<Map<string, string> | undefined> {
+  async rebuildFromStored(
+    sessionId: string,
+    reportPhase?: FinalizationPhaseReporter
+  ): Promise<Map<string, string> | undefined> {
     const startTime = performance.now();
     const log = this.logger.child({ sessionId });
     const timings: Record<string, number> = {};
@@ -101,6 +110,8 @@ export class SessionFinalizerService {
       folderDisplayNames,
       apiOwnedDeterministicNoteTransformsEnabled,
     });
+
+    reportPhase?.('rebuilding_notes');
 
     // STEP 2: Load cleanup rules
     stepStart = performance.now();
@@ -173,6 +184,7 @@ export class SessionFinalizerService {
     timings.resetContentStage = performance.now() - stepStart;
 
     // STEP 8: Render markdown to HTML
+    reportPhase?.('rendering_html');
     stepStart = performance.now();
     const noteHashService = new NoteHashService();
     const renderer = new UploadNotesHandler(
@@ -249,6 +261,7 @@ export class SessionFinalizerService {
     }
 
     // STEP 9: Extract custom index HTML and update manifest
+    reportPhase?.('rebuilding_indexes');
     stepStart = performance.now();
     const customIndexesHtml = await this.extractCustomIndexesHtml(
       customIndexConfigs,
@@ -301,6 +314,7 @@ export class SessionFinalizerService {
 
     // STEP 10.7: Validate and fix all links in HTML files
     if (manifest) {
+      reportPhase?.('validating_links');
       stepStart = performance.now();
       const contentRoot = this.stagingManager.contentStagingPath(sessionId);
       const linkValidator = new ValidateLinksService(this.logger);

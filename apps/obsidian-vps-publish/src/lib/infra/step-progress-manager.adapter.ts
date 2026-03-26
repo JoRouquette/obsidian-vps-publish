@@ -204,6 +204,26 @@ export class StepProgressManagerAdapter implements StepProgressManagerPort {
     this.callbacks.push(callback);
   }
 
+  setStepProgress(stepId: ProgressStepId, current: number, total: number, label?: string): void {
+    const metadata = this.steps.get(stepId);
+    if (!metadata) {
+      throw new Error(`Step ${stepId} not found. Call startStep first.`);
+    }
+
+    if (metadata.status !== ProgressStepStatus.IN_PROGRESS) {
+      return;
+    }
+
+    metadata.total = Math.max(1, total);
+    metadata.current = Math.min(metadata.total, Math.max(0, current));
+    if (label) {
+      metadata.label = label;
+    }
+
+    this.updateProgressBarThrottled();
+    this.emitUpdate(new ProgressStep(metadata));
+  }
+
   private emitUpdate(step: ProgressStep): void {
     for (const callback of this.callbacks) {
       callback(step);

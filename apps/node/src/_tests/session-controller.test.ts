@@ -46,6 +46,7 @@ describe('sessionController', () => {
         sessionId: 'abc',
         status: 'processing',
         progress: 50,
+        phase: 'rendering_html',
         createdAt: '2026-03-25T09:00:00.000Z',
         startedAt: '2026-03-25T09:00:01.000Z',
         completedAt: undefined,
@@ -210,6 +211,7 @@ describe('sessionController', () => {
       sessionId: 'abc',
       status: 'processing',
       progress: 50,
+      phase: 'rendering_html',
       createdAt: '2026-03-25T09:00:00.000Z',
       startedAt: '2026-03-25T09:00:01.000Z',
     });
