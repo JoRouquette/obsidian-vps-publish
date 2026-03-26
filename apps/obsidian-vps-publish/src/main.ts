@@ -18,9 +18,7 @@ import {
   applyCustomIndexesToRouteTree,
   CancellationError,
   type CancellationPort,
-  collectDisplayNamesFromRouteTree,
   type CollectedNote,
-  type CustomIndexConfig,
   migrateLegacyFoldersToRouteTree,
   validateRouteTree,
   type VpsConfig,
@@ -72,9 +70,9 @@ import { SessionApiClient } from './lib/services/session-api.client';
 import { ObsidianVpsPublishSettingTab } from './lib/setting-tab.view';
 import type { PluginSettings } from './lib/settings/plugin-settings.type';
 import { enrichCleanupRules } from './lib/utils/create-default-folder-config.util';
-import { getEffectiveFolders } from './lib/utils/get-effective-folders.util';
 import { RequestUrlResponseMapper } from './lib/utils/http-response-status.mapper';
 import { insertNoPublishingMarker } from './lib/utils/insert-no-publishing-marker.util';
+import { prepareSessionBootstrapPlan } from './lib/utils/session-bootstrap-plan.util';
 import { selectVpsOrAuto } from './lib/utils/vps-selector';
 
 const defaultSettings: PluginSettings = {
@@ -713,6 +711,24 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     let finalizationRequested = false;
 
     try {
+      sessionClient = new SessionApiClient(
+        vps.baseUrl,
+        vps.apiKey,
+        this.responseHandler,
+        runLogger,
+        t,
+        { uploadRunId }
+      );
+
+      const sessionBootstrapPlan = prepareSessionBootstrapPlan({
+        vps,
+        settings,
+        manifestVersion: this.manifest.version,
+        generateGuid: () => guidGenerator.generateGuid(),
+        loadCalloutStyles: (paths) => this.loadCalloutStyles(paths),
+        computePipelineSignature,
+      });
+
       // ====================================================================
       // ÉTAPE 1: PARSE_VAULT - Parsing du vault
       // ====================================================================
@@ -755,10 +771,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
           folderCount: vps.folders?.length || 0,
         });
         // Extract effective folders from route tree (or legacy folders)
-        const effectiveFolders = getEffectiveFolders(vps);
         notes = await vault.collectFromFolder(
           {
-            folderConfig: effectiveFolders,
+            folderConfig: sessionBootstrapPlan.effectiveFolders,
           },
           cancellation
         );
@@ -903,73 +918,29 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ====================================================================
       trace.startStep('6-session-start');
 
-      sessionClient = new SessionApiClient(
-        vps.baseUrl,
-        vps.apiKey,
-        this.responseHandler,
-        runLogger,
-        t,
-        { uploadRunId }
-      );
+      trace.checkpoint('6-session-start', 'awaiting-session-bootstrap-preparation');
 
-      trace.checkpoint('6-session-start', 'loading-callout-styles');
+      const [{ durationMs: calloutStyleLoadingDurationMs }, { calloutStyles, pipelineSignature }] =
+        await Promise.all([
+          sessionBootstrapPlan.calloutStylesPromise,
+          sessionBootstrapPlan.pipelineSignaturePromise,
+        ]);
 
-      const calloutStyleLoadStart = performance.now();
-      const calloutStyles = await this.loadCalloutStyles(settings.calloutStylePaths ?? []);
-      trace.recordMetric(
-        'callout_style_loading_duration_ms',
-        performance.now() - calloutStyleLoadStart,
-        { calloutStylesCount: calloutStyles.length }
-      );
+      trace.recordMetric('callout_style_loading_duration_ms', calloutStyleLoadingDurationMs, {
+        calloutStylesCount: calloutStyles.length,
+      });
 
-      trace.checkpoint('6-session-start', 'building-custom-index-configs');
-
-      // Build custom index configs from VPS and folder settings
-      const customIndexConfigs: CustomIndexConfig[] = [];
-      const guidGen = new GuidGeneratorAdapter();
-
-      // Add root index if configured
-      if (vps.customRootIndexFile) {
-        customIndexConfigs.push({
-          id: guidGen.generateGuid(),
-          folderPath: '',
-          indexFilePath: vps.customRootIndexFile,
-          isRootIndex: true,
-        });
-      }
-
-      // Add folder indexes if configured (use getEffectiveFolders for route tree compatibility)
-      const effectiveFolders = getEffectiveFolders(vps);
-      for (const folder of effectiveFolders) {
-        if (folder.customIndexFile) {
-          customIndexConfigs.push({
-            id: guidGen.generateGuid(),
-            folderPath: folder.routeBase, // Use routeBase (published route) not vaultFolder
-            indexFilePath: folder.customIndexFile,
-          });
-        }
-      }
+      const { customIndexConfigs, folderDisplayNames, validCleanupRules } = sessionBootstrapPlan;
 
       this.logger.debug('Custom index configs built', {
         count: customIndexConfigs.length,
         configs: customIndexConfigs,
       });
 
-      // Collect all displayNames from route tree
-      const folderDisplayNames = vps.routeTree
-        ? collectDisplayNamesFromRouteTree(vps.routeTree)
-        : {};
-
       this.logger.debug('Folder display names collected', {
         count: Object.keys(folderDisplayNames).length,
         displayNames: folderDisplayNames,
       });
-
-      // Filtrer les règles de nettoyage : ne garder que celles activées avec regex valide
-      // (Moved before startSession for pipeline signature computation)
-      const validCleanupRules = (vps.cleanupRules ?? []).filter(
-        (rule) => rule.isEnabled && rule.regex && rule.regex.trim().length > 0
-      );
 
       this.logger.debug('Cleanup rules filtering', {
         total: vps.cleanupRules?.length ?? 0,
@@ -982,37 +953,11 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         })),
       });
 
-      trace.checkpoint('6-session-start', 'computing-pipeline-signature');
-
-      // Transform calloutStyles array to Record for pipeline signature
-      const calloutStylesRecord: Record<string, string> = calloutStyles.reduce(
-        (acc, { path, css }) => {
-          acc[path] = css;
-          return acc;
-        },
-        {} as Record<string, string>
-      );
-
-      // Transform cleanupRules to match expected signature (rename 'replacement' to 'replace')
-      const transformedCleanupRules = validCleanupRules.map((rule) => ({
-        id: rule.id,
-        isEnabled: rule.isEnabled,
-        regex: rule.regex,
-        replace: rule.replacement,
-      }));
-
-      // Compute pipeline signature for note deduplication
-      const pipelineSignature = await computePipelineSignature(this.manifest.version, {
-        calloutStyles: calloutStylesRecord,
-        cleanupRules: transformedCleanupRules,
-        ignoredTags: settings.frontmatterTagsToExclude || [],
-      });
-
       this.logger.info('🔑 Pipeline signature computed', {
         version: pipelineSignature.version,
         renderSettingsHash: pipelineSignature.renderSettingsHash,
-        calloutStylesCount: Object.keys(calloutStylesRecord).length,
-        cleanupRulesCount: transformedCleanupRules.length,
+        calloutStylesCount: calloutStyles.length,
+        cleanupRulesCount: validCleanupRules.length,
         ignoredTagsCount: (settings.frontmatterTagsToExclude || []).length,
       });
 
