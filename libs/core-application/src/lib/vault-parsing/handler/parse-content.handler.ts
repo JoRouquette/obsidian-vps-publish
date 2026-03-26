@@ -171,14 +171,21 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
     // Step 9: Detect assets
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('detect-assets');
-    const assetsSourceNotes = apiOwnsDeterministicTransforms
-      ? this.inlineDataviewRenderer.process(publishableNotes)
-      : publishableNotes;
-    const notesWithAssets = this.assetsDetector.process(assetsSourceNotes);
-    publishableNotes = publishableNotes.map((note, index) => ({
-      ...note,
-      assets: notesWithAssets[index]?.assets,
-    }));
+    if (apiOwnsDeterministicTransforms) {
+      publishableNotes = publishableNotes.map((note) => ({
+        ...note,
+        assets: this.assetsDetector.detectForContentOverride(
+          note,
+          this.inlineDataviewRenderer.renderContent(note.content, note.frontmatter)
+        ),
+      }));
+    } else {
+      const notesWithAssets = this.assetsDetector.process(publishableNotes);
+      publishableNotes = publishableNotes.map((note, index) => ({
+        ...note,
+        assets: notesWithAssets[index]?.assets,
+      }));
+    }
     this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
     await yieldScheduler.maybeYield();

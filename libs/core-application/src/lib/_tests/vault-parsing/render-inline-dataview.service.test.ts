@@ -53,6 +53,17 @@ describe('RenderInlineDataviewService', () => {
       expect(result.content).toBe('Titre: Le Titre');
     });
 
+    it('should render content without cloning a full note', () => {
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { titre: 'Le Titre' },
+      };
+
+      const result = service.renderContent('Titre: `= this.titre`', frontmatter);
+
+      expect(result).toBe('Titre: Le Titre');
+    });
+
     it('should render an array property as comma-separated values', () => {
       const frontmatter: DomainFrontmatter = {
         ...baseFrontmatter,

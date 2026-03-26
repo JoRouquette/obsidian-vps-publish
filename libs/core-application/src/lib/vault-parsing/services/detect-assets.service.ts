@@ -54,6 +54,14 @@ export class DetectAssetsService implements BaseService {
     return result;
   }
 
+  detectForContentOverride(note: PublishableNote, renderedContent: string): AssetRef[] {
+    const contentAssets = this.detectInText(renderedContent, 'content');
+    const frontmatterAssets = this.detectInFrontmatter(note);
+    const leafletAssets = this.detectInLeafletBlocks(note);
+
+    return [...contentAssets, ...frontmatterAssets, ...leafletAssets];
+  }
+
   private classifyAssetKind(target: string): AssetKind {
     const lower = target.toLowerCase();
 
