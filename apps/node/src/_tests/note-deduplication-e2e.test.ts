@@ -205,27 +205,29 @@ describe('E2E: Inter-publication Note Deduplication', () => {
 
     // Wait for job completion (poll status)
     await new Promise<void>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        clearInterval(pollInterval);
+        reject(new Error('Job timeout'));
+      }, 10000);
+
       const pollInterval = setInterval(() => {
         const jobStatus = finalizationJobService.getJobStatus(jobId);
         if (!jobStatus) {
           clearInterval(pollInterval);
+          clearTimeout(timeoutId);
           reject(new Error('Job not found'));
           return;
         }
         if (jobStatus.status === 'completed') {
           clearInterval(pollInterval);
+          clearTimeout(timeoutId);
           resolve();
         } else if (jobStatus.status === 'failed') {
           clearInterval(pollInterval);
+          clearTimeout(timeoutId);
           reject(new Error(jobStatus.error ?? 'Job failed'));
         }
       }, 100);
-
-      // Timeout after 10s
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        reject(new Error('Job timeout'));
-      }, 10000);
     });
 
     // Load final session and manifest

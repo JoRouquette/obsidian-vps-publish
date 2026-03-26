@@ -57,14 +57,33 @@ import { createApp } from '../infra/http/express/app';
 
 describe('createApp', () => {
   it('mounts routes and public config', async () => {
-    const { app } = createApp();
-    const apiRes = await request(app).get('/api/ping');
-    expect(apiRes.status).toBe(200);
+    const createdIntervals: Array<{ unref: jest.Mock }> = [];
+    const setIntervalSpy = jest.spyOn(global, 'setInterval').mockImplementation(((
+      ..._args: Parameters<typeof setInterval>
+    ) => {
+      const interval = { unref: jest.fn() };
+      createdIntervals.push(interval);
+      return interval as unknown as NodeJS.Timeout;
+    }) as typeof setInterval);
 
-    const cfgRes = await request(app).get('/public-config');
-    expect(cfgRes.status).toBe(200);
-    expect(cfgRes.body.baseUrl).toBe('http://localhost:4200');
-    expect(cfgRes.body.siteName).toBe('Site');
-    expect(cfgRes.body.adminDashboardEnabled).toBe(false);
+    const { app } = createApp();
+    try {
+      const apiRes = await request(app).get('/api/ping');
+      expect(apiRes.status).toBe(200);
+
+      const cfgRes = await request(app).get('/public-config');
+      expect(cfgRes.status).toBe(200);
+      expect(cfgRes.body.baseUrl).toBe('http://localhost:4200');
+      expect(cfgRes.body.siteName).toBe('Site');
+      expect(cfgRes.body.adminDashboardEnabled).toBe(false);
+
+      expect(setIntervalSpy).toHaveBeenCalled();
+      expect(createdIntervals.length).toBeGreaterThan(0);
+      createdIntervals.forEach((interval) => {
+        expect(interval.unref).toHaveBeenCalledTimes(1);
+      });
+    } finally {
+      setIntervalSpy.mockRestore();
+    }
   });
 });

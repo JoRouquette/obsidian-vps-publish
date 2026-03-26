@@ -290,13 +290,16 @@ export function createApp(rootLogger?: LoggerPort) {
     await contentVersionService.updateVersion();
   });
 
-  // Cleanup old jobs every 10 minutes
-  setInterval(
+  // Cleanup old jobs every 10 minutes without keeping the process alive just for housekeeping.
+  const cleanupIntervalId = setInterval(
     () => {
       finalizationJobService.cleanupOldJobs(3600000); // 1 hour
     },
     10 * 60 * 1000
   );
+  if (cleanupIntervalId.unref) {
+    cleanupIntervalId.unref();
+  }
 
   // API routes (protégées par API key)
   const apiRouter = express.Router();
