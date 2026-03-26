@@ -59,3 +59,7 @@ Les phases backend stables exposÃ©es via SSE et polling sont :
 - [Asset Deduplication](./asset-deduplication.md)
 - [Asset Security](./asset-security.md)
 - [Link Normalization](./link-normalization.md)
+- [CDN Deployment](./cdn-deployment.md)
+- [Load Testing](./load-testing.md)
+- [Streaming Refactor Guide](./streaming-refactor-guide.md)
+- [Thumbnail Generation Guide](./thumbnail-generation-guide.md)
