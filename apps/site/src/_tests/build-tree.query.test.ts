@@ -173,4 +173,39 @@ describe('BuildTreeHandler', () => {
     expect(arali?.displayName).toBeUndefined();
     expect(arali?.label).toBe('Arali');
   });
+
+  it('preserves exact vault spelling for multi-level folder labels while keeping technical routes stable', async () => {
+    const displayManifest: Manifest = {
+      sessionId: 's',
+      createdAt: new Date(),
+      lastUpdatedAt: new Date(),
+      pages: [
+        {
+          id: '1',
+          route: '/tresors/chroniques-d-ete/arc-ancestral/page-note',
+          title: 'Page Note',
+          publishedAt: new Date(),
+          slug: Slug.from('page-note'),
+        },
+      ],
+      folderDisplayNames: {
+        '/tresors': 'Trésors',
+        '/tresors/chroniques-d-ete': "Chroniques d'Été",
+        '/tresors/chroniques-d-ete/arc-ancestral': 'Arc Áncestral',
+      },
+    };
+
+    const tree = await new BuildTreeHandler().handle(displayManifest);
+
+    const tresors = tree.children?.find((c) => c.name === 'tresors');
+    const chroniques = tresors?.children?.find((c) => c.name === 'chroniques-d-ete');
+    const arc = chroniques?.children?.find((c) => c.name === 'arc-ancestral');
+    const page = arc?.children?.find((c) => c.kind === 'file' && c.name === 'page-note');
+
+    expect(tresors?.displayName).toBe('Trésors');
+    expect(chroniques?.displayName).toBe("Chroniques d'Été");
+    expect(arc?.displayName).toBe('Arc Áncestral');
+    expect(chroniques?.label).toBe('Chroniques d ete');
+    expect(page?.route).toBe('/tresors/chroniques-d-ete/arc-ancestral/page-note');
+  });
 });

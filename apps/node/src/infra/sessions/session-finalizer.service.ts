@@ -23,6 +23,7 @@ import { load } from 'cheerio';
 
 import { type StagingManager } from '../filesystem/staging-manager';
 import { ContentSearchIndexer } from '../search/content-search-indexer';
+import { buildFolderDisplayNamesFromPublishedNotes } from './folder-display-names-from-notes.util';
 import {
   replaceAssetPathsInHtmlFiles,
   replaceAssetPathsInManifestPages,
@@ -97,12 +98,12 @@ export class SessionFinalizerService {
     stepStart = performance.now();
     const session = await this.sessionRepository.findById(sessionId);
     const customIndexConfigs = session?.customIndexConfigs ?? [];
-    const folderDisplayNames = session?.folderDisplayNames ?? {};
+    const sessionFolderDisplayNames = session?.folderDisplayNames ?? {};
     timings.loadSessionMetadata = performance.now() - stepStart;
     log.debug('Loaded session metadata', {
       customIndexConfigsCount: customIndexConfigs.length,
-      folderDisplayNamesCount: Object.keys(folderDisplayNames).length,
-      folderDisplayNames,
+      folderDisplayNamesCount: Object.keys(sessionFolderDisplayNames).length,
+      folderDisplayNames: sessionFolderDisplayNames,
     });
 
     reportPhase?.('rebuilding_notes');
@@ -155,6 +156,13 @@ export class SessionFinalizerService {
       ignoreRulesAlreadyApplied: true,
     });
     timings.resolveWikilinksAndRouting = performance.now() - stepStart;
+
+    const folderDisplayNames =
+      buildFolderDisplayNamesFromPublishedNotes(withLinks, sessionFolderDisplayNames) ?? {};
+    log.debug('Resolved folder display names for published navigation', {
+      folderDisplayNamesCount: Object.keys(folderDisplayNames).length,
+      folderDisplayNames,
+    });
 
     // STEP 7: Reset content staging directory
     stepStart = performance.now();
