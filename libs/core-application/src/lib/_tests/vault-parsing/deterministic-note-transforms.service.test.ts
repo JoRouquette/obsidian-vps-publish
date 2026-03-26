@@ -91,8 +91,8 @@ describe('DeterministicNoteTransformsService parity', () => {
       );
       const apiPrepared = await buildParseHandler('api').handle(fixture.notes);
       const apiOwned = await new DeterministicNoteTransformsService(logger).process(apiPrepared, {
-        ignoreRules: deterministicTransformParityIgnoreRules,
         deduplicationEnabled: true,
+        ignoreRulesAlreadyApplied: true,
       });
 
       expect(simplifyNotes(apiOwned)).toEqual(simplifyNotes(pluginOwned));
@@ -103,4 +103,28 @@ describe('DeterministicNoteTransformsService parity', () => {
       }
     });
   }
+
+  it('drops notes that are already marked non-publishable when ignore rules were applied upstream', async () => {
+    const evaluated = await buildParseHandler('api').handle(
+      deterministicTransformParityFixtures[0].notes
+    );
+    const noteMarkedIgnored = {
+      ...evaluated[0],
+      noteId: 'pre-filtered-ignored',
+      eligibility: {
+        isPublishable: false,
+        reasons: ['pre-filtered ignore rule'],
+      },
+    };
+
+    const apiOwned = await new DeterministicNoteTransformsService(logger).process(
+      [...evaluated, noteMarkedIgnored],
+      {
+        deduplicationEnabled: true,
+        ignoreRulesAlreadyApplied: true,
+      }
+    );
+
+    expect(apiOwned.some((note) => note.noteId === noteMarkedIgnored.noteId)).toBe(false);
+  });
 });
