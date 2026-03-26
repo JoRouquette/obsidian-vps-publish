@@ -160,6 +160,7 @@ export class SessionFinalizerService {
       withLinks = await deterministicTransforms.process(withConvertedLinks, {
         ignoreRules: session?.ignoreRules,
         deduplicationEnabled: session?.deduplicationEnabled !== false,
+        ignoreRulesAlreadyApplied: true,
       });
       timings.resolveWikilinksAndRouting = performance.now() - stepStart;
     } else {

@@ -11,6 +11,7 @@ import { ResolveWikilinksService } from './resolve-wikilinks.service';
 export interface DeterministicNoteTransformsOptions {
   ignoreRules?: IgnoreRule[];
   deduplicationEnabled?: boolean;
+  ignoreRulesAlreadyApplied?: boolean;
 }
 
 class NullLogger implements LoggerPort {
@@ -52,11 +53,13 @@ export class DeterministicNoteTransformsService {
     const log = baseLogger.child({ service: 'DeterministicNoteTransformsService' });
     const ignoreRules = options.ignoreRules ?? [];
     const deduplicationEnabled = options.deduplicationEnabled !== false;
+    const ignoreRulesAlreadyApplied = options.ignoreRulesAlreadyApplied === true;
 
     log?.debug('Applying deterministic note transforms', {
       notesCount: notes.length,
       ignoreRulesCount: ignoreRules.length,
       deduplicationEnabled,
+      ignoreRulesAlreadyApplied,
     });
 
     const evaluateIgnoreRules = new EvaluateIgnoreRulesHandler(ignoreRules, baseLogger);
@@ -67,8 +70,8 @@ export class DeterministicNoteTransformsService {
     const resolveWikilinks = new ResolveWikilinksService(baseLogger, detectWikilinks);
     const deduplicate = new DeduplicateNotesService(baseLogger);
 
-    const evaluated = await evaluateIgnoreRules.handle(notes);
-    const publishableNotes = evaluated.filter((note) => note.eligibility?.isPublishable);
+    const evaluated = ignoreRulesAlreadyApplied ? notes : await evaluateIgnoreRules.handle(notes);
+    const publishableNotes = evaluated.filter((note) => note.eligibility?.isPublishable !== false);
     const withInlineDataview = inlineDataviewRenderer.process(publishableNotes);
     const withTitleHeaders = ensureTitleHeader.process(withInlineDataview);
     const routed = computeRouting.process(withTitleHeaders);
