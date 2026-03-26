@@ -1,0 +1,70 @@
+{
+  "id": "duplicate-route-corpus",
+  "description": "Duplicate titles, wikilinks, inline dataview, and nested routes to compare plugin-owned and api-owned deterministic transform paths.",
+  "version": "bench-v1",
+  "deduplicationEnabled": true,
+  "ignoredTags": ["private"],
+  "ignoreRules": [{ "property": "publish", "ignoreIf": false }],
+  "notes": [
+    {
+      "noteId": "overview-a",
+      "title": "Overview",
+      "vaultPath": "Vault/Guides/Overview.md",
+      "relativePath": "Overview.md",
+      "content": "Primary guide links to [[Overview 1]] and reports `=this.category`.",
+      "frontmatter": { "publish": true, "category": "guide" },
+      "folderConfig": {
+        "id": "guides",
+        "vaultFolder": "Vault/Guides",
+        "routeBase": "/guides",
+        "vpsId": "fixture-vps",
+        "displayName": "Guides"
+      }
+    },
+    {
+      "noteId": "overview-b",
+      "title": "Overview",
+      "vaultPath": "Vault/Guides/Overview 1.md",
+      "relativePath": "Overview 1.md",
+      "content": "Second guide links back to [[Overview]].",
+      "frontmatter": { "publish": true },
+      "folderConfig": {
+        "id": "guides",
+        "vaultFolder": "Vault/Guides",
+        "routeBase": "/guides",
+        "vpsId": "fixture-vps",
+        "displayName": "Guides"
+      }
+    },
+    {
+      "noteId": "nested-alpha",
+      "title": "Nested Alpha",
+      "vaultPath": "Vault/Guides/Nested/Alpha.md",
+      "relativePath": "Nested/Alpha.md",
+      "content": "Nested note links to [[Overview]] and [[Nested Beta]].",
+      "frontmatter": { "publish": true },
+      "folderConfig": {
+        "id": "guides",
+        "vaultFolder": "Vault/Guides",
+        "routeBase": "/guides",
+        "vpsId": "fixture-vps",
+        "displayName": "Guides"
+      }
+    },
+    {
+      "noteId": "nested-beta",
+      "title": "Nested Beta",
+      "vaultPath": "Vault/Guides/Nested/Beta.md",
+      "relativePath": "Nested/Beta.md",
+      "content": "Nested beta references [[Nested Alpha]].",
+      "frontmatter": { "publish": true },
+      "folderConfig": {
+        "id": "guides",
+        "vaultFolder": "Vault/Guides",
+        "routeBase": "/guides",
+        "vpsId": "fixture-vps",
+        "displayName": "Guides"
+      }
+    }
+  ]
+}
