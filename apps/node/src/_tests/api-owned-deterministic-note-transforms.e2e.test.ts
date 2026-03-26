@@ -165,30 +165,33 @@ describe('API-owned deterministic note transforms parity', () => {
     jobId: string
   ): Promise<void> {
     await new Promise<void>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        clearInterval(poll);
+        reject(new Error('Timed out waiting for finalization'));
+      }, 10000);
+
       const poll = setInterval(() => {
         const job = finalizationJobService.getJobStatus(jobId);
         if (!job) {
           clearInterval(poll);
+          clearTimeout(timeoutId);
           reject(new Error('Job not found'));
           return;
         }
 
         if (job.status === 'completed') {
           clearInterval(poll);
+          clearTimeout(timeoutId);
           resolve();
           return;
         }
 
         if (job.status === 'failed') {
           clearInterval(poll);
+          clearTimeout(timeoutId);
           reject(new Error(job.error ?? 'Finalization failed'));
         }
       }, 50);
-
-      setTimeout(() => {
-        clearInterval(poll);
-        reject(new Error('Timed out waiting for finalization'));
-      }, 10000);
     });
   }
 
