@@ -10,7 +10,12 @@ import {
   ParseContentHandler,
   UploadNotesHandler,
 } from '@core-application';
+import {
+  deterministicTransformParityFixtures,
+  deterministicTransformParityIgnoreRules,
+} from '@core-application/_tests/fixtures/deterministic-transform-parity.fixture';
 import { ComputeRoutingService } from '@core-application/vault-parsing/services/compute-routing.service';
+import { DeduplicateNotesService } from '@core-application/vault-parsing/services/deduplicate-notes.service';
 import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
 import { DetectLeafletBlocksService } from '@core-application/vault-parsing/services/detect-leaflet-blocks.service';
 import { DetectWikilinksService } from '@core-application/vault-parsing/services/detect-wikilinks.service';
@@ -19,12 +24,7 @@ import { NormalizeFrontmatterService } from '@core-application/vault-parsing/ser
 import { RemoveNoPublishingMarkerService } from '@core-application/vault-parsing/services/remove-no-publishing-marker.service';
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
-import {
-  type CollectedNote,
-  type IgnoreRule,
-  type Manifest,
-  type PublishableNote,
-} from '@core-domain';
+import { type Manifest, type PublishableNote, type ResolvedWikilink } from '@core-domain';
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
 import { FileSystemSessionRepository } from '../infra/filesystem/file-system-session.repository';
@@ -38,7 +38,7 @@ import { MarkdownItRenderer } from '../infra/markdown/markdown-it.renderer';
 import { SessionFinalizationJobService } from '../infra/sessions/session-finalization-job.service';
 import { SessionFinalizerService } from '../infra/sessions/session-finalizer.service';
 
-describe('API-owned deterministic note transforms', () => {
+describe('API-owned deterministic note transforms parity', () => {
   let tempDir: string;
 
   const noopLogger = {
@@ -58,6 +58,7 @@ describe('API-owned deterministic note transforms', () => {
       return undefined;
     },
   } as any;
+  const deduplicateNotesService = new DeduplicateNotesService(noopLogger);
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'api-owned-transforms-'));
@@ -67,9 +68,12 @@ describe('API-owned deterministic note transforms', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  function buildParseHandler(mode: 'plugin' | 'api', ignoreRules: IgnoreRule[]) {
+  function buildParseHandler(mode: 'plugin' | 'api') {
     const normalizeFrontmatterService = new NormalizeFrontmatterService(noopLogger);
-    const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(ignoreRules, noopLogger);
+    const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(
+      deterministicTransformParityIgnoreRules,
+      noopLogger
+    );
     const noteMapper = new NotesMapper();
     const inlineDataviewRenderer = new RenderInlineDataviewService(noopLogger);
     const leafletBlocksDetector = new DetectLeafletBlocksService(noopLogger);
@@ -187,21 +191,74 @@ describe('API-owned deterministic note transforms', () => {
     });
   }
 
+  async function readPublishedHtml(
+    contentRoot: string,
+    manifest: Manifest | null
+  ): Promise<Record<string, string>> {
+    const htmlByRoute: Record<string, string> = {};
+
+    for (const page of manifest?.pages ?? []) {
+      const segments = page.route.split('/').filter(Boolean);
+      const htmlPath = path.join(contentRoot, ...segments.slice(0, -1), `${segments.at(-1)}.html`);
+      htmlByRoute[page.route] = await fs.readFile(htmlPath, 'utf8');
+    }
+
+    return htmlByRoute;
+  }
+
+  function simplifyResolvedWikilinks(links?: ResolvedWikilink[]) {
+    return (links ?? []).map((link) => ({
+      raw: link.raw,
+      target: link.target,
+      alias: link.alias,
+      subpath: link.subpath,
+      targetNoteId: link.targetNoteId,
+      isResolved: link.isResolved,
+      href: link.href,
+      path: link.path,
+    }));
+  }
+
+  function simplifyManifest(manifest: Manifest | null) {
+    return (manifest?.pages ?? [])
+      .map((page) => ({
+        id: page.id,
+        title: page.title,
+        route: page.route,
+        aliases: page.aliases ?? [],
+      }))
+      .sort((left, right) => left.route.localeCompare(right.route));
+  }
+
+  function simplifyNotes(notes: PublishableNote[]) {
+    return notes
+      .map((note) => ({
+        noteId: note.noteId,
+        route: note.routing.fullPath,
+        slug: note.routing.slug,
+        content: note.content,
+        resolvedWikilinks: simplifyResolvedWikilinks(note.resolvedWikilinks),
+      }))
+      .sort((left, right) => left.noteId.localeCompare(right.noteId));
+  }
+
   async function publishScenario(
     envName: string,
     notes: PublishableNote[],
     options: {
-      ignoreRules: IgnoreRule[];
       apiOwnedDeterministicNoteTransformsEnabled: boolean;
       allCollectedRoutes?: string[];
     }
-  ): Promise<{ manifest: Manifest | null; alphaHtml: string }> {
+  ): Promise<{
+    manifest: Manifest | null;
+    htmlByRoute: Record<string, string>;
+  }> {
     const env = await createEnvironment(envName);
     const createResult = await env.createSessionHandler.handle({
       notesPlanned: notes.length,
       assetsPlanned: 0,
       batchConfig: { maxBytesPerRequest: 1024 * 1024 },
-      ignoreRules: options.ignoreRules,
+      ignoreRules: deterministicTransformParityIgnoreRules,
       apiOwnedDeterministicNoteTransformsEnabled:
         options.apiOwnedDeterministicNoteTransformsEnabled,
     });
@@ -224,62 +281,46 @@ describe('API-owned deterministic note transforms', () => {
     await waitForJob(env.finalizationJobService, jobId);
 
     const manifest = await env.manifestFileSystem.load();
-    const alphaHtml = await fs.readFile(path.join(env.contentRoot, 'blog', 'alpha.html'), 'utf8');
-
-    return { manifest, alphaHtml };
+    return {
+      manifest,
+      htmlByRoute: await readPublishedHtml(env.contentRoot, manifest),
+    };
   }
 
-  it('produces equivalent final output between plugin-owned and api-owned deterministic transforms', async () => {
-    const ignoreRules: IgnoreRule[] = [{ property: 'publish', ignoreIf: false } as IgnoreRule];
-    const collectedNotes: CollectedNote[] = [
-      {
-        noteId: 'alpha',
-        title: 'Alpha',
-        vaultPath: 'Vault/Blog/Alpha.md',
-        relativePath: 'Alpha.md',
-        content: 'Link to [[Beta]] and `=this.title`',
-        frontmatter: { publish: true } as any,
-        folderConfig: {
-          id: 'folder',
-          vaultFolder: 'Vault/Blog',
-          routeBase: '/blog',
-          vpsId: 'vps',
-          ignoredCleanupRuleIds: [],
-        },
-      },
-      {
-        noteId: 'beta',
-        title: 'Beta',
-        vaultPath: 'Vault/Blog/Beta.md',
-        relativePath: 'Beta.md',
-        content: 'Second note',
-        frontmatter: { publish: true } as any,
-        folderConfig: {
-          id: 'folder',
-          vaultFolder: 'Vault/Blog',
-          routeBase: '/blog',
-          vpsId: 'vps',
-          ignoredCleanupRuleIds: [],
-        },
-      },
-    ];
+  for (const fixture of deterministicTransformParityFixtures) {
+    it(`preserves final output parity for ${fixture.id}`, async () => {
+      const pluginOwnedNotes = deduplicateNotesService.process(
+        await buildParseHandler('plugin').handle(fixture.notes)
+      );
+      const apiPreparedNotes = await buildParseHandler('api').handle(fixture.notes);
 
-    const pluginOwnedNotes = await buildParseHandler('plugin', ignoreRules).handle(collectedNotes);
-    const apiPreparedNotes = await buildParseHandler('api', ignoreRules).handle(collectedNotes);
+      expect(simplifyNotes(apiPreparedNotes)).not.toEqual(simplifyNotes(pluginOwnedNotes));
 
-    const pluginOwnedResult = await publishScenario('plugin-owned', pluginOwnedNotes, {
-      ignoreRules,
-      apiOwnedDeterministicNoteTransformsEnabled: false,
-      allCollectedRoutes: pluginOwnedNotes.map((note) => note.routing.fullPath),
+      const pluginOwnedResult = await publishScenario(
+        `${fixture.id}-plugin-owned`,
+        pluginOwnedNotes,
+        {
+          apiOwnedDeterministicNoteTransformsEnabled: false,
+          allCollectedRoutes: pluginOwnedNotes.map((note) => note.routing.fullPath),
+        }
+      );
+      const apiOwnedResult = await publishScenario(`${fixture.id}-api-owned`, apiPreparedNotes, {
+        apiOwnedDeterministicNoteTransformsEnabled: true,
+      });
+
+      expect(simplifyManifest(apiOwnedResult.manifest)).toEqual(
+        simplifyManifest(pluginOwnedResult.manifest)
+      );
+      expect(apiOwnedResult.htmlByRoute).toEqual(pluginOwnedResult.htmlByRoute);
+
+      for (const ignoredNoteId of fixture.ignoredNoteIds) {
+        expect(apiOwnedResult.manifest?.pages.some((page) => page.id === ignoredNoteId)).toBe(
+          false
+        );
+        expect(pluginOwnedResult.manifest?.pages.some((page) => page.id === ignoredNoteId)).toBe(
+          false
+        );
+      }
     });
-    const apiOwnedResult = await publishScenario('api-owned', apiPreparedNotes, {
-      ignoreRules,
-      apiOwnedDeterministicNoteTransformsEnabled: true,
-    });
-
-    expect(apiOwnedResult.manifest?.pages.map((page) => page.route)).toEqual(
-      pluginOwnedResult.manifest?.pages.map((page) => page.route)
-    );
-    expect(apiOwnedResult.alphaHtml).toEqual(pluginOwnedResult.alphaHtml);
-  });
+  }
 });
