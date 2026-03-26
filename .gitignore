@@ -39,6 +39,11 @@ coverage/**/*
 !apps/site/e2e/fixtures/content/**/*
 **/assets/**/*
 !apps/site/e2e/fixtures/assets/**/*
+!apps/node/src/assets/
+!apps/node/src/assets/publication-trace-bench/
+!apps/node/src/assets/publication-trace-bench/callouts/
+!apps/node/src/assets/publication-trace-bench/fixtures/
+!apps/node/src/assets/publication-trace-bench/**/*
 **/build/**/*
 **.angular**
 **.next**
