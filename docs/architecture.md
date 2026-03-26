@@ -3,8 +3,8 @@
 ## Monorepo layout
 
 - `apps/node`: Express + TypeScript backend that renders Markdown to HTML, maintains `_manifest.json`, and serves API + static assets.
-- `apps/site`: Angular SPA that consumes the manifest to render the published site (routing, search, viewer).
-- `apps/obsidian-vps-publish`: Obsidian plugin (TypeScript + Obsidian API, bundled with esbuild).
+- `apps/site`: Angular SPA that consumes the manifest to render the published site.
+- `apps/obsidian-vps-publish`: Obsidian plugin bundled with esbuild.
 - Shared libs: `libs/core-domain`, `libs/core-application`.
 
 ## Backend API (`apps/node`)
@@ -12,61 +12,50 @@
 - Stack: Express, TypeScript; CI builds on Node.js 22 and the container runtime is Node 20-alpine.
 - Authentication: all `/api/**` routes require the `x-api-key` header.
 - Session workflow:
-  - `POST /api/session/start` — create a publish session (note/asset counts, optional callout styles).
-  - `POST /api/session/:sessionId/notes/upload` — upload Markdown + frontmatter batch.
-  - `POST /api/session/:sessionId/assets/upload` — upload binary assets.
-  - `POST /api/session/:sessionId/finish` — finalize and publish staged content.
-  - `POST /api/session/:sessionId/abort` — cancel and drop staged content.
-- Routing invariant: every published route must remain absolute (`/path/to/page`) from parsing to
-  final promotion, otherwise internal HTML links can silently degrade into browser-relative paths.
+  - `POST /api/session/start` creates a publish session with planned counts, ignore rules, folder display names, and the current pipeline signature.
+  - `POST /api/session/:sessionId/notes/upload` uploads note source packages: raw Markdown, normalized frontmatter, and Obsidian-only enrichments.
+  - `POST /api/session/:sessionId/assets/upload` uploads binary assets.
+  - `POST /api/session/:sessionId/finish` marks the session complete and enqueues finalization.
+  - `POST /api/session/:sessionId/abort` cancels the session and drops staged content.
+- Publication ownership:
+  - Plugin: vault reads, metadata cache extraction, Dataview block / DataviewJS execution, attachment discovery, and local settings collection.
+  - API: authoritative deterministic transforms, HTML rendering, routing, slug deduplication, wikilink resolution, manifest/index rebuilds, and link validation.
+- Finalization progress:
+  - Backend finalization exposes stable phases over SSE and polling: `queued`, `rebuilding_notes`, `rendering_html`, `promoting_content`, `rebuilding_indexes`, `validating_links`, `completing_publication`, `completed`, `failed`.
+  - Plugin UI uses those backend phases as the authoritative publish-progress label.
+- Routing invariant: every published route must remain absolute (`/path/to/page`) from parsing to final promotion, otherwise internal HTML links can silently degrade into browser-relative paths.
 - Public endpoints:
-  - `GET /health` — healthcheck (used by the Docker image).
-  - `GET /public-config` — exposes `siteName`, `author`, `repoUrl`, `reportIssuesUrl`.
+  - `GET /health` healthcheck.
+  - `GET /public-config` exposes `siteName`, `author`, `repoUrl`, `reportIssuesUrl`.
 - Static content:
-  - `/content/**` and assets under `/assets/**` (from mounted volumes).
-  - SPA served at `/` from the built Angular files copied into `UI_ROOT` during the image build.
-- `_manifest.json` is the canonical source for internal page routing; page routes and route-keyed
-  maps are normalized on load/save/promotion so generated links stay stable across staged and final output.
-- Key environment variables (see `.env.dev.example` and `docker-compose.prod.yml`):
-  - `API_KEY` (required), `ALLOWED_ORIGINS`, `LOGGER_LEVEL`, `PORT`, `NODE_ENV`.
-  - Roots: `CONTENT_ROOT` (rendered HTML + `_manifest.json`, default `/content`), `ASSETS_ROOT` (default `/assets`), `UI_ROOT` (default `/ui`).
-  - SSR: `SSR_ENABLED` (default `false` in dev, `true` in production), `UI_SERVER_ROOT` (default `./dist/apps/site/server`).
-  - Metadata: `SITE_NAME`, `AUTHOR`, `REPO_URL`, `REPORT_ISSUES_URL`.
-  - Asset security: `MAX_ASSET_SIZE_BYTES` (default 10MB), `VIRUS_SCANNER_ENABLED` (default false), `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_TIMEOUT` (see [Asset Security](./api/asset-security.md)).
-- Asset validation pipeline:
-  - **MIME detection** via file-type library (magic bytes) prevents spoofing attacks.
-  - **Size limits** reject oversized files before processing (configurable via `MAX_ASSET_SIZE_BYTES`).
-  - **Virus scanning** (optional, requires ClamAV daemon) scans uploads via TCP socket.
-  - Clean Architecture: ports in `core-domain` (`AssetValidatorPort`, `AssetScannerPort`), implementations in `apps/node/src/infra/` (`FileTypeAssetValidator`, `NoopAssetScanner`, `ClamAVAssetScanner`).
-- Asset deduplication system:
-  - **SHA256-based deduplication** - Identical assets uploaded only once (content hash comparison).
-  - **Selective promotion** - Staging-to-production sync preserves referenced assets, removes obsolete ones.
-  - **Automatic cleanup** - Orphaned assets deleted during session finalization based on manifest.
-  - **Manifest tracking** - Each asset in manifest includes `{ path, hash, size, mimeType, uploadedAt }`.
-  - Clean Architecture: `AssetHashPort` in `core-domain`, `AssetHashService` (SHA256) in `node/infra`, deduplication logic in `UploadAssetsHandler` (application layer).
-  - See [Asset Deduplication](./api/asset-deduplication.md) for detailed workflow and troubleshooting.
-- **Server-Side Rendering (SSR)** infrastructure:
-  - **AngularSSRService** (280 lines): Loads Angular Universal server bundle (`main.server.mjs`), renders routes to HTML.
-  - **SSR cache middleware** (364 lines): In-memory cache with TTL and size limits for pre-rendered HTML.
-  - **Graceful fallback**: If SSR initialization fails, serves CSR version (`index.html` from `UI_ROOT`).
-  - **Known issue**: Angular 20 JIT compilation error ("PlatformLocation needs JIT compiler") causes SSR to fall back to CSR.
-  - **Integration**: `apps/node/src/infra/http/express/app.ts` conditionally applies `ssrService.middleware()` when `SSR_ENABLED=true`.
-  - See [SSR Guide](./site/ssr.md) for configuration and deployment details.
+  - `/content/**` and `/assets/**` are served from mounted volumes.
+  - The SPA is served at `/` from the built Angular files copied into `UI_ROOT`.
+- `_manifest.json` is the canonical source for internal routing and staged-to-production promotion.
+- Key environment variables:
+  - `API_KEY`, `ALLOWED_ORIGINS`, `LOGGER_LEVEL`, `PORT`, `NODE_ENV`
+  - `CONTENT_ROOT`, `ASSETS_ROOT`, `UI_ROOT`
+  - `SSR_ENABLED`, `UI_SERVER_ROOT`
+  - `SITE_NAME`, `AUTHOR`, `REPO_URL`, `REPORT_ISSUES_URL`
+  - `MAX_ASSET_SIZE_BYTES`, `VIRUS_SCANNER_ENABLED`, `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_TIMEOUT`
 
 ## Frontend (`apps/site`)
 
-- Angular SPA that reads `/content/_manifest.json`, renders pages via `filePath`, and provides search on title/tags.
+- Angular SPA that reads `/content/_manifest.json`, renders pages via `filePath`, and provides search.
 - Build: `npm run build:site`; dev: `npm run start site`.
 - The Docker image copies the built `browser` output into `UI_ROOT` so the container can serve the SPA directly.
 
 ## Obsidian plugin (`apps/obsidian-vps-publish`)
 
-- Responsibilities: bundle the plugin, keep `manifest.json` and `versions.json` in sync, and ship a zipped release asset.
-- Build/package: `npm run build:plugin` then `npm run package:plugin` -> `dist/vps-publish/` (contains `main.js`, `manifest.json`, `styles.css`, `versions.json`).
-- Release packaging: `semantic-release` rebuilds the plugin, packages it, and creates `dist/vps-publish.zip`, which is attached to GitHub release assets.
-- Manifest + version sources: `manifest.json` (repo root) and `apps/obsidian-vps-publish/versions.json`; keep them aligned with tags.
+- Responsibilities:
+  - enumerate the vault and read raw note content
+  - extract Obsidian-only metadata and execute Dataview block / DataviewJS logic
+  - discover and upload attachments plus note source packages
+  - surface publish progress from backend finalization phases
+  - package and release the plugin assets
+- Build/package: `npm run build:plugin` then `npm run package:plugin` -> `dist/vps-publish/`.
+- Manifest + version sources: `manifest.json` (repo root) and `apps/obsidian-vps-publish/versions.json`.
 
 ## Shared libraries
 
 - `libs/core-domain`: entities, value objects, ports, errors, utilities.
-- `libs/core-application`: services/use cases (catalogue, publication, sessions, vault parsing, etc.).
+- `libs/core-application`: services/use cases for sessions, publication, vault parsing, and deterministic transforms.
