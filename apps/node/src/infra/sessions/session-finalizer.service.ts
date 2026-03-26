@@ -163,17 +163,21 @@ export class SessionFinalizerService {
       });
       timings.resolveWikilinksAndRouting = performance.now() - stepStart;
     } else {
-      // STEP 5: Compute routing first, then resolve wikilinks
-      // IMPORTANT: routing must be calculated BEFORE wikilink resolution,
-      // because ResolveWikilinksService checks if targetNote.routing is defined
-      // to determine if a wikilink is resolved.
+      // STEP 5: Preserve uploaded routing when the plugin already computed it,
+      // then resolve wikilinks against that authoritative route set.
+      // Fall back to server-side routing only when the uploaded notes do not
+      // carry usable routing information.
       stepStart = performance.now();
       const computeRouting = new ComputeRoutingService(this.logger);
       const detect = new DetectWikilinksService(this.logger);
       const resolve = new ResolveWikilinksService(this.logger, detect);
+      const hasPrecomputedRouting = withConvertedLinks.every(
+        (note) => !!note.routing?.fullPath && !!note.routing?.slug
+      );
 
-      const routed = computeRouting.process(withConvertedLinks);
-      withLinks = resolve.process(routed);
+      withLinks = hasPrecomputedRouting
+        ? resolve.process(withConvertedLinks)
+        : resolve.process(computeRouting.process(withConvertedLinks));
       timings.resolveWikilinksAndRouting = performance.now() - stepStart;
     }
 

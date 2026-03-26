@@ -1,5 +1,4 @@
-import type { CollectedNote } from '@core-domain/entities/collected-note';
-import type { IgnoreRule } from '@core-domain/entities/ignore-rule';
+import type { PublishableNote, ResolvedWikilink } from '@core-domain';
 
 import { EvaluateIgnoreRulesHandler } from '../../vault-parsing/handler/evaluate-ignore-rules.handler';
 import { ParseContentHandler } from '../../vault-parsing/handler/parse-content.handler';
@@ -15,18 +14,21 @@ import { NormalizeFrontmatterService } from '../../vault-parsing/services/normal
 import { RemoveNoPublishingMarkerService } from '../../vault-parsing/services/remove-no-publishing-marker.service';
 import { RenderInlineDataviewService } from '../../vault-parsing/services/render-inline-dataview.service';
 import { ResolveWikilinksService } from '../../vault-parsing/services/resolve-wikilinks.service';
+import {
+  deterministicTransformParityFixtures,
+  deterministicTransformParityIgnoreRules,
+} from '../fixtures/deterministic-transform-parity.fixture';
 import { NoopLogger } from '../helpers/fake-logger';
 
 describe('DeterministicNoteTransformsService parity', () => {
   const logger = new NoopLogger();
 
-  function buildParseHandler(
-    mode: 'plugin' | 'api',
-    ignoreRules: IgnoreRule[] = [],
-    dataviewProcessor?: (notes: any[], cancellation?: any) => Promise<any[]>
-  ) {
+  function buildParseHandler(mode: 'plugin' | 'api') {
     const normalizeFrontmatterService = new NormalizeFrontmatterService(logger);
-    const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(ignoreRules, logger);
+    const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(
+      deterministicTransformParityIgnoreRules,
+      logger
+    );
     const noteMapper = new NotesMapper();
     const inlineDataviewRenderer = new RenderInlineDataviewService(logger);
     const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
@@ -49,116 +51,56 @@ describe('DeterministicNoteTransformsService parity', () => {
       resolveWikilinks,
       computeRoutingService,
       logger,
-      dataviewProcessor,
+      undefined,
       undefined,
       undefined,
       { deterministicTransformsOwner: mode }
     );
   }
 
-  const folder = {
-    id: 'folder',
-    vaultFolder: 'Vault/Blog',
-    routeBase: '/blog',
-    vpsId: 'vps',
-    ignoredCleanupRuleIds: [],
-  };
+  function simplifyResolvedWikilinks(links?: ResolvedWikilink[]) {
+    return (links ?? []).map((link) => ({
+      raw: link.raw,
+      target: link.target,
+      alias: link.alias,
+      subpath: link.subpath,
+      targetNoteId: link.targetNoteId,
+      isResolved: link.isResolved,
+      origin: link.origin,
+      frontmatterPath: link.frontmatterPath,
+    }));
+  }
 
-  it('matches plugin-owned routing, inline dataview, title insertion, and wikilinks', async () => {
-    const notes: CollectedNote[] = [
-      {
-        noteId: 'a',
-        title: 'Alpha',
-        vaultPath: 'Vault/Blog/Alpha.md',
-        relativePath: 'Alpha.md',
-        content: 'Link to [[Beta]] and `=this.title`',
-        frontmatter: { publish: true, aliases: ['Leader'] } as any,
-        folderConfig: folder,
-      },
-      {
-        noteId: 'b',
-        title: 'Beta',
-        vaultPath: 'Vault/Blog/Beta.md',
-        relativePath: 'Beta.md',
-        content: 'Target note',
-        frontmatter: { publish: true } as any,
-        folderConfig: folder,
-      },
-    ];
-
-    const pluginOwned = await buildParseHandler('plugin', [
-      { property: 'publish', ignoreIf: false } as any,
-    ]).handle(notes);
-
-    const apiPrepared = await buildParseHandler('api', [
-      { property: 'publish', ignoreIf: false } as any,
-    ]).handle(notes);
-    const apiOwned = await new DeterministicNoteTransformsService(logger).process(apiPrepared, {
-      ignoreRules: [{ property: 'publish', ignoreIf: false } as any],
-      deduplicationEnabled: true,
-    });
-
-    expect(apiOwned.map((note) => note.routing.fullPath)).toEqual(
-      pluginOwned.map((note) => note.routing.fullPath)
-    );
-    expect(apiOwned.map((note) => note.content)).toEqual(pluginOwned.map((note) => note.content));
-    expect(apiOwned.map((note) => note.routing.slug)).toEqual(
-      pluginOwned.map((note) => note.routing.slug)
-    );
-    expect(
-      apiOwned[0].resolvedWikilinks?.map((link) => ({
-        raw: link.raw,
-        targetNoteId: link.targetNoteId,
-        isResolved: link.isResolved,
-        href: link.href,
-        target: link.target,
+  function simplifyNotes(notes: PublishableNote[]) {
+    return notes
+      .map((note) => ({
+        noteId: note.noteId,
+        title: note.title,
+        route: note.routing.fullPath,
+        slug: note.routing.slug,
+        content: note.content,
+        resolvedWikilinks: simplifyResolvedWikilinks(note.resolvedWikilinks),
       }))
-    ).toEqual(
-      pluginOwned[0].resolvedWikilinks?.map((link) => ({
-        raw: link.raw,
-        targetNoteId: link.targetNoteId,
-        isResolved: link.isResolved,
-        href: link.href,
-        target: link.target,
-      }))
-    );
-  });
+      .sort((left, right) => left.noteId.localeCompare(right.noteId));
+  }
 
-  it('matches plugin-owned deduplication results', async () => {
-    const duplicateNotes: CollectedNote[] = [
-      {
-        noteId: 'a',
-        title: 'Report',
-        vaultPath: 'Vault/Blog/Folder/Report.md',
-        relativePath: 'Folder/Report.md',
-        content: 'Longer content wins',
-        frontmatter: { publish: true } as any,
-        folderConfig: folder,
-      },
-      {
-        noteId: 'b',
-        title: 'Report',
-        vaultPath: 'Vault/Blog/Other/Report.md',
-        relativePath: 'Other/Report.md',
-        content: 'Short',
-        frontmatter: { publish: true } as any,
-        folderConfig: folder,
-      },
-    ];
+  for (const fixture of deterministicTransformParityFixtures) {
+    it(`matches plugin-owned deterministic output for ${fixture.id}`, async () => {
+      const pluginOwned = new DeduplicateNotesService(logger).process(
+        await buildParseHandler('plugin').handle(fixture.notes)
+      );
+      const apiPrepared = await buildParseHandler('api').handle(fixture.notes);
+      const apiOwned = await new DeterministicNoteTransformsService(logger).process(apiPrepared, {
+        ignoreRules: deterministicTransformParityIgnoreRules,
+        deduplicationEnabled: true,
+      });
 
-    const pluginOwned = new DeduplicateNotesService(logger).process(
-      await buildParseHandler('plugin').handle(duplicateNotes)
-    );
-    const apiPrepared = await buildParseHandler('api').handle(duplicateNotes);
-    const apiOwned = await new DeterministicNoteTransformsService(logger).process(apiPrepared, {
-      deduplicationEnabled: true,
+      expect(simplifyNotes(apiOwned)).toEqual(simplifyNotes(pluginOwned));
+
+      for (const ignoredNoteId of fixture.ignoredNoteIds) {
+        expect(apiOwned.some((note) => note.noteId === ignoredNoteId)).toBe(false);
+        expect(pluginOwned.some((note) => note.noteId === ignoredNoteId)).toBe(false);
+      }
     });
-
-    expect(apiOwned.map((note) => note.routing.fullPath).sort()).toEqual(
-      pluginOwned.map((note) => note.routing.fullPath).sort()
-    );
-    expect(apiOwned.map((note) => note.routing.slug).sort()).toEqual(
-      pluginOwned.map((note) => note.routing.slug).sort()
-    );
-  });
+  }
 });
