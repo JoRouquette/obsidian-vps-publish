@@ -40,10 +40,13 @@ export class CreateSessionHandler implements CommandHandler<
       createdAt: now,
       updatedAt: now,
       customIndexConfigs: command.customIndexConfigs,
+      ignoreRules: command.ignoreRules,
       ignoredTags: command.ignoredTags,
       folderDisplayNames: command.folderDisplayNames,
       pipelineSignature: command.pipelineSignature, // PHASE 7: Store for later injection into manifest
       locale: command.locale, // Store locale for manifest generation
+      apiOwnedDeterministicNoteTransformsEnabled:
+        command.apiOwnedDeterministicNoteTransformsEnabled === true,
     };
     (session as Session & { deduplicationEnabled?: boolean }).deduplicationEnabled =
       deduplicationEnabled;

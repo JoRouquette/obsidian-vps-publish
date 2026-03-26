@@ -69,6 +69,10 @@ export function normalizeSettings(settings: PluginSettings, logger?: LoggerPort)
     settings.enableAssetsVaultFallback = true;
   }
 
+  if (settings.apiOwnedDeterministicNoteTransformsEnabled == null) {
+    settings.apiOwnedDeterministicNoteTransformsEnabled = false;
+  }
+
   if (!Array.isArray(settings.calloutStylePaths)) {
     logger?.debug('calloutStylePaths not set, defaulting to empty array.');
     settings.calloutStylePaths = [];

@@ -352,6 +352,50 @@ describe('UploadNotesHandler', () => {
     expect(manifestStorage.rebuildIndex).not.toHaveBeenCalled();
   });
 
+  it('defers manifest page materialization when api-owned deterministic transforms are enabled', async () => {
+    const notesStorage = {
+      append: jest.fn(async () => {}),
+      saveCleanupRules: jest.fn(async () => {}),
+    };
+    const handler = new UploadNotesHandler(
+      markdownRenderer,
+      contentStorage,
+      manifestStorage,
+      logger,
+      notesStorage as any
+    );
+    const note = createNote({
+      folderConfig: {
+        ...createNote().folderConfig,
+        displayName: 'Notes',
+      },
+      routing: {
+        fullPath: 'Vault/Test Note.md',
+        path: '',
+        slug: '',
+        routeBase: '/notes',
+      },
+    });
+
+    await handler.handle({
+      sessionId: 's-api-owned',
+      notes: [note],
+      apiOwnedDeterministicNoteTransformsEnabled: true,
+    });
+
+    expect(markdownRenderer.render).not.toHaveBeenCalled();
+    expect(contentStorage.save).not.toHaveBeenCalled();
+    expect(manifestStorage.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 's-api-owned',
+        pages: [],
+        folderDisplayNames: expect.objectContaining({
+          '/notes': note.folderConfig.displayName,
+        }),
+      })
+    );
+  });
+
   it('renders unresolved frontmatter wikilinks with the shared unavailable state markup', async () => {
     const handler = new UploadNotesHandler(
       markdownRenderer,

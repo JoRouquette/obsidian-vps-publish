@@ -17,11 +17,11 @@ import { type StagingManager } from '../../../filesystem/staging-manager';
 import { type CalloutRendererService } from '../../../markdown/callout-renderer.service';
 import { type SessionFinalizationJobService } from '../../../sessions/session-finalization-job.service';
 import { BYTES_LIMIT } from '../app';
-import { type FinalizationStreamTokenService } from '../finalization-stream-token.service';
 import { CreateSessionBodyDto } from '../dto/create-session-body.dto';
 import { FinishSessionBodyDto } from '../dto/finish-session-body.dto';
 import { ApiAssetsBodyDto } from '../dto/upload-assets.dto';
 import { UploadSessionNotesBodyDto } from '../dto/upload-session-notes-body.dto';
+import { type FinalizationStreamTokenService } from '../finalization-stream-token.service';
 import { asyncRoute } from './async-route.util';
 
 export type SessionControllerDependencies = {
@@ -146,11 +146,13 @@ export function createSessionController({
         batchConfig,
         calloutStyles,
         customIndexConfigs,
+        ignoreRules,
         ignoredTags,
         folderDisplayNames,
         pipelineSignature,
         locale,
         deduplicationEnabled,
+        apiOwnedDeterministicNoteTransformsEnabled,
       } = parsed.data;
       if (typeof notesPlanned !== 'number' || typeof assetsPlanned !== 'number') {
         routeLogger?.warn('Missing required fields for session creation', {
@@ -169,11 +171,13 @@ export function createSessionController({
           maxBytesPerRequest: batchConfig.maxBytesPerRequest,
         },
         customIndexConfigs,
+        ignoreRules,
         ignoredTags,
         folderDisplayNames,
         pipelineSignature,
         locale,
         deduplicationEnabled,
+        apiOwnedDeterministicNoteTransformsEnabled,
       };
 
       try {
@@ -234,6 +238,8 @@ export function createSessionController({
           notes: parsed.data.notes,
           cleanupRules: parsed.data.cleanupRules,
           folderDisplayNames: session?.folderDisplayNames, // Pass displayNames from session
+          apiOwnedDeterministicNoteTransformsEnabled:
+            session?.apiOwnedDeterministicNoteTransformsEnabled === true,
         };
         routeLogger?.debug('Publishing notes batch', {
           sessionId: command.sessionId,

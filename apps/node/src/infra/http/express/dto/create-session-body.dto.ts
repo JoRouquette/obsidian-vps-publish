@@ -1,5 +1,7 @@
 import z from 'zod';
 
+const IgnorePrimitiveDto = z.union([z.string(), z.number(), z.boolean()]);
+
 const CustomIndexConfigDto = z.object({
   id: z.string().min(1),
   folderPath: z.string(),
@@ -22,6 +24,15 @@ export const CreateSessionBodyDto = z.object({
     )
     .optional(),
   customIndexConfigs: z.array(CustomIndexConfigDto).optional(),
+  ignoreRules: z
+    .array(
+      z.object({
+        property: z.string().min(1),
+        ignoreIf: z.boolean().optional(),
+        ignoreValues: z.array(IgnorePrimitiveDto).optional(),
+      })
+    )
+    .optional(),
   ignoredTags: z.array(z.string()).optional(),
   folderDisplayNames: z.record(z.string(), z.string()).optional(),
   pipelineSignature: z
@@ -37,4 +48,5 @@ export const CreateSessionBodyDto = z.object({
    */
   locale: z.enum(['en', 'fr']).optional(),
   deduplicationEnabled: z.boolean().optional(),
+  apiOwnedDeterministicNoteTransformsEnabled: z.boolean().optional(),
 });

@@ -5,6 +5,7 @@ export interface UploadNotesCommand {
   notes: PublishableNote[];
   cleanupRules?: SanitizationRules[];
   folderDisplayNames?: Record<string, string>;
+  apiOwnedDeterministicNoteTransformsEnabled?: boolean;
 }
 
 export interface UploadNotesResult {

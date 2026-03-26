@@ -116,6 +116,27 @@ describe('sessionController', () => {
     );
   });
 
+  it('passes the api-owned deterministic transforms flag and ignore rules to session creation', async () => {
+    const app = buildApp();
+    const res = await request(app)
+      .post('/session/start')
+      .send({
+        notesPlanned: 1,
+        assetsPlanned: 1,
+        batchConfig: { maxBytesPerRequest: 1000 },
+        apiOwnedDeterministicNoteTransformsEnabled: true,
+        ignoreRules: [{ property: 'publish', ignoreIf: false }],
+      });
+
+    expect(res.status).toBe(201);
+    expect(createSessionHandler.handle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiOwnedDeterministicNoteTransformsEnabled: true,
+        ignoreRules: [{ property: 'publish', ignoreIf: false }],
+      })
+    );
+  });
+
   it('rejects invalid create payload', async () => {
     const app = buildApp();
     const res = await request(app).post('/session/start').send({});
@@ -290,6 +311,48 @@ describe('sessionController', () => {
     expect(uploadAssetsHandler.handle).toHaveBeenCalledWith(
       expect.objectContaining({
         deduplicationEnabled: false,
+      })
+    );
+  });
+
+  it('propagates the api-owned deterministic transform flag to note uploads', async () => {
+    sessionRepository.findById.mockResolvedValueOnce({
+      id: 'abc',
+      folderDisplayNames: { '/test': 'Test Display Name' },
+      apiOwnedDeterministicNoteTransformsEnabled: true,
+    } as any);
+
+    const app = buildApp();
+
+    const notesRes = await request(app)
+      .post('/session/abc/notes/upload')
+      .send({
+        notes: [
+          {
+            noteId: '1',
+            title: 'T',
+            content: 'c',
+            publishedAt: new Date().toISOString(),
+            routing: { fullPath: 'Vault/T.md', slug: '', path: '', routeBase: '/t' },
+            eligibility: { isPublishable: true },
+            vaultPath: 'v',
+            relativePath: 'r',
+            frontmatter: { tags: [], flat: {}, nested: {} },
+            folderConfig: {
+              id: 'f',
+              vaultFolder: 'v',
+              routeBase: '/t',
+              vpsId: 'vps',
+              sanitization: [],
+            },
+          },
+        ],
+      });
+
+    expect(notesRes.status).toBe(200);
+    expect(uploadNotesHandler.handle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiOwnedDeterministicNoteTransformsEnabled: true,
       })
     );
   });

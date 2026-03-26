@@ -19,6 +19,7 @@ export type PluginSettings = PublishPluginSettings &
     maxConcurrentDataviewNotes?: number;
     maxConcurrentUploads?: number;
     maxConcurrentFileReads?: number;
+    apiOwnedDeterministicNoteTransformsEnabled?: boolean;
     // Performance debugging
     enablePerformanceDebug?: boolean; // Enable detailed performance tracing
     enableBackgroundThrottleDebug?: boolean; // Enable background throttling detection (heartbeat + visibility events)

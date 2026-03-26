@@ -88,6 +88,7 @@ const defaultSettings: PluginSettings = {
   maxConcurrentDataviewNotes: 5,
   maxConcurrentUploads: 3,
   maxConcurrentFileReads: 5,
+  apiOwnedDeterministicNoteTransformsEnabled: false,
   // Performance debugging
   enablePerformanceDebug: false,
   enableBackgroundThrottleDebug: false,
@@ -599,6 +600,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     const settings = this.settings;
     const { t, locale } = getTranslations(this.app, this.settings);
     const deduplicationEnabled = options.deduplicationEnabled !== false;
+    const apiOwnedDeterministicNoteTransformsEnabled =
+      settings.apiOwnedDeterministicNoteTransformsEnabled === true;
 
     if (!settings.vpsConfigs || settings.vpsConfigs.length === 0) {
       this.logger.error('No VPS config defined');
@@ -814,7 +817,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         runLogger,
         dataviewApi,
         perfTracker.child('content-pipeline'),
-        cancellation
+        cancellation,
+        apiOwnedDeterministicNoteTransformsEnabled ? 'api' : 'plugin'
       );
 
       trace.endStep('4-build-parse-handler');
@@ -855,7 +859,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const dedupStart = performance.now();
 
       const deduplicated = deduplicationEnabled
-        ? new DeduplicateNotesService(scopedLogger).process(publishables)
+        ? apiOwnedDeterministicNoteTransformsEnabled
+          ? publishables
+          : new DeduplicateNotesService(scopedLogger).process(publishables)
         : publishables;
 
       perfTracker.endSpan(deduplicateSpan, {
@@ -973,18 +979,26 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         maxBytesPerRequest: defaultNginxLimit,
         calloutStyles,
         customIndexConfigs,
+        ignoreRules: vps.ignoreRules ?? [],
         ignoredTags: settings.frontmatterTagsToExclude || [],
         folderDisplayNames, // Send displayNames upfront
         pipelineSignature, // Include pipeline signature for inter-publication deduplication
         locale, // Site language from plugin settings
         deduplicationEnabled,
+        apiOwnedDeterministicNoteTransformsEnabled,
       });
 
       sessionId = started.sessionId;
       const serverRequestLimit = started.maxBytesPerRequest;
       const existingAssetHashes = deduplicationEnabled ? (started.existingAssetHashes ?? []) : [];
-      const existingNoteHashes = deduplicationEnabled ? (started.existingNoteHashes ?? {}) : {};
-      const pipelineChanged = deduplicationEnabled ? (started.pipelineChanged ?? true) : true;
+      const existingNoteHashes =
+        deduplicationEnabled && !apiOwnedDeterministicNoteTransformsEnabled
+          ? (started.existingNoteHashes ?? {})
+          : {};
+      const pipelineChanged =
+        deduplicationEnabled && !apiOwnedDeterministicNoteTransformsEnabled
+          ? (started.pipelineChanged ?? true)
+          : true;
       const uploadConcurrency = deduplicationEnabled ? settings.maxConcurrentUploads || 3 : 1;
 
       trace.endStep('6-session-start', {
@@ -1018,7 +1032,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const noteHashFilterStart = performance.now();
       let noteHashFilterApplied = false;
 
-      if (deduplicationEnabled && !pipelineChanged && Object.keys(existingNoteHashes).length > 0) {
+      if (
+        deduplicationEnabled &&
+        !apiOwnedDeterministicNoteTransformsEnabled &&
+        !pipelineChanged &&
+        Object.keys(existingNoteHashes).length > 0
+      ) {
         noteHashFilterApplied = true;
         trace.checkpoint('7-upload-notes', 'filtering-unchanged-notes');
         const hashService = new BrowserHashService();
@@ -1062,6 +1081,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         });
       } else if (!deduplicationEnabled) {
         this.logger.info('Deduplication disabled, uploading all notes', {
+          totalNotes: deduplicated.length,
+        });
+      } else if (apiOwnedDeterministicNoteTransformsEnabled) {
+        this.logger.info('API-owned deterministic transforms enabled, uploading all notes', {
           totalNotes: deduplicated.length,
         });
       } else if (pipelineChanged) {
@@ -1268,7 +1291,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // PHASE 6.1: Extract all routes collected from vault (for deleted page detection)
       // CRITICAL: Use publishables (all eligible notes) not deduplicated (only unique ones)
       // to ensure backend receives complete list of vault routes for manifest merge
-      const allCollectedRoutes = publishables.map((note) => note.routing.fullPath);
+      const allCollectedRoutes = apiOwnedDeterministicNoteTransformsEnabled
+        ? undefined
+        : publishables.map((note) => note.routing.fullPath);
 
       finalizationRequested = true;
       const finishResult = await sessionClient.finishSession(sessionId, {
@@ -1564,7 +1589,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     logger: LoggerPort,
     dataviewApi?: DataviewApi,
     perfTracker?: PerformanceTrackerPort,
-    cancellation?: CancellationPort
+    cancellation?: CancellationPort,
+    deterministicTransformsOwner: 'plugin' | 'api' = 'plugin'
   ): ParseContentHandler {
     const normalizeFrontmatterService = new NormalizeFrontmatterService(logger);
     const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(
@@ -1655,7 +1681,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       logger,
       dataviewProcessor, // Plugin-side Dataview processing
       perfTracker, // Performance tracking
-      cancellation // Cancellation support
+      cancellation, // Cancellation support
+      { deterministicTransformsOwner }
     );
   }
 }

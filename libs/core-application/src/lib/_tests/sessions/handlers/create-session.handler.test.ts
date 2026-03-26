@@ -76,6 +76,27 @@ describe('CreateSessionHandler', () => {
     expect(result.pipelineChanged).toBe(true);
   });
 
+  it('should persist api-owned deterministic transforms flag and ignore rules on the session', async () => {
+    const command: CreateSessionCommand = {
+      notesPlanned: 5,
+      assetsPlanned: 2,
+      batchConfig: {
+        maxBytesPerRequest: 10,
+      },
+      apiOwnedDeterministicNoteTransformsEnabled: true,
+      ignoreRules: [{ property: 'publish', ignoreIf: false } as any],
+    };
+
+    await handler.handle(command);
+
+    expect(sessionRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiOwnedDeterministicNoteTransformsEnabled: true,
+        ignoreRules: [{ property: 'publish', ignoreIf: false }],
+      })
+    );
+  });
+
   it('should handle missing logger gracefully', async () => {
     handler = new CreateSessionHandler(idGenerator, sessionRepository, undefined);
     const command: CreateSessionCommand = {

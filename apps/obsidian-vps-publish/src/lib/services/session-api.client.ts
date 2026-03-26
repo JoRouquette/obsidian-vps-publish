@@ -1,5 +1,10 @@
 import { type HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
-import { type CustomIndexConfig, type PublishableNote, type VpsConfig } from '@core-domain';
+import {
+  type CustomIndexConfig,
+  type IgnoreRule,
+  type PublishableNote,
+  type VpsConfig,
+} from '@core-domain';
 import { type ChunkedData } from '@core-domain/entities/chunked-data';
 import { type HttpResponse } from '@core-domain/entities/http-response';
 import { type LoggerPort } from '@core-domain/ports/logger-port';
@@ -153,11 +158,13 @@ export class SessionApiClient {
     maxBytesPerRequest: number;
     calloutStyles?: { path: string; css: string }[];
     customIndexConfigs?: CustomIndexConfig[];
+    ignoreRules?: IgnoreRule[];
     ignoredTags?: string[];
     folderDisplayNames?: Record<string, string>;
     pipelineSignature?: { version: string; renderSettingsHash: string };
     locale?: 'en' | 'fr';
     deduplicationEnabled?: boolean;
+    apiOwnedDeterministicNoteTransformsEnabled?: boolean;
   }): Promise<StartSessionResponse> {
     const result = await this.postJson('/api/session/start', {
       notesPlanned: payload.notesPlanned,
@@ -165,11 +172,14 @@ export class SessionApiClient {
       batchConfig: { maxBytesPerRequest: payload.maxBytesPerRequest },
       calloutStyles: payload.calloutStyles ?? [],
       customIndexConfigs: payload.customIndexConfigs ?? [],
+      ignoreRules: payload.ignoreRules ?? [],
       ignoredTags: payload.ignoredTags ?? [],
       folderDisplayNames: payload.folderDisplayNames ?? {},
       pipelineSignature: payload.pipelineSignature,
       locale: payload.locale,
       deduplicationEnabled: payload.deduplicationEnabled ?? true,
+      apiOwnedDeterministicNoteTransformsEnabled:
+        payload.apiOwnedDeterministicNoteTransformsEnabled === true,
     });
 
     if (result.isError) {

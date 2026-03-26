@@ -9,6 +9,7 @@ export * from './services/deduplicate-notes.service';
 export * from './services/detect-assets.service';
 export * from './services/detect-leaflet-blocks.service';
 export * from './services/detect-wikilinks.service';
+export * from './services/deterministic-note-transforms.service';
 export * from './services/ensure-title-header.service';
 export * from './services/normalize-frontmatter.service';
 export * from './services/remove-no-publishing-marker.service';
