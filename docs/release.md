@@ -8,6 +8,28 @@
   - `docker-images`: builds and pushes the Docker image to the private registry and Docker Hub `jorouquette/obsidian-vps-publish` (tags: version, short SHA, `latest`).
 - Release config: `release.config.cjs` (version sync, changelog, git commits/tags, plugin packaging, GitHub assets).
 
+## Conventional Commits and version bumps
+
+- `feat` triggers a `minor` release.
+- `fix`, `hotfix`, `perf`, and `refactor` trigger a `patch` release.
+- Any commit with `!` in the header or a `BREAKING CHANGE:` footer must trigger a `major` release.
+
+Examples:
+
+```txt
+feat(api): add finalization retry endpoint
+```
+
+```txt
+feat(publishing)!: make api-owned deterministic transforms the only path
+
+BREAKING CHANGE: remove the client-owned deterministic transform path.
+```
+
+This `breaking: true => major` rule must remain explicit in `release.config.cjs` because custom
+`releaseRules` are configured. Without that explicit rule, a breaking `feat` can be downgraded to
+`minor` by the custom `feat => minor` mapping.
+
 ## Tagging and artifacts
 
 - Create an annotated tag that matches `manifest.json` (root), e.g.:
