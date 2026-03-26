@@ -7,13 +7,18 @@ import {
   type PublishableNote,
   type ResolvedWikilink,
   Slug,
+  type SourcePackageNote,
   UNAVAILABLE_INTERNAL_PAGE_MESSAGE,
 } from '@core-domain';
 import { humanizePropertyKey } from '@core-domain/utils/string.utils';
 
 import { type CommandHandler } from '../../common/command-handler';
 import type { MarkdownRendererPort } from '../../ports/markdown-renderer.port';
-import { type UploadNotesCommand, type UploadNotesResult } from '../commands/upload-notes.command';
+import {
+  type UploadNotesCommand,
+  type UploadNotesResult,
+  type UploadSessionNote,
+} from '../commands/upload-notes.command';
 import { type ContentStoragePort } from '../ports/content-storage.port';
 import type { ManifestPort } from '../ports/manifest-storage.port';
 import type { SessionNotesStoragePort } from '../ports/session-notes-storage.port';
@@ -44,11 +49,15 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
   async handle(command: UploadNotesCommand): Promise<UploadNotesResult> {
     const {
       sessionId,
-      notes,
+      notes: uploadedNotes,
       cleanupRules,
       folderDisplayNames,
       apiOwnedDeterministicNoteTransformsEnabled,
     } = command;
+    const notes = this.normalizeUploadedNotes(
+      uploadedNotes,
+      apiOwnedDeterministicNoteTransformsEnabled === true
+    );
     const manifestStorage = this.resolveManifestStorage(sessionId);
     const logger = this.logger?.child({ method: 'handle', sessionId });
 
@@ -258,6 +267,49 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     }
 
     return { sessionId, published, errors };
+  }
+
+  private normalizeUploadedNotes(
+    notes: UploadSessionNote[],
+    apiOwnedDeterministicNoteTransformsEnabled: boolean
+  ): PublishableNote[] {
+    return notes.map((note) => {
+      if (this.hasRouting(note)) {
+        return note;
+      }
+
+      if (!apiOwnedDeterministicNoteTransformsEnabled) {
+        throw new Error(
+          `Routing is required for note upload when API-owned deterministic transforms are disabled: ${note.noteId}`
+        );
+      }
+
+      return this.hydrateSourcePackageNote(note);
+    });
+  }
+
+  private hasRouting(note: UploadSessionNote): note is PublishableNote {
+    return (
+      'routing' in note &&
+      typeof note.routing === 'object' &&
+      note.routing !== null &&
+      typeof note.routing.fullPath === 'string' &&
+      typeof note.routing.slug === 'string' &&
+      typeof note.routing.path === 'string' &&
+      typeof note.routing.routeBase === 'string'
+    );
+  }
+
+  private hydrateSourcePackageNote(note: SourcePackageNote): PublishableNote {
+    return {
+      ...note,
+      routing: {
+        slug: '',
+        path: '',
+        fullPath: note.vaultPath,
+        routeBase: note.folderConfig.routeBase || '',
+      },
+    };
   }
 
   private buildRenderManifest(

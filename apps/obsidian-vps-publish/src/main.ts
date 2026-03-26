@@ -1093,7 +1093,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         serverRequestLimit,
         stepProgressManager,
         validCleanupRules,
-        uploadConcurrency
+        uploadConcurrency,
+        apiOwnedDeterministicNoteTransformsEnabled
       );
 
       // Calculer le nombre de batchs

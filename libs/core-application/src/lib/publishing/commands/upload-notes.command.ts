@@ -1,8 +1,10 @@
-import { type PublishableNote, type SanitizationRules } from '@core-domain';
+import { type PublishableNote, type SanitizationRules, type SourcePackageNote } from '@core-domain';
+
+export type UploadSessionNote = PublishableNote | SourcePackageNote;
 
 export interface UploadNotesCommand {
   sessionId: string;
-  notes: PublishableNote[];
+  notes: UploadSessionNote[];
   cleanupRules?: SanitizationRules[];
   folderDisplayNames?: Record<string, string>;
   apiOwnedDeterministicNoteTransformsEnabled?: boolean;

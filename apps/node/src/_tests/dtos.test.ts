@@ -74,6 +74,31 @@ describe('DTO validation', () => {
     expect(parsed.success).toBe(true);
   });
 
+  it('validates lean UploadSessionNotesBodyDto for api-owned source packages', () => {
+    const parsed = UploadSessionNotesBodyDto.safeParse({
+      notes: [
+        {
+          noteId: '1',
+          title: 'T',
+          content: 'c',
+          publishedAt: new Date().toISOString(),
+          eligibility: { isPublishable: true },
+          vaultPath: 'v',
+          relativePath: 'r',
+          frontmatter: { tags: [], flat: {}, nested: {} },
+          folderConfig: {
+            id: 'f',
+            vaultFolder: 'v',
+            routeBase: '/t',
+            vpsId: 'vps',
+            sanitization: [],
+          },
+        },
+      ],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
   it('rejects UploadSessionNotesBodyDto without eligibility', () => {
     const parsed = UploadSessionNotesBodyDto.safeParse({
       notes: [

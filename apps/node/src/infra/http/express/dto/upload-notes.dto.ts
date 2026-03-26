@@ -158,6 +158,15 @@ export const PublishableNoteDto = NoteCoreDto.extend({
   leafletBlocks: z.array(LeafletBlockDto).optional(),
 });
 
+export const SourcePackageNoteDto = NoteCoreDto.extend({
+  publishedAt: z.coerce.date(),
+  eligibility: NoteEligibilityDto,
+  assets: z.array(AssetRefDto).optional(),
+  leafletBlocks: z.array(LeafletBlockDto).optional(),
+});
+
+export const UploadSessionNoteDto = z.union([PublishableNoteDto, SourcePackageNoteDto]);
+
 // NoteWithAssets
 export const NoteWithAssetsDto = NoteCoreDto.extend({
   assets: z.array(AssetRefDto),

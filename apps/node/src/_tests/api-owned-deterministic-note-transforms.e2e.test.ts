@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import {
+  buildUploadSessionNotes,
   CreateSessionHandler,
   EvaluateIgnoreRulesHandler,
   FinishSessionHandler,
@@ -265,7 +266,7 @@ describe('API-owned deterministic note transforms parity', () => {
 
     await env.uploadNotesHandler.handle({
       sessionId: createResult.sessionId,
-      notes,
+      notes: buildUploadSessionNotes(notes, options.apiOwnedDeterministicNoteTransformsEnabled),
       apiOwnedDeterministicNoteTransformsEnabled:
         options.apiOwnedDeterministicNoteTransformsEnabled,
     });
