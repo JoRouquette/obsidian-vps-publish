@@ -23,6 +23,8 @@ const DEFAULT_CONFIG: BackpressureConfig = {
   maxActiveRequests: 50, // Max 50 concurrent requests
 };
 
+const FINALIZATION_SSE_ROUTE_PATTERN = /^\/events\/session\/[^/]+\/finalization(?:$|\?)/;
+
 export class BackpressureMiddleware {
   private activeRequests = 0;
   private eventLoopLagMs = 0;
@@ -242,6 +244,17 @@ export class BackpressureMiddleware {
 
   private isSseRequest(req: Request): boolean {
     const accept = req.headers?.accept;
-    return typeof accept === 'string' && accept.includes('text/event-stream');
+    if (typeof accept !== 'string' || !accept.includes('text/event-stream')) {
+      return false;
+    }
+
+    const requestPath =
+      typeof req.originalUrl === 'string'
+        ? req.originalUrl
+        : typeof req.path === 'string'
+          ? req.path
+          : '';
+
+    return FINALIZATION_SSE_ROUTE_PATTERN.test(requestPath);
   }
 }
