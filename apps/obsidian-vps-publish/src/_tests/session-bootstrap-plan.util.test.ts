@@ -2,7 +2,10 @@ import type { VpsConfig } from '@core-domain';
 import { LogLevel } from '@core-domain/ports/logger-port';
 
 import type { PluginSettings } from '../lib/settings/plugin-settings.type';
-import { prepareSessionBootstrapPlan } from '../lib/utils/session-bootstrap-plan.util';
+import {
+  prepareSessionBootstrapPlan,
+  startSessionBootstrapEarly,
+} from '../lib/utils/session-bootstrap-plan.util';
 
 describe('prepareSessionBootstrapPlan', () => {
   const baseSettings: PluginSettings = {
@@ -142,5 +145,102 @@ describe('prepareSessionBootstrapPlan', () => {
 
     await expect(plan.calloutStylesPromise).rejects.toThrow('style read failed');
     await expect(plan.pipelineSignaturePromise).rejects.toThrow('style read failed');
+  });
+
+  it('starts the session request as soon as bootstrap inputs are ready without awaiting later work', async () => {
+    let resolveStyles: ((styles: Array<{ path: string; css: string }>) => void) | undefined;
+    const events: string[] = [];
+
+    const plan = prepareSessionBootstrapPlan({
+      vps: createVps(),
+      settings: baseSettings,
+      manifestVersion: '1.0.0',
+      generateGuid: () => 'guid-1',
+      loadCalloutStyles: jest.fn(
+        () =>
+          new Promise<Array<{ path: string; css: string }>>((resolve) => {
+            resolveStyles = resolve;
+          })
+      ),
+      computePipelineSignature: jest
+        .fn()
+        .mockResolvedValue({ version: '1.0.0', renderSettingsHash: 'hash-1' }),
+    });
+
+    const startSession = jest.fn(async () => {
+      events.push('startSession-called');
+      return { sessionId: 'session-1', maxBytesPerRequest: 1024 };
+    });
+
+    const startedPromise = startSessionBootstrapEarly({
+      sessionBootstrapPlan: plan,
+      notesPlanned: 0,
+      assetsPlanned: 0,
+      maxBytesPerRequest: 1024,
+      ignoreRules: [],
+      ignoredTags: ['private'],
+      locale: 'en',
+      deduplicationEnabled: true,
+      apiOwnedDeterministicNoteTransformsEnabled: false,
+      startSession,
+      onBeforeStartSession: () => {
+        events.push('before-startSession');
+      },
+      onAfterStartSession: () => {
+        events.push('after-startSession');
+      },
+    });
+
+    expect(startSession).not.toHaveBeenCalled();
+
+    resolveStyles?.([{ path: 'styles/callouts.css', css: '.callout { color: red; }' }]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(startSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        notesPlanned: 0,
+        assetsPlanned: 0,
+        maxBytesPerRequest: 1024,
+        ignoredTags: ['private'],
+      })
+    );
+    expect(events).toEqual(['before-startSession', 'startSession-called', 'after-startSession']);
+
+    const started = await startedPromise;
+    expect(started.startedSession).toEqual({
+      sessionId: 'session-1',
+      maxBytesPerRequest: 1024,
+    });
+  });
+
+  it('propagates early session start failures', async () => {
+    const plan = prepareSessionBootstrapPlan({
+      vps: createVps(),
+      settings: baseSettings,
+      manifestVersion: '1.0.0',
+      generateGuid: () => 'guid-1',
+      loadCalloutStyles: jest
+        .fn()
+        .mockResolvedValue([{ path: 'styles/callouts.css', css: '.callout { color: red; }' }]),
+      computePipelineSignature: jest
+        .fn()
+        .mockResolvedValue({ version: '1.0.0', renderSettingsHash: 'hash-1' }),
+    });
+
+    const startedPromise = startSessionBootstrapEarly({
+      sessionBootstrapPlan: plan,
+      notesPlanned: 0,
+      assetsPlanned: 0,
+      maxBytesPerRequest: 1024,
+      ignoreRules: [],
+      ignoredTags: [],
+      deduplicationEnabled: true,
+      apiOwnedDeterministicNoteTransformsEnabled: false,
+      startSession: jest.fn(async () => {
+        throw new Error('session start failed');
+      }),
+    });
+
+    await expect(startedPromise).rejects.toThrow('session start failed');
   });
 });
