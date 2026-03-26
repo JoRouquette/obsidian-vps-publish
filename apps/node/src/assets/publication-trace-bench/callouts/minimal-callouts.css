@@ -1,0 +1,8 @@
+.callout {
+  border-left: 3px solid #d97706;
+  padding: 0.75rem 1rem;
+}
+
+.callout[data-callout='note'] {
+  background: #fff7ed;
+}
