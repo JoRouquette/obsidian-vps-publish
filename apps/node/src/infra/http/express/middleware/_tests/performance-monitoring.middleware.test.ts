@@ -43,13 +43,14 @@ describe('PerformanceMonitoringMiddleware', () => {
     const { res, listeners } = createResponse();
     const req = {
       method: 'GET',
-      originalUrl: '/events/session/session-123/finalization?jobId=job-456',
+      originalUrl:
+        '/events/session/session-123/finalization?jobId=job-456&token=signed-token&view=live',
       headers: {
         'x-upload-run-id': 'run-123',
       },
       body: {},
       params: { sessionId: 'session-123' },
-      query: { jobId: 'job-456' },
+      query: { jobId: 'job-456', token: 'signed-token', view: 'live' },
       route: { path: '/events/session/:sessionId/finalization' },
     } as any;
     const next = jest.fn();
@@ -65,6 +66,13 @@ describe('PerformanceMonitoringMiddleware', () => {
         sessionId: 'session-123',
         jobId: 'job-456',
         phase: 'finalization_events',
+        url: '/events/session/session-123/finalization?jobId=job-456&token=%5Bredacted%5D&view=live',
+      })
+    );
+    expect(logger.debug).not.toHaveBeenCalledWith(
+      '[PERF] Request completed',
+      expect.objectContaining({
+        url: expect.stringContaining('signed-token'),
       })
     );
 

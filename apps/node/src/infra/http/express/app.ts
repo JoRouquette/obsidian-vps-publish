@@ -52,6 +52,7 @@ import { createMaintenanceModeMiddleware } from './middleware/maintenance-mode.m
 import { PerformanceMonitoringMiddleware } from './middleware/performance-monitoring.middleware';
 import { createRedirectMiddleware } from './middleware/redirect.middleware';
 import { RequestCorrelationMiddleware } from './middleware/request-correlation.middleware';
+import { sanitizeLogUrl } from './utils/sanitize-log-url.util';
 
 export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
 
@@ -568,19 +569,4 @@ function resolveStaticBrowserEntryPath(browserDistPath: string): string {
   }
 
   return path.join(browserDistPath, 'index.html');
-}
-
-function sanitizeLogUrl(originalUrl: string): string {
-  const [pathname, queryString] = originalUrl.split('?', 2);
-  if (!queryString) {
-    return pathname;
-  }
-
-  const params = new URLSearchParams(queryString);
-  if (params.has('token')) {
-    params.set('token', '[redacted]');
-  }
-
-  const redactedQuery = params.toString();
-  return redactedQuery ? `${pathname}?${redactedQuery}` : pathname;
 }
