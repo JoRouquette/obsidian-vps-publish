@@ -56,7 +56,8 @@
     }
 
     .result-count {
-      font-size: 0.75rem;
+      font-size: var(--font-size-ui-sm);
+      line-height: var(--line-height-ui);
       color: color-mix(in oklab, var(--on-surface) 70%, transparent);
       padding: 0 0.5rem;
       text-align: left;
@@ -267,8 +268,8 @@
 
   .label {
     margin-inline-start: var(--label-gap);
-    font-size: 0.92rem;
-    line-height: 1.1;
+    font-size: var(--font-size-ui);
+    line-height: var(--line-height-ui);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -352,7 +353,7 @@
   }
 
   .label {
-    font-size: 0.95rem;
+    font-size: clamp(0.95rem, 0.93rem + 0.2vw, 1rem);
   }
 
   .folder .node-header {
@@ -373,7 +374,7 @@
   }
 
   .label {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
   }
 }
 
@@ -405,6 +406,6 @@
   }
 
   .label {
-    font-size: 0.85rem;
+    font-size: 0.92rem;
   }
 }
