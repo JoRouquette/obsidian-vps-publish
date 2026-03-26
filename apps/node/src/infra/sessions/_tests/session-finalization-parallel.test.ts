@@ -19,10 +19,20 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
   beforeEach(() => {
     mockFinalizer = {
       rebuildFromStored: jest.fn().mockImplementation(
-        () =>
+        async (_sessionId: string, reportPhase?: (phase: string) => void) =>
           new Promise((resolve) => {
             // Simulate realistic async work (200ms)
-            setTimeout(resolve, 200);
+            reportPhase?.('rebuilding_notes');
+            setTimeout(() => {
+              reportPhase?.('rendering_html');
+              setTimeout(() => {
+                reportPhase?.('rebuilding_indexes');
+                setTimeout(() => {
+                  reportPhase?.('validating_links');
+                  resolve(undefined);
+                }, 50);
+              }, 50);
+            }, 50);
           })
       ),
     } as unknown as jest.Mocked<SessionFinalizerService>;
@@ -292,16 +302,59 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
       expect(job?.contentRevision).toEqual(expect.any(String));
       expect(job?.phaseTimings).toEqual(
         expect.objectContaining({
-          load_session: expect.any(Number),
-          rebuild_from_stored: expect.any(Number),
-          promote_session: expect.any(Number),
-          rebuild_html_indexes: expect.any(Number),
-          rebuild_search_index: expect.any(Number),
-          validate_post_promotion: expect.any(Number),
-          trigger_completion_callbacks: expect.any(Number),
+          queued: expect.any(Number),
+          rebuilding_notes: expect.any(Number),
+          rendering_html: expect.any(Number),
+          promoting_content: expect.any(Number),
+          rebuilding_indexes: expect.any(Number),
+          validating_links: expect.any(Number),
+          completing_publication: expect.any(Number),
         })
       );
       expect(job?.result?.finalizationTimings).toEqual(job?.phaseTimings);
+    });
+
+    it('emits human-readable backend phases to listeners in order', async () => {
+      service = new SessionFinalizationJobService(
+        mockFinalizer,
+        mockStagingManager,
+        mockSessionRepository,
+        mockLogger,
+        1
+      );
+
+      const jobId = await service.queueFinalization('session-phase-events');
+      const phases: string[] = [];
+      const unsubscribe = service.subscribe(jobId, (job) => {
+        if (!job.phase) {
+          return;
+        }
+
+        if (phases[phases.length - 1] !== job.phase) {
+          phases.push(job.phase);
+        }
+      });
+
+      const started = Date.now();
+      let job = service.getJobStatus(jobId);
+
+      while (job?.status !== 'completed' && Date.now() - started < 5000) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        job = service.getJobStatus(jobId);
+      }
+
+      unsubscribe();
+
+      expect(phases).toEqual(
+        expect.arrayContaining([
+          'rendering_html',
+          'promoting_content',
+          'rebuilding_indexes',
+          'validating_links',
+          'completing_publication',
+          'completed',
+        ])
+      );
     });
   });
 });

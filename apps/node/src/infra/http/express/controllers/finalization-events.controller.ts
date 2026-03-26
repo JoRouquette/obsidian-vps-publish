@@ -1,11 +1,11 @@
 import { type LoggerPort } from '@core-domain';
 import { type Request, type Response, Router as createRouter } from 'express';
 
-import { type FinalizationStreamTokenService } from '../finalization-stream-token.service';
 import {
   type FinalizationJob,
   type SessionFinalizationJobService,
 } from '../../../sessions/session-finalization-job.service';
+import { type FinalizationStreamTokenService } from '../finalization-stream-token.service';
 
 export function createFinalizationEventsController(
   finalizationJobService: SessionFinalizationJobService,

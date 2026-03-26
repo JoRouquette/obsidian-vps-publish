@@ -56,6 +56,7 @@ describe('finalizationEventsController', () => {
     sessionId: 'session-1',
     status: 'processing',
     progress: 25,
+    phase: 'rebuilding_notes',
     createdAt: new Date('2026-03-25T09:00:00.000Z'),
     startedAt: new Date('2026-03-25T09:00:05.000Z'),
   };
@@ -149,6 +150,7 @@ describe('finalizationEventsController', () => {
         sessionId: 'session-1',
         status: 'processing',
         progress: 25,
+        phase: 'rebuilding_notes',
       }),
     });
 
@@ -159,12 +161,15 @@ describe('finalizationEventsController', () => {
     const { token } = tokenService.createToken('session-1', 'job-1');
     const stream = await openSseStream(baseUrl, token);
 
-    await collectEventsUntil(stream.reader, (items) => items.some((item) => item.event === 'connected'));
+    await collectEventsUntil(stream.reader, (items) =>
+      items.some((item) => item.event === 'connected')
+    );
 
     jobService.emit({
       ...baseJob,
       progress: 80,
       status: 'processing',
+      phase: 'rebuilding_indexes',
     });
 
     const events = await collectEventsUntil(stream.reader, (items) =>
@@ -176,6 +181,7 @@ describe('finalizationEventsController', () => {
       data: expect.objectContaining({
         status: 'processing',
         progress: 80,
+        phase: 'rebuilding_indexes',
       }),
     });
 
@@ -192,6 +198,7 @@ describe('finalizationEventsController', () => {
       ...baseJob,
       status: 'completed',
       progress: 100,
+      phase: 'completed',
       completedAt: new Date('2026-03-25T09:02:00.000Z'),
       result: {
         notesProcessed: 3,
@@ -215,6 +222,7 @@ describe('finalizationEventsController', () => {
       data: expect.objectContaining({
         status: 'completed',
         progress: 100,
+        phase: 'completed',
         result: expect.objectContaining({
           contentRevision: 'rev-1',
         }),
@@ -228,12 +236,15 @@ describe('finalizationEventsController', () => {
     const { token } = tokenService.createToken('session-1', 'job-1');
     const stream = await openSseStream(baseUrl, token);
 
-    await collectEventsUntil(stream.reader, (items) => items.some((item) => item.event === 'connected'));
+    await collectEventsUntil(stream.reader, (items) =>
+      items.some((item) => item.event === 'connected')
+    );
 
     jobService.emit({
       ...baseJob,
       status: 'failed',
       progress: 90,
+      phase: 'failed',
       completedAt: new Date('2026-03-25T09:03:00.000Z'),
       error: 'boom',
     });
@@ -245,6 +256,7 @@ describe('finalizationEventsController', () => {
     expect(events.find((item) => item.event === 'failed')).toMatchObject({
       data: expect.objectContaining({
         status: 'failed',
+        phase: 'failed',
         error: 'boom',
       }),
     });

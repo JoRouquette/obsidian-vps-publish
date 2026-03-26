@@ -7,6 +7,7 @@ export * from './chunked-data';
 export * from './collected-note';
 export * from './custom-index-config';
 export * from './domain-frontmatter';
+export * from './finalization-phase';
 export * from './folder-config';
 export * from './http-response';
 export * from './ignore-primitive';

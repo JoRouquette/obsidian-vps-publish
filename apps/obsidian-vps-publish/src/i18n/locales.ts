@@ -324,6 +324,17 @@ export type PluginTranslations = {
       start: string;
       success: string;
       error: string;
+      phases: {
+        queued: string;
+        rebuildingNotes: string;
+        renderingHtml: string;
+        promotingContent: string;
+        rebuildingIndexes: string;
+        validatingLinks: string;
+        completingPublication: string;
+        completed: string;
+        failed: string;
+      };
     };
   };
 };
@@ -473,6 +484,17 @@ export const en: Translations = {
         start: 'Wrapping up...',
         success: 'All done',
         error: 'Could not finish',
+        phases: {
+          queued: 'Queued on server',
+          rebuildingNotes: 'Rebuilding notes',
+          renderingHtml: 'Rendering HTML',
+          promotingContent: 'Promoting content',
+          rebuildingIndexes: 'Rebuilding indexes',
+          validatingLinks: 'Validating links',
+          completingPublication: 'Completing publication',
+          completed: 'Publication completed',
+          failed: 'Publication failed',
+        },
       },
     },
   },
@@ -1022,6 +1044,17 @@ export const fr: Translations = {
         start: 'Finalisation...',
         success: 'Terminé',
         error: 'Finalisation impossible',
+        phases: {
+          queued: 'En attente sur le serveur',
+          rebuildingNotes: 'Reconstruction des notes',
+          renderingHtml: 'Rendu HTML',
+          promotingContent: 'Promotion du contenu',
+          rebuildingIndexes: 'Reconstruction des index',
+          validatingLinks: 'Validation des liens',
+          completingPublication: 'Finalisation de la publication',
+          completed: 'Publication terminée',
+          failed: 'Publication échouée',
+        },
       },
     },
   },

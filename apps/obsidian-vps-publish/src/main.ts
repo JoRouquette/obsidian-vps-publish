@@ -49,6 +49,7 @@ import { ConsoleLoggerAdapter } from './lib/infra/console-logger.adapter';
 import { AssetHashService } from './lib/infra/crypto/asset-hash.service';
 import { BrowserHashService } from './lib/infra/crypto/browser-hash.service';
 import { EventLoopMonitorAdapter } from './lib/infra/event-loop-monitor.adapter';
+import { applyFinalizationProgressUpdate } from './lib/infra/finalization-progress.util';
 import { GuidGeneratorAdapter } from './lib/infra/guid-generator.adapter';
 import { NotesUploaderAdapter } from './lib/infra/notes-uploader.adapter';
 import { NoticeNotificationAdapter } from './lib/infra/notice-notification.adapter';
@@ -1285,7 +1286,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       stepProgressManager.startStep(
         ProgressStepId.FINALIZE_SESSION,
         getStepLabel(t, ProgressStepId.FINALIZE_SESSION),
-        1
+        100
       );
 
       // PHASE 6.1: Extract all routes collected from vault (for deleted page detection)
@@ -1296,11 +1297,19 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         : publishables.map((note) => note.routing.fullPath);
 
       finalizationRequested = true;
-      const finishResult = await sessionClient.finishSession(sessionId, {
-        notesProcessed: stats.notesUploaded,
-        assetsProcessed: stats.assetsUploaded,
-        allCollectedRoutes, // PHASE 6.1: send to backend for deleted page detection
-      });
+      const finishResult = await sessionClient.finishSession(
+        sessionId,
+        {
+          notesProcessed: stats.notesUploaded,
+          assetsProcessed: stats.assetsUploaded,
+          allCollectedRoutes, // PHASE 6.1: send to backend for deleted page detection
+        },
+        {
+          onFinalizationUpdate: (update) => {
+            applyFinalizationProgressUpdate(stepProgressManager, t, update);
+          },
+        }
+      );
 
       // Capture promotion stats from finalization
       if (finishResult.promotionStats) {
@@ -1309,7 +1318,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         stats.notesDeleted = finishResult.promotionStats.notesDeleted;
       }
 
-      stepProgressManager.advanceStep(ProgressStepId.FINALIZE_SESSION, 1);
       stepProgressManager.completeStep(ProgressStepId.FINALIZE_SESSION);
 
       perfTracker.endSpan(finalizeSpan);

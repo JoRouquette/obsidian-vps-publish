@@ -1,6 +1,7 @@
 import { type HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
 import {
   type CustomIndexConfig,
+  type FinalizationPhase,
   type IgnoreRule,
   type PublishableNote,
   type VpsConfig,
@@ -27,7 +28,7 @@ interface FinalizationStatusResponse {
   sessionId: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   progress: number;
-  phase?: string;
+  phase?: FinalizationPhase;
   phaseTimings?: Record<string, number>;
   contentRevision?: string;
   createdAt?: string;
@@ -276,6 +277,9 @@ export class SessionApiClient {
       notesProcessed: number;
       assetsProcessed: number;
       allCollectedRoutes?: string[]; // PHASE 6.1: detect deleted pages
+    },
+    options?: {
+      onFinalizationUpdate?: (status: FinalizationStatusResponse) => void;
     }
   ): Promise<{
     promotionStats?: {
@@ -296,9 +300,22 @@ export class SessionApiClient {
     const parsed = JSON.parse(result.text ?? '{}') as FinishSessionResponse | undefined;
 
     if (parsed?.jobId) {
+      options?.onFinalizationUpdate?.({
+        jobId: parsed.jobId,
+        sessionId,
+        status: 'pending',
+        progress: 0,
+        phase: 'queued',
+      });
+
       if (parsed.realtime?.transport === 'sse') {
         try {
-          return await this.waitForFinalizationViaSse(sessionId, parsed.jobId, parsed.realtime);
+          return await this.waitForFinalizationViaSse(
+            sessionId,
+            parsed.jobId,
+            parsed.realtime,
+            options?.onFinalizationUpdate
+          );
         } catch (error) {
           if (error instanceof FinalizationTerminalError) {
             throw error;
@@ -314,7 +331,7 @@ export class SessionApiClient {
         }
       }
 
-      return this.waitForFinalization(sessionId, parsed.jobId);
+      return this.waitForFinalization(sessionId, parsed.jobId, options?.onFinalizationUpdate);
     }
 
     return {
@@ -345,7 +362,8 @@ export class SessionApiClient {
 
   private async waitForFinalization(
     sessionId: string,
-    jobId: string
+    jobId: string,
+    onFinalizationUpdate?: (status: FinalizationStatusResponse) => void
   ): Promise<{
     promotionStats?: {
       notesPublished: number;
@@ -393,11 +411,13 @@ export class SessionApiClient {
       }
 
       const parsed = JSON.parse(result.text ?? '{}') as FinalizationStatusResponse;
+      onFinalizationUpdate?.(parsed);
       this.logger.debug('Finalization job status polled', {
         sessionId,
         jobId,
         status: parsed.status,
         progress: parsed.progress,
+        phase: parsed.phase,
       });
 
       if (parsed.status === 'completed') {
@@ -419,7 +439,8 @@ export class SessionApiClient {
   private async waitForFinalizationViaSse(
     sessionId: string,
     jobId: string,
-    realtime: FinalizationRealtimeMetadata
+    realtime: FinalizationRealtimeMetadata,
+    onFinalizationUpdate?: (status: FinalizationStatusResponse) => void
   ): Promise<{
     promotionStats?: {
       notesPublished: number;
@@ -544,12 +565,14 @@ export class SessionApiClient {
       };
 
       const logStatus = (source: FinalizationEventName, payload: FinalizationStatusResponse) => {
+        onFinalizationUpdate?.(payload);
         this.logger.debug('Finalization SSE event received', {
           sessionId,
           jobId,
           source,
           status: payload.status,
           progress: payload.progress,
+          phase: payload.phase,
         });
       };
 
