@@ -74,7 +74,10 @@ import { enrichCleanupRules } from './lib/utils/create-default-folder-config.uti
 import { filterUnchangedNotes } from './lib/utils/filter-unchanged-notes.util';
 import { RequestUrlResponseMapper } from './lib/utils/http-response-status.mapper';
 import { insertNoPublishingMarker } from './lib/utils/insert-no-publishing-marker.util';
-import { prepareSessionBootstrapPlan } from './lib/utils/session-bootstrap-plan.util';
+import {
+  prepareSessionBootstrapPlan,
+  startSessionBootstrapEarly,
+} from './lib/utils/session-bootstrap-plan.util';
 import { selectVpsOrAuto } from './lib/utils/vps-selector';
 
 const defaultSettings: PluginSettings = {
@@ -714,6 +717,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     let sessionId: string | null = null;
     let sessionClient: SessionApiClient | null = null;
     let finalizationRequested = false;
+    let startSessionPromise: Promise<{
+      startedSession: Awaited<ReturnType<SessionApiClient['startSession']>>;
+      calloutStyles: Array<{ path: string; css: string }>;
+      pipelineSignature: { version: string; renderSettingsHash: string };
+      calloutStyleLoadingDurationMs: number;
+    }> | null = null;
 
     try {
       sessionClient = new SessionApiClient(
@@ -732,6 +741,33 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         generateGuid: () => guidGenerator.generateGuid(),
         loadCalloutStyles: (paths) => this.loadCalloutStyles(paths),
         computePipelineSignature,
+      });
+
+      const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
+
+      startSessionPromise = startSessionBootstrapEarly({
+        sessionBootstrapPlan,
+        notesPlanned: 0,
+        assetsPlanned: 0,
+        maxBytesPerRequest: defaultNginxLimit,
+        ignoreRules: vps.ignoreRules ?? [],
+        ignoredTags: settings.frontmatterTagsToExclude || [],
+        locale,
+        deduplicationEnabled,
+        apiOwnedDeterministicNoteTransformsEnabled,
+        startSession: (payload) => sessionClient!.startSession(payload),
+        onCalloutStylesLoaded: ({ durationMs, value }) => {
+          trace.recordMetric('callout_style_loading_duration_ms', durationMs, {
+            calloutStylesCount: value.length,
+          });
+        },
+        onBeforeStartSession: () => {
+          trace.startStep('6-session-start');
+          trace.checkpoint('6-session-start', 'calling-startSession-api');
+          trace.recordMetric('time_to_first_request_ms', performance.now() - publishStartTime, {
+            requestPath: '/api/session/start',
+          });
+        },
       });
 
       // ====================================================================
@@ -913,6 +949,15 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
       if (publishableCount === 0) {
         this.logger.warn('No publishable notes after filtering; aborting upload.');
+        if (startSessionPromise !== null && sessionClient) {
+          try {
+            const startedBootstrap = await startSessionPromise;
+            sessionId = startedBootstrap.startedSession.sessionId;
+            await sessionClient.abortSession(sessionId);
+          } catch (abortErr) {
+            this.logger.error('Failed to abort early-started empty session', { error: abortErr });
+          }
+        }
         new Notice(translate(t, 'notice.noPublishableNotes'));
         totalProgressAdapter.finish();
         return;
@@ -924,19 +969,13 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       // ====================================================================
       // SESSION START - Démarrage de la session
       // ====================================================================
-      trace.startStep('6-session-start');
+      trace.checkpoint('6-session-start', 'awaiting-startSession-response');
 
-      trace.checkpoint('6-session-start', 'awaiting-session-bootstrap-preparation');
-
-      const [{ durationMs: calloutStyleLoadingDurationMs }, { calloutStyles, pipelineSignature }] =
-        await Promise.all([
-          sessionBootstrapPlan.calloutStylesPromise,
-          sessionBootstrapPlan.pipelineSignaturePromise,
-        ]);
-
-      trace.recordMetric('callout_style_loading_duration_ms', calloutStyleLoadingDurationMs, {
-        calloutStylesCount: calloutStyles.length,
-      });
+      const {
+        startedSession: started,
+        calloutStyles,
+        pipelineSignature,
+      } = await startSessionPromise;
 
       const { customIndexConfigs, folderDisplayNames, validCleanupRules } = sessionBootstrapPlan;
 
@@ -969,27 +1008,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         ignoredTagsCount: (settings.frontmatterTagsToExclude || []).length,
       });
 
-      trace.checkpoint('6-session-start', 'calling-startSession-api');
-      trace.recordMetric('time_to_first_request_ms', performance.now() - publishStartTime, {
-        requestPath: '/api/session/start',
-      });
-
-      const defaultNginxLimit = 1 * 1024 * 1024; // 1 MB
-      const started = await sessionClient.startSession({
-        notesPlanned: publishableCount,
-        assetsPlanned: assetsPlanned,
-        maxBytesPerRequest: defaultNginxLimit,
-        calloutStyles,
-        customIndexConfigs,
-        ignoreRules: vps.ignoreRules ?? [],
-        ignoredTags: settings.frontmatterTagsToExclude || [],
-        folderDisplayNames, // Send displayNames upfront
-        pipelineSignature, // Include pipeline signature for inter-publication deduplication
-        locale, // Site language from plugin settings
-        deduplicationEnabled,
-        apiOwnedDeterministicNoteTransformsEnabled,
-      });
-
       sessionId = started.sessionId;
       const serverRequestLimit = started.maxBytesPerRequest;
       const existingAssetHashes = deduplicationEnabled ? (started.existingAssetHashes ?? []) : [];
@@ -1003,6 +1021,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       trace.endStep('6-session-start', {
         sessionId,
         maxBytesPerRequest: serverRequestLimit,
+        provisionalNotesPlanned: 0,
+        provisionalAssetsPlanned: 0,
+        actualPublishableNotes: publishableCount,
+        actualAssetsPlanned: assetsPlanned,
         existingAssetHashesCount: existingAssetHashes.length,
         existingNoteHashesCount: Object.keys(existingNoteHashes).length,
         existingSourceNoteHashesByVaultPathCount: Object.keys(existingSourceNoteHashesByVaultPath)
@@ -1014,6 +1036,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       this.logger.debug('Session started', {
         sessionId,
         maxBytesPerRequest: serverRequestLimit,
+        provisionalNotesPlanned: 0,
+        provisionalAssetsPlanned: 0,
+        actualPublishableNotes: publishableCount,
+        actualAssetsPlanned: assetsPlanned,
         existingNoteHashesCount: Object.keys(existingNoteHashes).length,
         existingSourceNoteHashesByVaultPathCount: Object.keys(existingSourceNoteHashesByVaultPath)
           .length,
@@ -1435,6 +1461,16 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       }
 
       // Abort session si elle a été créée
+      if (!sessionId && startSessionPromise !== null) {
+        try {
+          const startedBootstrap = await startSessionPromise;
+          sessionId = startedBootstrap.startedSession.sessionId;
+        } catch (startErr) {
+          this.logger.debug('Early startSession did not yield an abortable session', {
+            error: startErr,
+          });
+        }
+      }
       if (sessionId && sessionClient && !finalizationRequested) {
         try {
           await sessionClient.abortSession(sessionId);

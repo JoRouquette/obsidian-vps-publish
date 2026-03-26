@@ -1,6 +1,8 @@
 import {
   collectDisplayNamesFromRouteTree,
   type CustomIndexConfig,
+  type IgnoreRule,
+  type SiteLocale,
   type VpsConfig,
 } from '@core-domain';
 
@@ -25,6 +27,13 @@ export interface SessionBootstrapPlan {
     calloutStyles: CalloutStyle[];
     pipelineSignature: { version: string; renderSettingsHash: string };
   }>;
+}
+
+export interface StartedSessionBootstrap<TStartedSession> {
+  startedSession: TStartedSession;
+  calloutStyles: CalloutStyle[];
+  pipelineSignature: { version: string; renderSettingsHash: string };
+  calloutStyleLoadingDurationMs: number;
 }
 
 export function prepareSessionBootstrapPlan(args: {
@@ -115,6 +124,69 @@ export function prepareSessionBootstrapPlan(args: {
     calloutStylesPromise,
     pipelineSignaturePromise,
   };
+}
+
+export function startSessionBootstrapEarly<TStartedSession>(args: {
+  sessionBootstrapPlan: SessionBootstrapPlan;
+  notesPlanned: number;
+  assetsPlanned: number;
+  maxBytesPerRequest: number;
+  ignoreRules: IgnoreRule[];
+  ignoredTags: string[];
+  locale?: SiteLocale;
+  deduplicationEnabled: boolean;
+  apiOwnedDeterministicNoteTransformsEnabled: boolean;
+  startSession: (payload: {
+    notesPlanned: number;
+    assetsPlanned: number;
+    maxBytesPerRequest: number;
+    calloutStyles?: { path: string; css: string }[];
+    customIndexConfigs?: CustomIndexConfig[];
+    ignoreRules?: IgnoreRule[];
+    ignoredTags?: string[];
+    folderDisplayNames?: Record<string, string>;
+    pipelineSignature?: { version: string; renderSettingsHash: string };
+    locale?: SiteLocale;
+    deduplicationEnabled?: boolean;
+    apiOwnedDeterministicNoteTransformsEnabled?: boolean;
+  }) => Promise<TStartedSession>;
+  onCalloutStylesLoaded?: (result: TimedResult<CalloutStyle[]>) => void;
+  onBeforeStartSession?: () => void;
+  onAfterStartSession?: (startedSession: TStartedSession) => void;
+}): Promise<StartedSessionBootstrap<TStartedSession>> {
+  return (async () => {
+    const [calloutStyleResult, { calloutStyles, pipelineSignature }] = await Promise.all([
+      args.sessionBootstrapPlan.calloutStylesPromise,
+      args.sessionBootstrapPlan.pipelineSignaturePromise,
+    ]);
+
+    args.onCalloutStylesLoaded?.(calloutStyleResult);
+    args.onBeforeStartSession?.();
+
+    const startedSession = await args.startSession({
+      notesPlanned: args.notesPlanned,
+      assetsPlanned: args.assetsPlanned,
+      maxBytesPerRequest: args.maxBytesPerRequest,
+      calloutStyles,
+      customIndexConfigs: args.sessionBootstrapPlan.customIndexConfigs,
+      ignoreRules: args.ignoreRules,
+      ignoredTags: args.ignoredTags,
+      folderDisplayNames: args.sessionBootstrapPlan.folderDisplayNames,
+      pipelineSignature,
+      locale: args.locale,
+      deduplicationEnabled: args.deduplicationEnabled,
+      apiOwnedDeterministicNoteTransformsEnabled: args.apiOwnedDeterministicNoteTransformsEnabled,
+    });
+
+    args.onAfterStartSession?.(startedSession);
+
+    return {
+      startedSession,
+      calloutStyles,
+      pipelineSignature,
+      calloutStyleLoadingDurationMs: calloutStyleResult.durationMs,
+    };
+  })();
 }
 
 async function timeAsync<T>(operation: () => Promise<T>): Promise<TimedResult<T>> {
