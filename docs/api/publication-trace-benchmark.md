@@ -11,7 +11,7 @@ Each run captures:
 - `uploadRunId`
 - `sessionId`
 - `jobId`
-- deterministic-transform mode: `plugin-owned` or `api-owned`
+- pipeline state scenario: `pipeline-unchanged` or `pipeline-changed`
 - note count and asset count
 - uploaded note count and skipped note count after simulated unchanged-note filtering
 - request payload sizes and estimated chunk counts
@@ -45,7 +45,7 @@ Build the node app first:
 npm run bench:publication-trace:build
 ```
 
-Run both deterministic-transform modes against all fixtures:
+Run both pipeline-state scenarios against all fixtures:
 
 ```powershell
 node tools/publication-trace-benchmark.cjs run --fixture all --mode both --iterations 3 --output-dir tmp/publication-trace/current
@@ -99,9 +99,9 @@ The JSON output is the source of truth for machine-readable analysis. The Markdo
 
 - The harness is fixture-driven and does not enforce timing budgets.
 - It reuses the existing instrumentation concepts and backend finalization phases without changing publication semantics.
-- It now models unchanged-note skipping more realistically:
-  - `plugin-owned` mode uses stored `route -> sourceHash`
-  - `api-owned` mode uses stored `vaultPath -> sourceHash`
-  - if the seeded pipeline is marked changed, the harness disables note-hash skipping just like the live flow
+- The live architecture is now always API-owned for deterministic transforms. The harness compares two meaningful current scenarios:
+  - `pipeline-unchanged` reuses stored `vaultPath -> sourceHash` values and models safe unchanged-note skipping
+  - `pipeline-changed` simulates a pipeline-signature mismatch and forces full note upload
+  - notes without stored authoritative hashes are uploaded in both scenarios
 - The harness still does not run the real Obsidian desktop UI thread or full HTTP transport stack, so it is best for relative revision comparisons rather than absolute user-perceived latency claims.
 - Run it from the repository root so fixture and asset paths resolve consistently.
