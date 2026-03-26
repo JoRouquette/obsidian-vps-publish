@@ -17,12 +17,15 @@ import type { NoticeProgressAdapter } from './notice-progress.adapter';
  * Step weights for calculating global progress percentage.
  * These weights are NOT based on file counts to avoid revealing statistics.
  * Each step has a fixed weight representing its relative duration/importance.
+ *
+ * The finalization phase now owns the authoritative rebuild/render/promotion/index
+ * pipeline on the backend, so it carries the largest portion of overall progress.
  */
 const STEP_WEIGHTS: Record<ProgressStepId, number> = {
-  [ProgressStepId.PARSE_VAULT]: 25, // 25% - parsing and analysis
-  [ProgressStepId.UPLOAD_NOTES]: 35, // 35% - uploading notes
-  [ProgressStepId.UPLOAD_ASSETS]: 30, // 30% - uploading assets
-  [ProgressStepId.FINALIZE_SESSION]: 10, // 10% - finalization
+  [ProgressStepId.PARSE_VAULT]: 20, // 20% - local vault parsing and preparation
+  [ProgressStepId.UPLOAD_NOTES]: 20, // 20% - note upload
+  [ProgressStepId.UPLOAD_ASSETS]: 15, // 15% - asset upload (optional but still meaningful)
+  [ProgressStepId.FINALIZE_SESSION]: 45, // 45% - backend rebuild/render/promotion/index/validation
 };
 
 const TOTAL_WEIGHT = Object.values(STEP_WEIGHTS).reduce((sum, w) => sum + w, 0);
