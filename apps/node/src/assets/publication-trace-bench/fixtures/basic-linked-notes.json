@@ -15,6 +15,11 @@
       "isEnabled": true
     }
   ],
+  "existingPublication": {
+    "pipelineState": "unchanged",
+    "unchangedNoteIds": ["beta"],
+    "missingHashNoteIds": ["gamma"]
+  },
   "notes": [
     {
       "noteId": "alpha",

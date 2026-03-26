@@ -29,11 +29,12 @@ import type {
   DomainFrontmatter,
   IgnoreRule,
   LoggerPort,
+  Manifest,
   PublishableNote,
   ResolvedAssetFile,
   SanitizationRules,
 } from '@core-domain';
-import { LogLevel } from '@core-domain';
+import { LogLevel, Slug } from '@core-domain';
 import { z } from 'zod';
 
 import { AssetsFileSystemStorage } from '../infra/filesystem/assets-file-system.storage';
@@ -89,6 +90,13 @@ const FIXTURE_SCHEMA = z.object({
       })
     )
     .optional(),
+  existingPublication: z
+    .object({
+      pipelineState: z.enum(['unchanged', 'changed']).optional(),
+      unchangedNoteIds: z.array(z.string()).optional(),
+      missingHashNoteIds: z.array(z.string()).optional(),
+    })
+    .optional(),
   notes: z.array(
     z.object({
       noteId: z.string(),
@@ -130,7 +138,16 @@ type BenchmarkEnvironment = {
   uploadAssetsHandler: UploadAssetsHandler;
   finishSessionHandler: FinishSessionHandler;
   finalizationJobService: SessionFinalizationJobService;
+  manifestStorage: ManifestFileSystem;
   cleanup: () => Promise<void>;
+};
+
+type SimulatedNoteHashFilterResult = {
+  notesToUpload: PublishableNote[];
+  skippedCount: number;
+  applied: boolean;
+  pipelineChanged: boolean;
+  strategy: 'none' | 'source-hash-by-route' | 'source-hash-by-vault-path';
 };
 
 type ApiAssetPayload = {
@@ -242,6 +259,13 @@ export async function runPublicationBenchmarkIteration(
         : prepared.notes;
     const dedupDurationMs = performance.now() - dedupStart;
 
+    await seedExistingPublicationManifest({
+      env,
+      fixture,
+      publishables,
+      pipelineSignature,
+    });
+
     const timeToFirstRequestMs = performance.now() - publicationStart;
     const startSessionStart = performance.now();
     const startResult = await env.createSessionHandler.handle({
@@ -259,9 +283,20 @@ export async function runPublicationBenchmarkIteration(
     });
     const startSessionDurationMs = performance.now() - startSessionStart;
 
+    const noteHashFilterStart = performance.now();
+    const noteHashFilter = simulateNoteHashFilter({
+      notes: publishables,
+      existingNoteHashes: startResult.existingNoteHashes,
+      existingSourceNoteHashesByVaultPath: startResult.existingSourceNoteHashesByVaultPath,
+      pipelineChanged: startResult.pipelineChanged === true,
+      apiOwnedDeterministicNoteTransformsEnabled,
+    });
+    const noteHashFilterDurationMs = performance.now() - noteHashFilterStart;
+    const notesToUpload = noteHashFilter.notesToUpload;
+
     const notesBatchInfoStart = performance.now();
     const noteBatches = batchItemsByWrappedJsonBytes(
-      publishables,
+      notesToUpload,
       DEFAULT_MAX_REQUEST_BYTES,
       (batch) => ({
         notes: batch,
@@ -338,7 +373,7 @@ export async function runPublicationBenchmarkIteration(
     const finishStart = performance.now();
     await env.finishSessionHandler.handle({
       sessionId: startResult.sessionId,
-      notesProcessed: publishables.length,
+      notesProcessed: notesToUpload.length,
       assetsProcessed: apiAssets.length,
       allCollectedRoutes,
     });
@@ -362,10 +397,16 @@ export async function runPublicationBenchmarkIteration(
       noteCount: fixture.notes.length,
       assetCount: prepared.assets.length,
       publishableNoteCount: publishables.length,
-      uploadedNoteCount: publishables.length,
+      uploadedNoteCount: notesToUpload.length,
+      skippedNoteCount: noteHashFilter.skippedCount,
       uploadedAssetCount: apiAssets.length,
       deduplicationEnabled,
       apiOwnedDeterministicNoteTransformsEnabled,
+      deduplication: {
+        pipelineChanged: noteHashFilter.pipelineChanged,
+        noteHashFilterApplied: noteHashFilter.applied,
+        skipStrategy: noteHashFilter.strategy,
+      },
       timings: {
         publication_start_epoch_ms: publicationStartEpochMs,
         time_to_first_request_ms: timeToFirstRequestMs,
@@ -373,7 +414,7 @@ export async function runPublicationBenchmarkIteration(
         parse_and_transform_duration_ms: parseAndTransformDurationMs,
         dedup_duration_ms: dedupDurationMs,
         callout_style_loading_duration_ms: calloutStyleLoadingDurationMs,
-        note_hash_filter_duration_ms: 0,
+        note_hash_filter_duration_ms: noteHashFilterDurationMs,
         notes_batch_info_duration_ms: notesBatchInfoDurationMs,
         asset_batch_info_duration_ms: assetBatchInfoDurationMs,
         asset_upload_prep_duration_ms: assetUploadPrepDurationMs,
@@ -386,7 +427,7 @@ export async function runPublicationBenchmarkIteration(
       payloadSizes: {
         notes_upload_json_bytes: byteSize(
           JSON.stringify({
-            notes: publishables,
+            notes: notesToUpload,
             cleanupRules: fixture.cleanupRules ?? [],
           })
         ),
@@ -529,22 +570,22 @@ export function renderBenchmarkMarkdown(report: PublicationBenchmarkReport): str
     '',
     '## Aggregates',
     '',
-    '| Fixture | Mode | Notes | Assets | TTFR ms | Notes upload ms | Total ms | Finalization ms |',
-    '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Fixture | Mode | Notes | Uploaded | Skipped | Assets | TTFR ms | Note-hash filter ms | Notes upload ms | Total ms | Finalization ms |',
+    '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
 
   for (const aggregate of report.aggregates) {
     lines.push(
-      `| ${aggregate.fixtureId} | ${aggregate.mode} | ${aggregate.noteCount} | ${aggregate.assetCount} | ${aggregate.average.time_to_first_request_ms.toFixed(2)} | ${aggregate.average.notes_upload_duration_ms.toFixed(2)} | ${aggregate.average.total_publication_duration_ms.toFixed(2)} | ${aggregate.samples[0].finalization.total_phase_duration_ms.toFixed(2)} |`
+      `| ${aggregate.fixtureId} | ${aggregate.mode} | ${aggregate.noteCount} | ${aggregate.average.uploaded_note_count.toFixed(2)} | ${aggregate.average.skipped_note_count.toFixed(2)} | ${aggregate.assetCount} | ${aggregate.average.time_to_first_request_ms.toFixed(2)} | ${aggregate.average.note_hash_filter_duration_ms.toFixed(2)} | ${aggregate.average.notes_upload_duration_ms.toFixed(2)} | ${aggregate.average.total_publication_duration_ms.toFixed(2)} | ${aggregate.samples[0].finalization.total_phase_duration_ms.toFixed(2)} |`
     );
   }
 
   if (report.comparisons.some((comparison) => comparison.deltas)) {
     lines.push('', '## Mode Comparisons', '');
     lines.push(
-      '| Fixture | Delta TTFR ms | Delta Notes upload ms | Delta Total ms | Delta Finalization ms |'
+      '| Fixture | Delta Uploaded notes | Delta Skipped notes | Delta TTFR ms | Delta Note-hash filter ms | Delta Notes upload ms | Delta Total ms | Delta Finalization ms |'
     );
-    lines.push('| --- | ---: | ---: | ---: | ---: |');
+    lines.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');
     for (const comparison of report.comparisons) {
       if (!comparison.deltas) {
         continue;
@@ -554,7 +595,7 @@ export function renderBenchmarkMarkdown(report: PublicationBenchmarkReport): str
       const apiFinalization =
         comparison.apiOwned?.samples[0].finalization.total_phase_duration_ms ?? 0;
       lines.push(
-        `| ${comparison.fixtureId} | ${formatDelta(comparison.deltas.time_to_first_request_ms)} | ${formatDelta(comparison.deltas.notes_upload_duration_ms)} | ${formatDelta(comparison.deltas.total_publication_duration_ms)} | ${formatDelta(apiFinalization - pluginFinalization)} |`
+        `| ${comparison.fixtureId} | ${formatDelta(comparison.deltas.uploaded_note_count)} | ${formatDelta(comparison.deltas.skipped_note_count)} | ${formatDelta(comparison.deltas.time_to_first_request_ms)} | ${formatDelta(comparison.deltas.note_hash_filter_duration_ms)} | ${formatDelta(comparison.deltas.notes_upload_duration_ms)} | ${formatDelta(comparison.deltas.total_publication_duration_ms)} | ${formatDelta(apiFinalization - pluginFinalization)} |`
       );
     }
   }
@@ -572,8 +613,8 @@ export function renderRevisionComparisonMarkdown(
     `- Baseline revision: ${report.baselineRevision}`,
     `- Candidate revision: ${report.candidateRevision}`,
     '',
-    '| Fixture | Mode | Delta TTFR ms | Delta Notes upload ms | Delta Total ms |',
-    '| --- | --- | ---: | ---: | ---: |',
+    '| Fixture | Mode | Delta Uploaded notes | Delta Skipped notes | Delta TTFR ms | Delta Note-hash filter ms | Delta Notes upload ms | Delta Total ms |',
+    '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
 
   for (const comparison of report.comparisons) {
@@ -582,7 +623,7 @@ export function renderRevisionComparisonMarkdown(
     }
 
     lines.push(
-      `| ${comparison.fixtureId} | ${comparison.mode} | ${formatDelta(comparison.deltas.time_to_first_request_ms)} | ${formatDelta(comparison.deltas.notes_upload_duration_ms)} | ${formatDelta(comparison.deltas.total_publication_duration_ms)} |`
+      `| ${comparison.fixtureId} | ${comparison.mode} | ${formatDelta(comparison.deltas.uploaded_note_count)} | ${formatDelta(comparison.deltas.skipped_note_count)} | ${formatDelta(comparison.deltas.time_to_first_request_ms)} | ${formatDelta(comparison.deltas.note_hash_filter_duration_ms)} | ${formatDelta(comparison.deltas.notes_upload_duration_ms)} | ${formatDelta(comparison.deltas.total_publication_duration_ms)} |`
     );
   }
 
@@ -634,6 +675,117 @@ async function preparePublicationFixture(
     fixture,
     notes,
     assets,
+  };
+}
+
+async function seedExistingPublicationManifest(args: {
+  env: BenchmarkEnvironment;
+  fixture: PublicationBenchmarkFixture;
+  publishables: PublishableNote[];
+  pipelineSignature: { version: string; renderSettingsHash: string };
+}): Promise<void> {
+  const scenario = args.fixture.existingPublication;
+  if (!scenario) {
+    return;
+  }
+
+  const unchangedNoteIds = new Set(scenario.unchangedNoteIds ?? []);
+  const missingHashNoteIds = new Set(scenario.missingHashNoteIds ?? []);
+  const publishedAt = new Date('2025-01-01T00:00:00.000Z');
+  const seededPipelineSignature =
+    scenario.pipelineState === 'changed'
+      ? {
+          version: args.pipelineSignature.version,
+          renderSettingsHash: `${args.pipelineSignature.renderSettingsHash}-changed`,
+        }
+      : args.pipelineSignature;
+
+  const manifest: Manifest = {
+    sessionId: 'bench-existing-publication',
+    createdAt: publishedAt,
+    lastUpdatedAt: publishedAt,
+    pipelineSignature: seededPipelineSignature,
+    pages: args.publishables.map((note) => ({
+      id: note.noteId,
+      title: note.title,
+      slug: Slug.fromRoute(note.routing.fullPath || note.relativePath),
+      route: note.routing.fullPath,
+      publishedAt,
+      vaultPath: note.vaultPath,
+      relativePath: note.relativePath,
+      sourceHash: missingHashNoteIds.has(note.noteId)
+        ? undefined
+        : unchangedNoteIds.has(note.noteId)
+          ? computeSourceHash(note.content)
+          : computeSourceHash(`${note.content}\n[benchmark-changed:${note.noteId}]`),
+      sourceSize: byteSize(note.content),
+    })),
+  };
+
+  await args.env.manifestStorage.save(manifest);
+}
+
+function simulateNoteHashFilter(args: {
+  notes: PublishableNote[];
+  existingNoteHashes?: Record<string, string>;
+  existingSourceNoteHashesByVaultPath?: Record<string, string>;
+  pipelineChanged: boolean;
+  apiOwnedDeterministicNoteTransformsEnabled: boolean;
+}): SimulatedNoteHashFilterResult {
+  if (args.pipelineChanged) {
+    return {
+      notesToUpload: args.notes,
+      skippedCount: 0,
+      applied: false,
+      pipelineChanged: true,
+      strategy: 'none',
+    };
+  }
+
+  const activeHashMap = args.apiOwnedDeterministicNoteTransformsEnabled
+    ? (args.existingSourceNoteHashesByVaultPath ?? {})
+    : (args.existingNoteHashes ?? {});
+
+  if (Object.keys(activeHashMap).length === 0) {
+    return {
+      notesToUpload: args.notes,
+      skippedCount: 0,
+      applied: false,
+      pipelineChanged: false,
+      strategy: 'none',
+    };
+  }
+
+  const notesToUpload: PublishableNote[] = [];
+  let skippedCount = 0;
+
+  for (const note of args.notes) {
+    const dedupKey = args.apiOwnedDeterministicNoteTransformsEnabled
+      ? note.vaultPath
+      : note.routing.fullPath;
+    const existingHash = dedupKey ? activeHashMap[dedupKey] : undefined;
+
+    if (!existingHash) {
+      notesToUpload.push(note);
+      continue;
+    }
+
+    if (computeSourceHash(note.content) === existingHash) {
+      skippedCount++;
+      continue;
+    }
+
+    notesToUpload.push(note);
+  }
+
+  return {
+    notesToUpload,
+    skippedCount,
+    applied: true,
+    pipelineChanged: false,
+    strategy: args.apiOwnedDeterministicNoteTransformsEnabled
+      ? 'source-hash-by-vault-path'
+      : 'source-hash-by-route',
   };
 }
 
@@ -703,6 +855,7 @@ async function createBenchmarkEnvironment(logger: LoggerPort): Promise<Benchmark
       logger,
       1
     ),
+    manifestStorage,
     cleanup: async () => {
       await fs.rm(tempDir, { recursive: true, force: true });
     },
@@ -899,6 +1052,8 @@ function summarizeMetrics(
     chunk_prepare_duration_ms: reducer(runs.map((run) => run.timings.chunk_prepare_duration_ms)),
     notes_upload_json_bytes: reducer(runs.map((run) => run.payloadSizes.notes_upload_json_bytes)),
     assets_upload_json_bytes: reducer(runs.map((run) => run.payloadSizes.assets_upload_json_bytes)),
+    uploaded_note_count: reducer(runs.map((run) => run.uploadedNoteCount)),
+    skipped_note_count: reducer(runs.map((run) => run.skippedNoteCount)),
   };
 }
 
@@ -988,6 +1143,10 @@ function byteSize(value: string): number {
 
 function jsonByteSize(value: unknown): number {
   return byteSize(JSON.stringify(value));
+}
+
+function computeSourceHash(content: string): string {
+  return createHash('sha256').update(content).digest('hex');
 }
 
 function sumObjectValues(values: Record<string, number> | undefined): number {
