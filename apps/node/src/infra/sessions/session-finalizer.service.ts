@@ -2,24 +2,28 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import {
-  ComputeRoutingService,
   ContentSanitizerService,
   type ContentStoragePort,
   DetectLeafletBlocksService,
-  DetectWikilinksService,
+  DeterministicNoteTransformsService,
   type ManifestPort,
   type MarkdownRendererPort,
-  ResolveWikilinksService,
   type SessionNotesStoragePort,
   type SessionRepository,
   UploadNotesHandler,
 } from '@core-application';
 import { NoteHashService } from '@core-application/publishing/services/note-hash.service';
-import { type CustomIndexConfig, type LoggerPort, LogLevel } from '@core-domain';
+import {
+  type CustomIndexConfig,
+  type FinalizationPhase,
+  type LoggerPort,
+  LogLevel,
+} from '@core-domain';
 import { load } from 'cheerio';
 
 import { type StagingManager } from '../filesystem/staging-manager';
 import { ContentSearchIndexer } from '../search/content-search-indexer';
+import { buildFolderDisplayNamesFromPublishedNotes } from './folder-display-names-from-notes.util';
 import {
   replaceAssetPathsInHtmlFiles,
   replaceAssetPathsInManifestPages,
@@ -29,6 +33,7 @@ import { ValidateLinksService } from './validate-links.service';
 
 type ContentStorageFactory = (sessionId: string) => ContentStoragePort;
 type ManifestStorageFactory = (sessionId: string) => ManifestPort;
+type FinalizationPhaseReporter = (phase: FinalizationPhase) => void;
 
 class NullLogger implements LoggerPort {
   private _level: LogLevel = LogLevel.info;
@@ -69,7 +74,10 @@ export class SessionFinalizerService {
     this.logger = logger?.child({ service: 'SessionFinalizerService' }) ?? new NullLogger();
   }
 
-  async rebuildFromStored(sessionId: string): Promise<Map<string, string> | undefined> {
+  async rebuildFromStored(
+    sessionId: string,
+    reportPhase?: FinalizationPhaseReporter
+  ): Promise<Map<string, string> | undefined> {
     const startTime = performance.now();
     const log = this.logger.child({ sessionId });
     const timings: Record<string, number> = {};
@@ -90,13 +98,15 @@ export class SessionFinalizerService {
     stepStart = performance.now();
     const session = await this.sessionRepository.findById(sessionId);
     const customIndexConfigs = session?.customIndexConfigs ?? [];
-    const folderDisplayNames = session?.folderDisplayNames ?? {};
+    const sessionFolderDisplayNames = session?.folderDisplayNames ?? {};
     timings.loadSessionMetadata = performance.now() - stepStart;
     log.debug('Loaded session metadata', {
       customIndexConfigsCount: customIndexConfigs.length,
-      folderDisplayNamesCount: Object.keys(folderDisplayNames).length,
-      folderDisplayNames,
+      folderDisplayNamesCount: Object.keys(sessionFolderDisplayNames).length,
+      folderDisplayNames: sessionFolderDisplayNames,
     });
+
+    reportPhase?.('rebuilding_notes');
 
     // STEP 2: Load cleanup rules
     stepStart = performance.now();
@@ -138,18 +148,21 @@ export class SessionFinalizerService {
     }));
     timings.convertMarkdownLinks = performance.now() - stepStart;
 
-    // STEP 5: Compute routing first, then resolve wikilinks
-    // IMPORTANT: routing must be calculated BEFORE wikilink resolution,
-    // because ResolveWikilinksService checks if targetNote.routing is defined
-    // to determine if a wikilink is resolved (line 51: isResolved = !!targetNote && targetNote.routing !== undefined)
     stepStart = performance.now();
-    const computeRouting = new ComputeRoutingService(this.logger);
-    const detect = new DetectWikilinksService(this.logger);
-    const resolve = new ResolveWikilinksService(this.logger, detect);
-
-    const routed = computeRouting.process(withConvertedLinks);
-    const withLinks = resolve.process(routed);
+    const deterministicTransforms = new DeterministicNoteTransformsService(this.logger);
+    const withLinks = await deterministicTransforms.process(withConvertedLinks, {
+      ignoreRules: session?.ignoreRules,
+      deduplicationEnabled: session?.deduplicationEnabled !== false,
+      ignoreRulesAlreadyApplied: true,
+    });
     timings.resolveWikilinksAndRouting = performance.now() - stepStart;
+
+    const folderDisplayNames =
+      buildFolderDisplayNamesFromPublishedNotes(withLinks, sessionFolderDisplayNames) ?? {};
+    log.debug('Resolved folder display names for published navigation', {
+      folderDisplayNamesCount: Object.keys(folderDisplayNames).length,
+      folderDisplayNames,
+    });
 
     // STEP 7: Reset content staging directory
     stepStart = performance.now();
@@ -158,6 +171,7 @@ export class SessionFinalizerService {
     timings.resetContentStage = performance.now() - stepStart;
 
     // STEP 8: Render markdown to HTML
+    reportPhase?.('rendering_html');
     stepStart = performance.now();
     const noteHashService = new NoteHashService();
     const renderer = new UploadNotesHandler(
@@ -234,6 +248,7 @@ export class SessionFinalizerService {
     }
 
     // STEP 9: Extract custom index HTML and update manifest
+    reportPhase?.('rebuilding_indexes');
     stepStart = performance.now();
     const customIndexesHtml = await this.extractCustomIndexesHtml(
       customIndexConfigs,
@@ -286,6 +301,7 @@ export class SessionFinalizerService {
 
     // STEP 10.7: Validate and fix all links in HTML files
     if (manifest) {
+      reportPhase?.('validating_links');
       stepStart = performance.now();
       const contentRoot = this.stagingManager.contentStagingPath(sessionId);
       const linkValidator = new ValidateLinksService(this.logger);

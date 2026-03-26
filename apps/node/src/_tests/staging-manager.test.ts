@@ -6,7 +6,7 @@ import * as path from 'path';
 
 import { StagingManager } from '../infra/filesystem/staging-manager';
 
-describe('StagingManager - Manifest Merge (PHASE 6)', () => {
+describe('StagingManager - Manifest Merge', () => {
   let stagingManager: StagingManager;
   let tempDir: string;
   let contentRoot: string;
@@ -187,7 +187,7 @@ describe('StagingManager - Manifest Merge (PHASE 6)', () => {
 
     await writeStagingManifest(sessionId, stagingManifest);
 
-    // PHASE 6.1: Specify allCollectedRoutes (vault contains unchanged, updated, new - NOT deleted)
+    // Specify allCollectedRoutes (vault contains unchanged, updated, and new routes, but not deleted ones)
     const allCollectedRoutes = ['/dir/unchanged', '/dir/updated', '/dir/new'];
 
     // Act: Promote session with allCollectedRoutes
@@ -279,7 +279,7 @@ describe('StagingManager - Manifest Merge (PHASE 6)', () => {
 
     await writeStagingManifest(sessionId, stagingManifest);
 
-    // PHASE 6.1: Specify allCollectedRoutes (only kept, deleted not in vault)
+    // Specify allCollectedRoutes (only kept routes remain in the vault)
     const allCollectedRoutes = ['/dir/kept'];
 
     // Act: Promote session with allCollectedRoutes
@@ -328,7 +328,7 @@ describe('StagingManager - Manifest Merge (PHASE 6)', () => {
 
     await writeStagingManifest(sessionId, stagingManifest);
 
-    // PHASE 6.1: First publish, all routes are new
+    // First publish: all routes are new
     const allCollectedRoutes = ['/dir/first', '/dir/second'];
 
     // Act: Promote session (first publish)
@@ -391,7 +391,7 @@ describe('StagingManager - Manifest Merge (PHASE 6)', () => {
 
     await writeStagingManifest(sessionId, stagingManifest);
 
-    // PHASE 6.1: allCollectedRoutes contains only /note (same as staging)
+    // allCollectedRoutes contains only /note (same as staging)
     const allCollectedRoutes = ['/note'];
 
     // Act: Promote session with pipeline signature update
@@ -470,7 +470,7 @@ describe('StagingManager - Manifest Merge (PHASE 6)', () => {
 
     await writeStagingManifest(sessionId, stagingManifest);
 
-    // PHASE 6.1: All 5 notes still in vault (only note3 changed)
+    // All 5 notes are still in the vault (only note3 changed)
     const allCollectedRoutes = ['/note1', '/note2', '/note3', '/note4', '/note5'];
 
     // Act: Promote session (only note3 updated)

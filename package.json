@@ -22,6 +22,8 @@
     "perf:budget:ci": "node tools/perf-budget.mjs --ci",
     "perf:validate": "node scripts/validate-performance.mjs",
     "perf:validate:strict": "node scripts/validate-performance.mjs --strict",
+    "bench:publication-trace:build": "nx build node --output-style=static",
+    "bench:publication-trace": "node tools/publication-trace-benchmark.cjs",
     "lighthouse": "node tools/lighthouse-ci.mjs",
     "lighthouse:ci": "node tools/lighthouse-ci.mjs --ci",
     "lighthouse:csr": "node tools/lighthouse-ci.mjs --csr",

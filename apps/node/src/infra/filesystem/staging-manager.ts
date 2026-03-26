@@ -102,7 +102,7 @@ export class StagingManager {
    * CRITICAL: Mutex protects the entire promotion sequence to prevent race conditions.
    *
    * @param sessionId - Session identifier
-   * @param allCollectedRoutes - All routes collected from vault (PHASE 6.1), used to detect deleted pages
+   * @param allCollectedRoutes - All routes collected from the vault, used to detect deleted pages
    * @param pipelineSignature - Pipeline signature from session (PHASE 7 fix)
    * @param locale - Site locale from plugin settings (en/fr)
    * @returns PromotionStats with deduplication metrics
@@ -142,8 +142,8 @@ export class StagingManager {
       // Step 2: Build final manifest with merged pages
       const stagingRoutes = new Set(stagingManifest.pages.map((p) => p.route));
 
-      // Keep production pages whose routes are NOT in staging (unchanged notes)
-      // PHASE 6.1: If allCollectedRoutes provided, also filter by presence in vault
+      // Keep production pages whose routes are NOT in staging (unchanged notes).
+      // When available, also require the route to still exist in the vault snapshot.
       let unchangedPages: ManifestPage[] = [];
 
       if (allCollectedRoutes) {
@@ -183,13 +183,12 @@ export class StagingManager {
         finalPages: finalManifest.pages.length,
       });
 
-      // Step 3: Detect deleted pages (PHASE 6.1: using allCollectedRoutes if available)
+      // Step 3: Detect deleted pages using the vault route snapshot when available.
       const finalRoutes = new Set(finalManifest.pages.map((p) => p.route));
       let deletedPages: ManifestPage[] = [];
 
       if (allCollectedRoutes) {
-        // PHASE 6.1: Use allCollectedRoutes to detect deleted pages
-        // Deleted pages are in production but NOT in allCollectedRoutes (vault)
+        // Deleted pages are in production but no longer present in the current vault route set.
         const collectedRoutesSet = new Set(allCollectedRoutes);
         deletedPages =
           productionManifest?.pages.filter((p) => !collectedRoutesSet.has(p.route)) ?? [];

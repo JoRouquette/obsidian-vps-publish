@@ -1,3 +1,4 @@
+import { buildUploadSessionNotes, type UploadSessionNote } from '@core-application';
 import { ChunkedUploadService } from '@core-application/publishing/services/chunked-upload.service';
 import { processWithControlledConcurrency } from '@core-application/utils/concurrency.util';
 import { ProgressStepId } from '@core-domain/entities/progress-step';
@@ -19,6 +20,8 @@ export class NotesUploaderAdapter implements UploaderPort {
   private readonly _logger: LoggerPort;
   private readonly chunkedUploadService: ChunkedUploadService;
   private readonly concurrencyLimit: number;
+  private readonly uploadNotesByNotes = new WeakMap<PublishableNote[], UploadSessionNote[]>();
+  private readonly batchesByNotes = new WeakMap<PublishableNote[], UploadSessionNote[][]>();
 
   constructor(
     private readonly sessionClient: SessionApiClient,
@@ -52,9 +55,17 @@ export class NotesUploaderAdapter implements UploaderPort {
       return false;
     }
 
-    const batches = await batchByBytesAsync(notes, this.maxBytesPerRequest, (batch) => ({
-      notes: batch,
-    }));
+    const uploadNotes = this.getUploadNotes(notes);
+    const cachedBatches = this.batchesByNotes.get(notes);
+    const batches =
+      cachedBatches ??
+      (await batchByBytesAsync(uploadNotes, this.maxBytesPerRequest, (batch) => ({
+        notes: batch,
+      })));
+
+    if (!cachedBatches) {
+      this.batchesByNotes.set(notes, batches);
+    }
 
     this._logger.debug(
       `Uploading ${notes.length} notes in ${batches.length} batch(es) with concurrency=3 (maxBytes=${this.maxBytesPerRequest})`
@@ -69,7 +80,7 @@ export class NotesUploaderAdapter implements UploaderPort {
 
         // Ajouter les cleanupRules uniquement au premier batch
         const payload: { notes: PublishableNote[]; cleanupRules?: SanitizationRules[] } = {
-          notes: batch,
+          notes: batch as PublishableNote[],
         };
 
         if (currentBatchIndex === 1 && this.cleanupRules && this.cleanupRules.length > 0) {
@@ -136,13 +147,29 @@ export class NotesUploaderAdapter implements UploaderPort {
       return { batchCount: 0 };
     }
 
-    const batches = batchByBytes(notes, this.maxBytesPerRequest, (batch) => ({
-      notes: batch,
-    }));
+    const uploadNotes = this.getUploadNotes(notes);
+    const batches =
+      this.batchesByNotes.get(notes) ??
+      batchByBytes(uploadNotes, this.maxBytesPerRequest, (batch) => ({
+        notes: batch,
+      }));
+
+    this.batchesByNotes.set(notes, batches);
 
     return {
       batchCount: batches.length,
     };
+  }
+
+  private getUploadNotes(notes: PublishableNote[]): UploadSessionNote[] {
+    const cached = this.uploadNotesByNotes.get(notes);
+    if (cached) {
+      return cached;
+    }
+
+    const uploadNotes = buildUploadSessionNotes(notes);
+    this.uploadNotesByNotes.set(notes, uploadNotes);
+    return uploadNotes;
   }
 
   private advanceProgress(step: number): void {

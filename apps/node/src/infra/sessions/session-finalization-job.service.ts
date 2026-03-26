@@ -9,7 +9,13 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
 import { type SessionRepository } from '@core-application';
-import { type ContentSearchIndex, type LoggerPort, type PromotionStats } from '@core-domain';
+import {
+  type ContentSearchIndex,
+  FINALIZATION_PHASE_PROGRESS,
+  type FinalizationPhase,
+  type LoggerPort,
+  type PromotionStats,
+} from '@core-domain';
 
 import { ManifestFileSystem } from '../filesystem/manifest-file-system';
 import { type StagingManager } from '../filesystem/staging-manager';
@@ -21,6 +27,9 @@ export interface FinalizationJob {
   sessionId: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   progress: number; // 0-100
+  phase?: FinalizationPhase;
+  phaseTimings?: Partial<Record<FinalizationPhase, number>>;
+  contentRevision?: string;
   createdAt: Date;
   startedAt?: Date;
   completedAt?: Date;
@@ -31,6 +40,7 @@ export interface FinalizationJob {
     promotionStats?: PromotionStats;
     /** Unique revision identifier for this publication. */
     contentRevision?: string;
+    finalizationTimings?: Partial<Record<FinalizationPhase, number>>;
   };
 }
 
@@ -39,12 +49,17 @@ export interface FinalizationJobHistoryEntry {
   sessionId: string;
   status: FinalizationJob['status'];
   progress: number;
+  phase?: FinalizationPhase;
+  phaseTimings?: Partial<Record<FinalizationPhase, number>>;
+  contentRevision?: string;
   createdAt: string;
   startedAt?: string;
   completedAt?: string;
   error?: string;
   result?: FinalizationJob['result'];
 }
+
+export type FinalizationJobListener = (job: FinalizationJob) => void;
 
 export class SessionFinalizationJobService {
   private jobs: Map<string, FinalizationJob> = new Map();
@@ -53,11 +68,12 @@ export class SessionFinalizationJobService {
   private maxConcurrentJobs: number;
   private completionCallbacks: Array<() => Promise<void>> = [];
   private readonly historyFilePath: string;
+  private readonly listenersByJobId = new Map<string, Set<FinalizationJobListener>>();
 
   constructor(
     private readonly sessionFinalizer: SessionFinalizerService,
     private readonly stagingManager: StagingManager,
-    private readonly sessionRepository: SessionRepository, // PHASE 6.1
+    private readonly sessionRepository: SessionRepository,
     private readonly logger?: LoggerPort,
     maxConcurrentJobs?: number
   ) {
@@ -89,11 +105,14 @@ export class SessionFinalizationJobService {
       sessionId,
       status: 'pending',
       progress: 0,
+      phase: 'queued',
+      phaseTimings: {},
       createdAt: new Date(),
     };
 
     this.jobs.set(jobId, job);
     this.processingQueue.push(jobId);
+    this.notifyListeners(job);
 
     this.logger?.info('[JOB] Finalization job queued', {
       jobId,
@@ -112,6 +131,28 @@ export class SessionFinalizationJobService {
    */
   getJobStatus(jobId: string): FinalizationJob | undefined {
     return this.jobs.get(jobId);
+  }
+
+  subscribe(jobId: string, listener: FinalizationJobListener): () => void {
+    const listeners = this.listenersByJobId.get(jobId) ?? new Set<FinalizationJobListener>();
+    listeners.add(listener);
+    this.listenersByJobId.set(jobId, listeners);
+
+    return () => {
+      const currentListeners = this.listenersByJobId.get(jobId);
+      if (!currentListeners) {
+        return;
+      }
+
+      currentListeners.delete(listener);
+      if (currentListeners.size === 0) {
+        this.listenersByJobId.delete(jobId);
+      }
+    };
+  }
+
+  getListenerCount(jobId: string): number {
+    return this.listenersByJobId.get(jobId)?.size ?? 0;
   }
 
   /**
@@ -248,12 +289,13 @@ export class SessionFinalizationJobService {
    */
   private async executeJob(job: FinalizationJob): Promise<void> {
     const startTime = Date.now();
-    const timings: Record<string, number> = {};
     const contentRevision = randomUUID();
+    let activePhase: FinalizationPhase = 'queued';
+    let activePhaseStartedAt = job.createdAt.getTime();
 
     job.status = 'processing';
     job.startedAt = new Date();
-    job.progress = 10;
+    job.contentRevision = contentRevision;
 
     this.logger?.info('[JOB] Starting finalization job', {
       jobId: job.jobId,
@@ -263,10 +305,35 @@ export class SessionFinalizationJobService {
       queueLength: this.processingQueue.length,
     });
 
+    const flushActivePhaseTiming = () => {
+      const durationMs = Math.max(0, Date.now() - activePhaseStartedAt);
+      job.phaseTimings = {
+        ...(job.phaseTimings ?? {}),
+        [activePhase]: (job.phaseTimings?.[activePhase] ?? 0) + durationMs,
+      };
+      this.logger?.debug('[JOB] Finalization phase measured', {
+        jobId: job.jobId,
+        sessionId: job.sessionId,
+        phase: activePhase,
+        durationMs,
+        contentRevision: job.contentRevision,
+      });
+    };
+
+    const transitionToPhase = (phase: FinalizationPhase) => {
+      if (phase === activePhase) {
+        return;
+      }
+
+      flushActivePhaseTiming();
+      activePhase = phase;
+      activePhaseStartedAt = Date.now();
+      this.setJobPhase(job, phase);
+    };
+
     try {
-      // STEP 0: Load session to get allCollectedRoutes and pipelineSignature (PHASE 6.1, PHASE 7)
+      // STEP 0: Load session metadata and current staging routes.
       const session = await this.sessionRepository.findById(job.sessionId);
-      const allCollectedRoutes = session?.allCollectedRoutes;
       const pipelineSignature = session?.pipelineSignature;
 
       // STEP 0.5: Validate upload completeness (informational, non-blocking)
@@ -285,15 +352,15 @@ export class SessionFinalizationJobService {
       }
 
       // STEP 1: Rebuild from stored notes (heaviest operation)
-      job.progress = 20;
-      const rebuildStart = Date.now();
-      const customIndexesHtml = await this.sessionFinalizer.rebuildFromStored(job.sessionId);
-      timings.rebuildFromStored = Date.now() - rebuildStart;
-      job.progress = 80;
+      const customIndexesHtml = await this.sessionFinalizer.rebuildFromStored(
+        job.sessionId,
+        transitionToPhase
+      );
+
+      const allCollectedRoutes = await this.loadStagingRoutes(job.sessionId);
 
       // STEP 2: Promote staging to production (with deleted page detection and pipelineSignature injection)
-      job.progress = 85;
-      const promoteStart = Date.now();
+      transitionToPhase('promoting_content');
       const promotionStats = await this.stagingManager.promoteSession(
         job.sessionId,
         allCollectedRoutes,
@@ -301,44 +368,43 @@ export class SessionFinalizationJobService {
         session?.locale,
         contentRevision
       );
-      timings.promoteSession = Date.now() - promoteStart;
-      job.progress = 90;
 
       // STEP 2.5: Rebuild HTML indexes from PRODUCTION manifest (after merge)
       // CRITICAL: rebuildFromStored writes indexes to staging using only the
       // current session's pages. After promoteSession merges staging + production
       // manifests, we must regenerate indexes so they reflect ALL pages.
-      const indexRebuildStart = Date.now();
+      transitionToPhase('rebuilding_indexes');
       await this.rebuildProductionHtmlIndexes(customIndexesHtml);
-      timings.rebuildHtmlIndexes = Date.now() - indexRebuildStart;
 
       // STEP 3: Rebuild search index from PRODUCTION manifest (after merge)
       // CRITICAL: This must happen AFTER promoteSession to include all pages
       // (staging pages + unchanged production pages from deduplication)
-      const searchIndexStart = Date.now();
       await this.rebuildProductionSearchIndex(contentRevision);
-      timings.rebuildSearchIndex = Date.now() - searchIndexStart;
 
       // STEP 4: Validate post-promotion consistency (manifest vs search index)
-      const validationStart = Date.now();
+      transitionToPhase('validating_links');
       await this.validatePostPromotion();
-      timings.validation = Date.now() - validationStart;
+      // Trigger completion callbacks before exposing the job as completed so
+      // queue stats only count fully finalized publications.
+      transitionToPhase('completing_publication');
+      await this.triggerCompletionCallbacks();
+      flushActivePhaseTiming();
+
       const completedAt = new Date();
       const result: FinalizationJob['result'] = {
         notesProcessed: session?.notesProcessed ?? 0,
         assetsProcessed: session?.assetsProcessed ?? 0,
         promotionStats,
         contentRevision,
+        finalizationTimings: { ...(job.phaseTimings ?? {}) },
       };
 
-      // Trigger completion callbacks before exposing the job as completed so
-      // queue stats only count fully finalized publications.
-      await this.triggerCompletionCallbacks();
-
-      job.progress = 100;
+      job.progress = FINALIZATION_PHASE_PROGRESS.completed;
+      job.phase = 'completed';
       job.result = result;
       job.completedAt = completedAt;
       job.status = 'completed';
+      this.notifyListeners(job);
       await this.appendHistory(job);
 
       const totalDuration = Date.now() - startTime;
@@ -347,13 +413,19 @@ export class SessionFinalizationJobService {
         sessionId: job.sessionId,
         contentRevision,
         durationMs: totalDuration,
-        timings,
+        phaseTimings: job.phaseTimings,
         activeJobs: this.activeJobs,
       });
     } catch (error) {
+      if (job.status !== 'completed') {
+        flushActivePhaseTiming();
+      }
       job.error = error instanceof Error ? error.message : 'Unknown error';
       job.completedAt = new Date();
       job.status = 'failed';
+      job.phase = 'failed';
+      job.progress = FINALIZATION_PHASE_PROGRESS.failed;
+      this.notifyListeners(job);
       await this.appendHistory(job);
 
       const totalDuration = Date.now() - startTime;
@@ -363,7 +435,7 @@ export class SessionFinalizationJobService {
         contentRevision,
         error: job.error,
         durationMs: totalDuration,
-        timings,
+        phaseTimings: job.phaseTimings,
       });
     }
   }
@@ -422,6 +494,9 @@ export class SessionFinalizationJobService {
       sessionId: job.sessionId,
       status: job.status,
       progress: job.progress,
+      phase: job.phase,
+      phaseTimings: job.phaseTimings,
+      contentRevision: job.contentRevision,
       createdAt: job.createdAt.toISOString(),
       startedAt: job.startedAt?.toISOString(),
       completedAt: job.completedAt?.toISOString(),
@@ -431,6 +506,39 @@ export class SessionFinalizationJobService {
 
     await fs.mkdir(path.dirname(this.historyFilePath), { recursive: true });
     await fs.appendFile(this.historyFilePath, `${JSON.stringify(entry)}\n`, 'utf8');
+  }
+
+  private notifyListeners(job: FinalizationJob): void {
+    const listeners = this.listenersByJobId.get(job.jobId);
+    if (!listeners || listeners.size === 0) {
+      return;
+    }
+
+    for (const listener of listeners) {
+      try {
+        listener(job);
+      } catch (error) {
+        this.logger?.warn('[JOB] Listener notification failed', {
+          jobId: job.jobId,
+          sessionId: job.sessionId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  }
+
+  private setJobPhase(job: FinalizationJob, phase: FinalizationPhase): void {
+    this.setJobPhaseWithProgress(job, phase, FINALIZATION_PHASE_PROGRESS[phase]);
+  }
+
+  private setJobPhaseWithProgress(
+    job: FinalizationJob,
+    phase: FinalizationPhase,
+    progress: number
+  ): void {
+    job.phase = phase;
+    job.progress = progress;
+    this.notifyListeners(job);
   }
 
   /**
@@ -475,6 +583,16 @@ export class SessionFinalizationJobService {
     this.logger?.info('[JOB] Production HTML indexes rebuilt', {
       pageCount: manifest.pages.length,
     });
+  }
+
+  private async loadStagingRoutes(sessionId: string): Promise<string[] | undefined> {
+    const stagingManifestStorage = new ManifestFileSystem(
+      this.stagingManager.contentStagingPath(sessionId),
+      this.logger
+    );
+    const stagingManifest = await stagingManifestStorage.load();
+    const routes = stagingManifest?.pages.map((page) => page.route).filter(Boolean);
+    return routes && routes.length > 0 ? routes : undefined;
   }
 
   /**

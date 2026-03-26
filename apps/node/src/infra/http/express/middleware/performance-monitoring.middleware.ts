@@ -6,6 +6,8 @@
 import type { LoggerPort } from '@core-domain';
 import type { NextFunction, Request, Response } from 'express';
 
+import { sanitizeLogUrl } from '../utils/sanitize-log-url.util';
+
 interface PerformanceMetrics {
   requestCount: number;
   totalDurationMs: number;
@@ -17,6 +19,14 @@ interface PerformanceMetrics {
   memoryUsageMB: number;
   eventLoopLagMs: number;
   slowRequestsCount: number; // Requests > 1000ms
+}
+
+interface RequestCorrelationInfo {
+  uploadRunId?: string;
+  sessionId?: string;
+  jobId?: string;
+  contentRevision?: string;
+  phase?: string;
 }
 
 export class PerformanceMonitoringMiddleware {
@@ -85,6 +95,7 @@ export class PerformanceMonitoringMiddleware {
     return (req: Request, res: Response, next: NextFunction) => {
       const startTime = Date.now();
       const startMemory = process.memoryUsage().heapUsed;
+      const correlation = extractRequestCorrelation(req);
 
       // Estimate request size (headers + body)
       const requestSize =
@@ -122,17 +133,25 @@ export class PerformanceMonitoringMiddleware {
 
         // Log slow requests or errors
         const shouldLog = duration > 500 || res.statusCode >= 400;
+        const hasCorrelation = Object.values(correlation).some((value) => value !== undefined);
 
-        if (shouldLog && this.logger) {
-          this.logger.info('[PERF] Request completed', {
+        if ((shouldLog || hasCorrelation) && this.logger) {
+          const logPayload = {
             method: req.method,
-            url: req.originalUrl,
+            url: sanitizeLogUrl(req.originalUrl),
             status: res.statusCode,
             durationMs: duration.toFixed(2),
             requestSizeBytes: requestSize,
             memoryDeltaMB: (memoryDelta / 1024 / 1024).toFixed(2),
             eventLoopLagMs: this.eventLoopLagMs.toFixed(2),
-          });
+            ...correlation,
+          };
+
+          if (shouldLog) {
+            this.logger.info('[PERF] Request completed', logPayload);
+          } else {
+            this.logger.debug('[PERF] Request completed', logPayload);
+          }
         }
       });
 
@@ -214,4 +233,74 @@ export class PerformanceMonitoringMiddleware {
     this.slowRequestsCount = 0;
     // Don't reset event loop lag as it's continuously measured
   }
+}
+
+function extractRequestCorrelation(req: Request): RequestCorrelationInfo {
+  const body = isRecord(req.body) ? req.body : undefined;
+  const params = isRecord(req.params) ? req.params : undefined;
+  const query = isRecord(req.query) ? req.query : undefined;
+
+  const uploadRunId = getHeaderValue(req.headers['x-upload-run-id']);
+  const sessionId =
+    getStringValue(params?.sessionId) ??
+    getStringValue(body?.sessionId) ??
+    matchPathSegment(req.originalUrl, /\/session\/([^/?]+)/);
+  const jobId =
+    getStringValue(params?.jobId) ??
+    getStringValue(query?.jobId) ??
+    getStringValue(body?.jobId) ??
+    matchPathSegment(req.originalUrl, /[?&]jobId=([^&]+)/);
+  const contentRevision =
+    getStringValue(body?.contentRevision) ??
+    getStringValue(body?.result && isRecord(body.result) ? body.result.contentRevision : undefined);
+
+  return {
+    uploadRunId,
+    sessionId,
+    jobId,
+    contentRevision,
+    phase: deriveRequestPhase(req),
+  };
+}
+
+function deriveRequestPhase(req: Request): string | undefined {
+  const routePath = typeof req.route?.path === 'string' ? req.route.path : undefined;
+  const path = routePath ?? req.originalUrl;
+
+  if (path.includes('/api/session/start')) return 'session_start';
+  if (path.includes('/notes/upload')) return 'notes_upload';
+  if (path.includes('/assets/upload')) return 'assets_upload';
+  if (path.includes('/finish')) return 'session_finish';
+  if (path.includes('/status')) return 'finalization_status';
+  if (path.includes('/events/session/') && path.includes('/finalization')) {
+    return 'finalization_events';
+  }
+
+  return undefined;
+}
+
+function getHeaderValue(value: string | string[] | undefined): string | undefined {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    const first = value.find((entry) => typeof entry === 'string' && entry.trim().length > 0);
+    return typeof first === 'string' ? first.trim() : undefined;
+  }
+
+  return undefined;
+}
+
+function getStringValue(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function matchPathSegment(value: string, pattern: RegExp): string | undefined {
+  const match = value.match(pattern);
+  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
 }

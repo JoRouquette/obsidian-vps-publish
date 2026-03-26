@@ -91,6 +91,13 @@
         "command": "node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));const id=manifest.id;const buildDir=path.join(root,'dist','apps','obsidian-vps-publish');const outDir=path.join(root,'dist',id);const ensure=(p,n)=>{if(!fs.existsSync(p)) throw new Error(`${n} not found: ${p}`)};const main=path.join(buildDir,'main.js');ensure(main,'main.js');fs.rmSync(outDir,{recursive:true,force:true});fs.mkdirSync(outDir,{recursive:true});fs.copyFileSync(main,path.join(outDir,'main.js'));fs.copyFileSync(path.join(root,'manifest.json'),path.join(outDir,'manifest.json'));const styles=path.join(root,'apps','obsidian-vps-publish','styles.css');if(fs.existsSync(styles)) fs.copyFileSync(styles,path.join(outDir,'styles.css'));const versions=path.join(root,'apps','obsidian-vps-publish','versions.json');if(fs.existsSync(versions)) fs.copyFileSync(versions,path.join(outDir,'versions.json'));\""
       }
     },
+    "update-test-vault": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["package"],
+      "options": {
+        "command": "node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const vaultDir=path.join(root,'test-vault', '.obsidian','plugins','vps-publish');const buildDir=path.join(root,'dist','vps-publish');const dataFile=path.join(vaultDir,'data.json');const ensure=(p,n)=>{if(!fs.existsSync(p)) throw new Error(`${n} not found: ${p}`)};ensure(buildDir,'build output');const backupData=fs.existsSync(dataFile)?fs.readFileSync(dataFile,'utf8'):null;fs.rmSync(vaultDir,{recursive:true,force:true});fs.mkdirSync(vaultDir,{recursive:true});fs.cpSync(buildDir,vaultDir,{recursive:true});if(backupData) fs.writeFileSync(dataFile,backupData,'utf8');\""
+      }
+    },
     "lint": {
       "executor": "@nx/eslint:lint",
       "outputs": ["{workspaceRoot}/coverage/apps/obsidian-vps-publish"],

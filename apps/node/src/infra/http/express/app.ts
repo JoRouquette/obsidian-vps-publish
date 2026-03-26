@@ -36,11 +36,13 @@ import { AssetHashService } from '../../utils/asset-hash.service';
 import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
 import { createAdminDashboardController } from './controllers/admin-dashboard.controller';
 import { createContentVersionController } from './controllers/content-version.controller';
+import { createFinalizationEventsController } from './controllers/finalization-events.controller';
 import { createHealthCheckController } from './controllers/health-check.controller';
 import { createMaintenanceController } from './controllers/maintenance-controller';
 import { createPingController } from './controllers/ping.controller';
 import { createSeoController } from './controllers/seo.controller';
 import { createSessionController } from './controllers/session-controller';
+import { FinalizationStreamTokenService } from './finalization-stream-token.service';
 import { createAdminAuthMiddleware } from './middleware/admin-auth.middleware';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
 import { BackpressureMiddleware } from './middleware/backpressure.middleware';
@@ -50,6 +52,7 @@ import { createMaintenanceModeMiddleware } from './middleware/maintenance-mode.m
 import { PerformanceMonitoringMiddleware } from './middleware/performance-monitoring.middleware';
 import { createRedirectMiddleware } from './middleware/redirect.middleware';
 import { RequestCorrelationMiddleware } from './middleware/request-correlation.middleware';
+import { sanitizeLogUrl } from './utils/sanitize-log-url.util';
 
 export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
 
@@ -168,6 +171,7 @@ export function createApp(rootLogger?: LoggerPort) {
     uiRoot: EnvConfig.uiRoot(),
     loggerLevel: EnvConfig.loggerLevel(),
     allowedOrigins: EnvConfig.allowedOrigins(),
+    finalizationSseEnabled: EnvConfig.finalizationSseEnabled(),
   });
 
   const calloutRenderer = new CalloutRendererService();
@@ -258,9 +262,12 @@ export function createApp(rootLogger?: LoggerPort) {
   const finalizationJobService = new SessionFinalizationJobService(
     sessionFinalizer,
     stagingManager,
-    sessionRepository, // PHASE 6.1: needed to load allCollectedRoutes
+    sessionRepository,
     rootLogger,
     EnvConfig.maxConcurrentFinalizationJobs()
+  );
+  const finalizationStreamTokenService = new FinalizationStreamTokenService(
+    `${EnvConfig.apiKey()}:finalization-sse`
   );
 
   // Content version service for PWA cache invalidation
@@ -283,13 +290,16 @@ export function createApp(rootLogger?: LoggerPort) {
     await contentVersionService.updateVersion();
   });
 
-  // Cleanup old jobs every 10 minutes
-  setInterval(
+  // Cleanup old jobs every 10 minutes without keeping the process alive just for housekeeping.
+  const cleanupIntervalId = setInterval(
     () => {
       finalizationJobService.cleanupOldJobs(3600000); // 1 hour
     },
     10 * 60 * 1000
   );
+  if (cleanupIntervalId.unref) {
+    cleanupIntervalId.unref();
+  }
 
   // API routes (protégées par API key)
   const apiRouter = express.Router();
@@ -314,7 +324,9 @@ export function createApp(rootLogger?: LoggerPort) {
       stagingManager,
       calloutRenderer,
       finalizationJobService,
+      finalizationStreamTokenService,
       sessionRepository,
+      finalizationRealtimeEnabled: EnvConfig.finalizationSseEnabled(),
       logger: rootLogger,
     })
   );
@@ -326,7 +338,7 @@ export function createApp(rootLogger?: LoggerPort) {
       const duration = Date.now() - startTime;
       rootLogger?.debug('Request completed', {
         method: req.method,
-        url: req.originalUrl,
+        url: sanitizeLogUrl(req.originalUrl),
         status: res.statusCode,
         duration: `${duration}ms`,
         ip: req.ip,
@@ -356,6 +368,13 @@ export function createApp(rootLogger?: LoggerPort) {
   // These must be before static file handlers to ensure they're handled by Express
   const contentVersionRouter = createContentVersionController(contentVersionService, rootLogger);
   app.use(contentVersionRouter);
+  app.use(
+    createFinalizationEventsController(
+      finalizationJobService,
+      finalizationStreamTokenService,
+      rootLogger
+    )
+  );
 
   // SEO routes (sitemap.xml, robots.txt)
   const manifestLoader = async (): Promise<Manifest> => {
