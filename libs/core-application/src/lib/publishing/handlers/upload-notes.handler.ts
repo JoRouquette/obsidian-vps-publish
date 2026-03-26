@@ -272,10 +272,10 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
 
     return (
       routing !== null &&
-      typeof routing.fullPath === 'string' &&
-      typeof routing.slug === 'string' &&
-      typeof routing.path === 'string' &&
-      typeof routing.routeBase === 'string'
+      typeof routing['fullPath'] === 'string' &&
+      typeof routing['slug'] === 'string' &&
+      typeof routing['path'] === 'string' &&
+      typeof routing['routeBase'] === 'string'
     );
   }
 
