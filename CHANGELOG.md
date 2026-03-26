@@ -1,3 +1,9 @@
+## [6.19.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.19.0...6.19.1) (2026-03-26)
+
+### Bug Fixes
+
+* **release:** honor breaking changes in semantic versioning ([0ffbaeb](https://github.com/JoRouquette/obsidian-vps-publish/commit/0ffbaebfab6cda59a97f066a0a902690104f8461))
+
 ## [6.19.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.18.2...6.19.0) (2026-03-26)
 
 ### ⚠ BREAKING CHANGES
