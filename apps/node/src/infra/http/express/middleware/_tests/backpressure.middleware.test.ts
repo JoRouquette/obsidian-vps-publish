@@ -146,7 +146,7 @@ describe('Backpressure Middleware', () => {
       expect(metrics2.activeRequests).toBe(initialActive);
     });
 
-    it('should not count SSE requests against the active request quota', () => {
+    it('should not count finalization SSE requests against the active request quota', () => {
       const strictMiddleware = new BackpressureMiddleware({
         maxEventLoopLagMs: Number.MAX_SAFE_INTEGER,
         maxMemoryUsageMB: Number.MAX_SAFE_INTEGER,
@@ -156,6 +156,7 @@ describe('Backpressure Middleware', () => {
       const next = jest.fn();
 
       const sseReq = {
+        originalUrl: '/events/session/session-1/finalization?jobId=job-1',
         headers: {
           accept: 'text/event-stream',
         },
@@ -171,6 +172,37 @@ describe('Backpressure Middleware', () => {
 
       expect(next).toHaveBeenCalled();
       expect(sseRes.status).not.toHaveBeenCalled();
+      expect(strictMiddleware.getLoadMetrics().activeRequests).toBe(0);
+
+      strictMiddleware.stopEventLoopMonitoring();
+    });
+
+    it('should not exempt non-finalization routes that send the SSE accept header', () => {
+      const strictMiddleware = new BackpressureMiddleware({
+        maxEventLoopLagMs: Number.MAX_SAFE_INTEGER,
+        maxMemoryUsageMB: Number.MAX_SAFE_INTEGER,
+        maxActiveRequests: 0,
+      });
+      const handler = strictMiddleware.handle();
+      const next = jest.fn();
+
+      const nonSseReq = {
+        originalUrl: '/api/ping',
+        headers: {
+          accept: 'text/event-stream',
+        },
+      } as any;
+      const nonSseRes = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+        header: jest.fn().mockReturnThis(),
+        on: jest.fn().mockReturnThis(),
+      } as any;
+
+      handler(nonSseReq, nonSseRes, next);
+
+      expect(next).not.toHaveBeenCalled();
+      expect(nonSseRes.status).toHaveBeenCalledWith(429);
       expect(strictMiddleware.getLoadMetrics().activeRequests).toBe(0);
 
       strictMiddleware.stopEventLoopMonitoring();
