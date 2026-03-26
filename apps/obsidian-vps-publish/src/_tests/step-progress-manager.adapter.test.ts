@@ -54,4 +54,51 @@ describe('StepProgressManagerAdapter finalization phases', () => {
 
     jest.useRealTimers();
   });
+
+  it('weights backend finalization as a substantial share of global publish progress', () => {
+    const manager = new StepProgressManagerAdapter(
+      { updateProgress: jest.fn() } as any,
+      {
+        info: jest.fn(),
+        success: jest.fn(),
+        error: jest.fn(),
+      } as any,
+      {
+        getStartMessage: () => undefined,
+        getSuccessMessage: () => undefined,
+        getErrorMessage: () => undefined,
+        getSkipMessage: () => undefined,
+      }
+    );
+
+    manager.startStep(ProgressStepId.PARSE_VAULT, 'Analyse', 1);
+    manager.completeStep(ProgressStepId.PARSE_VAULT);
+
+    manager.startStep(ProgressStepId.UPLOAD_NOTES, 'Upload notes', 1);
+    manager.completeStep(ProgressStepId.UPLOAD_NOTES);
+
+    manager.startStep(ProgressStepId.UPLOAD_ASSETS, 'Upload assets', 1);
+    manager.skipStep(ProgressStepId.UPLOAD_ASSETS);
+
+    manager.startStep(ProgressStepId.FINALIZE_SESSION, 'Finalisation', 100);
+
+    expect(manager.getGlobalPercentage()).toBe(55);
+
+    applyFinalizationProgressUpdate(manager, fr, {
+      status: 'processing',
+      progress: 45,
+      phase: 'rendering_html',
+    });
+    expect(manager.getGlobalPercentage()).toBe(75);
+
+    applyFinalizationProgressUpdate(manager, fr, {
+      status: 'processing',
+      progress: 85,
+      phase: 'rebuilding_indexes',
+    });
+    expect(manager.getGlobalPercentage()).toBe(93);
+
+    manager.completeStep(ProgressStepId.FINALIZE_SESSION);
+    expect(manager.getGlobalPercentage()).toBe(100);
+  });
 });
