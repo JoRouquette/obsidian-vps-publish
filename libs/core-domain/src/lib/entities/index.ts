@@ -42,5 +42,6 @@ export * from './route-node-validation';
 export * from './sanitization-rules';
 export * from './search-index';
 export * from './session';
+export * from './source-package-note';
 export * from './vps-config';
 export * from './wikilink-ref';

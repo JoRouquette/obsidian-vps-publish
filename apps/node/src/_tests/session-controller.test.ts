@@ -388,6 +388,52 @@ describe('sessionController', () => {
     );
   });
 
+  it('accepts lean source-package note payloads for api-owned deterministic transforms', async () => {
+    sessionRepository.findById.mockResolvedValueOnce({
+      id: 'abc',
+      folderDisplayNames: { '/test': 'Test Display Name' },
+      apiOwnedDeterministicNoteTransformsEnabled: true,
+    } as any);
+
+    const app = buildApp();
+
+    const notesRes = await request(app)
+      .post('/session/abc/notes/upload')
+      .send({
+        notes: [
+          {
+            noteId: '1',
+            title: 'T',
+            content: 'c',
+            publishedAt: new Date().toISOString(),
+            eligibility: { isPublishable: true },
+            vaultPath: 'v',
+            relativePath: 'r',
+            frontmatter: { tags: [], flat: {}, nested: {} },
+            folderConfig: {
+              id: 'f',
+              vaultFolder: 'v',
+              routeBase: '/t',
+              vpsId: 'vps',
+              sanitization: [],
+            },
+          },
+        ],
+      });
+
+    expect(notesRes.status).toBe(200);
+    expect(uploadNotesHandler.handle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiOwnedDeterministicNoteTransformsEnabled: true,
+        notes: [
+          expect.not.objectContaining({
+            routing: expect.anything(),
+          }),
+        ],
+      })
+    );
+  });
+
   it('rejects invalid notes payload', async () => {
     const app = buildApp();
     const res = await request(app).post('/session/abc/notes/upload').send({ notes: [] });

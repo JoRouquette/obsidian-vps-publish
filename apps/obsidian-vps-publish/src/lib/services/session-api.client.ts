@@ -1,9 +1,9 @@
+import { type UploadSessionNote } from '@core-application';
 import { type HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
 import {
   type CustomIndexConfig,
   type FinalizationPhase,
   type IgnoreRule,
-  type PublishableNote,
   type VpsConfig,
 } from '@core-domain';
 import { type ChunkedData } from '@core-domain/entities/chunked-data';
@@ -213,7 +213,7 @@ export class SessionApiClient {
     };
   }
 
-  async uploadNotes(sessionId: string, notes: PublishableNote[]): Promise<void> {
+  async uploadNotes(sessionId: string, notes: UploadSessionNote[]): Promise<void> {
     this.logger.debug('Uploading notes', { sessionId, notesCount: notes.length });
     const result = await this.postJson(`/api/session/${sessionId}/notes/upload`, {
       notes,

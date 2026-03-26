@@ -97,4 +97,43 @@ describe('NotesUploaderAdapter', () => {
     expect(batchInfo.batchCount).toBeGreaterThan(0);
     expect((adapter as any).batchesByNotes.get(notes)).toHaveLength(batchInfo.batchCount);
   });
+
+  it('builds lean upload notes when api-owned deterministic transforms are enabled', async () => {
+    const adapter = new NotesUploaderAdapter(
+      sessionClient,
+      's1',
+      makeGuidGenerator(),
+      makeLogger(),
+      10_000,
+      undefined,
+      undefined,
+      undefined,
+      true
+    );
+
+    const notes = [
+      {
+        ...sampleNote,
+        assets: [
+          {
+            raw: '![[cover.png]]',
+            target: 'cover.png',
+            kind: 'image',
+            display: { classes: [], rawModifiers: [] },
+          },
+        ],
+        resolvedWikilinks: [
+          { raw: '[[Target]]', target: 'Target', path: '/target', kind: 'note', isResolved: true },
+        ],
+      },
+    ];
+
+    adapter.getBatchInfo(notes as any);
+
+    const uploadNotes = (adapter as any).uploadNotesByNotes.get(notes);
+    expect(uploadNotes).toHaveLength(1);
+    expect(uploadNotes[0]).not.toHaveProperty('routing');
+    expect(uploadNotes[0]).not.toHaveProperty('resolvedWikilinks');
+    expect(uploadNotes[0]).toHaveProperty('assets');
+  });
 });

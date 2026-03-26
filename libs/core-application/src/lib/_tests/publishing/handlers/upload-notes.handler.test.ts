@@ -396,6 +396,43 @@ describe('UploadNotesHandler', () => {
     );
   });
 
+  it('hydrates lean source-package notes for the api-owned upload path', async () => {
+    const notesStorage = {
+      append: jest.fn(async () => {}),
+      saveCleanupRules: jest.fn(async () => {}),
+    };
+    const handler = new UploadNotesHandler(
+      markdownRenderer,
+      contentStorage,
+      manifestStorage,
+      logger,
+      notesStorage as any
+    );
+    const note = createNote();
+    const { routing: _routing, resolvedWikilinks: _resolvedWikilinks, ...leanNote } = note as any;
+
+    await handler.handle({
+      sessionId: 's-lean',
+      notes: [leanNote],
+      apiOwnedDeterministicNoteTransformsEnabled: true,
+    });
+
+    expect(notesStorage.append).toHaveBeenCalledWith(
+      's-lean',
+      expect.arrayContaining([
+        expect.objectContaining({
+          noteId: note.noteId,
+          routing: {
+            slug: '',
+            path: '',
+            fullPath: note.vaultPath,
+            routeBase: note.folderConfig.routeBase,
+          },
+        }),
+      ])
+    );
+  });
+
   it('renders unresolved frontmatter wikilinks with the shared unavailable state markup', async () => {
     const handler = new UploadNotesHandler(
       markdownRenderer,
