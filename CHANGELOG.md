@@ -1,3 +1,37 @@
+## [6.19.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.18.2...6.19.0) (2026-03-26)
+
+### ⚠ BREAKING CHANGES
+
+* **publishing:** This commit removes the option to use client-owned deterministic transforms,
+making API-owned deterministic transforms the only path for handling note transformations. This
+change simplifies the architecture and ensures a more consistent and reliable transformation
+process, but it may require updates to existing implementations that relied on client-owned
+transforms.
+
+### Features
+
+* **node:** add realtime finalization SSE channel ([fe889bb](https://github.com/JoRouquette/obsidian-vps-publish/commit/fe889bbf4dfd3e0998bc10edd65b520207b73379))
+* **obsidian-vps-publish:** prefer SSE finalization with polling fallback ([cb89d13](https://github.com/JoRouquette/obsidian-vps-publish/commit/cb89d1347276683a29c24458bf6a4d864beab5a2))
+* **progress:** recalibrate overall publish progress weighting ([4e2b4cf](https://github.com/JoRouquette/obsidian-vps-publish/commit/4e2b4cfa0165bcca14d7a1db95a639b0e80fe1a1))
+* **progress:** report real backend publication phases over sse ([69a035f](https://github.com/JoRouquette/obsidian-vps-publish/commit/69a035fcc98c447040f609035a25da45add27161))
+* **publishing:** add authoritative unchanged-note skipping for api-owned transforms ([f9522d8](https://github.com/JoRouquette/obsidian-vps-publish/commit/f9522d82ee8b1ff00703d9b8a6ab5f72e28e884e))
+* **publishing:** make api-owned deterministic transforms the only path ([f6adcc2](https://github.com/JoRouquette/obsidian-vps-publish/commit/f6adcc2d805e19e82c14fed38d71f2c7a555ec86))
+* **publishing:** move deterministic note transforms to the api behind a feature flag ([239e293](https://github.com/JoRouquette/obsidian-vps-publish/commit/239e293e767b994c0728d2897f321960ad81012a))
+
+### Bug Fixes
+
+* **api:** scope sse backpressure exemption to finalization streams ([e3a2205](https://github.com/JoRouquette/obsidian-vps-publish/commit/e3a2205f53c00a6bee82a4f932ef4a20659e8cc4))
+* **finalization:** tolerate backpressure during status polling ([1ae6e79](https://github.com/JoRouquette/obsidian-vps-publish/commit/1ae6e79df95905e7f572736a28acc81b92bb9e14))
+* **navigation:** preserve vault folder spelling in explorer and breadcrumbs ([faf5645](https://github.com/JoRouquette/obsidian-vps-publish/commit/faf5645760bd728fb7661de2a6f9f5dab2efa901))
+* **observability:** redact finalization stream tokens from performance logs ([4f1ff61](https://github.com/JoRouquette/obsidian-vps-publish/commit/4f1ff61e7183dd9a106bc97fbdb7386ed96719b2))
+
+### Performance Improvements
+
+* **api:** remove redundant note rendering during upload ([50a7d71](https://github.com/JoRouquette/obsidian-vps-publish/commit/50a7d71cb89bb596a711ec6216cdc73fc37b8ba4))
+* **plugin:** cut local asset and batch preparation overhead ([8dec309](https://github.com/JoRouquette/obsidian-vps-publish/commit/8dec3095c407791e3e8754f72d5aaca1e9e83d3e))
+* **plugin:** move session start ahead of local publish transforms ([af0c149](https://github.com/JoRouquette/obsidian-vps-publish/commit/af0c14989789a7c544bd6fc9467e637d0b84976d))
+* **plugin:** start publish session earlier in the pipeline ([fdad0f7](https://github.com/JoRouquette/obsidian-vps-publish/commit/fdad0f747a08a712183176e17a4bf48f20b5b01f))
+
 ## [6.18.2](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.18.1...6.18.2) (2026-03-25)
 
 ### Bug Fixes
