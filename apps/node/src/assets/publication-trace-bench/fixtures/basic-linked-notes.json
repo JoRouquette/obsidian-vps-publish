@@ -1,0 +1,74 @@
+{
+  "id": "basic-linked-notes",
+  "description": "Three linked notes with inline dataview, one cleanup rule, one callout stylesheet, and one image asset.",
+  "version": "bench-v1",
+  "deduplicationEnabled": true,
+  "calloutStylePaths": ["callouts/minimal-callouts.css"],
+  "ignoredTags": ["private"],
+  "ignoreRules": [{ "property": "publish", "ignoreIf": false }],
+  "cleanupRules": [
+    {
+      "id": "strip-secret",
+      "name": "Strip secret token",
+      "regex": "SECRET_TOKEN",
+      "replacement": "[redacted]",
+      "isEnabled": true
+    }
+  ],
+  "notes": [
+    {
+      "noteId": "alpha",
+      "title": "Alpha",
+      "vaultPath": "Vault/Blog/Alpha.md",
+      "relativePath": "Alpha.md",
+      "content": "Link to [[Beta]].\\n\\nSummary: `=this.summary`\\n\\n![[assets/hero.png]]\\n\\nSECRET_TOKEN",
+      "frontmatter": { "publish": true, "summary": "Alpha summary" },
+      "folderConfig": {
+        "id": "blog",
+        "vaultFolder": "Vault/Blog",
+        "routeBase": "/blog",
+        "vpsId": "fixture-vps",
+        "displayName": "Blog"
+      }
+    },
+    {
+      "noteId": "beta",
+      "title": "Beta",
+      "vaultPath": "Vault/Blog/Beta.md",
+      "relativePath": "Beta.md",
+      "content": "> [!note]\\n> Bench fixture note.\\n\\nBacklink to [[Alpha]].",
+      "frontmatter": { "publish": true },
+      "folderConfig": {
+        "id": "blog",
+        "vaultFolder": "Vault/Blog",
+        "routeBase": "/blog",
+        "vpsId": "fixture-vps",
+        "displayName": "Blog"
+      }
+    },
+    {
+      "noteId": "gamma",
+      "title": "Gamma",
+      "vaultPath": "Vault/Blog/Gamma.md",
+      "relativePath": "Gamma.md",
+      "content": "Gamma references [[Alpha]] and [[Beta]].",
+      "frontmatter": { "publish": true },
+      "folderConfig": {
+        "id": "blog",
+        "vaultFolder": "Vault/Blog",
+        "routeBase": "/blog",
+        "vpsId": "fixture-vps",
+        "displayName": "Blog"
+      }
+    }
+  ],
+  "assets": [
+    {
+      "relativeAssetPath": "assets/hero.png",
+      "vaultPath": "Vault/Blog/assets/hero.png",
+      "fileName": "hero.png",
+      "mimeType": "image/png",
+      "contentBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sKj2WcAAAAASUVORK5CYII="
+    }
+  ]
+}
