@@ -71,6 +71,7 @@ import { SessionApiClient } from './lib/services/session-api.client';
 import { ObsidianVpsPublishSettingTab } from './lib/setting-tab.view';
 import type { PluginSettings } from './lib/settings/plugin-settings.type';
 import { enrichCleanupRules } from './lib/utils/create-default-folder-config.util';
+import { filterUnchangedNotes } from './lib/utils/filter-unchanged-notes.util';
 import { RequestUrlResponseMapper } from './lib/utils/http-response-status.mapper';
 import { insertNoPublishingMarker } from './lib/utils/insert-no-publishing-marker.util';
 import { prepareSessionBootstrapPlan } from './lib/utils/session-bootstrap-plan.util';
@@ -992,14 +993,11 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       sessionId = started.sessionId;
       const serverRequestLimit = started.maxBytesPerRequest;
       const existingAssetHashes = deduplicationEnabled ? (started.existingAssetHashes ?? []) : [];
-      const existingNoteHashes =
-        deduplicationEnabled && !apiOwnedDeterministicNoteTransformsEnabled
-          ? (started.existingNoteHashes ?? {})
-          : {};
-      const pipelineChanged =
-        deduplicationEnabled && !apiOwnedDeterministicNoteTransformsEnabled
-          ? (started.pipelineChanged ?? true)
-          : true;
+      const existingNoteHashes = deduplicationEnabled ? (started.existingNoteHashes ?? {}) : {};
+      const existingSourceNoteHashesByVaultPath = deduplicationEnabled
+        ? (started.existingSourceNoteHashesByVaultPath ?? {})
+        : {};
+      const pipelineChanged = deduplicationEnabled ? (started.pipelineChanged ?? true) : true;
       const uploadConcurrency = deduplicationEnabled ? settings.maxConcurrentUploads || 3 : 1;
 
       trace.endStep('6-session-start', {
@@ -1007,6 +1005,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         maxBytesPerRequest: serverRequestLimit,
         existingAssetHashesCount: existingAssetHashes.length,
         existingNoteHashesCount: Object.keys(existingNoteHashes).length,
+        existingSourceNoteHashesByVaultPathCount: Object.keys(existingSourceNoteHashesByVaultPath)
+          .length,
         pipelineChanged,
         deduplicationEnabled,
       });
@@ -1015,6 +1015,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         sessionId,
         maxBytesPerRequest: serverRequestLimit,
         existingNoteHashesCount: Object.keys(existingNoteHashes).length,
+        existingSourceNoteHashesByVaultPathCount: Object.keys(existingSourceNoteHashesByVaultPath)
+          .length,
         pipelineChanged,
         deduplicationEnabled,
       });
@@ -1033,59 +1035,39 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const noteHashFilterStart = performance.now();
       let noteHashFilterApplied = false;
 
-      if (
-        deduplicationEnabled &&
-        !apiOwnedDeterministicNoteTransformsEnabled &&
-        !pipelineChanged &&
-        Object.keys(existingNoteHashes).length > 0
-      ) {
+      if (deduplicationEnabled && !pipelineChanged) {
         noteHashFilterApplied = true;
         trace.checkpoint('7-upload-notes', 'filtering-unchanged-notes');
         const hashService = new BrowserHashService();
-        const filteredNotes: PublishableNote[] = [];
-        let skippedCount = 0;
+        const filterResult = await filterUnchangedNotes({
+          notes: deduplicated,
+          existingNoteHashes,
+          existingSourceNoteHashesByVaultPath,
+          pipelineChanged,
+          apiOwnedDeterministicNoteTransformsEnabled,
+          hashService,
+        });
 
-        for (const note of deduplicated) {
-          const route = note.routing.fullPath;
-          const existingHash = existingNoteHashes[route];
+        noteHashFilterApplied = filterResult.applied;
+        notesToUpload = filterResult.notesToUpload;
 
-          if (existingHash) {
-            // Compute hash of current note content
-            const currentHash = await hashService.computeHash(note.content);
+        if (filterResult.applied) {
+          this.logger.info('Notes filtered by inter-publication deduplication', {
+            totalNotes: deduplicated.length,
+            toUpload: notesToUpload.length,
+            skipped: filterResult.skippedCount,
+            strategy: apiOwnedDeterministicNoteTransformsEnabled
+              ? 'source-hash-by-vault-path'
+              : 'source-hash-by-route',
+          });
 
-            if (currentHash === existingHash) {
-              // Note unchanged, skip
-              this.logger.debug('Note unchanged, skipping', {
-                route,
-                hash: currentHash,
-              });
-              skippedCount++;
-              continue;
-            }
-          }
-
-          // Note changed or new, include for upload
-          filteredNotes.push(note);
+          trace.checkpoint('7-upload-notes', 'filtering-complete', {
+            skippedCount: filterResult.skippedCount,
+            uploadCount: notesToUpload.length,
+          });
         }
-
-        notesToUpload = filteredNotes;
-
-        this.logger.info('Notes filtered by inter-publication deduplication', {
-          totalNotes: deduplicated.length,
-          toUpload: notesToUpload.length,
-          skipped: skippedCount,
-        });
-
-        trace.checkpoint('7-upload-notes', 'filtering-complete', {
-          skippedCount,
-          uploadCount: notesToUpload.length,
-        });
       } else if (!deduplicationEnabled) {
         this.logger.info('Deduplication disabled, uploading all notes', {
-          totalNotes: deduplicated.length,
-        });
-      } else if (apiOwnedDeterministicNoteTransformsEnabled) {
-        this.logger.info('API-owned deterministic transforms enabled, uploading all notes', {
           totalNotes: deduplicated.length,
         });
       } else if (pipelineChanged) {

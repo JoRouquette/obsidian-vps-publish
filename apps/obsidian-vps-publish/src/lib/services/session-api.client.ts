@@ -20,6 +20,7 @@ export interface StartSessionResponse {
   maxBytesPerRequest: number;
   existingAssetHashes?: string[];
   existingNoteHashes?: Record<string, string>;
+  existingSourceNoteHashesByVaultPath?: Record<string, string>;
   pipelineChanged?: boolean;
 }
 
@@ -207,6 +208,7 @@ export class SessionApiClient {
       maxBytesPerRequest: effectiveLimit,
       existingAssetHashes: parsed.existingAssetHashes ?? [],
       existingNoteHashes: parsed.existingNoteHashes ?? {},
+      existingSourceNoteHashesByVaultPath: parsed.existingSourceNoteHashesByVaultPath ?? {},
       pipelineChanged: parsed.pipelineChanged,
     };
   }

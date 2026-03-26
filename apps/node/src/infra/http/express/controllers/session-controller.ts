@@ -201,6 +201,7 @@ export function createSessionController({
           maxBytesPerRequest: effectiveMaxBytesPerRequest,
           existingAssetHashes: result.existingAssetHashes ?? [],
           existingNoteHashes: result.existingNoteHashes ?? {},
+          existingSourceNoteHashesByVaultPath: result.existingSourceNoteHashesByVaultPath ?? {},
           pipelineChanged: result.pipelineChanged,
           deduplicationEnabled: result.deduplicationEnabled ?? true,
         });
