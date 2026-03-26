@@ -221,4 +221,88 @@ Visible`,
     expect(result.resolvedWikilinks).toBeUndefined();
     expect(result.assets?.some((asset) => asset.target === 'cover.png')).toBe(true);
   });
+
+  it('uses content-only inline dataview rendering for asset detection when deterministic transforms are API-owned', async () => {
+    const normalizeFrontmatterService = new NormalizeFrontmatterService(logger);
+    const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler([], logger);
+    const noteMapper = new NotesMapper();
+    const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
+    const ensureTitleHeaderService = new EnsureTitleHeaderService(logger);
+    const removeNoPublishingMarkerService = new RemoveNoPublishingMarkerService(logger);
+    const detectWikilinks = new DetectWikilinksService(logger);
+    const resolveWikilinks = new ResolveWikilinksService(logger, detectWikilinks);
+    const computeRoutingService = new ComputeRoutingService(logger);
+
+    const inlineDataviewRenderer = {
+      process: jest.fn(() => {
+        throw new Error('full-note inline dataview processing should not run in API-owned mode');
+      }),
+      renderContent: jest.fn(() => 'Cover: ![[cover.png]]'),
+    } as unknown as RenderInlineDataviewService;
+
+    const assetsDetector = {
+      process: jest.fn(() => {
+        throw new Error('default asset detection path should not run in API-owned mode');
+      }),
+      detectForContentOverride: jest.fn(() => [
+        {
+          raw: '![[cover.png]]',
+          target: 'cover.png',
+          kind: 'image',
+          origin: 'content',
+          display: {
+            alignment: undefined,
+            width: undefined,
+            classes: [],
+            rawModifiers: [],
+          },
+        },
+      ]),
+    } as unknown as DetectAssetsService;
+
+    const handler = new ParseContentHandler(
+      normalizeFrontmatterService,
+      evaluateIgnoreRulesHandler,
+      noteMapper,
+      inlineDataviewRenderer,
+      leafletBlocksDetector,
+      ensureTitleHeaderService,
+      removeNoPublishingMarkerService,
+      assetsDetector,
+      resolveWikilinks,
+      computeRoutingService,
+      logger,
+      undefined,
+      undefined,
+      undefined,
+      { deterministicTransformsOwner: 'api' }
+    );
+
+    const note: CollectedNote = {
+      noteId: 'a',
+      title: 'Deferred',
+      vaultPath: 'Vault/Blog/Deferred.md',
+      relativePath: 'Deferred.md',
+      content: 'Cover: `=this.cover`',
+      frontmatter: {
+        publish: true,
+        cover: '![[cover.png]]',
+      } as any,
+      folderConfig: baseFolder,
+    };
+
+    const [result] = await handler.handle([note]);
+
+    expect((inlineDataviewRenderer as any).process).not.toHaveBeenCalled();
+    expect((inlineDataviewRenderer as any).renderContent).toHaveBeenCalledWith(
+      'Cover: `=this.cover`',
+      expect.objectContaining({
+        nested: expect.objectContaining({ cover: '![[cover.png]]' }),
+      })
+    );
+    expect((assetsDetector as any).process).not.toHaveBeenCalled();
+    expect((assetsDetector as any).detectForContentOverride).toHaveBeenCalledTimes(1);
+    expect(result.content).toBe('Cover: `=this.cover`');
+    expect(result.assets?.some((asset) => asset.target === 'cover.png')).toBe(true);
+  });
 });

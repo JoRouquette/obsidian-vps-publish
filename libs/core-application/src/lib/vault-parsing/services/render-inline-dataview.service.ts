@@ -19,60 +19,58 @@ export class RenderInlineDataviewService implements BaseService {
       notesCount: notes.length,
     });
 
-    return notes.map((note) => {
-      const { content, frontmatter } = note;
+    return notes.map((note) => ({
+      ...note,
+      content: this.renderContent(note.content, note.frontmatter),
+    }));
+  }
 
-      const expressions: InlineDataviewExpression[] = [];
+  renderContent(content: string, frontmatter: DomainFrontmatter): string {
+    const expressions: InlineDataviewExpression[] = [];
 
-      const renderedMarkdown = content.replace(
-        INLINE_CODE_REGEX,
-        (fullMatch: string, innerCode: string) => {
-          const codeRaw = innerCode;
-          const trimmed = codeRaw.trim();
+    const renderedMarkdown = content.replace(
+      INLINE_CODE_REGEX,
+      (fullMatch: string, innerCode: string) => {
+        const codeRaw = innerCode;
+        const trimmed = codeRaw.trim();
 
-          if (!trimmed.startsWith('=')) {
-            this._logger.debug(`Skipping non-dataview inline code: ${fullMatch}`);
-            return fullMatch;
-          }
-
-          const expr = trimmed.slice(1).trim(); // Retire le '=' initial
-
-          // Évaluer l'expression (peut contenir join(), this.property, etc.)
-          const resolvedValue = this.evaluateExpression(expr, frontmatter, this._logger);
-          const renderedText = this.renderValue(resolvedValue, this._logger);
-
-          expressions.push({
-            raw: fullMatch,
-            code: codeRaw,
-            expression: expr,
-            propertyPath: this.extractPropertyPath(expr),
-            resolvedValue,
-            renderedText,
-          });
-
-          this._logger.debug(
-            `Replaced inline code '${fullMatch}' with rendered value: '${renderedText}'`
-          );
-
-          return renderedText;
+        if (!trimmed.startsWith('=')) {
+          this._logger.debug(`Skipping non-dataview inline code: ${fullMatch}`);
+          return fullMatch;
         }
-      );
 
-      this._logger.debug(`Rendered ${expressions.length} inline dataview expressions in note.`);
+        const expr = trimmed.slice(1).trim();
+        const resolvedValue = this.evaluateExpression(expr, frontmatter, this._logger);
+        const renderedText = this.renderValue(resolvedValue, this._logger);
 
-      return {
-        ...note,
-        content: renderedMarkdown,
-      };
-    });
+        expressions.push({
+          raw: fullMatch,
+          code: codeRaw,
+          expression: expr,
+          propertyPath: this.extractPropertyPath(expr),
+          resolvedValue,
+          renderedText,
+        });
+
+        this._logger.debug(
+          `Replaced inline code '${fullMatch}' with rendered value: '${renderedText}'`
+        );
+
+        return renderedText;
+      }
+    );
+
+    this._logger.debug(`Rendered ${expressions.length} inline dataview expressions in note.`);
+
+    return renderedMarkdown;
   }
 
   /**
-   * Évalue une expression Dataview inline.
-   * Gère :
-   *  - `this.property` : accès direct
+   * Evalue une expression Dataview inline.
+   * Gere :
+   *  - `this.property` : acces direct
    *  - `join(this.property, separator)` : jointure de liste
-   *  - Autres fonctions peuvent être ajoutées ici
+   *  - Autres fonctions peuvent etre ajoutees ici
    */
   private evaluateExpression(
     expr: string,
@@ -81,7 +79,6 @@ export class RenderInlineDataviewService implements BaseService {
   ): unknown {
     const trimmedExpr = expr.trim();
 
-    // Pattern pour join(this.property, "separator")
     const joinMatch = trimmedExpr.match(/^join\(\s*(this\.[^,]+)\s*,\s*["']([^"']*)["']\s*\)$/);
     if (joinMatch) {
       const propertyPath = joinMatch[1].replace(/^this\./, '').trim();
@@ -91,15 +88,10 @@ export class RenderInlineDataviewService implements BaseService {
       );
 
       const value = this.getValueFromFrontmatter(frontmatter, propertyPath, logger);
-
-      // Normaliser en array si nécessaire
       const arrayValue = this.normalizeToArray(value);
-
-      // Joindre avec le séparateur
       return arrayValue.map((v) => String(v)).join(separator);
     }
 
-    // Pattern pour this.property simple
     const THIS_PREFIX = 'this.';
     if (trimmedExpr.startsWith(THIS_PREFIX)) {
       const propertyPath = trimmedExpr.slice(THIS_PREFIX.length).trim();
@@ -114,11 +106,6 @@ export class RenderInlineDataviewService implements BaseService {
     return undefined;
   }
 
-  /**
-   * Extrait le chemin de propriété principal d'une expression.
-   * Ex: "join(this.effets, ' ')" → "effets"
-   *     "this.titres" → "titres"
-   */
   private extractPropertyPath(expr: string): string {
     const joinMatch = expr.match(/join\(\s*this\.([^,]+)/);
     if (joinMatch) {
@@ -133,13 +120,6 @@ export class RenderInlineDataviewService implements BaseService {
     return '';
   }
 
-  /**
-   * Normalise une valeur en array.
-   * - Si déjà array : retour tel quel
-   * - Si string : wrap dans un array à un élément
-   * - Si null/undefined : array vide
-   * - Sinon : wrap dans array
-   */
   private normalizeToArray(value: unknown): unknown[] {
     if (value === null || value === undefined) {
       return [];
@@ -147,7 +127,6 @@ export class RenderInlineDataviewService implements BaseService {
     if (Array.isArray(value)) {
       return value;
     }
-    // Chaîne simple ou autre type scalaire : wrap dans un array
     return [value];
   }
 
