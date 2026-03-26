@@ -13,6 +13,7 @@ Each run captures:
 - `jobId`
 - deterministic-transform mode: `plugin-owned` or `api-owned`
 - note count and asset count
+- uploaded note count and skipped note count after simulated unchanged-note filtering
 - request payload sizes and estimated chunk counts
 - `time_to_first_request_ms`
 - plugin-side hot-path timings mirrored by the benchmark harness
@@ -28,6 +29,13 @@ Current samples:
 
 - `basic-linked-notes`
 - `duplicate-route-corpus`
+
+Fixtures can also seed an `existingPublication` scenario to model the live dedup handshake:
+
+- `pipelineState: "unchanged"` simulates a matching production manifest and enables note-hash filtering
+- `pipelineState: "changed"` simulates a pipeline-signature mismatch and forces full note upload
+- `unchangedNoteIds` marks notes whose stored `sourceHash` should match the current source
+- `missingHashNoteIds` omits stored hashes to simulate safe fallback uploads
 
 ## Run A Benchmark
 
@@ -91,4 +99,9 @@ The JSON output is the source of truth for machine-readable analysis. The Markdo
 
 - The harness is fixture-driven and does not enforce timing budgets.
 - It reuses the existing instrumentation concepts and backend finalization phases without changing publication semantics.
+- It now models unchanged-note skipping more realistically:
+  - `plugin-owned` mode uses stored `route -> sourceHash`
+  - `api-owned` mode uses stored `vaultPath -> sourceHash`
+  - if the seeded pipeline is marked changed, the harness disables note-hash skipping just like the live flow
+- The harness still does not run the real Obsidian desktop UI thread or full HTTP transport stack, so it is best for relative revision comparisons rather than absolute user-perceived latency claims.
 - Run it from the repository root so fixture and asset paths resolve consistently.

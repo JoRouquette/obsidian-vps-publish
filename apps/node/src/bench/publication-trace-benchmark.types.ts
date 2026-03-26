@@ -10,8 +10,15 @@ export interface PublicationBenchmarkFixture {
   ignoredTags?: string[];
   ignoreRules?: IgnoreRule[];
   cleanupRules?: NonNullable<VpsConfig['cleanupRules']>;
+  existingPublication?: PublicationBenchmarkExistingPublication;
   notes: PublicationBenchmarkCollectedNote[];
   assets?: PublicationBenchmarkAsset[];
+}
+
+export interface PublicationBenchmarkExistingPublication {
+  pipelineState?: 'unchanged' | 'changed';
+  unchangedNoteIds?: string[];
+  missingHashNoteIds?: string[];
 }
 
 export interface PublicationBenchmarkCollectedNote {
@@ -55,9 +62,15 @@ export interface PublicationBenchmarkRun {
   assetCount: number;
   publishableNoteCount: number;
   uploadedNoteCount: number;
+  skippedNoteCount: number;
   uploadedAssetCount: number;
   deduplicationEnabled: boolean;
   apiOwnedDeterministicNoteTransformsEnabled: boolean;
+  deduplication: {
+    pipelineChanged: boolean;
+    noteHashFilterApplied: boolean;
+    skipStrategy: 'none' | 'source-hash-by-route' | 'source-hash-by-vault-path';
+  };
   timings: {
     publication_start_epoch_ms: number;
     time_to_first_request_ms: number;
@@ -118,6 +131,8 @@ export interface PublicationBenchmarkMetricSummary {
   chunk_prepare_duration_ms: number;
   notes_upload_json_bytes: number;
   assets_upload_json_bytes: number;
+  uploaded_note_count: number;
+  skipped_note_count: number;
 }
 
 export interface PublicationBenchmarkReport {

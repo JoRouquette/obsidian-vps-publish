@@ -5,6 +5,10 @@
   "deduplicationEnabled": true,
   "ignoredTags": ["private"],
   "ignoreRules": [{ "property": "publish", "ignoreIf": false }],
+  "existingPublication": {
+    "pipelineState": "changed",
+    "unchangedNoteIds": ["overview-a", "nested-beta"]
+  },
   "notes": [
     {
       "noteId": "overview-a",

@@ -16,6 +16,8 @@ describe('publication trace benchmark harness', () => {
       'basic-linked-notes',
       'duplicate-route-corpus',
     ]);
+    expect(fixtures[0]?.existingPublication?.pipelineState).toBe('unchanged');
+    expect(fixtures[1]?.existingPublication?.pipelineState).toBe('changed');
   });
 
   it('produces comparable reports for plugin-owned and api-owned deterministic transform modes', async () => {
@@ -39,8 +41,22 @@ describe('publication trace benchmark harness', () => {
     expect(pluginOwned?.samples[0].jobId).toBeTruthy();
     expect(pluginOwned?.samples[0].timings.time_to_first_request_ms).toBeGreaterThanOrEqual(0);
     expect(pluginOwned?.samples[0].payloadSizes.notes_chunk_count).toBeGreaterThanOrEqual(1);
+    expect(pluginOwned?.samples[0].uploadedNoteCount).toBe(2);
+    expect(pluginOwned?.samples[0].skippedNoteCount).toBe(1);
+    expect(pluginOwned?.samples[0].deduplication.pipelineChanged).toBe(false);
+    expect(pluginOwned?.samples[0].deduplication.noteHashFilterApplied).toBe(true);
+    expect(pluginOwned?.samples[0].deduplication.skipStrategy).toBe('source-hash-by-route');
+    expect(pluginOwned?.average.uploaded_note_count).toBe(2);
+    expect(pluginOwned?.average.skipped_note_count).toBe(1);
     expect(apiOwned?.samples[0].finalization.status).toBe('completed');
     expect(apiOwned?.samples[0].finalization.total_phase_duration_ms).toBeGreaterThanOrEqual(0);
+    expect(apiOwned?.samples[0].uploadedNoteCount).toBe(2);
+    expect(apiOwned?.samples[0].skippedNoteCount).toBe(1);
+    expect(apiOwned?.samples[0].deduplication.pipelineChanged).toBe(false);
+    expect(apiOwned?.samples[0].deduplication.noteHashFilterApplied).toBe(true);
+    expect(apiOwned?.samples[0].deduplication.skipStrategy).toBe('source-hash-by-vault-path');
+    expect(apiOwned?.average.uploaded_note_count).toBe(2);
+    expect(apiOwned?.average.skipped_note_count).toBe(1);
 
     const comparison = report.comparisons[0];
     expect(comparison.fixtureId).toBe('basic-linked-notes');
@@ -49,6 +65,27 @@ describe('publication trace benchmark harness', () => {
     const markdown = renderBenchmarkMarkdown(report);
     expect(markdown).toContain('# Publication Trace Benchmark');
     expect(markdown).toContain('basic-linked-notes');
+    expect(markdown).toContain('Skipped');
+  });
+
+  it('models pipeline-changed scenarios by keeping note-hash skipping disabled', async () => {
+    const [fixture] = await loadBenchmarkFixtures(['duplicate-route-corpus']);
+    const report = await runPublicationBenchmarkReport({
+      fixtures: [fixture],
+      mode: 'both',
+      iterations: 1,
+    });
+
+    expect(report.aggregates).toHaveLength(2);
+    for (const aggregate of report.aggregates) {
+      const sample = aggregate.samples[0];
+      expect(sample.deduplication.pipelineChanged).toBe(true);
+      expect(sample.deduplication.noteHashFilterApplied).toBe(false);
+      expect(sample.deduplication.skipStrategy).toBe('none');
+      expect(sample.skippedNoteCount).toBe(0);
+      expect(sample.uploadedNoteCount).toBe(sample.publishableNoteCount);
+      expect(sample.timings.note_hash_filter_duration_ms).toBeGreaterThanOrEqual(0);
+    }
   });
 
   it('renders machine-readable revision comparisons from saved reports', async () => {
