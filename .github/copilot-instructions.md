@@ -121,6 +121,7 @@ The runtime stage:
 
 - **semantic-release** drives versioning (see `release.config.cjs`)
 - Commit types: `feat` (minor), `fix`/`hotfix`/`perf`/`refactor` (patch), `docs(readme)` (patch)
+- Breaking changes MUST use either `type(scope)!: subject` or a `BREAKING CHANGE:` footer so semantic-release emits a `major`
 - On merge to `main`:
   1. `scripts/sync-version.mjs` updates `package.json`, `manifest.json`, `versions.json`, and `apps/{node,site}/src/version.ts`
   2. Plugin is built and packaged to `dist/vps-publish.zip`
