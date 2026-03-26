@@ -47,7 +47,7 @@ export interface PublicationBenchmarkAsset {
   contentBase64: string;
 }
 
-export type PublicationBenchmarkMode = 'plugin-owned' | 'api-owned';
+export type PublicationBenchmarkMode = 'pipeline-unchanged' | 'pipeline-changed';
 
 export interface PublicationBenchmarkRun {
   fixtureId: string;
@@ -65,11 +65,10 @@ export interface PublicationBenchmarkRun {
   skippedNoteCount: number;
   uploadedAssetCount: number;
   deduplicationEnabled: boolean;
-  apiOwnedDeterministicNoteTransformsEnabled: boolean;
   deduplication: {
     pipelineChanged: boolean;
     noteHashFilterApplied: boolean;
-    skipStrategy: 'none' | 'source-hash-by-route' | 'source-hash-by-vault-path';
+    skipStrategy: 'none' | 'source-hash-by-vault-path';
   };
   timings: {
     publication_start_epoch_ms: number;
@@ -142,15 +141,15 @@ export interface PublicationBenchmarkReport {
   platform: string;
   iterations: number;
   fixtureIds: string[];
-  mode: 'plugin-owned' | 'api-owned' | 'both';
+  mode: 'pipeline-unchanged' | 'pipeline-changed' | 'both';
   aggregates: PublicationBenchmarkAggregate[];
   comparisons: PublicationBenchmarkModeComparison[];
 }
 
 export interface PublicationBenchmarkModeComparison {
   fixtureId: string;
-  pluginOwned?: PublicationBenchmarkAggregate;
-  apiOwned?: PublicationBenchmarkAggregate;
+  pipelineUnchanged?: PublicationBenchmarkAggregate;
+  pipelineChanged?: PublicationBenchmarkAggregate;
   deltas?: Partial<Record<keyof PublicationBenchmarkMetricSummary, number>>;
 }
 

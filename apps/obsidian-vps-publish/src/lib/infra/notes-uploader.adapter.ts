@@ -31,8 +31,7 @@ export class NotesUploaderAdapter implements UploaderPort {
     private readonly maxBytesPerRequest: number,
     private readonly progress?: ProgressPort | StepProgressManagerPort,
     private readonly cleanupRules?: SanitizationRules[],
-    concurrencyLimit?: number,
-    private readonly apiOwnedDeterministicNoteTransformsEnabled = false
+    concurrencyLimit?: number
   ) {
     this._logger = logger.child({ component: 'NotesUploaderAdapter' });
     this.concurrencyLimit = concurrencyLimit || 3; // Default to 3
@@ -168,10 +167,7 @@ export class NotesUploaderAdapter implements UploaderPort {
       return cached;
     }
 
-    const uploadNotes = buildUploadSessionNotes(
-      notes,
-      this.apiOwnedDeterministicNoteTransformsEnabled
-    );
+    const uploadNotes = buildUploadSessionNotes(notes);
     this.uploadNotesByNotes.set(notes, uploadNotes);
     return uploadNotes;
   }

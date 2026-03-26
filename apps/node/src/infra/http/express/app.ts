@@ -262,7 +262,7 @@ export function createApp(rootLogger?: LoggerPort) {
   const finalizationJobService = new SessionFinalizationJobService(
     sessionFinalizer,
     stagingManager,
-    sessionRepository, // PHASE 6.1: needed to load allCollectedRoutes
+    sessionRepository,
     rootLogger,
     EnvConfig.maxConcurrentFinalizationJobs()
   );

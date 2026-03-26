@@ -191,13 +191,11 @@ describe('E2E: Inter-publication Note Deduplication', () => {
       await expect(fs.access(stagedHtmlPath)).rejects.toThrow();
     }
 
-    // Step 3: Finish session (with allCollectedRoutes)
-    const allCollectedRoutes = notes.map((n) => n.routing.fullPath);
+    // Step 3: Finish session
     await finishSessionHandler.handle({
       sessionId,
       notesProcessed: notes.length,
       assetsProcessed: 0,
-      allCollectedRoutes,
     });
 
     // Step 4: Queue finalization and wait for completion
@@ -275,8 +273,8 @@ describe('E2E: Inter-publication Note Deduplication', () => {
       pipelineSignature
     );
 
-    // Assert 2: CreateSession should have returned existingNoteHashes
-    // In real scenario, client would filter notes before upload
+    // Assert 2: source hashes remain stable for unchanged notes across publishes.
+    // In real scenario, the plugin would filter notes before upload.
     // Here we simulate that all 5 notes were uploaded again (no client-side optimization in test)
     // But manifest should preserve sourceHash from first publish for unchanged content
     expect(manifest2).not.toBeNull();
@@ -432,7 +430,7 @@ describe('E2E: Inter-publication Note Deduplication', () => {
   /**
    * SCENARIO 6: Rename note with stable route → skipped (hash match)
    */
-  it('should skip note when renamed but route unchanged (hash match)', async () => {
+  it('should preserve the route when title changes but route stays stable', async () => {
     // Arrange: Initial note with stable route
     const stableRoute = '/notes/note1';
     const note1 = createNote('note1', 'Original Title', stableRoute, '# Content\n\nText');
@@ -458,11 +456,12 @@ describe('E2E: Inter-publication Note Deduplication', () => {
 
     const { manifest: manifest2 } = await publishNotes([note1Renamed], pipelineSignature);
 
-    // Assert: Route still present with SAME hash (proves skip optimization works)
+    // Assert: Route is preserved and the new authoritative title is published.
     const hash2 = manifest2!.pages.find((p) => p.route === stableRoute)?.sourceHash;
-    expect(hash2).toBe(hash1);
+    expect(hash2).toBeDefined();
+    expect(hash2).not.toBe(hash1);
 
-    // Title in manifest should be updated (from staging)
+    // Title in manifest should be updated from the latest uploaded note.
     const page2 = manifest2!.pages.find((p) => p.route === stableRoute);
     expect(page2?.title).toBe('NEW Title After Rename');
   }, 15000);

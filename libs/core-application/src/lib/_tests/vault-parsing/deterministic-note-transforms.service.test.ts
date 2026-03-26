@@ -3,58 +3,31 @@ import type { PublishableNote, ResolvedWikilink } from '@core-domain';
 import { EvaluateIgnoreRulesHandler } from '../../vault-parsing/handler/evaluate-ignore-rules.handler';
 import { ParseContentHandler } from '../../vault-parsing/handler/parse-content.handler';
 import { NotesMapper } from '../../vault-parsing/mappers/notes.mapper';
-import { ComputeRoutingService } from '../../vault-parsing/services/compute-routing.service';
-import { DeduplicateNotesService } from '../../vault-parsing/services/deduplicate-notes.service';
 import { DetectAssetsService } from '../../vault-parsing/services/detect-assets.service';
 import { DetectLeafletBlocksService } from '../../vault-parsing/services/detect-leaflet-blocks.service';
-import { DetectWikilinksService } from '../../vault-parsing/services/detect-wikilinks.service';
 import { DeterministicNoteTransformsService } from '../../vault-parsing/services/deterministic-note-transforms.service';
-import { EnsureTitleHeaderService } from '../../vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '../../vault-parsing/services/normalize-frontmatter.service';
 import { RemoveNoPublishingMarkerService } from '../../vault-parsing/services/remove-no-publishing-marker.service';
 import { RenderInlineDataviewService } from '../../vault-parsing/services/render-inline-dataview.service';
-import { ResolveWikilinksService } from '../../vault-parsing/services/resolve-wikilinks.service';
 import {
   deterministicTransformParityFixtures,
   deterministicTransformParityIgnoreRules,
 } from '../fixtures/deterministic-transform-parity.fixture';
 import { NoopLogger } from '../helpers/fake-logger';
 
-describe('DeterministicNoteTransformsService parity', () => {
+describe('DeterministicNoteTransformsService', () => {
   const logger = new NoopLogger();
 
-  function buildParseHandler(mode: 'plugin' | 'api') {
-    const normalizeFrontmatterService = new NormalizeFrontmatterService(logger);
-    const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(
-      deterministicTransformParityIgnoreRules,
-      logger
-    );
-    const noteMapper = new NotesMapper();
-    const inlineDataviewRenderer = new RenderInlineDataviewService(logger);
-    const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
-    const ensureTitleHeaderService = new EnsureTitleHeaderService(logger);
-    const removeNoPublishingMarkerService = new RemoveNoPublishingMarkerService(logger);
-    const assetsDetector = new DetectAssetsService(logger);
-    const detectWikilinks = new DetectWikilinksService(logger);
-    const resolveWikilinks = new ResolveWikilinksService(logger, detectWikilinks);
-    const computeRoutingService = new ComputeRoutingService(logger);
-
+  function buildParseHandler() {
     return new ParseContentHandler(
-      normalizeFrontmatterService,
-      evaluateIgnoreRulesHandler,
-      noteMapper,
-      inlineDataviewRenderer,
-      leafletBlocksDetector,
-      ensureTitleHeaderService,
-      removeNoPublishingMarkerService,
-      assetsDetector,
-      resolveWikilinks,
-      computeRoutingService,
-      logger,
-      undefined,
-      undefined,
-      undefined,
-      { deterministicTransformsOwner: mode }
+      new NormalizeFrontmatterService(logger),
+      new EvaluateIgnoreRulesHandler(deterministicTransformParityIgnoreRules, logger),
+      new NotesMapper(),
+      new RenderInlineDataviewService(logger),
+      new DetectLeafletBlocksService(logger),
+      new RemoveNoPublishingMarkerService(logger),
+      new DetectAssetsService(logger),
+      logger
     );
   }
 
@@ -85,27 +58,33 @@ describe('DeterministicNoteTransformsService parity', () => {
   }
 
   for (const fixture of deterministicTransformParityFixtures) {
-    it(`matches plugin-owned deterministic output for ${fixture.id}`, async () => {
-      const pluginOwned = new DeduplicateNotesService(logger).process(
-        await buildParseHandler('plugin').handle(fixture.notes)
-      );
-      const apiPrepared = await buildParseHandler('api').handle(fixture.notes);
-      const apiOwned = await new DeterministicNoteTransformsService(logger).process(apiPrepared, {
+    it(`produces stable deterministic output for ${fixture.id}`, async () => {
+      const prepared = await buildParseHandler().handle(fixture.notes);
+      const service = new DeterministicNoteTransformsService(logger);
+
+      const firstPass = await service.process(prepared, {
         deduplicationEnabled: true,
         ignoreRulesAlreadyApplied: true,
       });
+      const secondPass = await service.process(
+        prepared.map((note) => ({ ...note })),
+        {
+          deduplicationEnabled: true,
+          ignoreRulesAlreadyApplied: true,
+        }
+      );
 
-      expect(simplifyNotes(apiOwned)).toEqual(simplifyNotes(pluginOwned));
+      expect(simplifyNotes(secondPass)).toEqual(simplifyNotes(firstPass));
+      expect(new Set(firstPass.map((note) => note.routing.fullPath)).size).toBe(firstPass.length);
 
       for (const ignoredNoteId of fixture.ignoredNoteIds) {
-        expect(apiOwned.some((note) => note.noteId === ignoredNoteId)).toBe(false);
-        expect(pluginOwned.some((note) => note.noteId === ignoredNoteId)).toBe(false);
+        expect(firstPass.some((note) => note.noteId === ignoredNoteId)).toBe(false);
       }
     });
   }
 
   it('drops notes that are already marked non-publishable when ignore rules were applied upstream', async () => {
-    const evaluated = await buildParseHandler('api').handle(
+    const evaluated = await buildParseHandler().handle(
       deterministicTransformParityFixtures[0].notes
     );
     const noteMarkedIgnored = {

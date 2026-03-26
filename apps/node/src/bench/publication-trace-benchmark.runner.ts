@@ -14,16 +14,11 @@ import {
   UploadNotesHandler,
 } from '@core-application';
 import { EvaluateIgnoreRulesHandler } from '@core-application/vault-parsing/handler/evaluate-ignore-rules.handler';
-import { ComputeRoutingService } from '@core-application/vault-parsing/services/compute-routing.service';
-import { DeduplicateNotesService } from '@core-application/vault-parsing/services/deduplicate-notes.service';
 import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
 import { DetectLeafletBlocksService } from '@core-application/vault-parsing/services/detect-leaflet-blocks.service';
-import { DetectWikilinksService } from '@core-application/vault-parsing/services/detect-wikilinks.service';
-import { EnsureTitleHeaderService } from '@core-application/vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';
 import { RemoveNoPublishingMarkerService } from '@core-application/vault-parsing/services/remove-no-publishing-marker.service';
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
-import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
 import type {
   CollectedNote,
   DomainFrontmatter,
@@ -147,7 +142,7 @@ type SimulatedNoteHashFilterResult = {
   skippedCount: number;
   applied: boolean;
   pipelineChanged: boolean;
-  strategy: 'none' | 'source-hash-by-route' | 'source-hash-by-vault-path';
+  strategy: 'none' | 'source-hash-by-vault-path';
 };
 
 type ApiAssetPayload = {
@@ -197,11 +192,12 @@ export async function loadBenchmarkFixtures(
 
 export async function runPublicationBenchmarkReport(args: {
   fixtures: PublicationBenchmarkFixture[];
-  mode: 'plugin-owned' | 'api-owned' | 'both';
+  mode: 'pipeline-unchanged' | 'pipeline-changed' | 'both';
   iterations: number;
 }): Promise<PublicationBenchmarkReport> {
   const runs: PublicationBenchmarkRun[] = [];
-  const modes = args.mode === 'both' ? (['plugin-owned', 'api-owned'] as const) : [args.mode];
+  const modes =
+    args.mode === 'both' ? (['pipeline-unchanged', 'pipeline-changed'] as const) : [args.mode];
 
   for (const fixture of args.fixtures) {
     for (const mode of modes) {
@@ -232,7 +228,6 @@ export async function runPublicationBenchmarkIteration(
 ): Promise<PublicationBenchmarkRun> {
   const logger = new NullLogger();
   const deduplicationEnabled = fixture.deduplicationEnabled !== false;
-  const apiOwnedDeterministicNoteTransformsEnabled = mode === 'api-owned';
   const uploadRunId = randomUUID();
   const publicationStartEpochMs = Date.now();
   const publicationStart = performance.now();
@@ -249,14 +244,11 @@ export async function runPublicationBenchmarkIteration(
     });
 
     const parseStart = performance.now();
-    const prepared = await preparePublicationFixture(fixture, mode, logger);
+    const prepared = await preparePublicationFixture(fixture, logger);
     const parseAndTransformDurationMs = performance.now() - parseStart;
 
     const dedupStart = performance.now();
-    const publishables =
-      deduplicationEnabled && !apiOwnedDeterministicNoteTransformsEnabled
-        ? new DeduplicateNotesService(logger).process(prepared.notes)
-        : prepared.notes;
+    const publishables = prepared.notes;
     const dedupDurationMs = performance.now() - dedupStart;
 
     await seedExistingPublicationManifest({
@@ -264,6 +256,7 @@ export async function runPublicationBenchmarkIteration(
       fixture,
       publishables,
       pipelineSignature,
+      pipelineState: mode === 'pipeline-changed' ? 'changed' : 'unchanged',
     });
 
     const timeToFirstRequestMs = performance.now() - publicationStart;
@@ -279,17 +272,14 @@ export async function runPublicationBenchmarkIteration(
       folderDisplayNames: collectFolderDisplayNames(publishables),
       pipelineSignature,
       deduplicationEnabled,
-      apiOwnedDeterministicNoteTransformsEnabled,
     });
     const startSessionDurationMs = performance.now() - startSessionStart;
 
     const noteHashFilterStart = performance.now();
     const noteHashFilter = simulateNoteHashFilter({
       notes: publishables,
-      existingNoteHashes: startResult.existingNoteHashes,
       existingSourceNoteHashesByVaultPath: startResult.existingSourceNoteHashesByVaultPath,
       pipelineChanged: startResult.pipelineChanged === true,
-      apiOwnedDeterministicNoteTransformsEnabled,
     });
     const noteHashFilterDurationMs = performance.now() - noteHashFilterStart;
     const notesToUpload = noteHashFilter.notesToUpload;
@@ -324,7 +314,6 @@ export async function runPublicationBenchmarkIteration(
         sessionId: startResult.sessionId,
         notes: noteBatches[index],
         cleanupRules: index === 0 ? ((fixture.cleanupRules as SanitizationRules[]) ?? []) : [],
-        apiOwnedDeterministicNoteTransformsEnabled,
       });
     }
     const notesUploadDurationMs = performance.now() - notesUploadStart;
@@ -366,16 +355,11 @@ export async function runPublicationBenchmarkIteration(
     }
     const assetsUploadDurationMs = performance.now() - assetsUploadStart;
 
-    const allCollectedRoutes = apiOwnedDeterministicNoteTransformsEnabled
-      ? undefined
-      : prepared.notes.map((note) => note.routing.fullPath);
-
     const finishStart = performance.now();
     await env.finishSessionHandler.handle({
       sessionId: startResult.sessionId,
       notesProcessed: notesToUpload.length,
       assetsProcessed: apiAssets.length,
-      allCollectedRoutes,
     });
     const finishSessionDurationMs = performance.now() - finishStart;
 
@@ -401,7 +385,6 @@ export async function runPublicationBenchmarkIteration(
       skippedNoteCount: noteHashFilter.skippedCount,
       uploadedAssetCount: apiAssets.length,
       deduplicationEnabled,
-      apiOwnedDeterministicNoteTransformsEnabled,
       deduplication: {
         pipelineChanged: noteHashFilter.pipelineChanged,
         noteHashFilterApplied: noteHashFilter.applied,
@@ -488,19 +471,19 @@ export function buildModeComparisons(
   const byFixture = new Map<string, PublicationBenchmarkModeComparison>();
   for (const aggregate of aggregates) {
     const comparison = byFixture.get(aggregate.fixtureId) ?? { fixtureId: aggregate.fixtureId };
-    if (aggregate.mode === 'plugin-owned') {
-      comparison.pluginOwned = aggregate;
+    if (aggregate.mode === 'pipeline-unchanged') {
+      comparison.pipelineUnchanged = aggregate;
     } else {
-      comparison.apiOwned = aggregate;
+      comparison.pipelineChanged = aggregate;
     }
     byFixture.set(aggregate.fixtureId, comparison);
   }
 
   for (const comparison of byFixture.values()) {
-    if (comparison.pluginOwned && comparison.apiOwned) {
+    if (comparison.pipelineUnchanged && comparison.pipelineChanged) {
       comparison.deltas = calculateMetricDeltas(
-        comparison.pluginOwned.average,
-        comparison.apiOwned.average
+        comparison.pipelineUnchanged.average,
+        comparison.pipelineChanged.average
       );
     }
   }
@@ -590,12 +573,12 @@ export function renderBenchmarkMarkdown(report: PublicationBenchmarkReport): str
       if (!comparison.deltas) {
         continue;
       }
-      const pluginFinalization =
-        comparison.pluginOwned?.samples[0].finalization.total_phase_duration_ms ?? 0;
-      const apiFinalization =
-        comparison.apiOwned?.samples[0].finalization.total_phase_duration_ms ?? 0;
+      const unchangedFinalization =
+        comparison.pipelineUnchanged?.samples[0].finalization.total_phase_duration_ms ?? 0;
+      const changedFinalization =
+        comparison.pipelineChanged?.samples[0].finalization.total_phase_duration_ms ?? 0;
       lines.push(
-        `| ${comparison.fixtureId} | ${formatDelta(comparison.deltas.uploaded_note_count)} | ${formatDelta(comparison.deltas.skipped_note_count)} | ${formatDelta(comparison.deltas.time_to_first_request_ms)} | ${formatDelta(comparison.deltas.note_hash_filter_duration_ms)} | ${formatDelta(comparison.deltas.notes_upload_duration_ms)} | ${formatDelta(comparison.deltas.total_publication_duration_ms)} | ${formatDelta(apiFinalization - pluginFinalization)} |`
+        `| ${comparison.fixtureId} | ${formatDelta(comparison.deltas.uploaded_note_count)} | ${formatDelta(comparison.deltas.skipped_note_count)} | ${formatDelta(comparison.deltas.time_to_first_request_ms)} | ${formatDelta(comparison.deltas.note_hash_filter_duration_ms)} | ${formatDelta(comparison.deltas.notes_upload_duration_ms)} | ${formatDelta(comparison.deltas.total_publication_duration_ms)} | ${formatDelta(changedFinalization - unchangedFinalization)} |`
       );
     }
   }
@@ -632,7 +615,6 @@ export function renderRevisionComparisonMarkdown(
 
 async function preparePublicationFixture(
   fixture: PublicationBenchmarkFixture,
-  mode: PublicationBenchmarkMode,
   logger: LoggerPort
 ): Promise<PreparedPublicationFixture> {
   const parseContentHandler = new ParseContentHandler(
@@ -641,18 +623,12 @@ async function preparePublicationFixture(
     new NotesMapper(),
     new RenderInlineDataviewService(logger),
     new DetectLeafletBlocksService(logger),
-    new EnsureTitleHeaderService(logger),
     new RemoveNoPublishingMarkerService(logger),
     new DetectAssetsService(logger),
-    new ResolveWikilinksService(logger, new DetectWikilinksService(logger)),
-    new ComputeRoutingService(logger),
     logger,
     undefined,
     undefined,
-    undefined,
-    {
-      deterministicTransformsOwner: mode === 'api-owned' ? 'api' : 'plugin',
-    }
+    undefined
   );
 
   const collectedNotes = fixture.notes.map((note) => ({
@@ -683,6 +659,7 @@ async function seedExistingPublicationManifest(args: {
   fixture: PublicationBenchmarkFixture;
   publishables: PublishableNote[];
   pipelineSignature: { version: string; renderSettingsHash: string };
+  pipelineState: 'unchanged' | 'changed';
 }): Promise<void> {
   const scenario = args.fixture.existingPublication;
   if (!scenario) {
@@ -693,7 +670,7 @@ async function seedExistingPublicationManifest(args: {
   const missingHashNoteIds = new Set(scenario.missingHashNoteIds ?? []);
   const publishedAt = new Date('2025-01-01T00:00:00.000Z');
   const seededPipelineSignature =
-    scenario.pipelineState === 'changed'
+    args.pipelineState === 'changed'
       ? {
           version: args.pipelineSignature.version,
           renderSettingsHash: `${args.pipelineSignature.renderSettingsHash}-changed`,
@@ -727,10 +704,8 @@ async function seedExistingPublicationManifest(args: {
 
 function simulateNoteHashFilter(args: {
   notes: PublishableNote[];
-  existingNoteHashes?: Record<string, string>;
   existingSourceNoteHashesByVaultPath?: Record<string, string>;
   pipelineChanged: boolean;
-  apiOwnedDeterministicNoteTransformsEnabled: boolean;
 }): SimulatedNoteHashFilterResult {
   if (args.pipelineChanged) {
     return {
@@ -742,9 +717,7 @@ function simulateNoteHashFilter(args: {
     };
   }
 
-  const activeHashMap = args.apiOwnedDeterministicNoteTransformsEnabled
-    ? (args.existingSourceNoteHashesByVaultPath ?? {})
-    : (args.existingNoteHashes ?? {});
+  const activeHashMap = args.existingSourceNoteHashesByVaultPath ?? {};
 
   if (Object.keys(activeHashMap).length === 0) {
     return {
@@ -760,9 +733,7 @@ function simulateNoteHashFilter(args: {
   let skippedCount = 0;
 
   for (const note of args.notes) {
-    const dedupKey = args.apiOwnedDeterministicNoteTransformsEnabled
-      ? note.vaultPath
-      : note.routing.fullPath;
+    const dedupKey = note.vaultPath;
     const existingHash = dedupKey ? activeHashMap[dedupKey] : undefined;
 
     if (!existingHash) {
@@ -783,9 +754,7 @@ function simulateNoteHashFilter(args: {
     skippedCount,
     applied: true,
     pipelineChanged: false,
-    strategy: args.apiOwnedDeterministicNoteTransformsEnabled
-      ? 'source-hash-by-vault-path'
-      : 'source-hash-by-route',
+    strategy: 'source-hash-by-vault-path',
   };
 }
 

@@ -76,14 +76,13 @@ describe('CreateSessionHandler', () => {
     expect(result.pipelineChanged).toBe(true);
   });
 
-  it('should persist api-owned deterministic transforms flag and ignore rules on the session', async () => {
+  it('should persist ignore rules on the session', async () => {
     const command: CreateSessionCommand = {
       notesPlanned: 5,
       assetsPlanned: 2,
       batchConfig: {
         maxBytesPerRequest: 10,
       },
-      apiOwnedDeterministicNoteTransformsEnabled: true,
       ignoreRules: [{ property: 'publish', ignoreIf: false } as any],
     };
 
@@ -91,7 +90,6 @@ describe('CreateSessionHandler', () => {
 
     expect(sessionRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        apiOwnedDeterministicNoteTransformsEnabled: true,
         ignoreRules: [{ property: 'publish', ignoreIf: false }],
       })
     );
@@ -174,11 +172,10 @@ describe('CreateSessionHandler', () => {
       expect(manifestStorage.load).not.toHaveBeenCalled();
       expect(result.deduplicationEnabled).toBe(false);
       expect(result.existingAssetHashes).toBeUndefined();
-      expect(result.existingNoteHashes).toBeUndefined();
       expect(result.pipelineChanged).toBe(true);
     });
 
-    it('should return existingNoteHashes when pipeline signature is identical', async () => {
+    it('should return authoritative source note hashes when pipeline signature is identical', async () => {
       const signature: PipelineSignature = {
         version: '1.0.0',
         renderSettingsHash: 'abc123',
@@ -223,10 +220,6 @@ describe('CreateSessionHandler', () => {
       const result = await handler.handle(command);
 
       expect(result.pipelineChanged).toBe(false);
-      expect(result.existingNoteHashes).toEqual({
-        '/note-1': 'hash1',
-        '/dir/note-2': 'hash2',
-      });
       expect(result.existingSourceNoteHashesByVaultPath).toEqual({
         'notes/note-1.md': 'hash1',
         'dir/note-2.md': 'hash2',
@@ -269,7 +262,6 @@ describe('CreateSessionHandler', () => {
       const result = await handler.handle(command);
 
       expect(result.pipelineChanged).toBe(true);
-      expect(result.existingNoteHashes).toBeUndefined();
     });
 
     it('should set pipelineChanged=true when renderSettingsHash differs', async () => {
@@ -308,7 +300,6 @@ describe('CreateSessionHandler', () => {
       const result = await handler.handle(command);
 
       expect(result.pipelineChanged).toBe(true);
-      expect(result.existingNoteHashes).toBeUndefined();
     });
 
     it('should handle manifest without pipelineSignature gracefully', async () => {
@@ -334,7 +325,6 @@ describe('CreateSessionHandler', () => {
       const result = await handler.handle(command);
 
       expect(result.pipelineChanged).toBe(true); // One side missing => changed
-      expect(result.existingNoteHashes).toBeUndefined();
     });
 
     it('should skip pages without sourceHash when extracting hashes', async () => {
@@ -353,6 +343,7 @@ describe('CreateSessionHandler', () => {
             slug: Slug.from('note-1'),
             route: '/note-1',
             publishedAt: new Date('2024-01-01'),
+            vaultPath: 'notes/note-1.md',
             sourceHash: 'hash1',
           },
           {
@@ -381,8 +372,8 @@ describe('CreateSessionHandler', () => {
       const result = await handler.handle(command);
 
       expect(result.pipelineChanged).toBe(false);
-      expect(result.existingNoteHashes).toEqual({
-        '/note-1': 'hash1',
+      expect(result.existingSourceNoteHashesByVaultPath).toEqual({
+        'notes/note-1.md': 'hash1',
         // note-2 skipped (no sourceHash)
       });
     });
@@ -428,7 +419,6 @@ describe('CreateSessionHandler', () => {
           version: '1.0.0',
           renderSettingsHash: 'abc123',
         },
-        apiOwnedDeterministicNoteTransformsEnabled: true,
       });
 
       expect(result.pipelineChanged).toBe(false);

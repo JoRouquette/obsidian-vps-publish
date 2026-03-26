@@ -10,7 +10,6 @@ describe('DTO validation', () => {
       assetsPlanned: 2,
       batchConfig: { maxBytesPerRequest: 1000 },
       ignoreRules: [{ property: 'publish', ignoreIf: false }],
-      apiOwnedDeterministicNoteTransformsEnabled: true,
     });
     expect(parsed.success).toBe(true);
   });
@@ -55,7 +54,6 @@ describe('DTO validation', () => {
           title: 'T',
           content: 'c',
           publishedAt: new Date().toISOString(),
-          routing: { fullPath: '/t', slug: 't', path: '/t', routeBase: '/t' },
           eligibility: { isPublishable: true },
           vaultPath: 'v',
           relativePath: 'r',
@@ -74,7 +72,7 @@ describe('DTO validation', () => {
     expect(parsed.success).toBe(true);
   });
 
-  it('validates lean UploadSessionNotesBodyDto for api-owned source packages', () => {
+  it('validates lean UploadSessionNotesBodyDto for canonical source packages', () => {
     const parsed = UploadSessionNotesBodyDto.safeParse({
       notes: [
         {
@@ -107,7 +105,6 @@ describe('DTO validation', () => {
           title: 'T',
           content: 'c',
           publishedAt: new Date().toISOString(),
-          routing: { fullPath: '/t', slug: 't', path: '/t', routeBase: '/t' },
           vaultPath: 'v',
           relativePath: 'r',
           frontmatter: { tags: [], flat: {}, nested: {} },
@@ -127,7 +124,6 @@ describe('DTO validation', () => {
           title: 'T',
           content: 'c',
           publishedAt: new Date().toISOString(),
-          routing: { fullPath: '/t', slug: 't', path: '/t', routeBase: '/t' },
           eligibility: { isPublishable: true },
           vaultPath: 'v',
           relativePath: 'r',

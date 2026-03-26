@@ -4,15 +4,11 @@ import type { IgnoreRule } from '@core-domain/entities/ignore-rule';
 import { EvaluateIgnoreRulesHandler } from '../../vault-parsing/handler/evaluate-ignore-rules.handler';
 import { ParseContentHandler } from '../../vault-parsing/handler/parse-content.handler';
 import { NotesMapper } from '../../vault-parsing/mappers/notes.mapper';
-import { ComputeRoutingService } from '../../vault-parsing/services/compute-routing.service';
 import { DetectAssetsService } from '../../vault-parsing/services/detect-assets.service';
 import { DetectLeafletBlocksService } from '../../vault-parsing/services/detect-leaflet-blocks.service';
-import { DetectWikilinksService } from '../../vault-parsing/services/detect-wikilinks.service';
-import { EnsureTitleHeaderService } from '../../vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '../../vault-parsing/services/normalize-frontmatter.service';
 import { RemoveNoPublishingMarkerService } from '../../vault-parsing/services/remove-no-publishing-marker.service';
 import { RenderInlineDataviewService } from '../../vault-parsing/services/render-inline-dataview.service';
-import { ResolveWikilinksService } from '../../vault-parsing/services/resolve-wikilinks.service';
 import { NoopLogger } from '../helpers/fake-logger';
 
 describe('ParseContentHandler', () => {
@@ -22,38 +18,18 @@ describe('ParseContentHandler', () => {
     ignoreRules: IgnoreRule[] = [],
     _keysToExclude: string[] = [],
     _tagsToExclude: string[] = [],
-    dataviewProcessor?: (notes: any[], cancellation?: any) => Promise<any[]>,
-    deterministicTransformsOwner: 'plugin' | 'api' = 'plugin'
+    dataviewProcessor?: (notes: any[], cancellation?: any) => Promise<any[]>
   ) {
-    const normalizeFrontmatterService = new NormalizeFrontmatterService(logger);
-    const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(ignoreRules, logger);
-    const noteMapper = new NotesMapper();
-    const inlineDataviewRenderer = new RenderInlineDataviewService(logger);
-    const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
-    // Note: ContentSanitizerService est maintenant appliqué côté backend
-    const ensureTitleHeaderService = new EnsureTitleHeaderService(logger);
-    const removeNoPublishingMarkerService = new RemoveNoPublishingMarkerService(logger);
-    const assetsDetector = new DetectAssetsService(logger);
-    const detectWikilinks = new DetectWikilinksService(logger);
-    const resolveWikilinks = new ResolveWikilinksService(logger, detectWikilinks);
-    const computeRoutingService = new ComputeRoutingService(logger);
-
     return new ParseContentHandler(
-      normalizeFrontmatterService,
-      evaluateIgnoreRulesHandler,
-      noteMapper,
-      inlineDataviewRenderer,
-      leafletBlocksDetector,
-      ensureTitleHeaderService,
-      removeNoPublishingMarkerService,
-      assetsDetector,
-      resolveWikilinks,
-      computeRoutingService,
+      new NormalizeFrontmatterService(logger),
+      new EvaluateIgnoreRulesHandler(ignoreRules, logger),
+      new NotesMapper(),
+      new RenderInlineDataviewService(logger),
+      new DetectLeafletBlocksService(logger),
+      new RemoveNoPublishingMarkerService(logger),
+      new DetectAssetsService(logger),
       logger,
-      dataviewProcessor,
-      undefined,
-      undefined,
-      { deterministicTransformsOwner }
+      dataviewProcessor
     );
   }
 
@@ -65,7 +41,7 @@ describe('ParseContentHandler', () => {
     ignoredCleanupRuleIds: [],
   };
 
-  it('filters notes using ignore rules and resolves wikilinks/assets/routing', async () => {
+  it('filters notes using ignore rules and defers deterministic transforms to the API', async () => {
     const handler = buildHandler(
       [{ property: 'publish', ignoreIf: false } as any],
       ['secret'],
@@ -109,16 +85,11 @@ describe('ParseContentHandler', () => {
       parsedA.assets?.some((a) => a.origin === 'frontmatter' && a.target === 'cover.png')
     ).toBe(true);
     expect(parsedA.content).toContain('Hello');
-    expect(parsedA.content).toContain('Note A'); // inline dataview replaced
-    // Note: ContentSanitizerService (exclusion de frontmatter) est maintenant appliqué côté backend
-    // donc les clés 'secret' et tags 'private' ne sont plus supprimés ici
-    expect(parsedA.frontmatter.flat.secret).toBe('hide'); // non supprimé côté plugin
-    expect(parsedA.frontmatter.tags).toEqual(['public', 'private']); // non filtré côté plugin
-    expect(parsedA.resolvedWikilinks?.some((l) => l.isResolved)).toBe(true);
-    const fmLink = parsedA.resolvedWikilinks?.find((l) => l.origin === 'frontmatter');
-    expect(fmLink?.isResolved).toBe(true);
-    expect(fmLink?.frontmatterPath).toBe('links[0]');
-    expect(parsedA.routing.fullPath).toBe('/blog/notea');
+    expect(parsedA.content).toContain('`=this.title`');
+    expect(parsedA.frontmatter.flat.secret).toBe('hide');
+    expect(parsedA.frontmatter.tags).toEqual(['public', 'private']);
+    expect(parsedA.resolvedWikilinks).toBeUndefined();
+    expect(parsedA.routing.fullPath).toBe(parsedA.vaultPath);
   });
 
   it('drops non publishable notes via ignore rules', async () => {
@@ -199,7 +170,7 @@ Visible`,
   });
 
   it('defers deterministic transforms to the API while preserving asset detection inputs', async () => {
-    const handler = buildHandler([], [], [], undefined, 'api');
+    const handler = buildHandler();
     const note: CollectedNote = {
       noteId: 'a',
       title: 'Deferred',
@@ -222,28 +193,12 @@ Visible`,
     expect(result.assets?.some((asset) => asset.target === 'cover.png')).toBe(true);
   });
 
-  it('uses content-only inline dataview rendering for asset detection when deterministic transforms are API-owned', async () => {
-    const normalizeFrontmatterService = new NormalizeFrontmatterService(logger);
-    const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler([], logger);
-    const noteMapper = new NotesMapper();
-    const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
-    const ensureTitleHeaderService = new EnsureTitleHeaderService(logger);
-    const removeNoPublishingMarkerService = new RemoveNoPublishingMarkerService(logger);
-    const detectWikilinks = new DetectWikilinksService(logger);
-    const resolveWikilinks = new ResolveWikilinksService(logger, detectWikilinks);
-    const computeRoutingService = new ComputeRoutingService(logger);
-
+  it('uses content-only inline dataview rendering for asset detection', async () => {
     const inlineDataviewRenderer = {
-      process: jest.fn(() => {
-        throw new Error('full-note inline dataview processing should not run in API-owned mode');
-      }),
       renderContent: jest.fn(() => 'Cover: ![[cover.png]]'),
     } as unknown as RenderInlineDataviewService;
 
     const assetsDetector = {
-      process: jest.fn(() => {
-        throw new Error('default asset detection path should not run in API-owned mode');
-      }),
       detectForContentOverride: jest.fn(() => [
         {
           raw: '![[cover.png]]',
@@ -261,21 +216,14 @@ Visible`,
     } as unknown as DetectAssetsService;
 
     const handler = new ParseContentHandler(
-      normalizeFrontmatterService,
-      evaluateIgnoreRulesHandler,
-      noteMapper,
+      new NormalizeFrontmatterService(logger),
+      new EvaluateIgnoreRulesHandler([], logger),
+      new NotesMapper(),
       inlineDataviewRenderer,
-      leafletBlocksDetector,
-      ensureTitleHeaderService,
-      removeNoPublishingMarkerService,
+      new DetectLeafletBlocksService(logger),
+      new RemoveNoPublishingMarkerService(logger),
       assetsDetector,
-      resolveWikilinks,
-      computeRoutingService,
-      logger,
-      undefined,
-      undefined,
-      undefined,
-      { deterministicTransformsOwner: 'api' }
+      logger
     );
 
     const note: CollectedNote = {
@@ -293,14 +241,12 @@ Visible`,
 
     const [result] = await handler.handle([note]);
 
-    expect((inlineDataviewRenderer as any).process).not.toHaveBeenCalled();
     expect((inlineDataviewRenderer as any).renderContent).toHaveBeenCalledWith(
       'Cover: `=this.cover`',
       expect.objectContaining({
         nested: expect.objectContaining({ cover: '![[cover.png]]' }),
       })
     );
-    expect((assetsDetector as any).process).not.toHaveBeenCalled();
     expect((assetsDetector as any).detectForContentOverride).toHaveBeenCalledTimes(1);
     expect(result.content).toBe('Cover: `=this.cover`');
     expect(result.assets?.some((asset) => asset.target === 'cover.png')).toBe(true);

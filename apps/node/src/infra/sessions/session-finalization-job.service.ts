@@ -73,7 +73,7 @@ export class SessionFinalizationJobService {
   constructor(
     private readonly sessionFinalizer: SessionFinalizerService,
     private readonly stagingManager: StagingManager,
-    private readonly sessionRepository: SessionRepository, // PHASE 6.1
+    private readonly sessionRepository: SessionRepository,
     private readonly logger?: LoggerPort,
     maxConcurrentJobs?: number
   ) {
@@ -332,9 +332,8 @@ export class SessionFinalizationJobService {
     };
 
     try {
-      // STEP 0: Load session to get allCollectedRoutes and pipelineSignature (PHASE 6.1, PHASE 7)
+      // STEP 0: Load session metadata and current staging routes.
       const session = await this.sessionRepository.findById(job.sessionId);
-      let allCollectedRoutes = session?.allCollectedRoutes;
       const pipelineSignature = session?.pipelineSignature;
 
       // STEP 0.5: Validate upload completeness (informational, non-blocking)
@@ -358,9 +357,7 @@ export class SessionFinalizationJobService {
         transitionToPhase
       );
 
-      if (session?.apiOwnedDeterministicNoteTransformsEnabled === true) {
-        allCollectedRoutes = await this.loadStagingRoutes(job.sessionId);
-      }
+      const allCollectedRoutes = await this.loadStagingRoutes(job.sessionId);
 
       // STEP 2: Promote staging to production (with deleted page detection and pipelineSignature injection)
       transitionToPhase('promoting_content');

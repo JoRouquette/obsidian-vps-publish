@@ -115,7 +115,6 @@ describe('sessionController', () => {
         notesPlanned: 1,
         assetsPlanned: 1,
         batchConfig: { maxBytesPerRequest: 1000 },
-        apiOwnedDeterministicNoteTransformsEnabled: true,
       });
 
     expect(res.status).toBe(201);
@@ -146,7 +145,7 @@ describe('sessionController', () => {
     );
   });
 
-  it('passes the api-owned deterministic transforms flag and ignore rules to session creation', async () => {
+  it('passes ignore rules to session creation', async () => {
     const app = buildApp();
     const res = await request(app)
       .post('/session/start')
@@ -154,14 +153,12 @@ describe('sessionController', () => {
         notesPlanned: 1,
         assetsPlanned: 1,
         batchConfig: { maxBytesPerRequest: 1000 },
-        apiOwnedDeterministicNoteTransformsEnabled: true,
         ignoreRules: [{ property: 'publish', ignoreIf: false }],
       });
 
     expect(res.status).toBe(201);
     expect(createSessionHandler.handle).toHaveBeenCalledWith(
       expect.objectContaining({
-        apiOwnedDeterministicNoteTransformsEnabled: true,
         ignoreRules: [{ property: 'publish', ignoreIf: false }],
       })
     );
@@ -346,11 +343,10 @@ describe('sessionController', () => {
     );
   });
 
-  it('propagates the api-owned deterministic transform flag to note uploads', async () => {
+  it('passes session folder display names through to note uploads', async () => {
     sessionRepository.findById.mockResolvedValueOnce({
       id: 'abc',
       folderDisplayNames: { '/test': 'Test Display Name' },
-      apiOwnedDeterministicNoteTransformsEnabled: true,
     } as any);
 
     const app = buildApp();
@@ -383,16 +379,15 @@ describe('sessionController', () => {
     expect(notesRes.status).toBe(200);
     expect(uploadNotesHandler.handle).toHaveBeenCalledWith(
       expect.objectContaining({
-        apiOwnedDeterministicNoteTransformsEnabled: true,
+        folderDisplayNames: { '/test': 'Test Display Name' },
       })
     );
   });
 
-  it('accepts lean source-package note payloads for api-owned deterministic transforms', async () => {
+  it('accepts lean source-package note payloads', async () => {
     sessionRepository.findById.mockResolvedValueOnce({
       id: 'abc',
       folderDisplayNames: { '/test': 'Test Display Name' },
-      apiOwnedDeterministicNoteTransformsEnabled: true,
     } as any);
 
     const app = buildApp();
@@ -424,7 +419,6 @@ describe('sessionController', () => {
     expect(notesRes.status).toBe(200);
     expect(uploadNotesHandler.handle).toHaveBeenCalledWith(
       expect.objectContaining({
-        apiOwnedDeterministicNoteTransformsEnabled: true,
         notes: [
           expect.not.objectContaining({
             routing: expect.anything(),

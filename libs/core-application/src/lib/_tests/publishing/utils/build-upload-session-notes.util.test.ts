@@ -43,14 +43,8 @@ describe('buildUploadSessionNotes', () => {
     leafletBlocks: [{ id: 'map-1' }],
   } as any;
 
-  it('returns the original notes when api-owned transforms are disabled', () => {
-    const notes = [note];
-
-    expect(buildUploadSessionNotes(notes, false)).toBe(notes);
-  });
-
-  it('builds a lean source-package note when api-owned transforms are enabled', () => {
-    const [lean] = buildUploadSessionNotes([note], true) as any[];
+  it('builds a lean source-package note for upload', () => {
+    const [lean] = buildUploadSessionNotes([note]) as any[];
 
     expect(lean).toMatchObject({
       noteId: note.noteId,

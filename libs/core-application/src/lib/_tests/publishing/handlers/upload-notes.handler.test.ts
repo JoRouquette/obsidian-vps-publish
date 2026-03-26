@@ -352,7 +352,7 @@ describe('UploadNotesHandler', () => {
     expect(manifestStorage.rebuildIndex).not.toHaveBeenCalled();
   });
 
-  it('defers manifest page materialization when api-owned deterministic transforms are enabled', async () => {
+  it('defers manifest page materialization until backend finalization', async () => {
     const notesStorage = {
       append: jest.fn(async () => {}),
       saveCleanupRules: jest.fn(async () => {}),
@@ -378,16 +378,15 @@ describe('UploadNotesHandler', () => {
     });
 
     await handler.handle({
-      sessionId: 's-api-owned',
+      sessionId: 's-finalization',
       notes: [note],
-      apiOwnedDeterministicNoteTransformsEnabled: true,
     });
 
     expect(markdownRenderer.render).not.toHaveBeenCalled();
     expect(contentStorage.save).not.toHaveBeenCalled();
     expect(manifestStorage.save).toHaveBeenCalledWith(
       expect.objectContaining({
-        sessionId: 's-api-owned',
+        sessionId: 's-finalization',
         pages: [],
         folderDisplayNames: expect.objectContaining({
           '/notes': note.folderConfig.displayName,
@@ -396,7 +395,7 @@ describe('UploadNotesHandler', () => {
     );
   });
 
-  it('hydrates lean source-package notes for the api-owned upload path', async () => {
+  it('hydrates lean source-package notes for the canonical upload path', async () => {
     const notesStorage = {
       append: jest.fn(async () => {}),
       saveCleanupRules: jest.fn(async () => {}),
@@ -414,7 +413,6 @@ describe('UploadNotesHandler', () => {
     await handler.handle({
       sessionId: 's-lean',
       notes: [leanNote],
-      apiOwnedDeterministicNoteTransformsEnabled: true,
     });
 
     expect(notesStorage.append).toHaveBeenCalledWith(

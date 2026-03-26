@@ -45,8 +45,6 @@ export class CreateSessionHandler implements CommandHandler<
       folderDisplayNames: command.folderDisplayNames,
       pipelineSignature: command.pipelineSignature, // PHASE 7: Store for later injection into manifest
       locale: command.locale, // Store locale for manifest generation
-      apiOwnedDeterministicNoteTransformsEnabled:
-        command.apiOwnedDeterministicNoteTransformsEnabled === true,
     };
     (session as Session & { deduplicationEnabled?: boolean }).deduplicationEnabled =
       deduplicationEnabled;
@@ -55,7 +53,6 @@ export class CreateSessionHandler implements CommandHandler<
 
     // Load existing manifest to extract hashes for client-side deduplication
     let existingAssetHashes: string[] | undefined;
-    let existingNoteHashes: Record<string, string> | undefined;
     let existingSourceNoteHashesByVaultPath: Record<string, string> | undefined;
     let pipelineChanged: boolean | undefined;
 
@@ -103,15 +100,9 @@ export class CreateSessionHandler implements CommandHandler<
 
           // Extract note hashes only if pipeline unchanged
           if (pipelineChanged === false && manifest.pages && manifest.pages.length > 0) {
-            existingNoteHashes = {};
             existingSourceNoteHashesByVaultPath = {};
-            let hashCount = 0;
             let sourceHashCount = 0;
             for (const page of manifest.pages) {
-              if (page.sourceHash && page.route) {
-                existingNoteHashes[page.route] = page.sourceHash;
-                hashCount++;
-              }
               if (page.sourceHash && page.vaultPath) {
                 existingSourceNoteHashesByVaultPath[page.vaultPath] = page.sourceHash;
                 sourceHashCount++;
@@ -119,7 +110,6 @@ export class CreateSessionHandler implements CommandHandler<
             }
             logger?.info('✅ Loaded existing note hashes for deduplication', {
               totalPages: manifest.pages.length,
-              pagesWithHash: hashCount,
               pagesWithVaultPathHash: sourceHashCount,
             });
           } else if (pipelineChanged) {
@@ -142,7 +132,6 @@ export class CreateSessionHandler implements CommandHandler<
       notesPlanned: session.notesPlanned,
       assetsPlanned: session.assetsPlanned,
       existingAssetHashesCount: existingAssetHashes?.length ?? 0,
-      existingNoteHashesCount: existingNoteHashes ? Object.keys(existingNoteHashes).length : 0,
       existingSourceNoteHashesByVaultPathCount: existingSourceNoteHashesByVaultPath
         ? Object.keys(existingSourceNoteHashesByVaultPath).length
         : 0,
@@ -156,7 +145,6 @@ export class CreateSessionHandler implements CommandHandler<
       success: true,
       deduplicationEnabled,
       existingAssetHashes,
-      existingNoteHashes,
       existingSourceNoteHashesByVaultPath,
       pipelineChanged,
     };

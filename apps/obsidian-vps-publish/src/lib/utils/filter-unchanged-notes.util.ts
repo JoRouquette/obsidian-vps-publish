@@ -6,10 +6,8 @@ type HashService = {
 
 export interface FilterUnchangedNotesParams {
   notes: PublishableNote[];
-  existingNoteHashes?: Record<string, string>;
   existingSourceNoteHashesByVaultPath?: Record<string, string>;
   pipelineChanged: boolean;
-  apiOwnedDeterministicNoteTransformsEnabled: boolean;
   hashService: HashService;
 }
 
@@ -21,10 +19,8 @@ export interface FilterUnchangedNotesResult {
 
 export async function filterUnchangedNotes({
   notes,
-  existingNoteHashes = {},
   existingSourceNoteHashesByVaultPath = {},
   pipelineChanged,
-  apiOwnedDeterministicNoteTransformsEnabled,
   hashService,
 }: FilterUnchangedNotesParams): Promise<FilterUnchangedNotesResult> {
   if (pipelineChanged) {
@@ -35,9 +31,7 @@ export async function filterUnchangedNotes({
     };
   }
 
-  const activeHashMap = apiOwnedDeterministicNoteTransformsEnabled
-    ? existingSourceNoteHashesByVaultPath
-    : existingNoteHashes;
+  const activeHashMap = existingSourceNoteHashesByVaultPath;
 
   if (Object.keys(activeHashMap).length === 0) {
     return {
@@ -51,9 +45,7 @@ export async function filterUnchangedNotes({
   let skippedCount = 0;
 
   for (const note of notes) {
-    const dedupKey = apiOwnedDeterministicNoteTransformsEnabled
-      ? note.vaultPath
-      : note.routing.fullPath;
+    const dedupKey = note.vaultPath;
     const existingHash = dedupKey ? activeHashMap[dedupKey] : undefined;
 
     if (!existingHash) {

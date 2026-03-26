@@ -5,15 +5,10 @@ import { EvaluateIgnoreRulesHandler } from '@core-application/vault-parsing/hand
 import { HttpResponseHandler } from '@core-application/vault-parsing/handler/http-response.handler';
 import { ParseContentHandler } from '@core-application/vault-parsing/handler/parse-content.handler';
 import { NotesMapper } from '@core-application/vault-parsing/mappers/notes.mapper';
-import { ComputeRoutingService } from '@core-application/vault-parsing/services/compute-routing.service';
-import { DeduplicateNotesService } from '@core-application/vault-parsing/services/deduplicate-notes.service';
 import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
-import { DetectWikilinksService } from '@core-application/vault-parsing/services/detect-wikilinks.service';
-import { EnsureTitleHeaderService } from '@core-application/vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';
 import { RemoveNoPublishingMarkerService } from '@core-application/vault-parsing/services/remove-no-publishing-marker.service';
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
-import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
 import {
   applyCustomIndexesToRouteTree,
   CancellationError,
@@ -93,7 +88,6 @@ const defaultSettings: PluginSettings = {
   maxConcurrentDataviewNotes: 5,
   maxConcurrentUploads: 3,
   maxConcurrentFileReads: 5,
-  apiOwnedDeterministicNoteTransformsEnabled: false,
   // Performance debugging
   enablePerformanceDebug: false,
   enableBackgroundThrottleDebug: false,
@@ -605,8 +599,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     const settings = this.settings;
     const { t, locale } = getTranslations(this.app, this.settings);
     const deduplicationEnabled = options.deduplicationEnabled !== false;
-    const apiOwnedDeterministicNoteTransformsEnabled =
-      settings.apiOwnedDeterministicNoteTransformsEnabled === true;
 
     if (!settings.vpsConfigs || settings.vpsConfigs.length === 0) {
       this.logger.error('No VPS config defined');
@@ -754,7 +746,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         ignoredTags: settings.frontmatterTagsToExclude || [],
         locale,
         deduplicationEnabled,
-        apiOwnedDeterministicNoteTransformsEnabled,
         startSession: (payload) => sessionClient!.startSession(payload),
         onCalloutStylesLoaded: ({ durationMs, value }) => {
           trace.recordMetric('callout_style_loading_duration_ms', durationMs, {
@@ -855,8 +846,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         runLogger,
         dataviewApi,
         perfTracker.child('content-pipeline'),
-        cancellation,
-        apiOwnedDeterministicNoteTransformsEnabled ? 'api' : 'plugin'
+        cancellation
       );
 
       trace.endStep('4-build-parse-handler');
@@ -896,11 +886,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       const deduplicateSpan = perfTracker.startSpan('deduplicate-notes');
       const dedupStart = performance.now();
 
-      const deduplicated = deduplicationEnabled
-        ? apiOwnedDeterministicNoteTransformsEnabled
-          ? publishables
-          : new DeduplicateNotesService(scopedLogger).process(publishables)
-        : publishables;
+      const deduplicated = publishables;
 
       perfTracker.endSpan(deduplicateSpan, {
         inputCount: publishables.length,
@@ -1011,7 +997,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       sessionId = started.sessionId;
       const serverRequestLimit = started.maxBytesPerRequest;
       const existingAssetHashes = deduplicationEnabled ? (started.existingAssetHashes ?? []) : [];
-      const existingNoteHashes = deduplicationEnabled ? (started.existingNoteHashes ?? {}) : {};
       const existingSourceNoteHashesByVaultPath = deduplicationEnabled
         ? (started.existingSourceNoteHashesByVaultPath ?? {})
         : {};
@@ -1026,7 +1011,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         actualPublishableNotes: publishableCount,
         actualAssetsPlanned: assetsPlanned,
         existingAssetHashesCount: existingAssetHashes.length,
-        existingNoteHashesCount: Object.keys(existingNoteHashes).length,
         existingSourceNoteHashesByVaultPathCount: Object.keys(existingSourceNoteHashesByVaultPath)
           .length,
         pipelineChanged,
@@ -1040,7 +1024,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         provisionalAssetsPlanned: 0,
         actualPublishableNotes: publishableCount,
         actualAssetsPlanned: assetsPlanned,
-        existingNoteHashesCount: Object.keys(existingNoteHashes).length,
         existingSourceNoteHashesByVaultPathCount: Object.keys(existingSourceNoteHashesByVaultPath)
           .length,
         pipelineChanged,
@@ -1067,10 +1050,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         const hashService = new BrowserHashService();
         const filterResult = await filterUnchangedNotes({
           notes: deduplicated,
-          existingNoteHashes,
           existingSourceNoteHashesByVaultPath,
           pipelineChanged,
-          apiOwnedDeterministicNoteTransformsEnabled,
           hashService,
         });
 
@@ -1082,9 +1063,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
             totalNotes: deduplicated.length,
             toUpload: notesToUpload.length,
             skipped: filterResult.skippedCount,
-            strategy: apiOwnedDeterministicNoteTransformsEnabled
-              ? 'source-hash-by-vault-path'
-              : 'source-hash-by-route',
+            strategy: 'source-hash-by-vault-path',
           });
 
           trace.checkpoint('7-upload-notes', 'filtering-complete', {
@@ -1119,8 +1098,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         serverRequestLimit,
         stepProgressManager,
         validCleanupRules,
-        uploadConcurrency,
-        apiOwnedDeterministicNoteTransformsEnabled
+        uploadConcurrency
       );
 
       // Calculer le nombre de batchs
@@ -1298,20 +1276,15 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         100
       );
 
-      // PHASE 6.1: Extract all routes collected from vault (for deleted page detection)
+      // Extract all routes collected from the vault for deleted-page detection.
       // CRITICAL: Use publishables (all eligible notes) not deduplicated (only unique ones)
       // to ensure backend receives complete list of vault routes for manifest merge
-      const allCollectedRoutes = apiOwnedDeterministicNoteTransformsEnabled
-        ? undefined
-        : publishables.map((note) => note.routing.fullPath);
-
       finalizationRequested = true;
       const finishResult = await sessionClient.finishSession(
         sessionId,
         {
           notesProcessed: stats.notesUploaded,
           assetsProcessed: stats.assetsUploaded,
-          allCollectedRoutes, // PHASE 6.1: send to backend for deleted page detection
         },
         {
           onFinalizationUpdate: (update) => {
@@ -1616,8 +1589,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     logger: LoggerPort,
     dataviewApi?: DataviewApi,
     perfTracker?: PerformanceTrackerPort,
-    cancellation?: CancellationPort,
-    deterministicTransformsOwner: 'plugin' | 'api' = 'plugin'
+    cancellation?: CancellationPort
   ): ParseContentHandler {
     const normalizeFrontmatterService = new NormalizeFrontmatterService(logger);
     const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(
@@ -1689,10 +1661,6 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     // Note: ContentSanitizerService est maintenant appliqué côté backend après la finalisation
     const removeNoPublishingMarkerService = new RemoveNoPublishingMarkerService(logger);
     const assetsDetector = new DetectAssetsService(logger);
-    const detectWikilinks = new DetectWikilinksService(logger);
-    const resolveWikilinks = new ResolveWikilinksService(logger, detectWikilinks);
-    const computeRoutingService = new ComputeRoutingService(logger);
-    const ensureTitleHeaderService = new EnsureTitleHeaderService(logger);
 
     return new ParseContentHandler(
       normalizeFrontmatterService,
@@ -1700,16 +1668,12 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       noteMapper,
       inlineDataviewRenderer,
       leafletBlocksDetector,
-      ensureTitleHeaderService,
       removeNoPublishingMarkerService,
       assetsDetector,
-      resolveWikilinks,
-      computeRoutingService,
       logger,
       dataviewProcessor, // Plugin-side Dataview processing
       perfTracker, // Performance tracking
-      cancellation, // Cancellation support
-      { deterministicTransformsOwner }
+      cancellation // Cancellation support
     );
   }
 }

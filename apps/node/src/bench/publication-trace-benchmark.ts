@@ -117,11 +117,11 @@ function readArg(args: string[], name: string): string | undefined {
   return args[index + 1];
 }
 
-function normalizeMode(value: string): 'plugin-owned' | 'api-owned' | 'both' {
-  if (value === 'plugin-owned' || value === 'api-owned' || value === 'both') {
+function normalizeMode(value: string): 'pipeline-unchanged' | 'pipeline-changed' | 'both' {
+  if (value === 'pipeline-unchanged' || value === 'pipeline-changed' || value === 'both') {
     return value;
   }
-  throw new Error(`Invalid mode "${value}". Use plugin-owned, api-owned, or both.`);
+  throw new Error(`Invalid mode "${value}". Use pipeline-unchanged, pipeline-changed, or both.`);
 }
 
 void main().catch((error) => {
