@@ -196,6 +196,7 @@ describe('CreateSessionHandler', () => {
             slug: Slug.from('note-1'),
             route: '/note-1',
             publishedAt: new Date('2024-01-01'),
+            vaultPath: 'notes/note-1.md',
             sourceHash: 'hash1',
           },
           {
@@ -204,6 +205,7 @@ describe('CreateSessionHandler', () => {
             slug: Slug.from('note-2'),
             route: '/dir/note-2',
             publishedAt: new Date('2024-01-01'),
+            vaultPath: 'dir/note-2.md',
             sourceHash: 'hash2',
           },
         ],
@@ -224,6 +226,10 @@ describe('CreateSessionHandler', () => {
       expect(result.existingNoteHashes).toEqual({
         '/note-1': 'hash1',
         '/dir/note-2': 'hash2',
+      });
+      expect(result.existingSourceNoteHashesByVaultPath).toEqual({
+        'notes/note-1.md': 'hash1',
+        'dir/note-2.md': 'hash2',
       });
     });
 
@@ -378,6 +384,57 @@ describe('CreateSessionHandler', () => {
       expect(result.existingNoteHashes).toEqual({
         '/note-1': 'hash1',
         // note-2 skipped (no sourceHash)
+      });
+    });
+
+    it('should key authoritative source hashes by vaultPath for route-sensitive duplicate titles', async () => {
+      const manifest: Manifest = {
+        sessionId: 'prev-session',
+        createdAt: new Date('2024-01-01'),
+        lastUpdatedAt: new Date('2024-01-01'),
+        pipelineSignature: {
+          version: '1.0.0',
+          renderSettingsHash: 'abc123',
+        },
+        pages: [
+          {
+            id: 'p1',
+            title: 'Index',
+            slug: Slug.from('index'),
+            route: '/alpha/index',
+            publishedAt: new Date('2024-01-01'),
+            vaultPath: 'alpha/index.md',
+            sourceHash: 'hash-alpha',
+          },
+          {
+            id: 'p2',
+            title: 'Index',
+            slug: Slug.from('index-2'),
+            route: '/beta/index-2',
+            publishedAt: new Date('2024-01-01'),
+            vaultPath: 'beta/index.md',
+            sourceHash: 'hash-beta',
+          },
+        ],
+      };
+
+      manifestStorage.load.mockResolvedValue(manifest);
+
+      const result = await handler.handle({
+        notesPlanned: 2,
+        assetsPlanned: 0,
+        batchConfig: { maxBytesPerRequest: 10 },
+        pipelineSignature: {
+          version: '1.0.0',
+          renderSettingsHash: 'abc123',
+        },
+        apiOwnedDeterministicNoteTransformsEnabled: true,
+      });
+
+      expect(result.pipelineChanged).toBe(false);
+      expect(result.existingSourceNoteHashesByVaultPath).toEqual({
+        'alpha/index.md': 'hash-alpha',
+        'beta/index.md': 'hash-beta',
       });
     });
   });

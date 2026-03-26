@@ -159,6 +159,43 @@ describe('SessionApiClient', () => {
     expect(res.maxBytesPerRequest).toBe(512);
   });
 
+  it('parses authoritative source note hashes keyed by vaultPath', async () => {
+    const requestUrl = jest.fn().mockResolvedValue({
+      status: 200,
+      headers: {},
+      text: JSON.stringify({
+        sessionId: 's1',
+        maxBytesPerRequest: 1024,
+        existingSourceNoteHashesByVaultPath: {
+          'notes/a.md': 'hash-a',
+        },
+      }),
+    });
+    const handler = {
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValue(
+          responseOk(
+            '{"sessionId":"s1","maxBytesPerRequest":1024,"existingSourceNoteHashesByVaultPath":{"notes/a.md":"hash-a"}}'
+          )
+        ),
+    };
+    jest.doMock('obsidian', () => ({ requestUrl }));
+
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, mockLogger());
+    const res = await client.startSession({
+      notesPlanned: 1,
+      assetsPlanned: 0,
+      maxBytesPerRequest: 1024,
+      apiOwnedDeterministicNoteTransformsEnabled: true,
+    });
+
+    expect(res.existingSourceNoteHashesByVaultPath).toEqual({
+      'notes/a.md': 'hash-a',
+    });
+  });
+
   it('passes the deduplication flag when starting a session', async () => {
     const requestUrl = jest.fn().mockResolvedValue({
       status: 200,

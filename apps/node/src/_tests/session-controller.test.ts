@@ -98,6 +98,35 @@ describe('sessionController', () => {
     expect(createSessionHandler.handle).toHaveBeenCalled();
   });
 
+  it('returns authoritative source hashes keyed by vaultPath when provided', async () => {
+    createSessionHandler.handle.mockResolvedValueOnce({
+      sessionId: 's1',
+      success: true,
+      existingSourceNoteHashesByVaultPath: {
+        'notes/a.md': 'hash-a',
+      },
+      pipelineChanged: false,
+    });
+    const app = buildApp();
+
+    const res = await request(app)
+      .post('/session/start')
+      .send({
+        notesPlanned: 1,
+        assetsPlanned: 1,
+        batchConfig: { maxBytesPerRequest: 1000 },
+        apiOwnedDeterministicNoteTransformsEnabled: true,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      existingSourceNoteHashesByVaultPath: {
+        'notes/a.md': 'hash-a',
+      },
+      pipelineChanged: false,
+    });
+  });
+
   it('passes the deduplication flag to session creation', async () => {
     const app = buildApp();
     const res = await request(app)
