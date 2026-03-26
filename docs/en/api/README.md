@@ -56,3 +56,7 @@ The backend exposes these stable phases over SSE and polling:
 - [Publication trace benchmark](../../api/publication-trace-benchmark.md)
 - [Performance](../../api/performance.md)
 - [Asset deduplication](../../api/asset-deduplication.md)
+- [CDN deployment](../../api/cdn-deployment.md)
+- [Load testing](../../api/load-testing.md)
+- [Streaming refactor guide](../../api/streaming-refactor-guide.md)
+- [Thumbnail generation guide](../../api/thumbnail-generation-guide.md)
