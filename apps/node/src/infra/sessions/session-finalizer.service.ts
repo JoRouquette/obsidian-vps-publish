@@ -7,6 +7,7 @@ import {
   type ContentStoragePort,
   DetectLeafletBlocksService,
   DetectWikilinksService,
+  DeterministicNoteTransformsService,
   type ManifestPort,
   type MarkdownRendererPort,
   ResolveWikilinksService,
@@ -91,11 +92,14 @@ export class SessionFinalizerService {
     const session = await this.sessionRepository.findById(sessionId);
     const customIndexConfigs = session?.customIndexConfigs ?? [];
     const folderDisplayNames = session?.folderDisplayNames ?? {};
+    const apiOwnedDeterministicNoteTransformsEnabled =
+      session?.apiOwnedDeterministicNoteTransformsEnabled === true;
     timings.loadSessionMetadata = performance.now() - stepStart;
     log.debug('Loaded session metadata', {
       customIndexConfigsCount: customIndexConfigs.length,
       folderDisplayNamesCount: Object.keys(folderDisplayNames).length,
       folderDisplayNames,
+      apiOwnedDeterministicNoteTransformsEnabled,
     });
 
     // STEP 2: Load cleanup rules
@@ -138,18 +142,29 @@ export class SessionFinalizerService {
     }));
     timings.convertMarkdownLinks = performance.now() - stepStart;
 
-    // STEP 5: Compute routing first, then resolve wikilinks
-    // IMPORTANT: routing must be calculated BEFORE wikilink resolution,
-    // because ResolveWikilinksService checks if targetNote.routing is defined
-    // to determine if a wikilink is resolved (line 51: isResolved = !!targetNote && targetNote.routing !== undefined)
-    stepStart = performance.now();
-    const computeRouting = new ComputeRoutingService(this.logger);
-    const detect = new DetectWikilinksService(this.logger);
-    const resolve = new ResolveWikilinksService(this.logger, detect);
+    let withLinks;
+    if (apiOwnedDeterministicNoteTransformsEnabled) {
+      stepStart = performance.now();
+      const deterministicTransforms = new DeterministicNoteTransformsService(this.logger);
+      withLinks = await deterministicTransforms.process(withConvertedLinks, {
+        ignoreRules: session?.ignoreRules,
+        deduplicationEnabled: session?.deduplicationEnabled !== false,
+      });
+      timings.resolveWikilinksAndRouting = performance.now() - stepStart;
+    } else {
+      // STEP 5: Compute routing first, then resolve wikilinks
+      // IMPORTANT: routing must be calculated BEFORE wikilink resolution,
+      // because ResolveWikilinksService checks if targetNote.routing is defined
+      // to determine if a wikilink is resolved.
+      stepStart = performance.now();
+      const computeRouting = new ComputeRoutingService(this.logger);
+      const detect = new DetectWikilinksService(this.logger);
+      const resolve = new ResolveWikilinksService(this.logger, detect);
 
-    const routed = computeRouting.process(withConvertedLinks);
-    const withLinks = resolve.process(routed);
-    timings.resolveWikilinksAndRouting = performance.now() - stepStart;
+      const routed = computeRouting.process(withConvertedLinks);
+      withLinks = resolve.process(routed);
+      timings.resolveWikilinksAndRouting = performance.now() - stepStart;
+    }
 
     // STEP 7: Reset content staging directory
     stepStart = performance.now();

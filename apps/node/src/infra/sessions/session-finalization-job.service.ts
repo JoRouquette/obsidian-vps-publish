@@ -315,7 +315,7 @@ export class SessionFinalizationJobService {
       const session = await this.measurePhase(job, 'load_session', 10, async () =>
         this.sessionRepository.findById(job.sessionId)
       );
-      const allCollectedRoutes = session?.allCollectedRoutes;
+      let allCollectedRoutes = session?.allCollectedRoutes;
       const pipelineSignature = session?.pipelineSignature;
 
       // STEP 0.5: Validate upload completeness (informational, non-blocking)
@@ -337,6 +337,10 @@ export class SessionFinalizationJobService {
       const customIndexesHtml = await this.measurePhase(job, 'rebuild_from_stored', 20, async () =>
         this.sessionFinalizer.rebuildFromStored(job.sessionId)
       );
+
+      if (session?.apiOwnedDeterministicNoteTransformsEnabled === true) {
+        allCollectedRoutes = await this.loadStagingRoutes(job.sessionId);
+      }
 
       // STEP 2: Promote staging to production (with deleted page detection and pipelineSignature injection)
       const promotionStats = await this.measurePhase(job, 'promote_session', 85, async () =>
@@ -582,6 +586,16 @@ export class SessionFinalizationJobService {
     this.logger?.info('[JOB] Production HTML indexes rebuilt', {
       pageCount: manifest.pages.length,
     });
+  }
+
+  private async loadStagingRoutes(sessionId: string): Promise<string[] | undefined> {
+    const stagingManifestStorage = new ManifestFileSystem(
+      this.stagingManager.contentStagingPath(sessionId),
+      this.logger
+    );
+    const stagingManifest = await stagingManifestStorage.load();
+    const routes = stagingManifest?.pages.map((page) => page.route).filter(Boolean);
+    return routes && routes.length > 0 ? routes : undefined;
   }
 
   /**

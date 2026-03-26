@@ -188,6 +188,41 @@ describe('SessionApiClient', () => {
     );
   });
 
+  it('passes the api-owned deterministic transforms flag and ignore rules when starting a session', async () => {
+    const requestUrl = jest.fn().mockResolvedValue({
+      status: 200,
+      headers: {},
+      text: JSON.stringify({ sessionId: 's1', maxBytesPerRequest: 1024 }),
+    });
+    const handler = {
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValue(responseOk('{"sessionId":"s1","maxBytesPerRequest":1024}')),
+    };
+    jest.doMock('obsidian', () => ({ requestUrl }));
+
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, mockLogger());
+    await client.startSession({
+      notesPlanned: 1,
+      assetsPlanned: 0,
+      maxBytesPerRequest: 1024,
+      apiOwnedDeterministicNoteTransformsEnabled: true,
+      ignoreRules: [{ property: 'publish', ignoreIf: false } as any],
+    });
+
+    expect(requestUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining('"apiOwnedDeterministicNoteTransformsEnabled":true'),
+      })
+    );
+    expect(requestUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining('"ignoreRules":[{"property":"publish","ignoreIf":false}]'),
+      })
+    );
+  });
+
   it('throws when uploadNotes fails', async () => {
     const requestUrl = jest.fn().mockResolvedValue({ status: 500, headers: {}, text: 'err' });
     const handler = {
@@ -465,11 +500,13 @@ describe('SessionApiClient', () => {
       }),
     });
     const handler = {
-      handleResponseAsync: jest.fn().mockResolvedValueOnce(
-        responseOk(
-          '{"sessionId":"s1","jobId":"job-1","status":"queued","realtime":{"transport":"sse","streamUrl":"/events/session/s1/finalization?jobId=job-1","token":"signed-token","expiresAt":"2099-01-01T00:00:00.000Z"}}'
-        )
-      ),
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValueOnce(
+          responseOk(
+            '{"sessionId":"s1","jobId":"job-1","status":"queued","realtime":{"transport":"sse","streamUrl":"/events/session/s1/finalization?jobId=job-1","token":"signed-token","expiresAt":"2099-01-01T00:00:00.000Z"}}'
+          )
+        ),
     };
 
     jest.doMock('obsidian', () => ({ requestUrl: jest.fn() }));
@@ -532,11 +569,13 @@ describe('SessionApiClient', () => {
       }),
     });
     const handler = {
-      handleResponseAsync: jest.fn().mockResolvedValueOnce(
-        responseOk(
-          '{"sessionId":"s1","jobId":"job-1","status":"queued","realtime":{"transport":"sse","streamUrl":"/events/session/s1/finalization?jobId=job-1","token":"signed-token","expiresAt":"2099-01-01T00:00:00.000Z"}}'
-        )
-      ),
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValueOnce(
+          responseOk(
+            '{"sessionId":"s1","jobId":"job-1","status":"queued","realtime":{"transport":"sse","streamUrl":"/events/session/s1/finalization?jobId=job-1","token":"signed-token","expiresAt":"2099-01-01T00:00:00.000Z"}}'
+          )
+        ),
     };
 
     jest.doMock('obsidian', () => ({ requestUrl: jest.fn() }));
@@ -1008,11 +1047,13 @@ describe('SessionApiClient', () => {
       }),
     });
     const handler = {
-      handleResponseAsync: jest.fn().mockResolvedValueOnce(
-        responseOk(
-          '{"sessionId":"s1","jobId":"job-1","status":"queued","realtime":{"transport":"sse","streamUrl":"/events/session/s1/finalization?jobId=job-1","token":"signed-token","expiresAt":"2099-01-01T00:00:00.000Z"}}'
-        )
-      ),
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValueOnce(
+          responseOk(
+            '{"sessionId":"s1","jobId":"job-1","status":"queued","realtime":{"transport":"sse","streamUrl":"/events/session/s1/finalization?jobId=job-1","token":"signed-token","expiresAt":"2099-01-01T00:00:00.000Z"}}'
+          )
+        ),
     };
 
     jest.doMock('obsidian', () => ({ requestUrl: jest.fn() }));

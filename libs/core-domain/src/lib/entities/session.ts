@@ -1,4 +1,5 @@
 import type { CustomIndexConfig } from './custom-index-config';
+import type { IgnoreRule } from './ignore-rule';
 import type { SiteLocale } from './manifest';
 import type { PipelineSignature } from './pipeline-signature';
 import type { SanitizationRules } from './sanitization-rules';
@@ -16,6 +17,7 @@ export interface Session {
   updatedAt: Date;
   cleanupRules?: SanitizationRules[];
   customIndexConfigs?: CustomIndexConfig[];
+  ignoreRules?: IgnoreRule[];
   ignoredTags?: string[];
   folderDisplayNames?: Record<string, string>;
   /**
@@ -39,4 +41,5 @@ export interface Session {
    */
   assetPathMappings?: Record<string, string>;
   deduplicationEnabled?: boolean;
+  apiOwnedDeterministicNoteTransformsEnabled?: boolean;
 }

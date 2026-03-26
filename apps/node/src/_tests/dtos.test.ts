@@ -9,6 +9,8 @@ describe('DTO validation', () => {
       notesPlanned: 1,
       assetsPlanned: 2,
       batchConfig: { maxBytesPerRequest: 1000 },
+      ignoreRules: [{ property: 'publish', ignoreIf: false }],
+      apiOwnedDeterministicNoteTransformsEnabled: true,
     });
     expect(parsed.success).toBe(true);
   });

@@ -19,6 +19,10 @@ import { type RenderInlineDataviewService } from '../services/render-inline-data
 import { type ResolveWikilinksService } from '../services/resolve-wikilinks.service';
 import { type EvaluateIgnoreRulesHandler } from './evaluate-ignore-rules.handler';
 
+export interface ParseContentHandlerOptions {
+  deterministicTransformsOwner?: 'plugin' | 'api';
+}
+
 export class ParseContentHandler implements CommandHandler<CollectedNote[], PublishableNote[]> {
   constructor(
     private readonly normalizeFrontmatterService: NormalizeFrontmatterService,
@@ -37,7 +41,8 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
       cancellation?: CancellationPort
     ) => Promise<PublishableNote[]>,
     private readonly perfTracker?: PerformanceTrackerPort,
-    private readonly cancellation?: CancellationPort
+    private readonly cancellation?: CancellationPort,
+    private readonly options: ParseContentHandlerOptions = {}
   ) {}
 
   async handle(notes: CollectedNote[]): Promise<PublishableNote[]> {
@@ -112,16 +117,20 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
     await yieldScheduler.maybeYield();
 
     // Step 5: Inline dataview
-    this.cancellation?.throwIfCancelled();
-    stepSpan = this.perfTracker?.startSpan('inline-dataview-render');
-    publishableNotes = this.inlineDataviewRenderer.process(publishableNotes);
-    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
+    const apiOwnsDeterministicTransforms = this.options.deterministicTransformsOwner === 'api';
 
-    this.logger?.debug('Inline dataview processed', {
-      notesCount: publishableNotes.length,
-    });
+    if (!apiOwnsDeterministicTransforms) {
+      this.cancellation?.throwIfCancelled();
+      stepSpan = this.perfTracker?.startSpan('inline-dataview-render');
+      publishableNotes = this.inlineDataviewRenderer.process(publishableNotes);
+      this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
-    await yieldScheduler.maybeYield();
+      this.logger?.debug('Inline dataview processed', {
+        notesCount: publishableNotes.length,
+      });
+
+      await yieldScheduler.maybeYield();
+    }
 
     // Step 6: Process Dataview blocks (async, potentially slow)
     if (this.dataviewProcessor) {
@@ -159,35 +168,48 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
 
     await yieldScheduler.maybeYield();
 
-    // Step 9: Ensure title header
-    this.cancellation?.throwIfCancelled();
-    stepSpan = this.perfTracker?.startSpan('ensure-title-header');
-    publishableNotes = this.ensureTitleHeaderService.process(publishableNotes);
-    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
-
-    await yieldScheduler.maybeYield();
-
-    // Step 10: Detect assets
+    // Step 9: Detect assets
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('detect-assets');
-    publishableNotes = this.assetsDetector.process(publishableNotes);
+    const assetsSourceNotes = apiOwnsDeterministicTransforms
+      ? this.inlineDataviewRenderer.process(publishableNotes)
+      : publishableNotes;
+    const notesWithAssets = this.assetsDetector.process(assetsSourceNotes);
+    publishableNotes = publishableNotes.map((note, index) => ({
+      ...note,
+      assets: notesWithAssets[index]?.assets,
+    }));
     this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
     await yieldScheduler.maybeYield();
 
-    // Step 11: Resolve wikilinks
-    this.cancellation?.throwIfCancelled();
-    stepSpan = this.perfTracker?.startSpan('resolve-wikilinks');
-    publishableNotes = this.wikilinkResolver.process(publishableNotes);
-    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
+    if (!apiOwnsDeterministicTransforms) {
+      // Step 10: Ensure title header
+      this.cancellation?.throwIfCancelled();
+      stepSpan = this.perfTracker?.startSpan('ensure-title-header');
+      publishableNotes = this.ensureTitleHeaderService.process(publishableNotes);
+      this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
 
-    await yieldScheduler.maybeYield();
+      await yieldScheduler.maybeYield();
 
-    // Step 12: Compute routing
-    this.cancellation?.throwIfCancelled();
-    stepSpan = this.perfTracker?.startSpan('compute-routing');
-    publishableNotes = this.computeRoutingService.process(publishableNotes);
-    this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
+      // Step 11: Resolve wikilinks
+      this.cancellation?.throwIfCancelled();
+      stepSpan = this.perfTracker?.startSpan('resolve-wikilinks');
+      publishableNotes = this.wikilinkResolver.process(publishableNotes);
+      this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
+
+      await yieldScheduler.maybeYield();
+
+      // Step 12: Compute routing
+      this.cancellation?.throwIfCancelled();
+      stepSpan = this.perfTracker?.startSpan('compute-routing');
+      publishableNotes = this.computeRoutingService.process(publishableNotes);
+      this.perfTracker?.endSpan(stepSpan!, { notesProcessed: publishableNotes.length });
+    } else {
+      this.logger?.debug('Deterministic note transforms deferred to API finalization', {
+        notesCount: publishableNotes.length,
+      });
+    }
 
     this.perfTracker?.endSpan(spanId!, {
       totalNotesProcessed: publishableNotes.length,

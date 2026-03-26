@@ -22,7 +22,8 @@ describe('ParseContentHandler', () => {
     ignoreRules: IgnoreRule[] = [],
     _keysToExclude: string[] = [],
     _tagsToExclude: string[] = [],
-    dataviewProcessor?: (notes: any[], cancellation?: any) => Promise<any[]>
+    dataviewProcessor?: (notes: any[], cancellation?: any) => Promise<any[]>,
+    deterministicTransformsOwner: 'plugin' | 'api' = 'plugin'
   ) {
     const normalizeFrontmatterService = new NormalizeFrontmatterService(logger);
     const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(ignoreRules, logger);
@@ -49,7 +50,10 @@ describe('ParseContentHandler', () => {
       resolveWikilinks,
       computeRoutingService,
       logger,
-      dataviewProcessor
+      dataviewProcessor,
+      undefined,
+      undefined,
+      { deterministicTransformsOwner }
     );
   }
 
@@ -192,5 +196,29 @@ Visible`,
     expect(result.content).toContain('## Public Section');
     expect(result.content).toContain('## Dataview Public');
     expect(result.content).not.toContain('^no-publishing');
+  });
+
+  it('defers deterministic transforms to the API while preserving asset detection inputs', async () => {
+    const handler = buildHandler([], [], [], undefined, 'api');
+    const note: CollectedNote = {
+      noteId: 'a',
+      title: 'Deferred',
+      vaultPath: 'Vault/Blog/Deferred.md',
+      relativePath: 'Deferred.md',
+      content: 'Cover: `=this.cover` and link `=this.related`',
+      frontmatter: {
+        publish: true,
+        cover: '![[cover.png]]',
+        related: '[[NoteB]]',
+      } as any,
+      folderConfig: baseFolder,
+    };
+
+    const [result] = await handler.handle([note]);
+
+    expect(result.content).toContain('`=this.cover`');
+    expect(result.routing.fullPath).toBe('Vault/Blog/Deferred.md');
+    expect(result.resolvedWikilinks).toBeUndefined();
+    expect(result.assets?.some((asset) => asset.target === 'cover.png')).toBe(true);
   });
 });

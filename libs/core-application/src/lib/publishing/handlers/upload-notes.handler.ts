@@ -42,7 +42,13 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
   }
 
   async handle(command: UploadNotesCommand): Promise<UploadNotesResult> {
-    const { sessionId, notes, cleanupRules, folderDisplayNames } = command;
+    const {
+      sessionId,
+      notes,
+      cleanupRules,
+      folderDisplayNames,
+      apiOwnedDeterministicNoteTransformsEnabled,
+    } = command;
     const manifestStorage = this.resolveManifestStorage(sessionId);
     const logger = this.logger?.child({ method: 'handle', sessionId });
 
@@ -60,8 +66,10 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
         logger?.warn('Failed to persist raw notes for session', { error: err });
       }
 
-      const manifestPages = notes.map((note) => this.buildManifestPage(note));
-      if (manifestPages.length > 0) {
+      const manifestPages = apiOwnedDeterministicNoteTransformsEnabled
+        ? []
+        : notes.map((note) => this.buildManifestPage(note));
+      if (manifestPages.length > 0 || apiOwnedDeterministicNoteTransformsEnabled) {
         await this.updateManifestForSession(
           sessionId,
           manifestPages,
@@ -76,6 +84,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
         'Upload batch persisted without rendering; finalization remains authoritative',
         {
           count: notes.length,
+          apiOwnedDeterministicNoteTransformsEnabled,
         }
       );
 
