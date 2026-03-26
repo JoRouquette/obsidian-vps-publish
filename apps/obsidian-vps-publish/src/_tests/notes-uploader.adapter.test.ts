@@ -98,7 +98,7 @@ describe('NotesUploaderAdapter', () => {
     expect((adapter as any).batchesByNotes.get(notes)).toHaveLength(batchInfo.batchCount);
   });
 
-  it('builds lean upload notes when api-owned deterministic transforms are enabled', async () => {
+  it('builds lean upload notes for the canonical upload payload', async () => {
     const adapter = new NotesUploaderAdapter(
       sessionClient,
       's1',
@@ -107,8 +107,7 @@ describe('NotesUploaderAdapter', () => {
       10_000,
       undefined,
       undefined,
-      undefined,
-      true
+      undefined
     );
 
     const notes = [

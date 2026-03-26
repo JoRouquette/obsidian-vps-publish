@@ -47,17 +47,8 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
   }
 
   async handle(command: UploadNotesCommand): Promise<UploadNotesResult> {
-    const {
-      sessionId,
-      notes: uploadedNotes,
-      cleanupRules,
-      folderDisplayNames,
-      apiOwnedDeterministicNoteTransformsEnabled,
-    } = command;
-    const notes = this.normalizeUploadedNotes(
-      uploadedNotes,
-      apiOwnedDeterministicNoteTransformsEnabled === true
-    );
+    const { sessionId, notes: uploadedNotes, cleanupRules, folderDisplayNames } = command;
+    const notes = this.normalizeUploadedNotes(uploadedNotes);
     const manifestStorage = this.resolveManifestStorage(sessionId);
     const logger = this.logger?.child({ method: 'handle', sessionId });
 
@@ -75,25 +66,19 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
         logger?.warn('Failed to persist raw notes for session', { error: err });
       }
 
-      const manifestPages = apiOwnedDeterministicNoteTransformsEnabled
-        ? []
-        : notes.map((note) => this.buildManifestPage(note));
-      if (manifestPages.length > 0 || apiOwnedDeterministicNoteTransformsEnabled) {
-        await this.updateManifestForSession(
-          sessionId,
-          manifestPages,
-          notes,
-          manifestStorage,
-          logger,
-          folderDisplayNames
-        );
-      }
+      await this.updateManifestForSession(
+        sessionId,
+        [],
+        notes,
+        manifestStorage,
+        logger,
+        folderDisplayNames
+      );
 
       logger?.debug(
         'Upload batch persisted without rendering; finalization remains authoritative',
         {
           count: notes.length,
-          apiOwnedDeterministicNoteTransformsEnabled,
         }
       );
 
@@ -269,19 +254,10 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     return { sessionId, published, errors };
   }
 
-  private normalizeUploadedNotes(
-    notes: UploadSessionNote[],
-    apiOwnedDeterministicNoteTransformsEnabled: boolean
-  ): PublishableNote[] {
+  private normalizeUploadedNotes(notes: UploadSessionNote[]): PublishableNote[] {
     return notes.map((note) => {
       if (this.hasRouting(note)) {
         return note;
-      }
-
-      if (!apiOwnedDeterministicNoteTransformsEnabled) {
-        throw new Error(
-          `Routing is required for note upload when API-owned deterministic transforms are disabled: ${note.noteId}`
-        );
       }
 
       return this.hydrateSourcePackageNote(note);
@@ -289,14 +265,17 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
   }
 
   private hasRouting(note: UploadSessionNote): note is PublishableNote {
+    const routing =
+      'routing' in note && typeof note.routing === 'object' && note.routing !== null
+        ? (note.routing as Record<string, unknown>)
+        : null;
+
     return (
-      'routing' in note &&
-      typeof note.routing === 'object' &&
-      note.routing !== null &&
-      typeof note.routing.fullPath === 'string' &&
-      typeof note.routing.slug === 'string' &&
-      typeof note.routing.path === 'string' &&
-      typeof note.routing.routeBase === 'string'
+      routing !== null &&
+      typeof routing.fullPath === 'string' &&
+      typeof routing.slug === 'string' &&
+      typeof routing.path === 'string' &&
+      typeof routing.routeBase === 'string'
     );
   }
 

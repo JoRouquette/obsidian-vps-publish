@@ -135,7 +135,6 @@ export function startSessionBootstrapEarly<TStartedSession>(args: {
   ignoredTags: string[];
   locale?: SiteLocale;
   deduplicationEnabled: boolean;
-  apiOwnedDeterministicNoteTransformsEnabled: boolean;
   startSession: (payload: {
     notesPlanned: number;
     assetsPlanned: number;
@@ -148,7 +147,6 @@ export function startSessionBootstrapEarly<TStartedSession>(args: {
     pipelineSignature?: { version: string; renderSettingsHash: string };
     locale?: SiteLocale;
     deduplicationEnabled?: boolean;
-    apiOwnedDeterministicNoteTransformsEnabled?: boolean;
   }) => Promise<TStartedSession>;
   onCalloutStylesLoaded?: (result: TimedResult<CalloutStyle[]>) => void;
   onBeforeStartSession?: () => void;
@@ -175,7 +173,6 @@ export function startSessionBootstrapEarly<TStartedSession>(args: {
       pipelineSignature,
       locale: args.locale,
       deduplicationEnabled: args.deduplicationEnabled,
-      apiOwnedDeterministicNoteTransformsEnabled: args.apiOwnedDeterministicNoteTransformsEnabled,
     });
 
     args.onAfterStartSession?.(startedSession);

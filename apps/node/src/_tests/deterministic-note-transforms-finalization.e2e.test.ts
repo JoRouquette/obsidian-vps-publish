@@ -5,6 +5,7 @@ import path from 'node:path';
 import {
   buildUploadSessionNotes,
   CreateSessionHandler,
+  DeterministicNoteTransformsService,
   EvaluateIgnoreRulesHandler,
   FinishSessionHandler,
   NotesMapper,
@@ -15,17 +16,12 @@ import {
   deterministicTransformParityFixtures,
   deterministicTransformParityIgnoreRules,
 } from '@core-application/_tests/fixtures/deterministic-transform-parity.fixture';
-import { ComputeRoutingService } from '@core-application/vault-parsing/services/compute-routing.service';
-import { DeduplicateNotesService } from '@core-application/vault-parsing/services/deduplicate-notes.service';
 import { DetectAssetsService } from '@core-application/vault-parsing/services/detect-assets.service';
 import { DetectLeafletBlocksService } from '@core-application/vault-parsing/services/detect-leaflet-blocks.service';
-import { DetectWikilinksService } from '@core-application/vault-parsing/services/detect-wikilinks.service';
-import { EnsureTitleHeaderService } from '@core-application/vault-parsing/services/ensure-title-header.service';
 import { NormalizeFrontmatterService } from '@core-application/vault-parsing/services/normalize-frontmatter.service';
 import { RemoveNoPublishingMarkerService } from '@core-application/vault-parsing/services/remove-no-publishing-marker.service';
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
-import { ResolveWikilinksService } from '@core-application/vault-parsing/services/resolve-wikilinks.service';
-import { type Manifest, type PublishableNote, type ResolvedWikilink } from '@core-domain';
+import { type Manifest, type PublishableNote } from '@core-domain';
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
 import { FileSystemSessionRepository } from '../infra/filesystem/file-system-session.repository';
@@ -39,7 +35,7 @@ import { MarkdownItRenderer } from '../infra/markdown/markdown-it.renderer';
 import { SessionFinalizationJobService } from '../infra/sessions/session-finalization-job.service';
 import { SessionFinalizerService } from '../infra/sessions/session-finalizer.service';
 
-describe('API-owned deterministic note transforms parity', () => {
+describe('Deterministic note transform finalization', () => {
   let tempDir: string;
 
   const noopLogger = {
@@ -59,48 +55,25 @@ describe('API-owned deterministic note transforms parity', () => {
       return undefined;
     },
   } as any;
-  const deduplicateNotesService = new DeduplicateNotesService(noopLogger);
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'api-owned-transforms-'));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deterministic-transforms-'));
   });
 
   afterEach(async () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  function buildParseHandler(mode: 'plugin' | 'api') {
-    const normalizeFrontmatterService = new NormalizeFrontmatterService(noopLogger);
-    const evaluateIgnoreRulesHandler = new EvaluateIgnoreRulesHandler(
-      deterministicTransformParityIgnoreRules,
-      noopLogger
-    );
-    const noteMapper = new NotesMapper();
-    const inlineDataviewRenderer = new RenderInlineDataviewService(noopLogger);
-    const leafletBlocksDetector = new DetectLeafletBlocksService(noopLogger);
-    const ensureTitleHeaderService = new EnsureTitleHeaderService(noopLogger);
-    const removeNoPublishingMarkerService = new RemoveNoPublishingMarkerService(noopLogger);
-    const assetsDetector = new DetectAssetsService(noopLogger);
-    const detectWikilinks = new DetectWikilinksService(noopLogger);
-    const resolveWikilinks = new ResolveWikilinksService(noopLogger, detectWikilinks);
-    const computeRoutingService = new ComputeRoutingService(noopLogger);
-
+  function buildParseHandler() {
     return new ParseContentHandler(
-      normalizeFrontmatterService,
-      evaluateIgnoreRulesHandler,
-      noteMapper,
-      inlineDataviewRenderer,
-      leafletBlocksDetector,
-      ensureTitleHeaderService,
-      removeNoPublishingMarkerService,
-      assetsDetector,
-      resolveWikilinks,
-      computeRoutingService,
-      noopLogger,
-      undefined,
-      undefined,
-      undefined,
-      { deterministicTransformsOwner: mode }
+      new NormalizeFrontmatterService(noopLogger),
+      new EvaluateIgnoreRulesHandler(deterministicTransformParityIgnoreRules, noopLogger),
+      new NotesMapper(),
+      new RenderInlineDataviewService(noopLogger),
+      new DetectLeafletBlocksService(noopLogger),
+      new RemoveNoPublishingMarkerService(noopLogger),
+      new DetectAssetsService(noopLogger),
+      noopLogger
     );
   }
 
@@ -135,26 +108,23 @@ describe('API-owned deterministic note transforms parity', () => {
       undefined,
       1
     );
-    const createSessionHandler = new CreateSessionHandler(
-      new UuidIdGenerator(),
-      sessionRepository,
-      manifestFileSystem,
-      undefined
-    );
-    const uploadNotesHandler = new UploadNotesHandler(
-      markdownRenderer,
-      (sessionId) => new NotesFileSystemStorage(path.join(contentRoot, '.staging', sessionId)),
-      (sessionId) => new ManifestFileSystem(path.join(contentRoot, '.staging', sessionId)),
-      undefined,
-      sessionNotesStorage
-    );
-    const finishSessionHandler = new FinishSessionHandler(sessionRepository);
 
     return {
       contentRoot,
-      createSessionHandler,
-      uploadNotesHandler,
-      finishSessionHandler,
+      createSessionHandler: new CreateSessionHandler(
+        new UuidIdGenerator(),
+        sessionRepository,
+        manifestFileSystem,
+        undefined
+      ),
+      uploadNotesHandler: new UploadNotesHandler(
+        markdownRenderer,
+        (sessionId) => new NotesFileSystemStorage(path.join(contentRoot, '.staging', sessionId)),
+        (sessionId) => new ManifestFileSystem(path.join(contentRoot, '.staging', sessionId)),
+        undefined,
+        sessionNotesStorage
+      ),
+      finishSessionHandler: new FinishSessionHandler(sessionRepository),
       finalizationJobService,
       manifestFileSystem,
     };
@@ -210,17 +180,19 @@ describe('API-owned deterministic note transforms parity', () => {
     return htmlByRoute;
   }
 
-  function simplifyResolvedWikilinks(links?: ResolvedWikilink[]) {
-    return (links ?? []).map((link) => ({
-      raw: link.raw,
-      target: link.target,
-      alias: link.alias,
-      subpath: link.subpath,
-      targetNoteId: link.targetNoteId,
-      isResolved: link.isResolved,
-      href: link.href,
-      path: link.path,
-    }));
+  function simplifyExpected(notes: PublishableNote[]) {
+    return notes
+      .map((note) => ({
+        id: note.noteId,
+        title: note.title,
+        route: note.routing.fullPath,
+        aliases: Array.isArray(note.frontmatter.flat.aliases)
+          ? note.frontmatter.flat.aliases
+          : typeof note.frontmatter.flat.aliases === 'string'
+            ? [note.frontmatter.flat.aliases]
+            : [],
+      }))
+      .sort((left, right) => left.route.localeCompare(right.route));
   }
 
   function simplifyManifest(manifest: Manifest | null) {
@@ -234,51 +206,24 @@ describe('API-owned deterministic note transforms parity', () => {
       .sort((left, right) => left.route.localeCompare(right.route));
   }
 
-  function simplifyNotes(notes: PublishableNote[]) {
-    return notes
-      .map((note) => ({
-        noteId: note.noteId,
-        route: note.routing.fullPath,
-        slug: note.routing.slug,
-        content: note.content,
-        resolvedWikilinks: simplifyResolvedWikilinks(note.resolvedWikilinks),
-      }))
-      .sort((left, right) => left.noteId.localeCompare(right.noteId));
-  }
-
-  async function publishScenario(
-    envName: string,
-    notes: PublishableNote[],
-    options: {
-      apiOwnedDeterministicNoteTransformsEnabled: boolean;
-      allCollectedRoutes?: string[];
-    }
-  ): Promise<{
-    manifest: Manifest | null;
-    htmlByRoute: Record<string, string>;
-  }> {
+  async function publishScenario(envName: string, notes: PublishableNote[]) {
     const env = await createEnvironment(envName);
     const createResult = await env.createSessionHandler.handle({
       notesPlanned: notes.length,
       assetsPlanned: 0,
       batchConfig: { maxBytesPerRequest: 1024 * 1024 },
       ignoreRules: deterministicTransformParityIgnoreRules,
-      apiOwnedDeterministicNoteTransformsEnabled:
-        options.apiOwnedDeterministicNoteTransformsEnabled,
     });
 
     await env.uploadNotesHandler.handle({
       sessionId: createResult.sessionId,
-      notes: buildUploadSessionNotes(notes, options.apiOwnedDeterministicNoteTransformsEnabled),
-      apiOwnedDeterministicNoteTransformsEnabled:
-        options.apiOwnedDeterministicNoteTransformsEnabled,
+      notes: buildUploadSessionNotes(notes),
     });
 
     await env.finishSessionHandler.handle({
       sessionId: createResult.sessionId,
       notesProcessed: notes.length,
       assetsProcessed: 0,
-      allCollectedRoutes: options.allCollectedRoutes,
     });
 
     const jobId = await env.finalizationJobService.queueFinalization(createResult.sessionId);
@@ -292,38 +237,30 @@ describe('API-owned deterministic note transforms parity', () => {
   }
 
   for (const fixture of deterministicTransformParityFixtures) {
-    it(`preserves final output parity for ${fixture.id}`, async () => {
-      const pluginOwnedNotes = deduplicateNotesService.process(
-        await buildParseHandler('plugin').handle(fixture.notes)
-      );
-      const apiPreparedNotes = await buildParseHandler('api').handle(fixture.notes);
-
-      expect(simplifyNotes(apiPreparedNotes)).not.toEqual(simplifyNotes(pluginOwnedNotes));
-
-      const pluginOwnedResult = await publishScenario(
-        `${fixture.id}-plugin-owned`,
-        pluginOwnedNotes,
+    it(`publishes the canonical deterministic output for ${fixture.id}`, async () => {
+      const preparedNotes = await buildParseHandler().handle(fixture.notes);
+      const expectedNotes = await new DeterministicNoteTransformsService(noopLogger).process(
+        preparedNotes,
         {
-          apiOwnedDeterministicNoteTransformsEnabled: false,
-          allCollectedRoutes: pluginOwnedNotes.map((note) => note.routing.fullPath),
+          deduplicationEnabled: true,
+          ignoreRulesAlreadyApplied: true,
         }
       );
-      const apiOwnedResult = await publishScenario(`${fixture.id}-api-owned`, apiPreparedNotes, {
-        apiOwnedDeterministicNoteTransformsEnabled: true,
-      });
 
-      expect(simplifyManifest(apiOwnedResult.manifest)).toEqual(
-        simplifyManifest(pluginOwnedResult.manifest)
+      const result = await publishScenario(fixture.id, preparedNotes);
+
+      expect(simplifyManifest(result.manifest)).toEqual(simplifyExpected(expectedNotes));
+      expect(Object.keys(result.htmlByRoute).sort()).toEqual(
+        expectedNotes.map((note) => note.routing.fullPath).sort()
       );
-      expect(apiOwnedResult.htmlByRoute).toEqual(pluginOwnedResult.htmlByRoute);
+
+      for (const note of expectedNotes) {
+        expect(result.htmlByRoute[note.routing.fullPath]).toContain(note.title);
+        expect(result.htmlByRoute[note.routing.fullPath]).not.toContain('```dataview');
+      }
 
       for (const ignoredNoteId of fixture.ignoredNoteIds) {
-        expect(apiOwnedResult.manifest?.pages.some((page) => page.id === ignoredNoteId)).toBe(
-          false
-        );
-        expect(pluginOwnedResult.manifest?.pages.some((page) => page.id === ignoredNoteId)).toBe(
-          false
-        );
+        expect(result.manifest?.pages.some((page) => page.id === ignoredNoteId)).toBe(false);
       }
     });
   }

@@ -152,7 +152,6 @@ export function createSessionController({
         pipelineSignature,
         locale,
         deduplicationEnabled,
-        apiOwnedDeterministicNoteTransformsEnabled,
       } = parsed.data;
       if (typeof notesPlanned !== 'number' || typeof assetsPlanned !== 'number') {
         routeLogger?.warn('Missing required fields for session creation', {
@@ -177,7 +176,6 @@ export function createSessionController({
         pipelineSignature,
         locale,
         deduplicationEnabled,
-        apiOwnedDeterministicNoteTransformsEnabled,
       };
 
       try {
@@ -200,7 +198,6 @@ export function createSessionController({
           success: result.success,
           maxBytesPerRequest: effectiveMaxBytesPerRequest,
           existingAssetHashes: result.existingAssetHashes ?? [],
-          existingNoteHashes: result.existingNoteHashes ?? {},
           existingSourceNoteHashesByVaultPath: result.existingSourceNoteHashesByVaultPath ?? {},
           pipelineChanged: result.pipelineChanged,
           deduplicationEnabled: result.deduplicationEnabled ?? true,
@@ -239,8 +236,6 @@ export function createSessionController({
           notes: parsed.data.notes,
           cleanupRules: parsed.data.cleanupRules,
           folderDisplayNames: session?.folderDisplayNames, // Pass displayNames from session
-          apiOwnedDeterministicNoteTransformsEnabled:
-            session?.apiOwnedDeterministicNoteTransformsEnabled === true,
         };
         routeLogger?.debug('Publishing notes batch', {
           sessionId: command.sessionId,

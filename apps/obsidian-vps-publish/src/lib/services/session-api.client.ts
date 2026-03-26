@@ -19,7 +19,6 @@ export interface StartSessionResponse {
   sessionId: string;
   maxBytesPerRequest: number;
   existingAssetHashes?: string[];
-  existingNoteHashes?: Record<string, string>;
   existingSourceNoteHashesByVaultPath?: Record<string, string>;
   pipelineChanged?: boolean;
 }
@@ -166,7 +165,6 @@ export class SessionApiClient {
     pipelineSignature?: { version: string; renderSettingsHash: string };
     locale?: 'en' | 'fr';
     deduplicationEnabled?: boolean;
-    apiOwnedDeterministicNoteTransformsEnabled?: boolean;
   }): Promise<StartSessionResponse> {
     const result = await this.postJson('/api/session/start', {
       notesPlanned: payload.notesPlanned,
@@ -180,8 +178,6 @@ export class SessionApiClient {
       pipelineSignature: payload.pipelineSignature,
       locale: payload.locale,
       deduplicationEnabled: payload.deduplicationEnabled ?? true,
-      apiOwnedDeterministicNoteTransformsEnabled:
-        payload.apiOwnedDeterministicNoteTransformsEnabled === true,
     });
 
     if (result.isError) {
@@ -207,7 +203,6 @@ export class SessionApiClient {
       sessionId: parsed.sessionId,
       maxBytesPerRequest: effectiveLimit,
       existingAssetHashes: parsed.existingAssetHashes ?? [],
-      existingNoteHashes: parsed.existingNoteHashes ?? {},
       existingSourceNoteHashesByVaultPath: parsed.existingSourceNoteHashesByVaultPath ?? {},
       pipelineChanged: parsed.pipelineChanged,
     };
@@ -278,7 +273,6 @@ export class SessionApiClient {
     payload: {
       notesProcessed: number;
       assetsProcessed: number;
-      allCollectedRoutes?: string[]; // PHASE 6.1: detect deleted pages
     },
     options?: {
       onFinalizationUpdate?: (status: FinalizationStatusResponse) => void;

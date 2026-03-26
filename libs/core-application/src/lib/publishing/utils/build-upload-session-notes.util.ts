@@ -2,14 +2,7 @@ import { type PublishableNote, type SourcePackageNote } from '@core-domain';
 
 import { type UploadSessionNote } from '../commands/upload-notes.command';
 
-export function buildUploadSessionNotes(
-  notes: PublishableNote[],
-  apiOwnedDeterministicNoteTransformsEnabled: boolean
-): UploadSessionNote[] {
-  if (!apiOwnedDeterministicNoteTransformsEnabled) {
-    return notes;
-  }
-
+export function buildUploadSessionNotes(notes: PublishableNote[]): UploadSessionNote[] {
   return notes.map((note): SourcePackageNote => {
     const { noteId, title, vaultPath, relativePath, content, frontmatter, folderConfig } = note;
 

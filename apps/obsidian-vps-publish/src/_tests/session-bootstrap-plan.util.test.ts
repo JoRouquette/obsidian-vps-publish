@@ -181,7 +181,6 @@ describe('prepareSessionBootstrapPlan', () => {
       ignoredTags: ['private'],
       locale: 'en',
       deduplicationEnabled: true,
-      apiOwnedDeterministicNoteTransformsEnabled: false,
       startSession,
       onBeforeStartSession: () => {
         events.push('before-startSession');
@@ -235,7 +234,6 @@ describe('prepareSessionBootstrapPlan', () => {
       ignoreRules: [],
       ignoredTags: [],
       deduplicationEnabled: true,
-      apiOwnedDeterministicNoteTransformsEnabled: false,
       startSession: jest.fn(async () => {
         throw new Error('session start failed');
       }),

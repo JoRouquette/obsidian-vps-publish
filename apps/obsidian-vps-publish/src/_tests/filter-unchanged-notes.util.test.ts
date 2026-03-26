@@ -51,7 +51,7 @@ describe('filterUnchangedNotes', () => {
     hashService.computeHash.mockClear();
   });
 
-  it('skips unchanged notes in the api-owned path using vaultPath hashes', async () => {
+  it('skips unchanged notes using authoritative vaultPath hashes', async () => {
     const notes = [
       createNote({
         noteId: 'a',
@@ -67,7 +67,6 @@ describe('filterUnchangedNotes', () => {
         'notes/a.md': 'hash:same',
       },
       pipelineChanged: false,
-      apiOwnedDeterministicNoteTransformsEnabled: true,
       hashService,
     });
 
@@ -78,7 +77,7 @@ describe('filterUnchangedNotes', () => {
     });
   });
 
-  it('keeps changed notes in the api-owned path', async () => {
+  it('keeps changed notes when source hashes differ', async () => {
     const notes = [
       createNote({
         noteId: 'a',
@@ -94,7 +93,6 @@ describe('filterUnchangedNotes', () => {
         'notes/a.md': 'hash:old',
       },
       pipelineChanged: false,
-      apiOwnedDeterministicNoteTransformsEnabled: true,
       hashService,
     });
 
@@ -103,7 +101,7 @@ describe('filterUnchangedNotes', () => {
     expect(result.applied).toBe(true);
   });
 
-  it('supports mixed changed and unchanged notes in the api-owned path', async () => {
+  it('supports mixed changed and unchanged notes', async () => {
     const unchanged = createNote({
       noteId: 'unchanged',
       vaultPath: 'notes/unchanged.md',
@@ -124,7 +122,6 @@ describe('filterUnchangedNotes', () => {
         'notes/changed.md': 'hash:old',
       },
       pipelineChanged: false,
-      apiOwnedDeterministicNoteTransformsEnabled: true,
       hashService,
     });
 
@@ -156,7 +153,6 @@ describe('filterUnchangedNotes', () => {
         'beta/index.md': 'hash:old',
       },
       pipelineChanged: false,
-      apiOwnedDeterministicNoteTransformsEnabled: true,
       hashService,
     });
 
@@ -178,7 +174,6 @@ describe('filterUnchangedNotes', () => {
       notes,
       existingSourceNoteHashesByVaultPath: {},
       pipelineChanged: false,
-      apiOwnedDeterministicNoteTransformsEnabled: true,
       hashService,
     });
 
@@ -190,7 +185,7 @@ describe('filterUnchangedNotes', () => {
     expect(hashService.computeHash).not.toHaveBeenCalled();
   });
 
-  it('keeps legacy route-based skipping unchanged for the default path', async () => {
+  it('falls back to upload when no authoritative vaultPath hash exists for a note', async () => {
     const notes = [
       createNote({
         noteId: 'a',
@@ -202,16 +197,15 @@ describe('filterUnchangedNotes', () => {
 
     const result = await filterUnchangedNotes({
       notes,
-      existingNoteHashes: {
-        '/notes/a': 'hash:same',
+      existingSourceNoteHashesByVaultPath: {
+        'notes/other.md': 'hash:same',
       },
       pipelineChanged: false,
-      apiOwnedDeterministicNoteTransformsEnabled: false,
       hashService,
     });
 
-    expect(result.notesToUpload).toEqual([]);
-    expect(result.skippedCount).toBe(1);
+    expect(result.notesToUpload).toEqual(notes);
+    expect(result.skippedCount).toBe(0);
     expect(result.applied).toBe(true);
   });
 });

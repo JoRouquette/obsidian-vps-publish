@@ -48,5 +48,4 @@ export const CreateSessionBodyDto = z.object({
    */
   locale: z.enum(['en', 'fr']).optional(),
   deduplicationEnabled: z.boolean().optional(),
-  apiOwnedDeterministicNoteTransformsEnabled: z.boolean().optional(),
 });

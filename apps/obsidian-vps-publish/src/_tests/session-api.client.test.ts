@@ -188,7 +188,6 @@ describe('SessionApiClient', () => {
       notesPlanned: 1,
       assetsPlanned: 0,
       maxBytesPerRequest: 1024,
-      apiOwnedDeterministicNoteTransformsEnabled: true,
     });
 
     expect(res.existingSourceNoteHashesByVaultPath).toEqual({
@@ -225,7 +224,7 @@ describe('SessionApiClient', () => {
     );
   });
 
-  it('passes the api-owned deterministic transforms flag and ignore rules when starting a session', async () => {
+  it('passes ignore rules when starting a session', async () => {
     const requestUrl = jest.fn().mockResolvedValue({
       status: 200,
       headers: {},
@@ -244,15 +243,9 @@ describe('SessionApiClient', () => {
       notesPlanned: 1,
       assetsPlanned: 0,
       maxBytesPerRequest: 1024,
-      apiOwnedDeterministicNoteTransformsEnabled: true,
       ignoreRules: [{ property: 'publish', ignoreIf: false } as any],
     });
 
-    expect(requestUrl).toHaveBeenCalledWith(
-      expect.objectContaining({
-        body: expect.stringContaining('"apiOwnedDeterministicNoteTransformsEnabled":true'),
-      })
-    );
     expect(requestUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         body: expect.stringContaining('"ignoreRules":[{"property":"publish","ignoreIf":false}]'),

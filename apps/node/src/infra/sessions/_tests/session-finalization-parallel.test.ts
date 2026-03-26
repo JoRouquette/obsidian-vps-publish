@@ -3,6 +3,9 @@
  * Validates that multiple jobs can run concurrently with controlled parallelism
  */
 
+import os from 'node:os';
+import path from 'node:path';
+
 import type { LoggerPort } from '@core-domain';
 
 import type { StagingManager } from '../../filesystem/staging-manager';
@@ -40,6 +43,11 @@ describe('SessionFinalizationJobService - Parallel Execution', () => {
     mockStagingManager = {
       promoteSession: jest.fn().mockResolvedValue(undefined),
       contentRootPath: '/tmp/test-content',
+      contentStagingPath: jest
+        .fn()
+        .mockImplementation((sessionId: string) =>
+          path.join(os.tmpdir(), 'test-content', '.staging', sessionId)
+        ),
     } as unknown as jest.Mocked<StagingManager>;
 
     mockSessionRepository = {

@@ -2,15 +2,12 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import {
-  ComputeRoutingService,
   ContentSanitizerService,
   type ContentStoragePort,
   DetectLeafletBlocksService,
-  DetectWikilinksService,
   DeterministicNoteTransformsService,
   type ManifestPort,
   type MarkdownRendererPort,
-  ResolveWikilinksService,
   type SessionNotesStoragePort,
   type SessionRepository,
   UploadNotesHandler,
@@ -101,14 +98,11 @@ export class SessionFinalizerService {
     const session = await this.sessionRepository.findById(sessionId);
     const customIndexConfigs = session?.customIndexConfigs ?? [];
     const folderDisplayNames = session?.folderDisplayNames ?? {};
-    const apiOwnedDeterministicNoteTransformsEnabled =
-      session?.apiOwnedDeterministicNoteTransformsEnabled === true;
     timings.loadSessionMetadata = performance.now() - stepStart;
     log.debug('Loaded session metadata', {
       customIndexConfigsCount: customIndexConfigs.length,
       folderDisplayNamesCount: Object.keys(folderDisplayNames).length,
       folderDisplayNames,
-      apiOwnedDeterministicNoteTransformsEnabled,
     });
 
     reportPhase?.('rebuilding_notes');
@@ -153,34 +147,14 @@ export class SessionFinalizerService {
     }));
     timings.convertMarkdownLinks = performance.now() - stepStart;
 
-    let withLinks;
-    if (apiOwnedDeterministicNoteTransformsEnabled) {
-      stepStart = performance.now();
-      const deterministicTransforms = new DeterministicNoteTransformsService(this.logger);
-      withLinks = await deterministicTransforms.process(withConvertedLinks, {
-        ignoreRules: session?.ignoreRules,
-        deduplicationEnabled: session?.deduplicationEnabled !== false,
-        ignoreRulesAlreadyApplied: true,
-      });
-      timings.resolveWikilinksAndRouting = performance.now() - stepStart;
-    } else {
-      // STEP 5: Preserve uploaded routing when the plugin already computed it,
-      // then resolve wikilinks against that authoritative route set.
-      // Fall back to server-side routing only when the uploaded notes do not
-      // carry usable routing information.
-      stepStart = performance.now();
-      const computeRouting = new ComputeRoutingService(this.logger);
-      const detect = new DetectWikilinksService(this.logger);
-      const resolve = new ResolveWikilinksService(this.logger, detect);
-      const hasPrecomputedRouting = withConvertedLinks.every(
-        (note) => !!note.routing?.fullPath && !!note.routing?.slug
-      );
-
-      withLinks = hasPrecomputedRouting
-        ? resolve.process(withConvertedLinks)
-        : resolve.process(computeRouting.process(withConvertedLinks));
-      timings.resolveWikilinksAndRouting = performance.now() - stepStart;
-    }
+    stepStart = performance.now();
+    const deterministicTransforms = new DeterministicNoteTransformsService(this.logger);
+    const withLinks = await deterministicTransforms.process(withConvertedLinks, {
+      ignoreRules: session?.ignoreRules,
+      deduplicationEnabled: session?.deduplicationEnabled !== false,
+      ignoreRulesAlreadyApplied: true,
+    });
+    timings.resolveWikilinksAndRouting = performance.now() - stepStart;
 
     // STEP 7: Reset content staging directory
     stepStart = performance.now();

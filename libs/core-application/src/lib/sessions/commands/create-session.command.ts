@@ -17,5 +17,4 @@ export interface CreateSessionCommand {
    */
   locale?: SiteLocale;
   deduplicationEnabled?: boolean;
-  apiOwnedDeterministicNoteTransformsEnabled?: boolean;
 }
