@@ -20,8 +20,8 @@
   row-gap: 0.5rem;
 
   inline-size: 100%;
-  padding-inline: clamp(8px, 2vw, 16px);
-  padding-block: 0.5rem;
+  padding-inline: clamp(0.875rem, 2vw, 1rem);
+  padding-block: clamp(0.5rem, 0.45rem + 0.2vw, 0.625rem);
 
   background: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
@@ -87,8 +87,8 @@
   color: inherit;
   font-weight: 800;
   letter-spacing: 0.015em;
-  font-size: clamp(1rem, 2.2vw, 1.25rem);
-  line-height: 1.2;
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  line-height: var(--line-height-tight);
   white-space: nowrap;
   max-width: clamp(150px, 25vw, 300px);
   overflow: hidden;
@@ -157,14 +157,14 @@ app-search-bar {
     justify-self: center;
     text-align: center;
     max-width: 100%;
-    font-size: clamp(0.9rem, 2vw, 1.1rem);
+    font-size: clamp(1rem, 0.96rem + 0.3vw, 1.1rem);
   }
 }
 
 @media (max-width: 520px) {
   .site-name {
     max-width: 100%;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
   }
 }
 
@@ -177,7 +177,7 @@ app-search-bar {
 
   .site-name {
     max-width: 100%;
-    font-size: 0.8rem;
+    font-size: 0.95rem;
   }
 
   app-search-bar {
