@@ -6,6 +6,8 @@
 import type { LoggerPort } from '@core-domain';
 import type { NextFunction, Request, Response } from 'express';
 
+import { sanitizeLogUrl } from '../utils/sanitize-log-url.util';
+
 interface PerformanceMetrics {
   requestCount: number;
   totalDurationMs: number;
@@ -136,7 +138,7 @@ export class PerformanceMonitoringMiddleware {
         if ((shouldLog || hasCorrelation) && this.logger) {
           const logPayload = {
             method: req.method,
-            url: req.originalUrl,
+            url: sanitizeLogUrl(req.originalUrl),
             status: res.statusCode,
             durationMs: duration.toFixed(2),
             requestSizeBytes: requestSize,
