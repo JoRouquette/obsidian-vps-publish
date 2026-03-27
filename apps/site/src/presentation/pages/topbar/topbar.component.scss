@@ -105,6 +105,10 @@
   }
 }
 
+.breadcrumbs-mobile {
+  display: none;
+}
+
 /* Ligne 1 colonne 1 : titre du site */
 .site-name {
   grid-area: site-name;
@@ -191,34 +195,93 @@ app-search-bar {
   }
 
   .breadcrumbs {
-    display: block;
-    overflow-x: auto;
-    overflow-y: hidden;
-    margin-inline: -0.125rem;
-    padding-block-start: 0;
-    padding-block-end: 0.125rem;
-    scrollbar-width: none;
+    display: none;
+  }
 
-    &::-webkit-scrollbar {
-      display: none;
+  .breadcrumbs-mobile {
+    grid-area: breadcrumbs;
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+    padding-block-start: 0.05rem;
+  }
+
+  .breadcrumbs-mobile-context {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-width: 0;
+  }
+
+  .breadcrumbs-mobile-main {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.45rem;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .breadcrumbs-mobile .context-link,
+  .breadcrumbs-mobile .back-link,
+  .breadcrumbs-mobile .current,
+  .breadcrumbs-mobile .hidden-count {
+    min-width: 0;
+    min-height: 1.95rem;
+    border-radius: 999px;
+    line-height: var(--line-height-ui);
+    font-size: var(--font-size-ui-sm);
+  }
+
+  .breadcrumbs-mobile .context-link,
+  .breadcrumbs-mobile .back-link,
+  .breadcrumbs-mobile .current {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .breadcrumbs-mobile .context-link {
+    max-width: min(18ch, 52vw);
+    padding: 0.15rem 0.55rem;
+    color: var(--mat-sys-on-surface-variant);
+    background: color-mix(in oklab, var(--mat-sys-surface-container-low) 78%, transparent);
+  }
+
+  .breadcrumbs-mobile .hidden-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.1rem 0.45rem;
+    color: var(--mat-sys-on-surface-variant);
+    background: color-mix(in oklab, var(--mat-sys-outline-variant) 28%, transparent);
+  }
+
+  .breadcrumbs-mobile .back-link {
+    gap: 0.15rem;
+    max-width: min(16ch, 42vw);
+    padding: 0.15rem 0.55rem 0.15rem 0.4rem;
+    color: inherit;
+    background: color-mix(in oklab, var(--mat-sys-surface-container-low) 86%, transparent);
+
+    mat-icon {
+      flex: 0 0 auto;
+      font-size: 0.95rem;
+      width: 0.95rem;
+      height: 0.95rem;
+      line-height: 0.95rem;
+      opacity: 0.78;
     }
+  }
 
-    .breadcrumbs-list {
-      flex-wrap: nowrap;
-      min-width: max-content;
-      padding-inline: 0.125rem;
-    }
-
-    .crumb {
-      max-width: min(18ch, 55vw);
-
-      a,
-      .current {
-        min-height: 1.9rem;
-        padding: 0.2rem 0.6rem;
-        font-size: var(--font-size-ui-sm);
-      }
-    }
+  .breadcrumbs-mobile .current {
+    min-width: 0;
+    padding: 0.18rem 0.7rem;
+    font-weight: 650;
+    color: var(--mat-sys-on-surface);
+    background: color-mix(in oklab, var(--mat-sys-primary) 12%, var(--mat-sys-surface-container));
   }
 
   .site-name {
@@ -249,8 +312,16 @@ app-search-bar {
     font-size: 0.95rem;
   }
 
-  .breadcrumbs .crumb {
-    max-width: min(15ch, 60vw);
+  .breadcrumbs-mobile .context-link {
+    max-width: min(14ch, 46vw);
+  }
+
+  .breadcrumbs-mobile .back-link {
+    max-width: min(13ch, 36vw);
+  }
+
+  .breadcrumbs-mobile .current {
+    padding-inline: 0.6rem;
   }
 
   app-search-bar {
