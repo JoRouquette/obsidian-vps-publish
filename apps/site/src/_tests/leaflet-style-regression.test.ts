@@ -62,7 +62,29 @@ describe('Leaflet style regressions', () => {
     expect(source).toContain('min-height: clamp(12rem, 48vw, 15rem);');
     expect(source).toContain('max-height: min(58vh, 18rem);');
     expect(source).toContain('min-height: clamp(11.5rem, 52vw, 13.5rem);');
+    expect(source).toContain('max-height: min(52vh, 16rem);');
+    expect(source).toContain('min-height: 11rem;');
+    expect(source).toContain('max-height: 13rem;');
     expect(source).not.toContain('width: 46px !important;');
     expect(source).not.toContain('height: 46px !important;');
+  });
+
+  it('keeps touch controls compact enough on mobile while preserving usability', () => {
+    const repoRoot = process.cwd();
+    const source = readFileSync(
+      join(
+        repoRoot,
+        'apps/site/src/presentation/components/leaflet-map/leaflet-map.component.scss'
+      ),
+      'utf8'
+    );
+
+    expect(source).toContain('width: 40px !important;');
+    expect(source).toContain('height: 40px !important;');
+    expect(source).toContain('width: 38px;');
+    expect(source).toContain('height: 38px;');
+    expect(source).toContain('inline-size: 2.1rem !important;');
+    expect(source).not.toContain('width: 48px');
+    expect(source).not.toContain('height: 48px');
   });
 });

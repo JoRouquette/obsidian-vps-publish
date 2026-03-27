@@ -24,6 +24,8 @@ describe('Site UI foundations styles', () => {
     expect(source).toContain('--shell-pad-inline: var(--layout-page-gutter);');
     expect(source).toContain('padding: var(--shell-pad-block) var(--shell-pad-inline) 0;');
     expect(source).toContain('margin-left: calc(-1 * var(--shell-pad-inline));');
+    expect(source).toContain('overflow-x: hidden;');
+    expect(source).toContain('--shell-pad-inline: clamp(0.875rem, 4.5vw, 1rem);');
     expect(source).not.toMatch(/\.main\s*\{\s*padding:\s*0\.25rem;/);
   });
 
@@ -36,6 +38,7 @@ describe('Site UI foundations styles', () => {
     expect(source).toContain('--page-max: var(--layout-content-max);');
     expect(source).toContain('--measure: var(--layout-reader-max);');
     expect(source).toContain('font-size: var(--font-size-body);');
+    expect(source).toContain('inline-size: min(var(--page-max), 100%);');
     expect(source).toContain('max-inline-size: min(var(--measure), 100%);');
     expect(source).not.toContain('font-size: 0.75rem;');
   });
@@ -51,6 +54,10 @@ describe('Site UI foundations styles', () => {
     expect(source).toContain('font-size: clamp(1.02rem, 0.99rem + 0.35vw, 1.08rem);');
     expect(source).toContain('line-height: 1.72;');
     expect(source).toContain('margin: var(--space-stack-sm) 0 var(--space-stack-md);');
+    expect(source).toContain(
+      'overflow-x: auto; /* Scroll horizontal uniquement dans le conteneur */'
+    );
+    expect(source).toContain('max-width: 100% !important;');
   });
 
   it('raises navigation text to shared readable UI sizes', () => {
