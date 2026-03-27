@@ -47,4 +47,22 @@ describe('Leaflet style regressions', () => {
       /\.leaflet-container img\.leaflet-image-layer\s*\{[\s\S]*height:\s*auto\s*!important;/
     );
   });
+
+  it('keeps embedded maps bounded on mobile without allowing horizontal overflow', () => {
+    const repoRoot = process.cwd();
+    const source = readFileSync(
+      join(
+        repoRoot,
+        'apps/site/src/presentation/components/leaflet-map/leaflet-map.component.scss'
+      ),
+      'utf8'
+    );
+
+    expect(source).toContain('max-inline-size: 100%;');
+    expect(source).toContain('min-height: clamp(12rem, 48vw, 15rem);');
+    expect(source).toContain('max-height: min(58vh, 18rem);');
+    expect(source).toContain('min-height: clamp(11.5rem, 52vw, 13.5rem);');
+    expect(source).not.toContain('width: 46px !important;');
+    expect(source).not.toContain('height: 46px !important;');
+  });
 });
