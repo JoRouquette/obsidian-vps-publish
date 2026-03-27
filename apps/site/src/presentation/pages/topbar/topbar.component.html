@@ -68,4 +68,30 @@
       }
     </ol>
   </nav>
+
+  <nav class="breadcrumbs-mobile" aria-label="Fil d'Ariane mobile" data-testid="breadcrumbs-mobile">
+    @if (mobileContextCrumb(); as context) {
+      <div class="breadcrumbs-mobile-context">
+        <a class="context-link" [routerLink]="context.url">{{ context.label }}</a>
+        @if (hiddenMobileCrumbCount() > 0) {
+          <span class="hidden-count" aria-label="{{ hiddenMobileCrumbCount() }} niveaux masqués">
+            +{{ hiddenMobileCrumbCount() }}
+          </span>
+        }
+      </div>
+    }
+
+    @if (mobileCurrentCrumb(); as current) {
+      <div class="breadcrumbs-mobile-main">
+        @if (mobileBackCrumb(); as back) {
+          <a class="back-link" [routerLink]="back.url">
+            <mat-icon aria-hidden="true">chevron_left</mat-icon>
+            <span>{{ back.label }}</span>
+          </a>
+        }
+
+        <span class="current" aria-current="page">{{ current.label }}</span>
+      </div>
+    }
+  </nav>
 </mat-toolbar>

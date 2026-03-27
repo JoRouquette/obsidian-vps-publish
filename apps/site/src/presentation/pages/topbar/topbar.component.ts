@@ -39,6 +39,22 @@ export class TopbarComponent {
     public search: SearchFacade
   ) {}
 
+  mobileContextCrumb(): Crumb | null {
+    return this.crumbs.length > 2 ? (this.crumbs[0] ?? null) : null;
+  }
+
+  hiddenMobileCrumbCount(): number {
+    return Math.max(0, this.crumbs.length - 3);
+  }
+
+  mobileBackCrumb(): Crumb | null {
+    return this.crumbs.length > 1 ? (this.crumbs[this.crumbs.length - 2] ?? null) : null;
+  }
+
+  mobileCurrentCrumb(): Crumb | null {
+    return this.crumbs.length > 0 ? (this.crumbs[this.crumbs.length - 1] ?? null) : null;
+  }
+
   async onQueryInput(value: string): Promise<void> {
     const query = (value ?? '').trim();
     this.search.setQuery(query);

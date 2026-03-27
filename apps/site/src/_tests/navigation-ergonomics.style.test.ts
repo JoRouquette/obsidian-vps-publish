@@ -4,7 +4,7 @@ import { join } from 'node:path';
 describe('Site navigation ergonomics styles', () => {
   const repoRoot = process.cwd();
 
-  it('keeps breadcrumbs visually grouped and available on mobile as a compact horizontal strip', () => {
+  it('keeps mobile breadcrumbs as a compact orientation pattern instead of a scroll strip', () => {
     const source = readFileSync(
       join(repoRoot, 'apps/site/src/presentation/pages/topbar/topbar.component.scss'),
       'utf8'
@@ -15,10 +15,11 @@ describe('Site navigation ergonomics styles', () => {
     expect(source).toMatch(
       /grid-template-areas:\s*'burger-btn site-name search-btn'\s*'breadcrumbs breadcrumbs breadcrumbs';/
     );
-    expect(source).toContain('overflow-x: auto;');
-    expect(source).toContain('min-width: max-content;');
-    expect(source).toContain('max-width: min(18ch, 55vw);');
-    expect(source).toContain('max-width: min(15ch, 60vw);');
+    expect(source).toContain('.breadcrumbs-mobile {');
+    expect(source).toContain('grid-template-columns: auto minmax(0, 1fr);');
+    expect(source).toContain('max-width: min(18ch, 52vw);');
+    expect(source).toContain('max-width: min(16ch, 42vw);');
+    expect(source).not.toContain('overflow-x: auto;');
   });
 
   it('gives explorer search and rows more visual rhythm and comfortable interactive states', () => {
