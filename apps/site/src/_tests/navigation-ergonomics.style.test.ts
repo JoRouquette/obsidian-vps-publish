@@ -4,7 +4,7 @@ import { join } from 'node:path';
 describe('Site navigation ergonomics styles', () => {
   const repoRoot = process.cwd();
 
-  it('keeps mobile breadcrumbs as a compact orientation pattern instead of a scroll strip', () => {
+  it('keeps mobile breadcrumbs as a wrapped ancestor trail instead of a scroll strip', () => {
     const source = readFileSync(
       join(repoRoot, 'apps/site/src/presentation/pages/topbar/topbar.component.scss'),
       'utf8'
@@ -17,9 +17,10 @@ describe('Site navigation ergonomics styles', () => {
       /grid-template-areas:\s*'burger-btn site-name search-btn'\s*'breadcrumbs breadcrumbs breadcrumbs';/
     );
     expect(source).toContain('.breadcrumbs-mobile {');
-    expect(source).toContain('grid-template-columns: auto minmax(0, 1fr);');
-    expect(source).toContain('max-width: min(18ch, 52vw);');
-    expect(source).toContain('max-width: min(16ch, 42vw);');
+    expect(source).toContain('.breadcrumbs-mobile-path {');
+    expect(source).toContain('flex-wrap: wrap;');
+    expect(source).toContain('max-width: min(16ch, 46vw);');
+    expect(source).toContain('max-width: min(13ch, 42vw);');
     expect(source).toContain(
       'padding: 0.15rem var(--interactive-secondary-padding-inline-compact);'
     );

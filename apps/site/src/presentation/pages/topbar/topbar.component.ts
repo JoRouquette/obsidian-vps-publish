@@ -39,16 +39,23 @@ export class TopbarComponent {
     public search: SearchFacade
   ) {}
 
-  mobileContextCrumb(): Crumb | null {
-    return this.crumbs.length > 2 ? (this.crumbs[0] ?? null) : null;
+  private homeCrumb(): Crumb {
+    return {
+      label: 'Accueil',
+      url: '/',
+    };
   }
 
-  hiddenMobileCrumbCount(): number {
-    return Math.max(0, this.crumbs.length - 3);
-  }
+  mobileAncestorCrumbs(): Crumb[] {
+    if (this.crumbs.length === 0) {
+      return [];
+    }
 
-  mobileBackCrumb(): Crumb | null {
-    return this.crumbs.length > 1 ? (this.crumbs[this.crumbs.length - 2] ?? null) : null;
+    if (this.crumbs.length === 1) {
+      return [this.homeCrumb()];
+    }
+
+    return this.crumbs.slice(0, -1);
   }
 
   mobileCurrentCrumb(): Crumb | null {

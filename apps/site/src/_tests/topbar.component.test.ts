@@ -21,7 +21,7 @@ describe('TopbarComponent mobile breadcrumbs', () => {
     );
   }
 
-  it('keeps root context, parent back-link and current page for deep mobile breadcrumb paths', () => {
+  it('keeps all ancestor links navigable for deep mobile breadcrumb paths', () => {
     const component = createComponent([]);
     component.crumbs = [
       { label: 'Docs', url: '/docs' },
@@ -30,41 +30,63 @@ describe('TopbarComponent mobile breadcrumbs', () => {
       { label: 'Leaflet mobile', url: '/docs/frontend/responsive/leaflet-mobile' },
     ];
 
-    expect(component.mobileContextCrumb()).toEqual({ label: 'Docs', url: '/docs' });
-    expect(component.hiddenMobileCrumbCount()).toBe(1);
-    expect(component.mobileBackCrumb()).toEqual({
-      label: 'Responsive',
-      url: '/docs/frontend/responsive',
-    });
+    expect(component.mobileAncestorCrumbs()).toEqual([
+      { label: 'Docs', url: '/docs' },
+      { label: 'Frontend', url: '/docs/frontend' },
+      { label: 'Responsive', url: '/docs/frontend/responsive' },
+    ]);
     expect(component.mobileCurrentCrumb()).toEqual({
       label: 'Leaflet mobile',
       url: '/docs/frontend/responsive/leaflet-mobile',
     });
   });
 
-  it('keeps a simple back + current pattern when the hierarchy is short', () => {
+  it('keeps the direct ancestor trail for short hierarchies', () => {
     const component = createComponent([]);
     component.crumbs = [
       { label: 'Guides', url: '/guides' },
       { label: 'Viewer', url: '/guides/viewer' },
     ];
 
-    expect(component.mobileContextCrumb()).toBeNull();
-    expect(component.hiddenMobileCrumbCount()).toBe(0);
-    expect(component.mobileBackCrumb()).toEqual({ label: 'Guides', url: '/guides' });
+    expect(component.mobileAncestorCrumbs()).toEqual([{ label: 'Guides', url: '/guides' }]);
     expect(component.mobileCurrentCrumb()).toEqual({ label: 'Viewer', url: '/guides/viewer' });
   });
 
-  it('keeps the mobile breadcrumb template focused on context, back navigation and current page', () => {
+  it('keeps a navigable home ancestor for single-level pages and folder indexes', () => {
+    const component = createComponent([]);
+    component.crumbs = [{ label: 'Guides', url: '/guides/index' }];
+
+    expect(component.mobileAncestorCrumbs()).toEqual([{ label: 'Accueil', url: '/' }]);
+    expect(component.mobileCurrentCrumb()).toEqual({ label: 'Guides', url: '/guides/index' });
+  });
+
+  it('keeps all nested folder index ancestors navigable', () => {
+    const component = createComponent([]);
+    component.crumbs = [
+      { label: 'Docs', url: '/docs/index' },
+      { label: 'Frontend', url: '/docs/frontend/index' },
+      { label: 'Responsive', url: '/docs/frontend/responsive/index' },
+    ];
+
+    expect(component.mobileAncestorCrumbs()).toEqual([
+      { label: 'Docs', url: '/docs/index' },
+      { label: 'Frontend', url: '/docs/frontend/index' },
+    ]);
+    expect(component.mobileCurrentCrumb()).toEqual({
+      label: 'Responsive',
+      url: '/docs/frontend/responsive/index',
+    });
+  });
+
+  it('keeps the mobile breadcrumb template focused on ancestor navigation and current page', () => {
     const template = readFileSync(
       join(repoRoot, 'apps/site/src/presentation/pages/topbar/topbar.component.html'),
       'utf8'
     );
 
     expect(template).toContain('data-testid="breadcrumbs-mobile"');
-    expect(template).toContain('class="breadcrumbs-mobile-context"');
-    expect(template).toContain('class="hidden-count"');
-    expect(template).toContain('class="back-link"');
+    expect(template).toContain('class="breadcrumbs-mobile-path"');
+    expect(template).toContain('class="ancestor-link"');
     expect(template).toContain('class="current" aria-current="page"');
     expect(template).not.toContain('overflow-x: auto');
   });
