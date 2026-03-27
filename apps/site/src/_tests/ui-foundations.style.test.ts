@@ -40,6 +40,19 @@ describe('Site UI foundations styles', () => {
     expect(source).not.toContain('font-size: 0.75rem;');
   });
 
+  it('keeps explicit mobile padding and readable density in the viewer', () => {
+    const source = readFileSync(
+      join(repoRoot, 'apps/site/src/presentation/pages/viewer/viewer.component.scss'),
+      'utf8'
+    );
+
+    expect(source).toContain('--page-pad: clamp(0.35rem, 1.4vw, 0.6rem);');
+    expect(source).toContain('--page-pad: clamp(0.3rem, 2vw, 0.5rem);');
+    expect(source).toContain('font-size: clamp(1.02rem, 0.99rem + 0.35vw, 1.08rem);');
+    expect(source).toContain('line-height: 1.72;');
+    expect(source).toContain('margin: var(--space-stack-sm) 0 var(--space-stack-md);');
+  });
+
   it('raises navigation text to shared readable UI sizes', () => {
     const topbarSource = readFileSync(
       join(repoRoot, 'apps/site/src/presentation/pages/topbar/topbar.component.scss'),
