@@ -17,6 +17,8 @@ describe('Site navigation ergonomics styles', () => {
     );
     expect(source).toContain('overflow-x: auto;');
     expect(source).toContain('min-width: max-content;');
+    expect(source).toContain('max-width: min(18ch, 55vw);');
+    expect(source).toContain('max-width: min(15ch, 60vw);');
   });
 
   it('gives explorer search and rows more visual rhythm and comfortable interactive states', () => {
@@ -36,6 +38,8 @@ describe('Site navigation ergonomics styles', () => {
     expect(source).toContain('padding: 0.2rem var(--pad-x);');
     expect(source).toContain('background: color-mix(in oklab, var(--primary) 10%, transparent);');
     expect(source).toContain('font-weight: 500;');
+    expect(source).toContain('overflow-x: hidden;');
+    expect(source).toContain('touch-action: pan-y;');
   });
 
   it('keeps mobile overlays integrated as rounded panels instead of raw edge-to-edge sheets', () => {
@@ -47,6 +51,8 @@ describe('Site navigation ergonomics styles', () => {
     expect(source).toContain('width: min(92vw, 38rem);');
     expect(source).toContain('border-radius: 0 0 1rem 1rem;');
     expect(source).toContain('border-radius: 0 1rem 1rem 0;');
-    expect(source).toContain('&:hover {');
+    expect(source).toContain('width: min(20rem, 85vw);');
+    expect(source).toContain('width: min(17.5rem, 85vw);');
+    expect(source).toContain('width: min(16.25rem, 90vw);');
   });
 });
