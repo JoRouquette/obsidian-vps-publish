@@ -206,9 +206,32 @@ samp,
 }
 
 .katex-display {
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
+  max-inline-size: 100%;
   padding-block: 0.125rem;
+}
+
+.katex-display > .katex {
+  display: block;
+  max-inline-size: 100%;
+  white-space: normal;
+}
+
+.katex-display .katex-html {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  row-gap: 0.2em;
+  max-inline-size: 100%;
+  white-space: normal;
+}
+
+.katex-display .katex-html > .base {
+  display: inline-block;
+  flex: 0 0 auto;
+  max-inline-size: 100%;
+  white-space: nowrap;
 }
 
 /* Images: Contraste automatique global selon le thème */

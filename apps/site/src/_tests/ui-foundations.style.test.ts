@@ -17,6 +17,15 @@ describe('Site UI foundations styles', () => {
     expect(source).toContain('--interactive-secondary-touch-target: 2.75rem;');
     expect(source).toContain('font-size: var(--font-size-body);');
     expect(source).toContain('line-height: var(--line-height-body);');
+    expect(source).toContain('.katex-display {');
+    expect(source).toContain('overflow-x: hidden;');
+    expect(source).toContain('.katex-display .katex-html {');
+    expect(source).toContain('display: flex;');
+    expect(source).toContain('flex-wrap: wrap;');
+    expect(source).toContain('.katex-display .katex-html > .base {');
+    expect(source).toContain('display: inline-block;');
+    expect(source).toContain('flex: 0 0 auto;');
+    expect(source).toContain('white-space: nowrap;');
   });
 
   it('keeps shell spacing driven by shared gutter variables instead of ultra-tight mobile padding', () => {
@@ -55,13 +64,22 @@ describe('Site UI foundations styles', () => {
 
     expect(source).toContain('--page-pad: clamp(0.35rem, 1.4vw, 0.6rem);');
     expect(source).toContain('--page-pad: clamp(0.3rem, 2vw, 0.5rem);');
+    expect(source).toContain('--page-pad: clamp(0.8rem, 4.2vw, 1rem);');
+    expect(source).toContain('--page-pad: clamp(0.85rem, 5vw, 1.05rem);');
     expect(source).toContain('font-size: clamp(1.02rem, 0.99rem + 0.35vw, 1.08rem);');
     expect(source).toContain('line-height: 1.72;');
     expect(source).toContain('margin: var(--space-stack-sm) 0 var(--space-stack-md);');
+    expect(source).toContain('text-align: justify;');
+    expect(source).toContain('text-align-last: start;');
+    expect(source).toContain('box-sizing: border-box;');
     expect(source).toContain(
-      'overflow-x: auto; /* Scroll horizontal uniquement dans le conteneur */'
+      'overflow-x: scroll; /* Scroll horizontal uniquement dans le conteneur */'
     );
-    expect(source).toContain('max-width: 100% !important;');
+    expect(source).toContain('--table-column-max: min(var(--measure), 24rem);');
+    expect(source).toContain('table-layout: auto;');
+    expect(source).toContain('inline-size: fit-content;');
+    expect(source).toContain('width: fit-content;');
+    expect(source).toContain('text-align-last: auto;');
   });
 
   it('raises navigation text to shared readable UI sizes', () => {

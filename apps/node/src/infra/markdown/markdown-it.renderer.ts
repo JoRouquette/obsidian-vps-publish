@@ -329,8 +329,21 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
       this.resolveDeferredWikilinks($, manifest, currentRoutePath);
     }
 
+    this.wrapUnwrappedTables($);
+
     // Return body content only to avoid html/head/body wrapper tags
     return $('body').html() ?? $.html();
+  }
+
+  private wrapUnwrappedTables($: ReturnType<typeof load>): void {
+    $('table').each((_, element) => {
+      const $table = $(element);
+      if ($table.closest('.table-wrapper').length > 0) {
+        return;
+      }
+
+      $table.wrap('<div class="table-wrapper"></div>');
+    });
   }
 
   private resolveDeferredWikilinks(
