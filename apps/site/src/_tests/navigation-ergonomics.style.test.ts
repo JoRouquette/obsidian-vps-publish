@@ -48,11 +48,14 @@ describe('Site navigation ergonomics styles', () => {
       'utf8'
     );
 
-    expect(source).toContain('width: min(92vw, 38rem);');
+    expect(source).toContain('--shell-overlay-panel-width: min(92vw, 38rem);');
+    expect(source).toContain('--shell-drawer-panel-width: min(20rem, 85vw);');
+    expect(source).toContain('width: var(--shell-overlay-panel-width);');
+    expect(source).toContain('width: var(--shell-drawer-panel-width);');
     expect(source).toContain('border-radius: 0 0 1rem 1rem;');
     expect(source).toContain('border-radius: 0 1rem 1rem 0;');
-    expect(source).toContain('width: min(20rem, 85vw);');
-    expect(source).toContain('width: min(17.5rem, 85vw);');
-    expect(source).toContain('width: min(16.25rem, 90vw);');
+    expect(source).toContain('--shell-drawer-panel-width: min(18.75rem, 80vw);');
+    expect(source).toContain('--shell-drawer-panel-width: min(17.5rem, 85vw);');
+    expect(source).toContain('--shell-drawer-panel-width: min(16.25rem, 90vw);');
   });
 });

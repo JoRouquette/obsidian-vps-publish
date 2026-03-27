@@ -14,6 +14,8 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   --shell-pad-inline: var(--layout-page-gutter);
   --shell-pad-block: clamp(0.875rem, 2vw, 1.5rem);
   --shell-footer-font-size: var(--font-size-ui-sm);
+  --shell-overlay-panel-width: min(92vw, 38rem);
+  --shell-drawer-panel-width: min(20rem, 85vw);
 
   display: block;
   /* Hauteur minimum = viewport, permet au contenu de pousser le footer naturellement si nécessaire */
@@ -111,7 +113,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   position: relative;
   z-index: 2001;
   background: var(--c-surface);
-  width: min(92vw, 38rem);
+  width: var(--shell-overlay-panel-width);
   max-height: min(25rem, 60vh);
   border-radius: 0 0 1rem 1rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
@@ -411,7 +413,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
     top: 0;
     left: 0;
     bottom: 0;
-    width: min(20rem, 85vw); // 320px ~20rem
+    width: var(--shell-drawer-panel-width);
     z-index: 1050;
 
     // Hidden by default
@@ -513,6 +515,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
 
   :host {
     --shell-pad-block: clamp(0.7rem, 2vw, 0.9rem);
+    --shell-drawer-panel-width: min(18.75rem, 80vw);
   }
 
   .hamburger-menu {
@@ -530,7 +533,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   }
 
   .vault-explorer {
-    width: min(18.75rem, 80vw); // 300px ~18.75rem
+    width: var(--shell-drawer-panel-width);
   }
 
   .main {
@@ -560,6 +563,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   :host {
     --shell-pad-inline: clamp(0.875rem, 4.5vw, 1rem);
     --shell-pad-block: clamp(0.625rem, 2.4vw, 0.8rem);
+    --shell-drawer-panel-width: min(17.5rem, 85vw);
   }
 
   .hamburger-menu {
@@ -573,7 +577,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   }
 
   .vault-explorer {
-    width: min(17.5rem, 85vw); // 280px ~17.5rem
+    width: var(--shell-drawer-panel-width);
   }
 
   .main {
@@ -598,6 +602,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   :host {
     --shell-pad-inline: clamp(0.875rem, 5vw, 0.95rem);
     --shell-pad-block: 0.625rem;
+    --shell-drawer-panel-width: min(16.25rem, 90vw);
   }
 
   .hamburger-menu {
@@ -611,7 +616,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   }
 
   .vault-explorer {
-    width: min(16.25rem, 90vw); // 260px ~16.25rem
+    width: var(--shell-drawer-panel-width);
   }
 
   .main {
