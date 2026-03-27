@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { TopbarComponent } from '../presentation/pages/topbar/topbar.component';
 
 describe('TopbarComponent mobile breadcrumbs', () => {
+  const repoRoot = process.cwd();
+
   function createComponent(crumbs: Array<{ label: string; url: string }>) {
     return new TopbarComponent(
       {
@@ -48,5 +53,19 @@ describe('TopbarComponent mobile breadcrumbs', () => {
     expect(component.hiddenMobileCrumbCount()).toBe(0);
     expect(component.mobileBackCrumb()).toEqual({ label: 'Guides', url: '/guides' });
     expect(component.mobileCurrentCrumb()).toEqual({ label: 'Viewer', url: '/guides/viewer' });
+  });
+
+  it('keeps the mobile breadcrumb template focused on context, back navigation and current page', () => {
+    const template = readFileSync(
+      join(repoRoot, 'apps/site/src/presentation/pages/topbar/topbar.component.html'),
+      'utf8'
+    );
+
+    expect(template).toContain('data-testid="breadcrumbs-mobile"');
+    expect(template).toContain('class="breadcrumbs-mobile-context"');
+    expect(template).toContain('class="hidden-count"');
+    expect(template).toContain('class="back-link"');
+    expect(template).toContain('class="current" aria-current="page"');
+    expect(template).not.toContain('overflow-x: auto');
   });
 });
