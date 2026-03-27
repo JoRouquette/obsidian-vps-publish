@@ -41,6 +41,13 @@
     transparent
   );
   --leaflet-attribution-text: var(--color-text-secondary, #697580);
+  --leaflet-control-size: 38px;
+  --leaflet-control-size-desktop: 42px;
+  --leaflet-control-size-touch: 44px;
+  --leaflet-control-hit-area: var(--leaflet-control-size);
+  --leaflet-control-gap: 0.55rem;
+  --leaflet-control-margin: 0.75rem;
+  --leaflet-close-hit-area: 2rem;
   --leaflet-fullscreen-icon-enter: url('data:image/svg+xml,<svg viewBox="0 0 26 26" xmlns="http://www.w3.org/2000/svg"><path d="M5 10.3V5.9c0-.5.4-.9.9-.9h4.4c.2 0 .4.2.4.4V7c0 .2-.2.4-.4.4h-3v3c0 .2-.2.4-.4.4H5.4a.4.4 0 0 1-.4-.4zm10.3-4.9V7c0 .2.2.4.4.4h3v3c0 .2.2.4.4.4h1.5c.2 0 .4-.2.4-.4V5.9c0-.5-.4-.9-.9-.9h-4.4c-.2 0-.4.2-.4.4zm5.3 9.9H19c-.2 0-.4.2-.4.4v3h-3c-.2 0-.4.2-.4.4v1.5c0 .2.2.4.4.4h4.4c.5 0 .9-.4.9-.9v-4.4c0-.2-.2-.4-.4-.4zm-9.9 5.3V19c0-.2-.2-.4-.4-.4h-3v-3c0-.2-.2-.4-.4-.4H5.4c-.2 0-.4.2-.4.4v4.4c0 .5.4.9.9.9h4.4c.2 0 .4-.2.4-.4z" fill="%23E5EBEE"/></svg>');
   --leaflet-fullscreen-icon-exit: url('data:image/svg+xml,<svg viewBox="0 0 26 26" xmlns="http://www.w3.org/2000/svg"><path d="M20.6 10.7H16a.9.9 0 0 1-.8-.8v-4.5c0-.2.2-.4.4-.4h1.4c.3 0 .5.2.5.4v3h3c.2 0 .4.2.4.5v1.4c0 .2-.2.4-.4.4zm-9.9-.8V5.4c0-.2-.2-.4-.4-.4H8.9c-.3 0-.5.2-.5.4v3h-3c-.2 0-.4.2-.4.5v1.4c0 .2.2.4.4.4H9.9c.4 0 .8-.4.8-.8zm0 10.7V16c0-.4-.4-.8-.8-.8H5.4c-.2 0-.4.2-.4.4v1.4c0 .3.2.5.4.5h3v3c0 .2.2.4.5.4h1.4c.2 0 .4-.2.4-.4zm6.9 0v-3h3c.2 0 .4-.2.4-.5v-1.4c0-.2-.2-.4-.4-.4H16c-.4 0-.8.4-.8.8v4.5c0 .2.2.4.4.4h1.5c.3 0 .5-.2.5-.4z" fill="%23E5EBEE"/></svg>');
   position: relative;
@@ -74,12 +81,12 @@
 
   ::ng-deep .leaflet-top .leaflet-control,
   ::ng-deep .leaflet-bottom .leaflet-control {
-    margin: 0.75rem;
+    margin: var(--leaflet-control-margin);
   }
 
   ::ng-deep .leaflet-top .leaflet-control + .leaflet-control,
   ::ng-deep .leaflet-bottom .leaflet-control + .leaflet-control {
-    margin-top: 0.55rem;
+    margin-top: var(--leaflet-control-gap);
   }
 
   ::ng-deep .leaflet-control-container .leaflet-bar,
@@ -99,8 +106,10 @@
   ::ng-deep .leaflet-control-zoom a,
   ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen {
     display: block;
-    width: 38px;
-    height: 38px;
+    width: var(--leaflet-control-size);
+    height: var(--leaflet-control-size);
+    min-width: var(--leaflet-control-hit-area);
+    min-height: var(--leaflet-control-hit-area);
     padding: 0;
     background: var(--leaflet-control-bg);
     color: var(--leaflet-control-text);
@@ -114,7 +123,7 @@
   }
 
   ::ng-deep .leaflet-control-zoom a {
-    line-height: 38px;
+    line-height: var(--leaflet-control-size);
     border-bottom: 1px solid
       color-mix(in srgb, var(--leaflet-control-text) 20%, var(--leaflet-control-border));
   }
@@ -124,7 +133,7 @@
   }
 
   ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen {
-    line-height: 38px;
+    line-height: var(--leaflet-control-size);
   }
 
   ::ng-deep .leaflet-control-zoom a:hover,
@@ -152,7 +161,7 @@
     font-family: var(--font-family-mono, 'Consolas', monospace);
     font-size: 22px;
     font-weight: 700;
-    line-height: 38px;
+    line-height: var(--leaflet-control-size);
     text-indent: 0;
   }
 
@@ -209,13 +218,13 @@
   ::ng-deep .leaflet-popup-close-button {
     display: grid;
     place-items: center;
-    inline-size: 2rem !important;
-    block-size: 2rem !important;
+    inline-size: var(--leaflet-close-hit-area) !important;
+    block-size: var(--leaflet-close-hit-area) !important;
     padding: 0 !important;
     color: var(--leaflet-control-text) !important;
-    font-size: 1.25rem !important;
+    font-size: 1.1rem !important;
     border-radius: 999px;
-    inset: 0.45rem 0.45rem auto auto;
+    inset: 0.25rem 0.25rem auto auto;
     transition:
       background-color 0.18s ease,
       color 0.18s ease;
@@ -284,21 +293,9 @@
   }
 
   @container (min-width: 768px) {
+    --leaflet-control-size: var(--leaflet-control-size-desktop);
+
     border-radius: 16px;
-
-    ::ng-deep .leaflet-bar a,
-    ::ng-deep .leaflet-control-zoom a,
-    ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen {
-      width: 42px;
-      height: 42px;
-    }
-
-    ::ng-deep .leaflet-control-zoom a,
-    ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen,
-    ::ng-deep .leaflet-control-zoom-in,
-    ::ng-deep .leaflet-control-zoom-out {
-      line-height: 42px;
-    }
   }
 
   @container (min-width: 1024px) {
@@ -324,30 +321,11 @@
 
 @media (hover: none) and (pointer: coarse) {
   .leaflet-map-container {
-    ::ng-deep .leaflet-bar a,
-    ::ng-deep .leaflet-control-zoom a,
-    ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen {
-      width: 40px !important;
-      height: 40px !important;
-    }
-
-    ::ng-deep .leaflet-control-zoom a,
-    ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen,
-    ::ng-deep .leaflet-control-zoom-in,
-    ::ng-deep .leaflet-control-zoom-out {
-      line-height: 40px !important;
-    }
-
-    ::ng-deep .leaflet-control-zoom-in,
-    ::ng-deep .leaflet-control-zoom-out {
-      font-size: 22px !important;
-    }
-
-    ::ng-deep .leaflet-popup-close-button {
-      inline-size: 2.1rem !important;
-      block-size: 2.1rem !important;
-      font-size: 1.2rem !important;
-    }
+    --leaflet-control-size: var(--leaflet-control-size-touch);
+    --leaflet-control-hit-area: var(--leaflet-control-size-touch);
+    --leaflet-control-margin: 0.55rem;
+    --leaflet-control-gap: 0.4rem;
+    --leaflet-close-hit-area: 44px;
   }
 }
 
@@ -359,12 +337,12 @@
 
     ::ng-deep .leaflet-top .leaflet-control,
     ::ng-deep .leaflet-bottom .leaflet-control {
-      margin: 0.5rem;
+      margin: var(--leaflet-control-margin);
     }
 
     ::ng-deep .leaflet-top .leaflet-control + .leaflet-control,
     ::ng-deep .leaflet-bottom .leaflet-control + .leaflet-control {
-      margin-top: 0.4rem;
+      margin-top: var(--leaflet-control-gap);
     }
 
     ::ng-deep .leaflet-popup-content {
@@ -384,25 +362,6 @@
   .leaflet-map-container {
     min-height: clamp(11.5rem, 52vw, 13.5rem);
     max-height: min(52vh, 16rem);
-
-    ::ng-deep .leaflet-bar a,
-    ::ng-deep .leaflet-control-zoom a,
-    ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen {
-      width: 38px;
-      height: 38px;
-    }
-
-    ::ng-deep .leaflet-control-zoom a,
-    ::ng-deep .leaflet-bar a.leaflet-control-zoom-fullscreen,
-    ::ng-deep .leaflet-control-zoom-in,
-    ::ng-deep .leaflet-control-zoom-out {
-      line-height: 38px;
-    }
-
-    ::ng-deep .leaflet-control-zoom-in,
-    ::ng-deep .leaflet-control-zoom-out {
-      font-size: 21px;
-    }
   }
 }
 

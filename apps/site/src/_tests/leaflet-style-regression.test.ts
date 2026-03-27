@@ -79,12 +79,14 @@ describe('Leaflet style regressions', () => {
       'utf8'
     );
 
-    expect(source).toContain('width: 40px !important;');
-    expect(source).toContain('height: 40px !important;');
-    expect(source).toContain('width: 38px;');
-    expect(source).toContain('height: 38px;');
-    expect(source).toContain('inline-size: 2.1rem !important;');
-    expect(source).not.toContain('width: 48px');
-    expect(source).not.toContain('height: 48px');
+    expect(source).toContain('--leaflet-control-size-touch: 44px;');
+    expect(source).toContain('--leaflet-control-hit-area: var(--leaflet-control-size);');
+    expect(source).toContain('min-width: var(--leaflet-control-hit-area);');
+    expect(source).toContain('min-height: var(--leaflet-control-hit-area);');
+    expect(source).toContain('--leaflet-control-size: var(--leaflet-control-size-touch);');
+    expect(source).toContain('--leaflet-control-hit-area: var(--leaflet-control-size-touch);');
+    expect(source).toContain('--leaflet-close-hit-area: 44px;');
+    expect(source).not.toContain('width: 40px !important;');
+    expect(source).not.toContain('width: 38px;');
   });
 });
