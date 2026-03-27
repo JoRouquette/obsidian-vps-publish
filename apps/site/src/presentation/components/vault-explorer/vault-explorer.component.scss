@@ -9,7 +9,7 @@
   --pad-x: 0.625rem;
   --indent: 0.6rem;
   --label-gap: 0.7rem;
-  --row-radius: 0.75rem;
+  --row-radius: var(--interactive-secondary-soft-radius);
 
   /* Normalized ITS theme tokens (60/30/10) */
   --bg-surface: var(--color-bg-primary); /* 60%: panel background */
@@ -89,7 +89,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 0.85rem;
+    border-radius: var(--interactive-secondary-soft-radius);
     background: color-mix(in oklab, var(--primary) 7%, transparent);
 
     mat-icon {
@@ -324,7 +324,7 @@
     }
     &::-webkit-scrollbar-thumb {
       background: color-mix(in oklab, var(--primary) 28%, transparent);
-      border-radius: 999px;
+      border-radius: var(--interactive-secondary-pill-radius);
     }
     &::-webkit-scrollbar-track {
       background: transparent;
@@ -398,8 +398,12 @@
 
 @media (max-width: 520px) {
   :host {
-    --row-h: 40px; // Even larger touch targets on small screens
-    --pad-x: 0.55rem; // Reduce padding to fit more content
+    --row-h: var(
+      --interactive-secondary-touch-target
+    ); // Even larger touch targets on small screens
+    --pad-x: var(
+      --interactive-secondary-padding-inline-compact
+    ); // Reduce padding to fit more content
   }
 
   .label {
