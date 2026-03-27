@@ -516,6 +516,31 @@ Some text after.`;
     expect(html).toContain('Some text after.');
   });
 
+  it('wraps inline HTML tables from dataview output in .table-wrapper', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+
+    note.content = `# Dataview Table
+
+<div class="dataview dataview-container">
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Value</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Strength</td><td>18</td></tr>
+    </tbody>
+  </table>
+</div>`;
+
+    const html = await renderer.render(note);
+
+    expect(html).toContain('<div class="dataview dataview-container">');
+    expect(html).toContain('<div class="table-wrapper"><table>');
+    expect(html).toContain('<th>Name</th>');
+    expect(html).toContain('<td>Strength</td>');
+  });
+
   it('should NOT add <p> tags inside <li> elements (Dataview lists)', async () => {
     const renderer = new MarkdownItRenderer();
     const note = baseNote();
