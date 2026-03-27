@@ -4,11 +4,12 @@
   block-size: 100%;
   min-block-size: 0;
 
-  --row-h: 28px;
+  --row-h: 30px;
   --icon: 16px;
-  --pad-x: 0.5em;
-  --indent: 0.5em;
-  --label-gap: 0.8em;
+  --pad-x: 0.625rem;
+  --indent: 0.6rem;
+  --label-gap: 0.7rem;
+  --row-radius: 0.75rem;
 
   /* Normalized ITS theme tokens (60/30/10) */
   --bg-surface: var(--color-bg-primary); /* 60%: panel background */
@@ -40,7 +41,9 @@
     display: flex;
     align-items: stretch; /* Étire les enfants à la même hauteur */
     gap: 0.5rem;
-    padding: 4px;
+    padding: 0.75rem 0.75rem 0.6rem;
+    border-bottom: 1px solid color-mix(in oklab, var(--on-surface) 10%, transparent);
+    background: color-mix(in oklab, var(--bg-surface) 92%, var(--primary) 2%);
   }
 
   .search {
@@ -59,7 +62,7 @@
       font-size: var(--font-size-ui-sm);
       line-height: var(--line-height-ui);
       color: color-mix(in oklab, var(--on-surface) 70%, transparent);
-      padding: 0 0.5rem;
+      padding: 0 0.625rem;
       text-align: left;
       font-weight: 500;
       animation: fadeIn 0.2s ease-in;
@@ -86,6 +89,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 0.85rem;
+    background: color-mix(in oklab, var(--primary) 7%, transparent);
 
     mat-icon {
       font-size: 20px;
@@ -104,7 +109,7 @@
 
   .sep {
     flex: 0 0 auto;
-    margin: 0 4px 4px;
+    margin: 0 0.75rem 0.5rem;
   }
 
   .tree-wrap {
@@ -113,7 +118,7 @@
     flex: 1 1 auto;
     overflow-y: auto;
     overflow-x: hidden;
-    padding-bottom: 4px;
+    padding: 0.35rem 0.5rem 0.75rem;
     min-height: 0; /* Important pour permettre au scroll de fonctionner dans un conteneur flex */
 
     // Smooth scrolling
@@ -132,7 +137,7 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 8px;
+    padding: 1rem;
     text-align: center;
     color: color-mix(in oklab, var(--on-surface) 70%, transparent);
     pointer-events: none;
@@ -146,12 +151,14 @@
       margin: 0;
       font-weight: 600;
       font-size: 0.98rem;
+      line-height: var(--line-height-tight);
       color: var(--on-surface);
     }
 
     .hint {
       margin: 0;
       font-size: 0.9rem;
+      line-height: var(--line-height-ui);
       color: color-mix(in oklab, var(--on-surface) 65%, transparent);
     }
   }
@@ -159,7 +166,7 @@
   .tree {
     display: block;
     min-width: 100%;
-    padding: 0 2px 4px;
+    padding: 0 0.125rem 0.25rem;
   }
 
   .node,
@@ -187,11 +194,16 @@
       display: flex;
       align-items: center;
       min-height: var(--row-h);
-      padding: 0 var(--pad-x);
+      padding: 0.2rem var(--pad-x);
       width: 100%; /* Toute la largeur pour faciliter le clic */
       cursor: pointer;
       background: transparent;
       border: 0;
+      border-radius: var(--row-radius);
+      transition:
+        background-color 140ms ease,
+        color 140ms ease,
+        box-shadow 140ms ease;
 
       // Amélioration tactile mobile
       -webkit-tap-highlight-color: transparent;
@@ -200,7 +212,11 @@
       &:focus-visible {
         outline: 1px solid color-mix(in oklab, var(--primary) 45%, transparent);
         outline-offset: 2px;
-        border-radius: 3px;
+        border-radius: var(--row-radius);
+      }
+
+      &:hover {
+        background: color-mix(in oklab, var(--primary) 8%, transparent);
       }
 
       &:active {
@@ -215,6 +231,10 @@
 
     &[aria-expanded='true'] .folder-ico {
       color: var(--tertiary);
+    }
+
+    &[aria-expanded='true'] .node-header {
+      background: color-mix(in oklab, var(--primary) 10%, transparent);
     }
 
     .children {
@@ -241,10 +261,14 @@
       display: flex;
       align-items: center;
       min-height: var(--row-h);
-      padding: 2px var(--pad-x);
+      padding: 0.2rem var(--pad-x);
       width: 100%; /* Toute la largeur pour faciliter le clic */
-      border-radius: 3px;
+      border-radius: var(--row-radius);
       cursor: pointer; /* Cursor pointer sur toute la zone */
+      transition:
+        background-color 140ms ease,
+        color 140ms ease,
+        box-shadow 140ms ease;
 
       // Amélioration tactile mobile
       -webkit-tap-highlight-color: transparent;
@@ -253,6 +277,10 @@
       &:focus-visible {
         outline: 1px solid color-mix(in oklab, var(--primary) 45%, transparent);
         outline-offset: 2px;
+      }
+
+      &:hover {
+        background: color-mix(in oklab, var(--secondary) 9%, transparent);
       }
 
       &:active {
@@ -270,6 +298,7 @@
     margin-inline-start: var(--label-gap);
     font-size: var(--font-size-ui);
     line-height: var(--line-height-ui);
+    font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -312,13 +341,13 @@
   :host {
     --row-h: 36px; // Larger touch targets
     --icon: 18px; // Slightly larger icons for better visibility
-    --pad-x: 0.75em;
+    --pad-x: 0.75rem;
     --label-gap: 0.6em;
   }
 
   .explorer {
     .search-header {
-      padding: 6px 6px 0;
+      padding: 0.7rem 0.7rem 0.5rem;
       gap: 0.5rem;
     }
 
@@ -340,15 +369,15 @@
     }
 
     .sep {
-      margin: 0 6px 6px;
+      margin: 0 0.7rem 0.5rem;
     }
 
     .tree-wrap {
-      padding: 0 4px 8px;
+      padding: 0.35rem 0.45rem 0.85rem;
     }
 
     .tree {
-      padding: 0 4px 4px;
+      padding: 0 0.1rem 0.4rem;
     }
   }
 
@@ -370,7 +399,7 @@
 @media (max-width: 520px) {
   :host {
     --row-h: 40px; // Even larger touch targets on small screens
-    --pad-x: 0.5em; // Reduce padding to fit more content
+    --pad-x: 0.55rem; // Reduce padding to fit more content
   }
 
   .label {
@@ -383,13 +412,13 @@
   :host {
     --row-h: 38px;
     --icon: 16px;
-    --pad-x: 0.4em;
+    --pad-x: 0.45rem;
     --label-gap: 0.5em;
   }
 
   .explorer {
     .search-header {
-      padding: 4px 4px 0;
+      padding: 0.55rem 0.55rem 0.45rem;
     }
 
     .search {
