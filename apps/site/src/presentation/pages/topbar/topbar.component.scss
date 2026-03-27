@@ -5,6 +5,7 @@
   block-size: 100%;
   min-inline-size: 0;
   min-block-size: 0;
+  --topbar-secondary-hover-bg: color-mix(in oklab, var(--mat-sys-primary) 10%, transparent);
 }
 
 .topbar {
@@ -61,8 +62,8 @@
       display: inline-flex;
       align-items: center;
       min-height: 2rem;
-      padding: 0.25rem 0.7rem;
-      border-radius: 999px;
+      padding: 0.25rem var(--interactive-secondary-padding-inline);
+      border-radius: var(--interactive-secondary-pill-radius);
       line-height: var(--line-height-ui);
       transition:
         background-color 140ms ease,
@@ -157,10 +158,10 @@ app-search-bar {
 .toolbar-actions button,
 .mobile-burger-btn,
 .mobile-search-btn {
-  border-radius: 999px;
+  border-radius: var(--interactive-secondary-pill-radius);
 
   &:hover {
-    background: color-mix(in oklab, var(--mat-sys-primary) 10%, transparent);
+    background: var(--topbar-secondary-hover-bg);
   }
 }
 
@@ -227,7 +228,7 @@ app-search-bar {
   .breadcrumbs-mobile .hidden-count {
     min-width: 0;
     min-height: 1.95rem;
-    border-radius: 999px;
+    border-radius: var(--interactive-secondary-pill-radius);
     line-height: var(--line-height-ui);
     font-size: var(--font-size-ui-sm);
   }
@@ -245,7 +246,7 @@ app-search-bar {
 
   .breadcrumbs-mobile .context-link {
     max-width: min(18ch, 52vw);
-    padding: 0.15rem 0.55rem;
+    padding: 0.15rem var(--interactive-secondary-padding-inline-compact);
     color: var(--mat-sys-on-surface-variant);
     background: color-mix(in oklab, var(--mat-sys-surface-container-low) 78%, transparent);
   }
@@ -254,7 +255,7 @@ app-search-bar {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.1rem 0.45rem;
+    padding: 0.1rem calc(var(--interactive-secondary-padding-inline-compact) - 0.1rem);
     color: var(--mat-sys-on-surface-variant);
     background: color-mix(in oklab, var(--mat-sys-outline-variant) 28%, transparent);
   }
@@ -262,7 +263,7 @@ app-search-bar {
   .breadcrumbs-mobile .back-link {
     gap: 0.15rem;
     max-width: min(16ch, 42vw);
-    padding: 0.15rem 0.55rem 0.15rem 0.4rem;
+    padding: 0.15rem var(--interactive-secondary-padding-inline-compact) 0.15rem 0.4rem;
     color: inherit;
     background: color-mix(in oklab, var(--mat-sys-surface-container-low) 86%, transparent);
 
@@ -278,7 +279,7 @@ app-search-bar {
 
   .breadcrumbs-mobile .current {
     min-width: 0;
-    padding: 0.18rem 0.7rem;
+    padding: 0.18rem var(--interactive-secondary-padding-inline);
     font-weight: 650;
     color: var(--mat-sys-on-surface);
     background: color-mix(in oklab, var(--mat-sys-primary) 12%, var(--mat-sys-surface-container));
@@ -321,7 +322,7 @@ app-search-bar {
   }
 
   .breadcrumbs-mobile .current {
-    padding-inline: 0.6rem;
+    padding-inline: calc(var(--interactive-secondary-padding-inline-compact) + 0.05rem);
   }
 
   app-search-bar {

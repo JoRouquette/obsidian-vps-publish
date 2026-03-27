@@ -30,6 +30,11 @@
   --layout-page-gutter-compact: clamp(0.875rem, 4vw, 1.25rem);
   --layout-reader-max: 68ch;
   --layout-content-max: min(100%, 96ch);
+  --interactive-secondary-pill-radius: 999px;
+  --interactive-secondary-soft-radius: 0.75rem;
+  --interactive-secondary-padding-inline: 0.7rem;
+  --interactive-secondary-padding-inline-compact: 0.55rem;
+  --interactive-secondary-touch-target: 2.75rem;
 }
 
 :root.theme-light {

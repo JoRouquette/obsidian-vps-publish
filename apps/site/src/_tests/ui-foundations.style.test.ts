@@ -11,6 +11,10 @@ describe('Site UI foundations styles', () => {
     expect(source).toContain('--font-size-heading-1:');
     expect(source).toContain('--layout-page-gutter:');
     expect(source).toContain('--layout-reader-max:');
+    expect(source).toContain('--interactive-secondary-pill-radius: 999px;');
+    expect(source).toContain('--interactive-secondary-soft-radius: 0.75rem;');
+    expect(source).toContain('--interactive-secondary-padding-inline: 0.7rem;');
+    expect(source).toContain('--interactive-secondary-touch-target: 2.75rem;');
     expect(source).toContain('font-size: var(--font-size-body);');
     expect(source).toContain('line-height: var(--line-height-body);');
   });
