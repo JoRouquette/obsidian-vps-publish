@@ -73,6 +73,7 @@ export interface LeafletMapOptions {
   keyboard: boolean;
   dragging: boolean;
   touchZoom?: boolean;
+  tap?: boolean;
   zoomAnimation: boolean;
   fadeAnimation: boolean;
   markerZoomAnimation: boolean;

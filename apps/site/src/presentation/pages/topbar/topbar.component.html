@@ -9,7 +9,7 @@
     <mat-icon>menu</mat-icon>
   </button>
 
-  <!-- Ligne 1 : Contrôles principaux -->
+  <!-- Ligne 1 : Controles principaux -->
   <a class="site-name" [routerLink]="'/'" aria-label="Accueil">
     {{ siteName || "Scribe d'Ektaron" }}
   </a>
@@ -35,14 +35,14 @@
 
   <div
     class="toolbar-actions"
-    matTooltip="{{ isDark ? 'Activer le thème clair' : 'Activer le thème sombre' }}"
+    matTooltip="{{ isDark ? 'Activer le theme clair' : 'Activer le theme sombre' }}"
     matTooltipPosition="left"
   >
     <button
       mat-icon-button
       type="button"
       (click)="toggleTheme.emit()"
-      [attr.aria-label]="isDark ? 'Activer le thème clair' : 'Activer le thème sombre'"
+      [attr.aria-label]="isDark ? 'Activer le theme clair' : 'Activer le theme sombre'"
     >
       @if (!isDark) {
         <mat-icon>dark_mode</mat-icon>
@@ -67,5 +67,24 @@
         </li>
       }
     </ol>
+  </nav>
+
+  <nav class="breadcrumbs-mobile" aria-label="Fil d'Ariane mobile" data-testid="breadcrumbs-mobile">
+    @if (mobileAncestorCrumbs().length > 0) {
+      <div class="breadcrumbs-mobile-path">
+        @for (crumb of mobileAncestorCrumbs(); track crumb.url; let last = $last) {
+          <a class="ancestor-link" [routerLink]="crumb.url">{{ crumb.label }}</a>
+          @if (!last) {
+            <mat-icon class="sep" aria-hidden="true">chevron_right</mat-icon>
+          }
+        }
+      </div>
+    }
+
+    @if (mobileCurrentCrumb(); as current) {
+      <div class="breadcrumbs-mobile-main">
+        <span class="current" aria-current="page">{{ current.label }}</span>
+      </div>
+    }
   </nav>
 </mat-toolbar>

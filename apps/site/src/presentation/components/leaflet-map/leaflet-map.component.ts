@@ -141,7 +141,11 @@ export class LeafletMapComponent implements AfterViewInit, OnChanges, OnDestroy 
   }
 
   get containerAspectRatio(): string | null {
-    return this.containerHeight ? null : '16 / 9';
+    if (this.containerHeight) {
+      return null;
+    }
+
+    return this.isCompactTouchViewport() ? '5 / 4' : '16 / 9';
   }
 
   private hasMeasurableSize(container: HTMLElement): boolean {
@@ -355,6 +359,7 @@ export class LeafletMapComponent implements AfterViewInit, OnChanges, OnDestroy 
     fullscreenControlCtor?: LeafletFullscreenControlConstructor
   ): void {
     const usesSimpleCrs = this.usesSimpleCrs(this.block);
+    const compactTouchViewport = this.isCompactTouchViewport();
     const fallbackZoomWindow = this.getDefaultSimpleCrsZoomWindow(this.block);
     const mapOptions: LeafletMapOptions = {
       minZoom: this.block.minZoom ?? (usesSimpleCrs ? fallbackZoomWindow.minZoom : undefined),
@@ -369,6 +374,7 @@ export class LeafletMapComponent implements AfterViewInit, OnChanges, OnDestroy 
       keyboard: !this.block.lock,
       dragging: !this.block.lock,
       touchZoom: !this.block.lock,
+      tap: compactTouchViewport ? false : undefined,
       zoomAnimation: true,
       fadeAnimation: true,
       markerZoomAnimation: true,
@@ -910,6 +916,18 @@ export class LeafletMapComponent implements AfterViewInit, OnChanges, OnDestroy 
     }
 
     return zoomDelta < 1 ? zoomDelta : 1;
+  }
+
+  private isCompactTouchViewport(): boolean {
+    if (
+      !this.isBrowser ||
+      globalThis.window === undefined ||
+      typeof globalThis.window.matchMedia !== 'function'
+    ) {
+      return false;
+    }
+
+    return globalThis.window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
   }
 
   private setupSimpleCrsInteractionOverrides(container: HTMLElement): void {

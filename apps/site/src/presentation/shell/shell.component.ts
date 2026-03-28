@@ -147,18 +147,20 @@ export class ShellComponent implements OnInit {
     this.lastNonSearchUrl = cleanUrl;
 
     const rawParts = cleanUrl.replace(/^\/+/, '').split('/').filter(Boolean);
-    const parts = rawParts.at(-1) === 'index' ? rawParts.slice(0, -1) : rawParts;
+    const isFolderIndexRoute = rawParts.at(-1) === 'index';
+    const parts = isFolderIndexRoute ? rawParts.slice(0, -1) : rawParts;
 
     this._crumbs = parts.map((seg, i) => {
       const partial = this.normalizeRoute('/' + parts.slice(0, i + 1).join('/'));
       const page = this.findPageForRoute(partial);
       const decodedSeg = decodeURIComponent(seg);
+      const isCurrentCrumb = i === parts.length - 1;
 
       // Try to get folder displayName from cache
       const folderDisplayName = this.folderDisplayNameCache.get(partial);
 
       return {
-        url: page?.route ?? partial,
+        url: this.resolveCrumbRoute(partial, page, isCurrentCrumb, isFolderIndexRoute),
         label: page?.title ?? folderDisplayName ?? humanizePropertyKey(decodedSeg),
       };
     });
@@ -170,6 +172,24 @@ export class ShellComponent implements OnInit {
   private normalizeRoute(route: string): string {
     const normalized = route.replace(/\/+$/, '') || '/';
     return normalized.startsWith('/') ? normalized : '/' + normalized;
+  }
+
+  private resolveCrumbRoute(
+    partial: string,
+    page: ManifestPage | undefined,
+    isCurrentCrumb: boolean,
+    isFolderIndexRoute: boolean
+  ): string {
+    if (page?.route) {
+      return page.route;
+    }
+
+    const shouldTargetFolderIndex = !isCurrentCrumb || isFolderIndexRoute;
+    if (!shouldTargetFolderIndex || partial === '/') {
+      return partial;
+    }
+
+    return this.normalizeRoute(`${partial}/index`);
   }
 
   private hydrateManifestCache(): void {

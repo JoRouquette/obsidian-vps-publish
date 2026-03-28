@@ -100,11 +100,29 @@ describe('LeafletMapComponent', () => {
     defaultZoom: 13,
   };
 
+  function mockMatchMedia(matches: boolean): void {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: jest.fn().mockImplementation(() => ({
+        matches,
+        media: '(max-width: 768px), (pointer: coarse)',
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      })),
+    });
+  }
+
   beforeEach(async () => {
     jest.useFakeTimers();
     jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     mockRuntimeService.getPersistedViewState.mockReturnValue(null);
+    mockMatchMedia(false);
 
     await TestBed.configureTestingModule({
       imports: [LeafletMapComponent],
@@ -495,6 +513,27 @@ describe('LeafletMapComponent', () => {
     expect(component.containerAspectRatio).toBe('16 / 9');
     expect(container.style.height).toBe('');
     expect(container.style.paddingBottom).toBe('');
+  });
+
+  it('uses a more compact default aspect ratio on touch-sized viewports', () => {
+    mockMatchMedia(true);
+
+    expect(component.containerAspectRatio).toBe('5 / 4');
+  });
+
+  it('disables Leaflet tap handling on compact touch viewports to reduce scroll interference', () => {
+    mockMatchMedia(true);
+    const { L } = createMockL();
+    const container = getReadyContainer();
+
+    (component as any).initializeMapOutsideZone(L as any, container, 'compact-touch');
+
+    expect(L.map).toHaveBeenCalledWith(
+      container,
+      expect.objectContaining({
+        tap: false,
+      })
+    );
   });
 
   it('restores the last persisted view for the same map identity after a rebuild', () => {
