@@ -42,7 +42,7 @@ describe('ShellComponent breadcrumbs', () => {
     );
   }
 
-  it('uses manifest folder display names for breadcrumb labels while keeping route paths technical', () => {
+  it('uses manifest folder display names for breadcrumb labels while targeting folder index routes', () => {
     const manifest: Manifest = {
       sessionId: 'session-1',
       createdAt: new Date(),
@@ -68,9 +68,34 @@ describe('ShellComponent breadcrumbs', () => {
     (component as any).updateFromUrl();
 
     expect(component.crumbs()).toEqual([
-      { label: 'Trésors', url: '/tresors' },
-      { label: "Chroniques d'Été", url: '/tresors/chroniques-d-ete' },
+      { label: 'Trésors', url: '/tresors/index' },
+      { label: "Chroniques d'Été", url: '/tresors/chroniques-d-ete/index' },
       { label: 'Page Note', url: '/tresors/chroniques-d-ete/page-note' },
+    ]);
+  });
+
+  it('keeps nested folder index breadcrumbs navigable on their published index routes', () => {
+    const manifest: Manifest = {
+      sessionId: 'session-1',
+      createdAt: new Date(),
+      lastUpdatedAt: new Date(),
+      folderDisplayNames: {
+        '/ektaron': 'Ektaron',
+        '/ektaron/aegasos': 'Aegasos',
+        '/ektaron/aegasos/belienne': 'Belienne',
+      },
+      pages: [],
+    };
+
+    const component = createComponent(manifest, '/ektaron/aegasos/belienne/index');
+
+    (component as any).hydrateManifestCache();
+    (component as any).updateFromUrl();
+
+    expect(component.crumbs()).toEqual([
+      { label: 'Ektaron', url: '/ektaron/index' },
+      { label: 'Aegasos', url: '/ektaron/aegasos/index' },
+      { label: 'Belienne', url: '/ektaron/aegasos/belienne/index' },
     ]);
   });
 });

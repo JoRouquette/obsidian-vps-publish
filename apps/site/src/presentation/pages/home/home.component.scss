@@ -88,8 +88,10 @@
 
 .content .markdown-body {
   inline-size: min(clamp(72ch, 92vw, 96ch), 100%);
+  box-sizing: border-box;
   padding-inline: clamp(1rem, 4vw, 2rem);
   margin-inline: auto;
+  overflow-x: hidden;
   line-height: 1.65;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -129,11 +131,12 @@
 
   :where(p, ul, ol, dl, blockquote, figcaption) {
     margin-inline: auto;
-    text-align: start;
   }
 
   p {
     margin: 0.75rem 0 1rem;
+    text-align: justify;
+    text-align-last: start;
     text-wrap: pretty;
   }
 
@@ -442,10 +445,16 @@
 
   /* Tables : wrapper avec scroll horizontal isolé et sticky header optimisé */
   .table-wrapper {
+    display: block;
+    clear: both;
+    inline-size: 100%;
+    max-inline-size: 100%;
     position: relative;
-    overflow-x: auto; /* Scroll horizontal uniquement dans le conteneur */
-    overflow-y: auto; /* Scroll vertical si la table est haute */
-    max-height: 75vh; /* Limite pour le sticky header */
+    overflow-x: scroll; /* Scroll horizontal uniquement dans le conteneur */
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: auto;
     margin: 1.2rem auto;
     border: 1px solid color-mix(in oklab, var(--c-outline) 35%, transparent);
     border-radius: 0.75rem;
@@ -453,15 +462,14 @@
     scrollbar-width: thin;
     scrollbar-color: color-mix(in oklab, var(--c-outline) 40%, transparent) transparent;
     /* Empêcher le sticky header de dépasser les limites du wrapper */
-    contain: layout style paint;
   }
 
   table {
     display: table;
     border-collapse: collapse;
     border-spacing: 0;
-    width: 100%;
-    min-width: max-content; /* Permettre à la table de s'étendre selon son contenu */
+    width: max-content;
+    min-width: 100%; /* Permettre à la table de s'étendre selon son contenu */
     table-layout: auto;
     margin: 0;
     background: transparent;
@@ -498,6 +506,7 @@
     padding: 0.7rem 1rem;
     border-bottom: 1px solid color-mix(in oklab, var(--c-outline) 25%, transparent);
     vertical-align: top;
+    text-align: left;
     white-space: normal;
     word-break: break-word;
     overflow-wrap: break-word;
@@ -505,6 +514,17 @@
     font-size: 0.96rem;
     line-height: 1.6;
     min-width: 8ch; /* Largeur minimale pour éviter des colonnes trop étroites */
+    inline-size: fit-content;
+    width: fit-content;
+    max-inline-size: 20rem;
+  }
+
+  th :where(p, ul, ol, dl, blockquote, figcaption),
+  td :where(p, ul, ol, dl, blockquote, figcaption) {
+    margin-inline: 0;
+    max-inline-size: none;
+    text-align: left;
+    text-align-last: auto;
   }
 
   /* Alternance de couleurs pour les lignes du tbody */
@@ -527,13 +547,13 @@
     word-break: normal;
     overflow-wrap: normal;
     min-width: 7ch;
-    max-width: 20ch;
+    max-inline-size: 20rem;
   }
 
   th:not(:first-child),
   td:not(:first-child) {
-    width: auto;
-    max-width: none;
+    width: fit-content;
+    max-inline-size: 20rem;
   }
 
   tbody tr:nth-child(odd) {
@@ -603,7 +623,6 @@
       font-size: clamp(1.1rem, 1.4vw, 1.25rem);
     }
 
-    p,
     ul,
     ol,
     dl,

@@ -39,6 +39,29 @@ export class TopbarComponent {
     public search: SearchFacade
   ) {}
 
+  private homeCrumb(): Crumb {
+    return {
+      label: 'Accueil',
+      url: '/',
+    };
+  }
+
+  mobileAncestorCrumbs(): Crumb[] {
+    if (this.crumbs.length === 0) {
+      return [];
+    }
+
+    if (this.crumbs.length === 1) {
+      return [this.homeCrumb()];
+    }
+
+    return this.crumbs.slice(0, -1);
+  }
+
+  mobileCurrentCrumb(): Crumb | null {
+    return this.crumbs.length > 0 ? (this.crumbs[this.crumbs.length - 1] ?? null) : null;
+  }
+
   async onQueryInput(value: string): Promise<void> {
     const query = (value ?? '').trim();
     this.search.setQuery(query);
