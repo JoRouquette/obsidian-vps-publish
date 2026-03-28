@@ -1,3 +1,19 @@
+## [6.20.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.19.1...6.20.0) (2026-03-28)
+
+### Features
+
+* **ui:** establish responsive typography and layout spacing foundations ([ac03ca3](https://github.com/JoRouquette/obsidian-vps-publish/commit/ac03ca3e110dbfe1bfb5ec0e1151c1fd5dbc945a))
+* **ui:** polish content ergonomics across desktop and mobile ([abfcfcf](https://github.com/JoRouquette/obsidian-vps-publish/commit/abfcfcfac98291950c33107e0e9e71e67da9b475))
+
+### Bug Fixes
+
+* **leaflet:** increase mobile touch comfort for embedded map controls ([24b3e5f](https://github.com/JoRouquette/obsidian-vps-publish/commit/24b3e5fe3513fb4e3d022e1c325e2d1b16c53660))
+* **leaflet:** make embedded maps mobile-friendly and less disruptive ([43c7f14](https://github.com/JoRouquette/obsidian-vps-publish/commit/43c7f141752ab51fd03d568040c8068edf44848c))
+* **nav:** improve mobile breadcrumb orientation and truncation ([e3d6d03](https://github.com/JoRouquette/obsidian-vps-publish/commit/e3d6d03bb369b7f13735e771c6efa42fe6444745))
+* **nav:** restore mobile breadcrumb back-link for folder indexes ([aa77ff3](https://github.com/JoRouquette/obsidian-vps-publish/commit/aa77ff39e170f245e60df647cfe928686562ae7a))
+* **ui:** normalize dataview table overflow and scrolling ([e4ef498](https://github.com/JoRouquette/obsidian-vps-publish/commit/e4ef498bd0e99ba13d29107384373909acb73cb5))
+* **viewer:** improve mobile readability and lateral spacing ([5985f41](https://github.com/JoRouquette/obsidian-vps-publish/commit/5985f4192bb0fc1c0c7536e1cdbe06b190e6c1ed))
+
 ## [6.19.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.19.0...6.19.1) (2026-03-26)
 
 ### Bug Fixes
