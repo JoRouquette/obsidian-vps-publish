@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import type { ResolveFn } from '@angular/router';
-import { FindPageHandler } from '@core-application';
 import type { ManifestPage } from '@core-domain';
+import { FindPageHandler } from '@core-application/catalog/queries/find-page.query';
 
 import { CatalogFacade } from '../facades/catalog-facade';
 import { SeoService } from '../services/seo.service';

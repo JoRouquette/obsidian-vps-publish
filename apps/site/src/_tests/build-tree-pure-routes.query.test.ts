@@ -1,4 +1,4 @@
-import { BuildTreeHandler } from '@core-application';
+import { BuildTreeHandler } from '@core-application/catalog/queries/build-tree.query';
 import { type Manifest, Slug } from '@core-domain';
 
 describe('BuildTreeHandler - Pure Route Nodes', () => {

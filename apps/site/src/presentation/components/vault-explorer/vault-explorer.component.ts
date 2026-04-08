@@ -9,8 +9,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTooltip } from '@angular/material/tooltip';
 import { MatTree, MatTreeModule } from '@angular/material/tree';
 import { RouterLink } from '@angular/router';
-import type { TreeNode } from '@core-application';
-import { BuildTreeHandler, defaultTreeNode } from '@core-application';
+import {
+  BuildTreeHandler,
+  defaultTreeNode,
+  type TreeNode,
+} from '@core-application/catalog/queries/build-tree.query';
 
 import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { SearchBarComponent } from '../search-bar/search-bar.component';
