@@ -1,4 +1,4 @@
-import { FindPageHandler } from '@core-application';
+import { FindPageHandler } from '@core-application/catalog/queries/find-page.query';
 import { type Manifest, Slug } from '@core-domain';
 
 const manifest: Manifest = {

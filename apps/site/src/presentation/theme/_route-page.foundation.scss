@@ -1,0 +1,16 @@
+@mixin non-article-route-host() {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+@mixin non-article-route-page-box() {
+  /* Shared non-article route contract:
+     - shell owns the outer gutter around every routed page
+     - the route root owns only the centered page box inside that shell frame
+     - route-local sections keep their own internal spacing and card padding */
+  inline-size: min(var(--route-page-max, var(--layout-non-article-max)), 100%);
+  max-inline-size: 100%;
+  margin-inline: auto;
+  min-inline-size: 0;
+}

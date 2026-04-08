@@ -1,8 +1,10 @@
 import { computed, Inject, Injectable, Optional, signal } from '@angular/core';
-import { FindPageHandler, LoadManifestHandler, SearchPagesHandler } from '@core-application';
 import type { Manifest, ManifestPage, ManifestRepository } from '@core-domain';
 import { defaultManifest } from '@core-domain';
 import { Subject, takeUntil } from 'rxjs';
+import { FindPageHandler } from '@core-application/catalog/queries/find-page.query';
+import { LoadManifestHandler } from '@core-application/catalog/queries/load-manifest.query';
+import { SearchPagesHandler } from '@core-application/catalog/queries/search-pages.query';
 
 import type { ContentRepository } from '../../domain/ports/content-repository.port';
 import { CONTENT_REPOSITORY, MANIFEST_REPOSITORY } from '../../domain/ports/tokens';

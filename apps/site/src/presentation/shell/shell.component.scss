@@ -11,11 +11,14 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   --c-primary: var(--color-accent-header); /* 10%: accent */
   --c-tertiary: var(--color-accent-primary); /* 10%: accent */
   --c-background: var(--color-bg-primary); /* 60%: deepest workspace bg */
+  /* Shell owns the outer gutter for every routed page.
+     Page components then size their own content box inside it.
+     Article routes may add a narrower prose measure inside that page box. */
   --shell-pad-inline: var(--layout-page-gutter);
   --shell-pad-block: clamp(0.875rem, 2vw, 1.5rem);
   --shell-footer-font-size: var(--font-size-ui-sm);
-  --shell-overlay-panel-width: min(92vw, 38rem);
-  --shell-drawer-panel-width: min(20rem, 85vw);
+  --shell-overlay-panel-width: min(92vw, var(--layout-shell-overlay-max));
+  --shell-drawer-panel-width: min(var(--layout-shell-drawer-max), 85vw);
   --shell-interactive-pill-radius: var(--interactive-secondary-pill-radius);
   --shell-interactive-touch-target: var(--interactive-secondary-touch-target);
   --shell-interactive-hover-bg: color-mix(in srgb, var(--c-primary) 10%, transparent);
@@ -34,12 +37,12 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   left: 50%;
   transform: translateX(-50%);
   z-index: 10000;
-  padding: 0.75rem 1.5rem;
+  padding: var(--space-lg) var(--space-5xl);
   background: var(--c-primary);
   color: #fff;
   font-weight: 600;
   text-decoration: none;
-  border-radius: 0 0 0.5rem 0.5rem;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   transition: top 0.2s ease-in-out;
 
   &:focus {
@@ -62,7 +65,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   color: var(--c-primary);
   border: 1px solid var(--c-outline);
   border-left: none;
-  border-radius: 0 0.5rem 0.5rem 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   box-shadow: 0.125rem 0.25rem 0.75rem rgba(0, 0, 0, 0.12);
   transition:
     transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -118,7 +121,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   background: var(--c-surface);
   width: var(--shell-overlay-panel-width);
   max-height: min(25rem, 60vh);
-  border-radius: 0 0 1rem 1rem;
+  border-radius: 0 0 var(--radius-2xl) var(--radius-2xl);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   padding: clamp(0.9rem, 2vw, 1.15rem);
   display: flex;
@@ -282,6 +285,9 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   overflow-x: hidden;
 
   /* Padding latéral + top, bottom géré par content-wrapper et footer */
+  /* Outer page gutter only.
+     Non-article routes add a centered page box inside this frame.
+     Viewer/home add their own inner page-width and readable-measure rules inside that page box. */
   padding: var(--shell-pad-block) var(--shell-pad-inline) 0;
 
   // Smooth scrolling
@@ -353,14 +359,6 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
     display: none; // Hide mobile header on desktop
   }
 
-  .vault-explorer .mobile-overlay-logo {
-    display: none; // Hide mobile logo on desktop
-  }
-
-  .vault-explorer .mobile-overlay-search {
-    display: none; // Hide mobile search on desktop
-  }
-
   .vault-explorer .vault-explorer-content {
     // On desktop, no wrapper needed
     display: contents;
@@ -399,10 +397,6 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
     display: none;
   }
 
-  .hamburger-menu {
-    display: flex;
-  }
-
   .menu-backdrop {
     display: block;
   }
@@ -427,7 +421,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
     background: var(--c-surface-variant);
     border-right: 2px solid var(--c-outline-strong);
     border-top: none;
-    border-radius: 0 1rem 1rem 0;
+    border-radius: 0 var(--radius-2xl) var(--radius-2xl) 0;
 
     // Shadow for overlay effect
     box-shadow: 0.35rem 0 1.25rem rgba(0, 0, 0, 0.22);
@@ -518,12 +512,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
 
   :host {
     --shell-pad-block: clamp(0.7rem, 2vw, 0.9rem);
-    --shell-drawer-panel-width: min(18.75rem, 80vw);
-  }
-
-  .hamburger-menu {
-    top: clamp(0.5rem, 1.5vw, 0.75rem);
-    left: clamp(0.5rem, 1.5vw, 0.75rem);
+    --shell-drawer-panel-width: min(var(--layout-shell-drawer-max-compact), 80vw);
   }
 
   .Logo {
@@ -566,12 +555,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   :host {
     --shell-pad-inline: clamp(0.875rem, 4.5vw, 1rem);
     --shell-pad-block: clamp(0.625rem, 2.4vw, 0.8rem);
-    --shell-drawer-panel-width: min(17.5rem, 85vw);
-  }
-
-  .hamburger-menu {
-    top: 0.5rem;
-    left: 0.5rem;
+    --shell-drawer-panel-width: min(var(--layout-shell-drawer-max-tight), 85vw);
   }
 
   .Logo {
@@ -605,12 +589,7 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   :host {
     --shell-pad-inline: clamp(0.875rem, 5vw, 0.95rem);
     --shell-pad-block: 0.625rem;
-    --shell-drawer-panel-width: min(16.25rem, 90vw);
-  }
-
-  .hamburger-menu {
-    top: 0.75rem;
-    left: 0.75rem;
+    --shell-drawer-panel-width: min(var(--layout-shell-drawer-max-xs), 90vw);
   }
 
   .Logo {
