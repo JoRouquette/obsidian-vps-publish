@@ -2,6 +2,7 @@ import type { PublishableNote } from '@core-domain';
 import { Slug } from '@core-domain';
 import { load } from 'cheerio';
 
+import { CalloutRendererService } from '../infra/markdown/callout-renderer.service';
 import { MarkdownItRenderer } from '../infra/markdown/markdown-it.renderer';
 
 describe('MarkdownItRenderer', () => {
@@ -442,6 +443,29 @@ describe('MarkdownItRenderer', () => {
     expect(html).toContain('data-callout-fold="closed"');
     expect(html).toContain('class="callout-icon material-symbols-outlined"');
     expect(html).not.toContain('[!note]-');
+  });
+
+  it('keeps backend callout ownership structural even when custom styles define callout metadata', async () => {
+    const calloutRenderer = new CalloutRendererService();
+    calloutRenderer.extendFromStyles([
+      {
+        path: '.obsidian/snippets/callouts.css',
+        css: `.callout[data-callout="lore"] { --callout-icon: auto_stories; background: hotpink; }`,
+      },
+    ]);
+    const renderer = new MarkdownItRenderer(calloutRenderer);
+    const note = baseNote();
+    note.content = ['> [!lore] Lore', '> Legends only.'].join('\n');
+
+    const html = await renderer.render(note);
+
+    expect(html).toContain('class="callout"');
+    expect(html).toContain('data-callout="lore"');
+    expect(html).toContain('data-icon="auto_stories"');
+    expect(html).not.toContain('data-callout-styles');
+    expect(html).not.toContain('background: hotpink;');
+    expect(html).not.toContain('fonts.googleapis.com/icon?family=Material+Icons');
+    expect(html).not.toContain('fonts.googleapis.com/css2?family=Material+Symbols+Outlined');
   });
 
   it('wraps tables in .table-wrapper for horizontal scroll and sticky header', async () => {

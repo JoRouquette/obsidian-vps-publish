@@ -187,22 +187,10 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     const html = this.md.render(contentWithHandledMdLinks);
     const htmlWithBlockAnchors = attachBlockAnchors(html, this.blockIdCommentPrefix);
 
-    const iconFontLink = [
-      '<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />',
-      '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />',
-    ].join('\n');
-    const userCss = this.calloutRenderer.getUserCss();
-    const inlineCalloutCss =
-      `.material-symbols-outlined,.material-icons{font-family:'Material Symbols Outlined','Material Icons';font-weight:400;font-style:normal;font-size:1.1em;line-height:1;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;display:inline-flex;vertical-align:text-bottom;}` +
-      `.callout-icon{font-family:'Material Symbols Outlined','Material Icons';}`;
-    const withStyles = `${iconFontLink}\n<style data-callout-styles>${inlineCalloutCss}${
-      userCss ? '\n' + userCss : ''
-    }</style>\n${htmlWithBlockAnchors}`;
-
     // Clean and normalize all links (remove .md extensions, add proper classes, translate paths)
     // Pass manifest from context for vault-to-route path translation
     const cleaned = this.cleanAndNormalizeLinks(
-      withStyles,
+      htmlWithBlockAnchors,
       context?.manifest,
       note.routing?.fullPath
     );

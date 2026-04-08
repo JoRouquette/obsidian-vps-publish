@@ -44,11 +44,6 @@ const BASE_DEFINITIONS: CalloutDefinition[] = [
 export class CalloutRendererService {
   private definitions: CalloutDefinition[] = [...BASE_DEFINITIONS];
   private lookup: Record<string, CalloutDefinition> = this.buildLookup(this.definitions);
-  private userCss = '';
-
-  getUserCss(): string {
-    return this.userCss;
-  }
 
   extendDefinitions(defs: CalloutDefinition[]): void {
     for (const def of defs) {
@@ -76,11 +71,12 @@ export class CalloutRendererService {
   }
 
   extendFromStyles(styles: CalloutStylePayload[]): CalloutDefinition[] {
+    // Uploaded Obsidian CSS is parsed only to recover custom callout type/icon metadata.
+    // The site frontend owns callout presentation, so the raw CSS is not re-emitted.
     const defs = styles.flatMap((s) => this.extractDefinitionsFromCss(s.css));
     if (defs.length > 0) {
       this.extendDefinitions(defs);
     }
-    this.userCss = styles.length > 0 ? styles.map((s) => s.css).join('\n\n') : '';
     return defs;
   }
 
