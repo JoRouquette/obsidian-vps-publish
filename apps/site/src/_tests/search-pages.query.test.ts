@@ -1,4 +1,4 @@
-import { SearchPagesHandler } from '@core-application';
+import { SearchPagesHandler } from '@core-application/catalog/queries/search-pages.query';
 import type { Manifest } from '@core-domain';
 import { Slug } from '@core-domain';
 
