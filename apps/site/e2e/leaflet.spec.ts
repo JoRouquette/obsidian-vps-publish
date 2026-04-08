@@ -211,4 +211,52 @@ test.describe('Leaflet Map E2E', () => {
     const containers = page.locator('.leaflet-container');
     await expect(containers).toHaveCount(0);
   });
+
+  test('mobile map layout keeps the viewport bounded and touch controls usable', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(IMAGE_MAP_URL);
+
+    const container = page.locator('.leaflet-container').first();
+    const zoomIn = page.locator('a.leaflet-control-zoom-in').first();
+
+    await expect(container).toBeVisible({ timeout: MAP_TIMEOUT });
+    await expect(zoomIn).toBeVisible({ timeout: MAP_TIMEOUT });
+
+    const metrics = await page.evaluate(() => {
+      const container = document.querySelector('.leaflet-container') as HTMLElement | null;
+      const zoomIn = document.querySelector('a.leaflet-control-zoom-in') as HTMLElement | null;
+      const shell = document.querySelector('.main') as HTMLElement | null;
+
+      if (!container || !zoomIn || !shell) {
+        throw new Error('Leaflet mobile layout fixture is missing required elements');
+      }
+
+      const containerRect = container.getBoundingClientRect();
+      const zoomRect = zoomIn.getBoundingClientRect();
+
+      return {
+        viewportWidth: document.documentElement.clientWidth,
+        viewportHeight: document.documentElement.clientHeight,
+        documentScrollWidth: document.documentElement.scrollWidth,
+        shellClientWidth: shell.clientWidth,
+        shellScrollWidth: shell.scrollWidth,
+        containerWidth: containerRect.width,
+        containerHeight: containerRect.height,
+        zoomWidth: zoomRect.width,
+        zoomHeight: zoomRect.height,
+      };
+    });
+
+    expect(metrics.documentScrollWidth).toBeLessThanOrEqual(metrics.viewportWidth + 2);
+    expect(metrics.shellScrollWidth).toBeLessThanOrEqual(metrics.shellClientWidth + 2);
+    expect(metrics.containerWidth).toBeLessThanOrEqual(metrics.viewportWidth + 1);
+    expect(metrics.containerHeight).toBeLessThan(metrics.viewportHeight * 0.6);
+    expect(metrics.containerHeight).toBeGreaterThan(150);
+    expect(metrics.zoomWidth).toBeGreaterThanOrEqual(36);
+    expect(metrics.zoomHeight).toBeGreaterThanOrEqual(36);
+    expect(metrics.zoomWidth).toBeLessThanOrEqual(50);
+    expect(metrics.zoomHeight).toBeLessThanOrEqual(50);
+  });
 });

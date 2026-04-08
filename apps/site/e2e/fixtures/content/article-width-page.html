@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Article Width Page - E2E Test Site</title>
+    <meta
+      name="description"
+      content="A viewer page dedicated to article-width and wide-content regression checks"
+    />
+  </head>
+  <body>
+    <div class="markdown-body">
+      <h1>Article Width Page</h1>
+      <h2 data-testid="layout-heading">Prose Rhythm</h2>
+      <p data-testid="layout-prose">
+        This viewer fixture exists to verify the shared article-width system with real computed
+        styles. The prose paragraph should stay narrower than the page box on larger screens while
+        still remaining contained on smaller screens.
+      </p>
+      <ul data-testid="layout-list">
+        <li>Readable lists should stay on the same rail as paragraphs.</li>
+        <li>Headings should not jump back to the page-width rail.</li>
+      </ul>
+      <blockquote data-testid="layout-blockquote">
+        Blockquotes are intentionally still part of the reading column and should not drift wider
+        than the prose rail.
+      </blockquote>
+      <hr data-testid="layout-rule" />
+      <div class="callout" data-callout="note" data-testid="layout-callout">
+        <div class="callout-title">Callout Heading</div>
+        <div class="callout-content" data-testid="layout-callout-content">
+          This callout body should share the same readable rail contract as surrounding prose.
+        </div>
+      </div>
+      <p>
+        Internal navigation should still behave normally alongside the width system:
+        <a href="/">Back to Home</a>.
+      </p>
+
+      <h2>Wide Content</h2>
+      <div class="table-wrapper" data-testid="layout-table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>Very Long Column Heading For Width Regression</th>
+              <th>Second Extremely Verbose Column Heading</th>
+              <th>Third Wide Column</th>
+              <th>Fourth Wide Column</th>
+              <th>Fifth Wide Column</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Viewer</td>
+              <td>Long unbroken content for predictable horizontal overflow measurement</td>
+              <td>Another deliberately long value to force table scrolling across breakpoints</td>
+              <td>OverflowLocalityGuard</td>
+              <td>ReadableMeasureIsolation</td>
+              <td>CrossPageWidthContract</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <pre
+        data-testid="layout-code"
+      ><code>const ARTICLE_WIDTH_REGRESSION_SENTINEL = 'this_is_a_deliberately_long_code_line_that_should_overflow_locally_inside_the_pre_block_without_forcing_the_page_wrapper_or_shell_to_scroll_horizontally';</code></pre>
+    </div>
+  </body>
+</html>
