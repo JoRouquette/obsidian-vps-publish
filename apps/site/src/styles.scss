@@ -1,5 +1,5 @@
 @use '@angular/material' as mat;
-@use './presentation/theme/its.theme' as *;
+@use './presentation/theme/its.theme' as theme;
 
 // Import Leaflet CSS for map rendering
 @import 'leaflet/dist/leaflet.css';
@@ -9,9 +9,18 @@
 // Note: Roboto fonts are now loaded via index.html with preload for better LCP
 // The font-family is already set in the ITS theme via --font-family-default
 
+/* Canonical global style ownership:
+   - presentation/theme/its.theme.scss defines the theme-scoped ITS tokens and
+     the light/dark Angular Material theme objects
+   - src/styles.scss owns emitted global CSS: mat.core(), the active Material
+     theme classes, app/global layout and type tokens, and site-wide resets */
 @include mat.core();
 
 :root {
+  /* Shared layout tokens:
+     - shell owns the outer gutter
+     - page components own the centered page-width content box and any light inner page-box breathing room
+     - prose rules own the narrower readable measure */
   --font-size-body: clamp(1rem, 0.98rem + 0.18vw, 1.0625rem);
   --font-size-body-sm: clamp(0.9375rem, 0.915rem + 0.14vw, 1rem);
   --font-size-ui: clamp(0.95rem, 0.93rem + 0.12vw, 1rem);
@@ -28,22 +37,81 @@
   --space-stack-lg: clamp(1.25rem, 1rem + 0.8vw, 1.75rem);
   --layout-page-gutter: clamp(1rem, 2.8vw, 2rem);
   --layout-page-gutter-compact: clamp(0.875rem, 4vw, 1.25rem);
-  --layout-reader-max: 68ch;
+  /* Page-box padding stays intentionally lighter than the shell gutter so readability
+     does not come from stacking multiple equally strong horizontal insets. */
+  --layout-page-box-pad: 0px;
+  --layout-page-box-pad-compact: clamp(0.25rem, 1vw, 0.5rem);
+  --layout-page-box-pad-compact-tight: clamp(0.2rem, 1vw, 0.35rem);
+  --layout-page-box-pad-portrait: clamp(0.6rem, 3.5vw, 0.85rem);
+  /* Keep the readable rail font-invariant across paragraphs, headings, and callouts.
+     Using `ch` here made larger headings resolve to a much wider "readable" rail than prose. */
+  --layout-reader-max: 39rem;
   --layout-content-max: min(100%, 96ch);
-  --interactive-secondary-pill-radius: 999px;
-  --interactive-secondary-soft-radius: 0.75rem;
+  --layout-wide-column-max: 24rem;
+  --layout-non-article-max: 67.5rem;
+  --layout-non-article-max-compact: 45rem;
+
+  /* Width taxonomy:
+     - shell: overlay/drawer surfaces managed by the app frame
+     - page/prose/wide: centered route box, readable rail, wider content rail
+     - nav: breadcrumb/site-name/search truncation caps
+     - overlay: tooltip and article media overlays that should stay bounded */
+  --layout-shell-overlay-max: 38rem;
+  --layout-shell-drawer-max: 20rem;
+  --layout-shell-drawer-max-compact: 18.75rem;
+  --layout-shell-drawer-max-tight: 17.5rem;
+  --layout-shell-drawer-max-xs: 16.25rem;
+  --layout-nav-crumb-max: 24ch;
+  --layout-nav-crumb-max-compact: 18ch;
+  --layout-nav-ancestor-max: min(16ch, 46vw);
+  --layout-nav-ancestor-max-tight: min(13ch, 42vw);
+  --layout-nav-site-name-max: clamp(150px, 25vw, 300px);
+  --layout-nav-site-name-max-wide: clamp(200px, 25vw, 320px);
+  --layout-nav-site-name-max-tablet: 60vw;
+  --layout-page-title-max: 60rem;
+  --layout-panel-column-min: 20rem;
+  --layout-overlay-tooltip-max: 20rem;
+  --layout-article-float-asset-max: min(20rem, 45%);
+
+  /* Component spacing scale:
+     keep these exact values for app chrome/cards, while `--space-stack-*`
+     remains the fluid reading-rhythm scale for long-form content. */
+  --space-2xs: 0.25rem;
+  --space-xs: 0.375rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.625rem;
+  --space-lg: 0.75rem;
+  --space-xl: 0.875rem;
+  --space-2xl: 1rem;
+  --space-3xl: 1.125rem;
+  --space-4xl: 1.25rem;
+  --space-5xl: 1.5rem;
+
+  /* Radius scale:
+     mapped from the most repeated card/chip/panel values used across the app. */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-pill: 999px;
+
+  --interactive-secondary-pill-radius: var(--radius-pill);
+  --interactive-secondary-soft-radius: var(--radius-lg);
   --interactive-secondary-padding-inline: 0.7rem;
   --interactive-secondary-padding-inline-compact: 0.55rem;
   --interactive-secondary-touch-target: 2.75rem;
 }
 
 :root.theme-light {
-  @include mat.theme($its-light);
+  @include mat.theme(theme.$its-light);
   color-scheme: light;
 }
 
 :root.theme-dark {
-  @include mat.theme($its-dark);
+  @include mat.theme(theme.$its-dark);
   color-scheme: dark;
 }
 
@@ -273,7 +341,8 @@ img.no-auto-contrast {
   filter: none !important;
 }
 
-/* Tooltips Material: Fond opaque pour lisibilité optimale */
+/* Material tooltip surface styling is owned globally so routed pages do not
+   compete on `.mat-mdc-tooltip .mdc-tooltip__surface`. */
 .mat-mdc-tooltip {
   .mdc-tooltip__surface {
     background-color: var(--mat-sys-inverse-surface) !important;

@@ -1,4 +1,4 @@
-import { LoadManifestHandler } from '@core-application';
+import { LoadManifestHandler } from '@core-application/catalog/queries/load-manifest.query';
 import type { ManifestRepository } from '@core-domain';
 
 describe('LoadManifestHandler', () => {

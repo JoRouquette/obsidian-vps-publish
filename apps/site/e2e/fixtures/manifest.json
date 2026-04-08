@@ -28,6 +28,15 @@
       "tags": ["test", "e2e"]
     },
     {
+      "id": "article-width-page",
+      "title": "Article Width Page",
+      "slug": "article-width-page",
+      "route": "/article-width-page",
+      "description": "A page dedicated to article-width regression checks",
+      "publishedAt": "2024-01-01T00:00:00.000Z",
+      "tags": ["layout", "e2e"]
+    },
+    {
       "id": "page-with-anchor",
       "title": "Page With Anchors",
       "slug": "page-with-anchor",
@@ -135,6 +144,7 @@
   "canonicalMap": {
     "index": "/",
     "test-page": "/test-page",
+    "article-width-page": "/article-width-page",
     "page-with-anchor": "/page-with-anchor",
     "page-with-assets": "/page-with-assets",
     "nested/deep-page": "/nested/deep-page",
@@ -155,6 +165,7 @@
     "pages": [
       "index",
       "test-page",
+      "article-width-page",
       "page-with-anchor",
       "page-with-assets",
       "wikilink-source",

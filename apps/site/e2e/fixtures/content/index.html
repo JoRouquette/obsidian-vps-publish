@@ -6,12 +6,33 @@
     <meta name="description" content="Welcome to the E2E test site homepage" />
   </head>
   <body>
-    <div class="home-container">
+    <div class="markdown-body home-container">
       <h1>Welcome to E2E Test Site</h1>
-      <p>This is the homepage content for end-to-end testing.</p>
+      <h2 data-testid="layout-heading">Shared Article Rail</h2>
+      <p data-testid="layout-prose">
+        This is the homepage content for end-to-end testing. It doubles as a regression fixture for
+        the shared article-width system, so the shell gutter, page box, and readable prose measure
+        can be verified in a real browser.
+      </p>
+      <ul data-testid="layout-list">
+        <li>Home should keep headings on the same reading rail as prose.</li>
+        <li>Callout content should not fall back to page width anymore.</li>
+      </ul>
+      <blockquote data-testid="layout-blockquote">
+        This blockquote should stay aligned with the readable article rail.
+      </blockquote>
+      <hr data-testid="layout-rule" />
+      <div class="callout" data-callout="note" data-testid="layout-callout">
+        <div class="callout-title">Callout Heading</div>
+        <div class="callout-content" data-testid="layout-callout-content">
+          This callout body should share the same readable rail contract as the surrounding
+          paragraph flow.
+        </div>
+      </div>
       <nav>
         <ul>
           <li><a href="/test-page">Go to Test Page</a></li>
+          <li><a href="/article-width-page">Go to Article Width Page</a></li>
           <li><a href="/page-with-anchor">Go to Page with Anchors</a></li>
           <li><a href="/page-with-assets">Go to Page with Assets</a></li>
           <li><a href="/nested/deep-page">Go to Nested Page</a></li>
@@ -21,6 +42,43 @@
       <section>
         <h2>Features</h2>
         <p>This site demonstrates various features that are tested via E2E tests.</p>
+      </section>
+
+      <section>
+        <h2>Wide Content Regression Fixture</h2>
+        <p>
+          The table and code block below intentionally stress the page layout so wide-content
+          overflow stays local instead of widening the readable article column.
+        </p>
+
+        <div class="table-wrapper" data-testid="layout-table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Section</th>
+                <th>Very Long Column Heading For Width Regression</th>
+                <th>Second Extremely Verbose Column Heading</th>
+                <th>Third Wide Column</th>
+                <th>Fourth Wide Column</th>
+                <th>Fifth Wide Column</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Home</td>
+                <td>Long unbroken content for predictable horizontal overflow measurement</td>
+                <td>Another deliberately long value to force table scrolling across breakpoints</td>
+                <td>OverflowLocalityGuard</td>
+                <td>ReadableMeasureIsolation</td>
+                <td>CrossPageWidthContract</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <pre
+          data-testid="layout-code"
+        ><code>const ARTICLE_WIDTH_REGRESSION_SENTINEL = 'this_is_a_deliberately_long_code_line_that_should_overflow_locally_inside_the_pre_block_without_forcing_the_page_wrapper_or_shell_to_scroll_horizontally';</code></pre>
       </section>
     </div>
   </body>
