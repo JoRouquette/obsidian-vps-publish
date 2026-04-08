@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 
 set -euo pipefail
+export NX_DAEMON="${NX_DAEMON:-false}"
 
 STAGED_FILES=$(git diff --cached --name-only --relative --diff-filter=ACMRT | tr '\n' ',' | sed 's/,$//')
 
