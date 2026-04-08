@@ -52,7 +52,7 @@
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    max-width: 24ch;
+    max-width: var(--layout-nav-crumb-max);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -122,7 +122,7 @@
   font-size: clamp(1rem, 2vw, 1.2rem);
   line-height: var(--line-height-tight);
   white-space: nowrap;
-  max-width: clamp(150px, 25vw, 300px);
+  max-width: var(--layout-nav-site-name-max);
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -131,7 +131,7 @@
 app-search-bar {
   grid-area: search;
   justify-self: end;
-  max-width: clamp(200px, 25vw, 320px);
+  max-width: var(--layout-nav-site-name-max-wide);
   align-self: center;
 
   // Masquer le subscript wrapper de Material qui décentre la search-bar
@@ -241,7 +241,7 @@ app-search-bar {
   }
 
   .breadcrumbs-mobile .ancestor-link {
-    max-width: min(16ch, 46vw);
+    max-width: var(--layout-nav-ancestor-max);
     padding: 0.15rem var(--interactive-secondary-padding-inline-compact);
     color: var(--mat-sys-on-surface-variant);
     background: color-mix(in oklab, var(--mat-sys-surface-container-low) 78%, transparent);
@@ -296,7 +296,7 @@ app-search-bar {
   }
 
   .breadcrumbs-mobile .ancestor-link {
-    max-width: min(13ch, 42vw);
+    max-width: var(--layout-nav-ancestor-max-tight);
   }
 
   .breadcrumbs-mobile .current {
@@ -319,10 +319,10 @@ app-search-bar {
     display: none;
   }
   .breadcrumbs .crumb {
-    max-width: 18ch;
+    max-width: var(--layout-nav-crumb-max-compact);
   }
   .site-name {
-    max-width: 60vw;
+    max-width: var(--layout-nav-site-name-max-tablet);
     font-weight: 700;
   }
 }

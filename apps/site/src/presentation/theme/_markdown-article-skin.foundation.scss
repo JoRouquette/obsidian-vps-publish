@@ -1,0 +1,465 @@
+@mixin article-shared-skin() {
+  /* Shared article-skin contract:
+    - viewer/home keep the shared article rail foundation
+    - this layer owns the repeated markdown presentation selectors
+    - route styles set CSS variables when they intentionally diverge */
+  .content .markdown-body {
+    font-size: var(--article-font-size, var(--font-size-body));
+    line-height: var(--article-body-line-height, var(--line-height-body));
+
+    h1 {
+      font-size: var(--article-h1-size, var(--font-size-heading-1));
+      font-weight: var(--article-h1-weight, 700);
+      margin-block: var(--article-h1-margin, var(--space-stack-lg) var(--space-stack-sm));
+      line-height: var(--article-h1-line-height, var(--line-height-tight));
+      letter-spacing: var(--article-h1-letter-spacing, 0);
+      color: var(--c-headers);
+      text-wrap: var(--article-heading-text-wrap, wrap);
+    }
+
+    h2 {
+      font-size: var(--article-h2-size, var(--font-size-heading-2));
+      font-weight: var(--article-h2-weight, 600);
+      margin-block: var(--article-h2-margin, var(--space-stack-md) var(--space-stack-sm));
+      line-height: var(--article-h2-line-height, var(--line-height-tight));
+      letter-spacing: var(--article-h2-letter-spacing, 0);
+      color: var(--c-headers);
+      text-wrap: var(--article-heading-text-wrap, wrap);
+    }
+
+    h3,
+    h4,
+    h5,
+    h6 {
+      font-size: var(--article-hx-size, var(--font-size-heading-3));
+      font-weight: var(--article-hx-weight, 600);
+      margin-block: var(--article-hx-margin, var(--space-stack-md) var(--space-stack-xs));
+      line-height: var(--article-hx-line-height, var(--line-height-tight));
+      letter-spacing: var(--article-hx-letter-spacing, 0);
+      color: var(--c-headers);
+      text-wrap: var(--article-heading-text-wrap, wrap);
+    }
+
+    p {
+      margin-block: var(--article-p-margin, var(--space-stack-xs) var(--space-stack-sm));
+      text-align: justify;
+      text-align-last: start;
+      text-wrap: var(--article-p-text-wrap, wrap);
+    }
+
+    ul,
+    ol {
+      padding-inline-start: var(--article-list-padding, 1.15rem);
+      margin-block: var(--article-list-margin, var(--space-stack-xs) var(--space-stack-sm));
+
+      li {
+        margin-block: var(--article-list-item-margin, 0);
+      }
+    }
+
+    a {
+      color: var(--c-secondary);
+      text-decoration: underline;
+      text-decoration-thickness: var(--article-link-thickness, 1px);
+      text-underline-offset: var(--article-link-offset, 0.12em);
+      transition: var(--article-link-transition, none);
+    }
+
+    a:hover,
+    a:focus-visible {
+      color: var(--article-link-hover-color, var(--c-secondary));
+      text-decoration-thickness: var(
+        --article-link-hover-thickness,
+        var(--article-link-thickness, 1px)
+      );
+    }
+
+    .wikilink {
+      text-decoration: underline dotted;
+      text-decoration-thickness: 1px;
+      color: var(--c-secondary);
+    }
+
+    .wikilink-unresolved {
+      color: color-mix(in oklab, var(--c-on-surface) 65%, transparent);
+      cursor: not-allowed;
+    }
+
+    .material-icons,
+    .material-icons-outlined,
+    .material-symbols-outlined {
+      font-family:
+        'Material Icons', 'Material Symbols Outlined', 'Material Symbols Rounded',
+        'Material Symbols Sharp', sans-serif;
+      font-weight: normal;
+      font-style: normal;
+      font-size: 1.1em;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-flex;
+      align-items: center;
+      vertical-align: text-bottom;
+      white-space: nowrap;
+      direction: ltr;
+      font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 24;
+    }
+
+    /* Backend renders callout structure and data attributes only.
+      The shared article skin owns the visual callout contract end-to-end. */
+    .callout {
+      --callout-color: color-mix(in oklab, var(--c-secondary) 70%, var(--c-primary) 30%);
+      margin: var(--article-callout-margin, 1rem auto);
+      border: 1px solid color-mix(in oklab, var(--callout-color) 35%, var(--c-outline) 55%);
+      border-inline-start: var(--article-callout-border-width, 5px) solid var(--callout-color);
+      border-radius: var(--article-callout-radius, 0.75rem);
+      background: color-mix(in oklab, var(--callout-color) 6%, var(--c-surface-variant) 22%);
+      overflow: hidden;
+      box-shadow: var(--article-callout-shadow, none);
+      transition: var(--article-callout-transition, none);
+    }
+
+    .callout:hover {
+      box-shadow: var(--article-callout-shadow-hover, var(--article-callout-shadow, none));
+    }
+
+    details.callout {
+      padding: 0;
+    }
+
+    .callout-title {
+      display: flex;
+      align-items: center;
+      gap: var(--article-callout-title-gap, 0.6rem);
+      padding: var(--article-callout-title-padding, 0.7rem 1rem);
+      background: color-mix(in oklab, var(--callout-color) 24%, var(--c-surface));
+      color: color-mix(in oklab, var(--callout-color) 85%, #fff 15%);
+      font-weight: var(--article-callout-title-weight, 700);
+      font-size: var(--article-callout-title-size, var(--font-size-ui));
+      line-height: var(--article-callout-title-line-height, 1.3);
+      cursor: default;
+      user-select: none;
+    }
+
+    details.callout .callout-title {
+      list-style: none;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    details.callout .callout-title:hover {
+      background: var(
+        --article-callout-title-hover-bg,
+        color-mix(in oklab, var(--callout-color) 24%, var(--c-surface))
+      );
+    }
+
+    details.callout .callout-title::-webkit-details-marker {
+      display: none;
+    }
+
+    details.callout .callout-title:focus-visible {
+      outline: 2px solid var(--callout-color);
+      outline-offset: 2px;
+    }
+
+    details.callout .callout-title::after {
+      content: '>';
+      font-size: var(--article-callout-toggle-size, 0.95rem);
+      font-weight: 700;
+      margin-inline-start: auto;
+      transition: transform 0.2s ease;
+    }
+
+    details.callout:not([open]) .callout-title::after {
+      transform: rotate(-90deg);
+    }
+
+    .callout-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-inline-size: var(--article-callout-icon-size, 2rem);
+      min-block-size: var(--article-callout-icon-size, 2rem);
+      border-radius: 0.65rem;
+      background: color-mix(in oklab, var(--callout-color) 24%, transparent);
+      color: color-mix(in oklab, #fff 85%, var(--callout-color) 15%);
+      font-weight: 800;
+      font-size: var(--article-callout-icon-font-size, 1.15rem);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      font-family: 'Material Symbols Outlined', 'Material Icons', sans-serif;
+      font-variation-settings:
+        'FILL' 0,
+        'wght' 600,
+        'GRAD' 0,
+        'opsz' 24;
+    }
+
+    .callout-label {
+      flex: 1;
+    }
+
+    .callout-content {
+      padding: var(--article-callout-content-padding, 0.65rem 1rem 0.85rem);
+      background: color-mix(in oklab, var(--callout-color) 4%, var(--c-surface));
+      font-size: var(--article-callout-content-size, inherit);
+    }
+
+    details.callout:not([open]) .callout-content {
+      display: none;
+    }
+
+    .callout[data-callout='info'] {
+      --callout-color: var(--c-primary);
+    }
+
+    .callout[data-callout='note'] {
+      --callout-color: color-mix(in oklab, var(--c-secondary) 65%, var(--c-primary) 35%);
+    }
+
+    .callout[data-callout='tip'],
+    .callout[data-callout='todo'] {
+      --callout-color: color-mix(in oklab, #10b981 60%, var(--c-secondary) 40%);
+    }
+
+    .callout[data-callout='success'] {
+      --callout-color: color-mix(in oklab, #0f9d58 70%, var(--c-secondary) 30%);
+    }
+
+    .callout[data-callout='question'] {
+      --callout-color: color-mix(in oklab, #3b82f6 70%, var(--c-primary) 30%);
+    }
+
+    .callout[data-callout='warning'] {
+      --callout-color: color-mix(in oklab, #f59e0b 80%, var(--c-primary) 20%);
+    }
+
+    .callout[data-callout='failure'],
+    .callout[data-callout='danger'],
+    .callout[data-callout='bug'] {
+      --callout-color: color-mix(in oklab, #ef4444 80%, var(--c-primary) 20%);
+    }
+
+    .callout[data-callout='example'],
+    .callout[data-callout='abstract'] {
+      --callout-color: color-mix(in oklab, #7c3aed 70%, var(--c-secondary) 30%);
+    }
+
+    .callout[data-callout='quote'] {
+      --callout-color: color-mix(in oklab, var(--c-outline) 80%, var(--c-headers) 20%);
+    }
+
+    figure.md-asset {
+      margin: var(--article-asset-margin, 0);
+      padding: var(--article-asset-padding, 0);
+      display: block;
+    }
+
+    figure.md-asset.align-left {
+      float: left;
+      max-width: var(--article-asset-float-max-width, none);
+      margin: var(--article-asset-left-margin, 0 0.75rem 0.5rem 0);
+      shape-outside: margin-box;
+      clear: left;
+    }
+
+    figure.md-asset.align-right {
+      float: right;
+      max-width: var(--article-asset-float-max-width, none);
+      margin: var(--article-asset-right-margin, 0 0 0.5rem 0.75rem);
+      shape-outside: margin-box;
+      clear: right;
+    }
+
+    figure.md-asset.align-center {
+      display: block;
+      margin: var(--article-asset-center-margin, 0.75rem auto);
+      clear: both;
+    }
+
+    figure.md-asset img,
+    figure.md-asset video {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      border-radius: var(--article-asset-radius, 0.25rem);
+      margin: 0;
+      padding: 0;
+    }
+
+    .md-asset audio,
+    .md-asset video {
+      margin-inline: auto;
+    }
+  }
+}
+
+@mixin article-shared-mobile-skin() {
+  @media (max-width: 768px) {
+    .content .markdown-body {
+      h1 {
+        font-size: var(
+          --article-mobile-h1-size,
+          var(--article-h1-size, var(--font-size-heading-1))
+        );
+      }
+
+      h2 {
+        font-size: var(
+          --article-mobile-h2-size,
+          var(--article-h2-size, var(--font-size-heading-2))
+        );
+      }
+
+      h3,
+      h4,
+      h5,
+      h6 {
+        font-size: var(
+          --article-mobile-hx-size,
+          var(--article-hx-size, var(--font-size-heading-3))
+        );
+        margin-block: var(
+          --article-mobile-hx-margin,
+          var(--article-hx-margin, var(--space-stack-md) var(--space-stack-xs))
+        );
+      }
+
+      p {
+        margin-block: var(
+          --article-mobile-p-margin,
+          var(--article-p-margin, var(--space-stack-xs) var(--space-stack-sm))
+        );
+        font-size: var(--article-mobile-p-size, inherit);
+      }
+
+      ul,
+      ol,
+      dl,
+      blockquote,
+      figcaption {
+        text-align: left;
+      }
+
+      ul,
+      ol {
+        padding-inline-start: var(--article-mobile-list-padding, var(--article-list-padding, 1rem));
+        margin-block: var(
+          --article-mobile-list-margin,
+          var(--article-list-margin, var(--space-stack-xs) var(--space-stack-sm))
+        );
+      }
+
+      .callout {
+        margin: var(--article-mobile-callout-margin, var(--article-callout-margin, 1rem auto));
+        box-shadow: var(--article-mobile-callout-shadow, var(--article-callout-shadow, none));
+      }
+
+      .callout-title {
+        padding: var(
+          --article-mobile-callout-title-padding,
+          var(--article-callout-title-padding, 0.7rem 1rem)
+        );
+        gap: var(--article-mobile-callout-title-gap, var(--article-callout-title-gap, 0.6rem));
+        font-size: var(
+          --article-mobile-callout-title-size,
+          var(--article-callout-title-size, var(--font-size-ui))
+        );
+      }
+
+      .callout-content {
+        padding: var(
+          --article-mobile-callout-content-padding,
+          var(--article-callout-content-padding, 0.65rem 1rem 0.85rem)
+        );
+        font-size: var(
+          --article-mobile-callout-content-size,
+          var(--article-callout-content-size, inherit)
+        );
+      }
+
+      .callout-icon {
+        min-inline-size: var(
+          --article-mobile-callout-icon-size,
+          var(--article-callout-icon-size, 2rem)
+        );
+        min-block-size: var(
+          --article-mobile-callout-icon-size,
+          var(--article-callout-icon-size, 2rem)
+        );
+        font-size: var(
+          --article-mobile-callout-icon-font-size,
+          var(--article-callout-icon-font-size, 1.15rem)
+        );
+      }
+    }
+  }
+
+  @media (max-width: 520px) {
+    .content .markdown-body {
+      h1 {
+        font-size: var(
+          --article-mobile-sm-h1-size,
+          var(--article-mobile-h1-size, var(--article-h1-size, var(--font-size-heading-1)))
+        );
+      }
+
+      h2 {
+        font-size: var(
+          --article-mobile-sm-h2-size,
+          var(--article-mobile-h2-size, var(--article-h2-size, var(--font-size-heading-2)))
+        );
+      }
+
+      .callout-title {
+        padding: var(
+          --article-mobile-sm-callout-title-padding,
+          var(
+            --article-mobile-callout-title-padding,
+            var(--article-callout-title-padding, 0.7rem 1rem)
+          )
+        );
+        font-size: var(
+          --article-mobile-sm-callout-title-size,
+          var(
+            --article-mobile-callout-title-size,
+            var(--article-callout-title-size, var(--font-size-ui))
+          )
+        );
+      }
+
+      .callout-content {
+        padding: var(
+          --article-mobile-sm-callout-content-padding,
+          var(
+            --article-mobile-callout-content-padding,
+            var(--article-callout-content-padding, 0.65rem 1rem 0.85rem)
+          )
+        );
+      }
+
+      .callout-icon {
+        min-inline-size: var(
+          --article-mobile-sm-callout-icon-size,
+          var(--article-mobile-callout-icon-size, var(--article-callout-icon-size, 2rem))
+        );
+        min-block-size: var(
+          --article-mobile-sm-callout-icon-size,
+          var(--article-mobile-callout-icon-size, var(--article-callout-icon-size, 2rem))
+        );
+        font-size: var(
+          --article-mobile-sm-callout-icon-font-size,
+          var(
+            --article-mobile-callout-icon-font-size,
+            var(--article-callout-icon-font-size, 1.15rem)
+          )
+        );
+      }
+    }
+  }
+}

@@ -131,8 +131,9 @@
   --font-family-mono: 'Fira Code', 'Fira Code Medium', 'Source Code Pro', monospace;
 
   /* ========================================
-     Border Radius (ITS default: no rounded corners)
-     ITS tokens: radius-s, radius-m
+     Legacy ITS radius vars
+     Canonical app radius scale now lives in src/styles.scss; these remain
+     as compatibility aliases for consumers that still read the ITS names.
      ======================================== */
   --radius-small: 0px;
   --radius-medium: 0px;
@@ -264,8 +265,9 @@
   --font-family-mono: 'Fira Code', 'Fira Code Medium', 'Source Code Pro', monospace;
 
   /* ========================================
-     Border Radius (ITS default: no rounded corners)
-     ITS tokens: radius-s, radius-m
+     Legacy ITS radius vars
+     Canonical app radius scale now lives in src/styles.scss; these remain
+     as compatibility aliases for consumers that still read the ITS names.
      ======================================== */
   --radius-small: 0px;
   --radius-medium: 0px;
@@ -273,9 +275,11 @@
 }
 
 /* ========================================================================
-   Material Design Theme Integration
+   Material Design Theme Definitions
    Note: Angular Material v20+ uses M3 design system
-   We use default palettes but rely on CSS custom properties for styling
+   This file defines the light/dark Material themes, but does not emit the
+   actual Material CSS. Emission happens once in src/styles.scss so the site
+   has a single owner for global Material theme output.
    ======================================================================== */
 
 $its-light: mat.define-theme(
@@ -301,11 +305,3 @@ $its-dark: mat.define-theme(
     ),
   )
 );
-
-:root.theme-light {
-  @include mat.theme($its-light);
-}
-
-:root.theme-dark {
-  @include mat.theme($its-dark);
-}

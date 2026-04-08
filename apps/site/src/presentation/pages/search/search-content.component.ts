@@ -1,5 +1,5 @@
 import type { OnInit } from '@angular/core';
-import { ChangeDetectionStrategy, Component, computed, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -12,7 +12,6 @@ import { SearchFacade } from '../../../application/facades/search-facade';
   imports: [RouterLink, MatIconModule],
   templateUrl: './search-content.component.html',
   styleUrls: ['./search-content.component.scss'],
-  encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SearchContentComponent implements OnInit {

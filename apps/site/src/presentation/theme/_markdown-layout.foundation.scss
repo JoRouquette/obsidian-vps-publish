@@ -1,0 +1,211 @@
+@mixin article-page-rail-box() {
+  inline-size: min(var(--page-max), 100%);
+  box-sizing: border-box;
+  padding-inline: var(--page-pad);
+  margin-inline: auto;
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@mixin article-readable-rail() {
+  max-inline-size: min(var(--measure), 100%);
+  margin-inline: auto;
+}
+
+@mixin article-readable-flow-foundation() {
+  /* Shared readable rail:
+    - reading-flow blocks align to one common article column
+    - page components should not recreate this width ownership locally
+    - wide/local-scroll blocks opt out through the wide-content foundation */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  ul,
+  ol,
+  dl,
+  blockquote,
+  figcaption,
+  hr,
+  .callout {
+    @include article-readable-rail();
+  }
+
+  .callout-content {
+    @include article-readable-rail();
+  }
+}
+
+@mixin article-page-width-foundation($flow-root: false) {
+  /* Shared article-layout contract:
+    - page components expose the page-width box and readable measure through shared tokens
+    - the markdown wrapper owns the centered page-width rail
+    - the foundation owns one shared readable article rail for reading-flow blocks
+    - explicitly wide modules stay on the wider page-width rail */
+  --page-max: var(--layout-content-max);
+  --measure: var(--layout-reader-max);
+  --page-pad: var(--layout-page-box-pad);
+
+  .content {
+    inline-size: 100%;
+    max-inline-size: 100%;
+    min-inline-size: 0;
+  }
+
+  .content .markdown-body {
+    @include article-page-rail-box();
+
+    @if $flow-root {
+      display: flow-root;
+    }
+
+    @include article-readable-flow-foundation();
+  }
+}
+
+@mixin article-wide-block-rail() {
+  pre,
+  .frontmatter-card,
+  .leaflet-map-placeholder {
+    inline-size: min(var(--page-max), 100%);
+    max-inline-size: 100%;
+    margin-inline: auto;
+  }
+}
+
+@mixin article-wide-content-foundation() {
+  /* Shared wide-content contract:
+    - the foundation keeps wide/page-width modules on the page rail
+    - locally-scrollable blocks keep overflow isolated instead of widening prose
+    - page components can style these modules locally without taking back rail ownership */
+  --table-column-max: min(var(--measure), var(--layout-wide-column-max));
+
+  .content .markdown-body {
+    @include article-wide-block-rail();
+
+    pre {
+      margin: 0.9rem auto;
+      padding: 0.7rem 0.9rem;
+      background: color-mix(in oklab, var(--c-surface-variant) 16%, transparent);
+      border: 1px solid color-mix(in oklab, var(--c-outline) 40%, transparent);
+      border-radius: 0.625rem;
+      overflow: auto;
+    }
+
+    .table-wrapper {
+      display: block;
+      clear: both;
+      inline-size: 100%;
+      max-inline-size: 100%;
+      position: relative;
+      overflow-x: scroll; /* Scroll horizontal uniquement dans le conteneur */
+      overflow-y: hidden;
+      overscroll-behavior-x: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: auto;
+      margin: 1.2rem auto;
+      border: 1px solid color-mix(in oklab, var(--c-outline) 35%, transparent);
+      border-radius: 0.75rem;
+      background: color-mix(in oklab, var(--c-surface-variant) 6%, transparent);
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in oklab, var(--c-outline) 40%, transparent) transparent;
+    }
+
+    table {
+      display: table;
+      border-collapse: collapse;
+      border-spacing: 0;
+      width: max-content;
+      min-width: 100%;
+      table-layout: auto;
+      margin: 0;
+      background: transparent;
+      font-size: var(--font-size-body-sm);
+      line-height: var(--line-height-body);
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: color-mix(in oklab, var(--c-surface) 95%, var(--c-surface-variant) 5%);
+      box-shadow: 0 1px 3px color-mix(in oklab, var(--c-outline) 15%, transparent);
+    }
+
+    th {
+      background: inherit;
+      color: var(--c-on-surface);
+      font-weight: 600;
+      text-align: left;
+      border-right: 1px solid color-mix(in oklab, var(--c-outline) 20%, transparent);
+    }
+
+    th:last-child {
+      border-right: none;
+    }
+
+    th,
+    td {
+      padding: 0.7rem 1rem;
+      border-bottom: 1px solid color-mix(in oklab, var(--c-outline) 25%, transparent);
+      vertical-align: top;
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
+      font-size: var(--font-size-body-sm);
+      line-height: var(--line-height-body);
+      min-width: 8ch;
+      text-align: left;
+      inline-size: fit-content;
+      width: fit-content;
+      max-inline-size: var(--table-column-max);
+    }
+
+    th :where(p, ul, ol, dl, blockquote, figcaption),
+    td :where(p, ul, ol, dl, blockquote, figcaption) {
+      margin-inline: 0;
+      max-inline-size: none;
+      text-align: left;
+      text-align-last: auto;
+    }
+
+    tbody tr:nth-child(even) {
+      background: color-mix(in oklab, var(--c-surface-variant) 4%, transparent);
+    }
+
+    tbody tr:nth-child(odd) {
+      background: color-mix(in oklab, var(--c-surface-variant) 6%, transparent);
+    }
+
+    tbody tr:hover {
+      background: color-mix(in oklab, var(--c-primary) 8%, var(--c-surface) 92%);
+      transition: background 0.15s ease;
+    }
+
+    th:first-child,
+    td:first-child {
+      white-space: normal;
+      word-break: normal;
+      overflow-wrap: normal;
+      min-width: 7ch;
+      max-inline-size: var(--table-column-max);
+    }
+
+    caption {
+      caption-side: bottom;
+      padding: 0.4rem 0.6rem;
+      color: color-mix(in oklab, var(--c-on-surface) 70%, transparent);
+      font-size: var(--font-size-ui-sm);
+      text-align: left;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+  }
+}
