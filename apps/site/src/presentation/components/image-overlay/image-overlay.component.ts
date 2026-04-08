@@ -6,7 +6,6 @@ import {
   HostListener,
   signal,
   ViewChild,
-  ViewEncapsulation,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -17,7 +16,6 @@ import { MatIconModule } from '@angular/material/icon';
   templateUrl: './image-overlay.component.html',
   styleUrls: ['./image-overlay.component.scss'],
   imports: [MatIconModule, MatButtonModule],
-  encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ImageOverlayComponent {
