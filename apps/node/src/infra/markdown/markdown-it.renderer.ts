@@ -186,11 +186,15 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     const contentWithHandledMdLinks = this.handleMarkdownLinks(withLinks);
     const html = this.md.render(contentWithHandledMdLinks);
     const htmlWithBlockAnchors = attachBlockAnchors(html, this.blockIdCommentPrefix);
+    const htmlWithCanonicalAssets = this.normalizeKnownHtmlAssetUrls(
+      htmlWithBlockAnchors,
+      contentAssets
+    );
 
     // Clean and normalize all links (remove .md extensions, add proper classes, translate paths)
     // Pass manifest from context for vault-to-route path translation
     const cleaned = this.cleanAndNormalizeLinks(
-      htmlWithBlockAnchors,
+      htmlWithCanonicalAssets,
       context?.manifest,
       note.routing?.fullPath
     );
@@ -323,6 +327,56 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     return $('body').html() ?? $.html();
   }
 
+  /**
+   * Canonicalize already-detected asset references after markdown-it rendering.
+   *
+   * Responsibility split:
+   * - plugin side detects local assets before upload and keeps note content mostly untouched
+   * - backend side rewrites rendered HTML references to public /assets/... URLs
+   *
+   * This keeps DataviewJS/inline HTML fidelity while ensuring the finalizer can still
+   * apply renamed asset mappings (for example .png -> .webp) on stable public URLs.
+   */
+  private normalizeKnownHtmlAssetUrls(html: string, assets: AssetRef[]): string {
+    const knownAssets = new Map<string, string>();
+
+    for (const asset of assets) {
+      const normalizedTarget = this.normalizeAssetLookupTarget(asset.target);
+      if (!normalizedTarget) {
+        continue;
+      }
+
+      knownAssets.set(normalizedTarget, this.buildAssetUrl(normalizedTarget));
+    }
+
+    if (knownAssets.size === 0) {
+      return html;
+    }
+
+    const $ = load(html);
+
+    const rewrite = (selector: string, attribute: 'href' | 'src' | 'data-src'): void => {
+      $(selector).each((_, element) => {
+        const $element = $(element);
+        const rawValue = $element.attr(attribute);
+        if (!rawValue || this.isExternalUrl(rawValue) || this.isPublicAssetUrl(rawValue)) {
+          return;
+        }
+
+        const replacement = this.resolvePublicAssetUrl(rawValue, knownAssets);
+        if (replacement && replacement !== rawValue) {
+          $element.attr(attribute, replacement);
+        }
+      });
+    };
+
+    rewrite('img[src]', 'src');
+    rewrite('img[data-src]', 'data-src');
+    rewrite('a[href]', 'href');
+
+    return $('body').html() ?? $.html();
+  }
+
   private wrapUnwrappedTables($: ReturnType<typeof load>): void {
     $('table').each((_, element) => {
       const $table = $(element);
@@ -445,6 +499,10 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
 
     // Skip external URLs
     if (href && this.isExternalUrl(href)) return;
+
+    // Invariant: public asset URLs are already canonicalized plugin+backend side and must
+    // never be treated as internal page links.
+    if (href && this.isPublicAssetUrl(href)) return;
 
     // Slugify fragment-only links to match heading IDs
     if (href?.startsWith('#')) {
@@ -669,6 +727,45 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     return /^[a-z]+:\/\//i.test(url) || url.startsWith('mailto:');
   }
 
+  private isPublicAssetUrl(url: string): boolean {
+    return /^\/assets\//i.test(url);
+  }
+
+  private resolvePublicAssetUrl(
+    rawValue: string,
+    knownAssets: Map<string, string>
+  ): string | undefined {
+    const [pathAndQuery, hash = ''] = rawValue.split('#', 2);
+    const [rawPath, query = ''] = pathAndQuery.split('?', 2);
+    const normalizedTarget = this.normalizeAssetLookupTarget(rawPath);
+
+    if (!normalizedTarget) {
+      return undefined;
+    }
+
+    const publicUrl = knownAssets.get(normalizedTarget);
+    if (!publicUrl) {
+      return undefined;
+    }
+
+    const querySuffix = query ? `?${query}` : '';
+    const hashSuffix = hash ? `#${hash}` : '';
+    return `${publicUrl}${querySuffix}${hashSuffix}`;
+  }
+
+  private normalizeAssetLookupTarget(target: string): string {
+    const cleaned = target
+      .trim()
+      .replace(/\\/g, '/')
+      .replace(/^\.\/+/, '')
+      .replace(/^\/+/, '');
+    if (!cleaned) {
+      return '';
+    }
+
+    return cleaned.replace(/^assets\//, '');
+  }
+
   /**
    * Translate a vault path to a routed path using the manifest, with validation.
    *
@@ -728,7 +825,16 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
   }
 
   private injectAssets(content: string, assets: AssetRef[]): string {
-    return assets.reduce(
+    // Only Obsidian-style embeds are converted into backend-owned <figure> blocks.
+    // HTML refs and Markdown images must keep their original structure and will be
+    // canonicalized later once markdown-it has produced final HTML tags.
+    const injectibleAssets = assets.filter(
+      (asset) =>
+        asset.sourceSyntax === undefined ||
+        asset.sourceSyntax === 'obsidian-embed' ||
+        asset.sourceSyntax === 'leaflet-overlay'
+    );
+    return injectibleAssets.reduce(
       (acc, asset) => acc.split(asset.raw).join(this.renderAsset(asset)),
       content
     );

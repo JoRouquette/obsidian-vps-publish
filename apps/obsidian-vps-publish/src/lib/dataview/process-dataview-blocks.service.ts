@@ -1,33 +1,18 @@
 /**
- * Dataview Blocks Processor Service (Refactored for Markdown Output)
+ * Dataview Blocks Processor Service.
  *
- * Orchestrates the complete Dataview → Markdown pipeline:
- * 1. Parse all blocks (query + js)
- * 2. Execute blocks via Dataview API (structured data)
- * 3. Convert results to native Obsidian Markdown
- * 4. Replace blocks in content with Markdown
+ * Orchestrates the plugin-side serialization pipeline:
+ * 1. Parse Dataview / DataviewJS code blocks
+ * 2. Execute them via the Dataview plugin API
+ * 3. Convert the result to the transport format used by publication
+ * 4. Replace the original blocks in note content
  *
- * CRITICAL DIFFERENCE from previous implementation:
- * - NO HTML output
- * - Outputs native Markdown (wikilinks, inclusions, tables MD, lists)
- * - Compatible with existing wikilink/asset/routing pipeline
+ * Serialization contract:
+ * - `dataview` queries → Markdown with canonical wikilinks / embeds
+ * - `dataviewjs` scripts → captured HTML (kept intentionally for rich layouts)
  *
- * ARCHITECTURE:
- * - Single pipeline for both `dataview` and `dataviewjs`
- * - Clean separation: parse → execute → convert → replace
- * - Renders blocks to Markdown using DataviewToMarkdownConverter
- *
- * BEHAVIOR (with executor):
- * - `dataview` queries → Executed → Converted to Markdown list/table/task
- * - `dataviewjs` scripts → Executed → DOM converted to Markdown
- * - Errors → Obsidian warning callout (Markdown format)
- *
- * BEHAVIOR (without executor - fallback):
- * - All blocks → Warning callout explaining Dataview plugin not available
- *
- * PERFORMANCE OPTIMIZATIONS (v2):
- * - Yields to event loop between block processing
- * - Batches replacements to avoid repeated string operations
+ * Asset/link discovery still happens later in the shared parsing pipeline so both
+ * flows converge before upload without duplicating routing logic here.
  */
 
 import { DataviewToMarkdownConverter } from '@core-application/dataview/dataview-to-markdown.converter';
@@ -41,7 +26,7 @@ export interface ProcessedDataviewBlock {
   /** Original parsed block */
   readonly block: DataviewBlock;
 
-  /** Replacement Markdown (native Obsidian format) */
+  /** Replacement payload inserted into note content (Markdown or preserved HTML) */
   readonly markdown: string;
 
   /** Whether processing succeeded */
@@ -73,7 +58,7 @@ async function yieldToEventLoop(): Promise<void> {
  * @param executor - Optional Dataview executor (if Dataview plugin available)
  * @param filePath - Path of the note being processed (for Dataview context)
  * @param cancellation - Optional cancellation token
- * @returns Result with modified content (Markdown) and processed blocks
+ * @returns Result with modified content and processed blocks
  */
 export async function processDataviewBlocks(
   content: string,
@@ -140,7 +125,7 @@ export async function processDataviewBlocks(
  * @param filePath - Path of the note being processed
  * @param converter - Markdown converter
  * @param logger - Optional logger
- * @returns Processed result with Markdown
+ * @returns Processed result with transport content
  */
 async function processBlock(
   block: DataviewBlock,

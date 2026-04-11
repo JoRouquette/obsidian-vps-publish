@@ -5,8 +5,11 @@
 Les blocs de code Dataview et DataviewJS sont automatiquement traités par le plugin avant la publication :
 
 - Les requêtes sont exécutées contre le vault
-- Les résultats sont convertis en Markdown natif
+- Les résultats `dataview` sont convertis en Markdown natif
+- Les résultats `dataviewjs` conservent le HTML capturé quand il faut préserver une mise en forme riche
 - Le site publié génère du HTML statique (pas de dépendance Dataview au runtime)
+
+Voir aussi : [pipeline Dataview / assets](./dataview-assets-pipeline.md)
 
 ## Architecture
 
@@ -44,7 +47,10 @@ Convertit les formats de sortie Dataview en Markdown **ou préserve le HTML pour
 
 ### Couche Backend (API Express)
 
-Aucun traitement spécifique Dataview. Le backend reçoit du Markdown pré-traité depuis le plugin.
+Le backend ne réexécute pas Dataview, mais il a encore deux responsabilités:
+
+- normaliser les liens internes après rendu final
+- canonicaliser les références HTML connues vers `/assets/...` sans casser le HTML DataviewJS
 
 ## Formats Supportés
 

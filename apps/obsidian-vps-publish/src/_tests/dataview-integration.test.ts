@@ -338,6 +338,35 @@ After view.
       expect(result.content).not.toContain('```dataviewjs');
     });
 
+    it('should preserve transportable html media and icon nodes emitted by DataviewJS', async () => {
+      const mockContainer = document.createElement('div');
+      mockContainer.innerHTML = `
+        <div class="dataviewjs-media">
+          <img src="gallery/rendered-cover.png" alt="cover">
+          <svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"></path></svg>
+          <span class="iconify" data-icon="star">★</span>
+        </div>
+      `;
+
+      mockExecutor.executeBlock.mockResolvedValue({
+        success: true,
+        container: mockContainer,
+      });
+
+      const content = `
+\`\`\`dataviewjs
+dv.el("div", "test")
+\`\`\`
+`;
+
+      const result = await processDataviewBlocks(content, mockExecutor, 'test.md');
+
+      expect(result.content).toContain('<img src="gallery/rendered-cover.png" alt="cover">');
+      expect(result.content).toContain('<svg viewBox="0 0 16 16">');
+      expect(result.content).toContain('data-icon="star"');
+      expect(result.content).not.toContain('```dataviewjs');
+    });
+
     it('should apply no-publishing cleanup to rendered DataviewJS sections', async () => {
       const mockContainer = document.createElement('div');
       mockContainer.innerHTML = `

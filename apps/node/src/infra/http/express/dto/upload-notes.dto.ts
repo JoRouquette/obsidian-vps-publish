@@ -60,6 +60,9 @@ export const AssetRefDto = z.object({
   origin: z.enum(['content', 'frontmatter']).optional(),
   frontmatterPath: z.string().optional(),
   raw: z.string(),
+  sourceSyntax: z
+    .enum(['obsidian-embed', 'markdown-image', 'html-ref', 'leaflet-overlay'])
+    .optional(),
   target: z.string(),
   kind: z.enum(['image', 'audio', 'video', 'pdf', 'other']),
   display: AssetDisplayOptionsDto,

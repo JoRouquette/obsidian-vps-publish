@@ -80,6 +80,15 @@ describe('MarkdownItRenderer - cleanAndNormalizeLinks()', () => {
       expect(result).toContain('https://example.com/file.md');
     });
 
+    it('should NOT normalize already public asset URLs as wikilinks', () => {
+      const input = '<a href="/assets/docs/file.pdf">Asset</a>';
+      const result = (renderer as any).cleanAndNormalizeLinks(input);
+
+      expect(result).toContain('<a href="/assets/docs/file.pdf">Asset</a>');
+      expect(result).not.toContain('class="wikilink"');
+      expect(result).not.toContain('data-wikilink=');
+    });
+
     it('should NOT modify mailto: links', () => {
       const input = '<a href="mailto:user@example.md">Email</a>';
       const result = (renderer as any).cleanAndNormalizeLinks(input);
