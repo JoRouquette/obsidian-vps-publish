@@ -132,6 +132,52 @@ describe('DetectAssetsService', () => {
     );
   });
 
+  it('detects markdown image syntax in rendered content overrides', () => {
+    const assets = service.detectForContentOverride(
+      note,
+      'Rendered image: ![Cover](images/rendered-cover.png)'
+    );
+
+    expect(assets.some((asset) => asset.target === 'images/rendered-cover.png')).toBe(true);
+    expect(assets.find((asset) => asset.target === 'images/rendered-cover.png')?.sourceSyntax).toBe(
+      'markdown-image'
+    );
+  });
+
+  it('detects html image refs and ignores non-exportable icon runtime markup', () => {
+    const assets = service.detectForContentOverride(
+      note,
+      `
+        <div class="dataviewjs">
+          <img src="images/rendered-cover.png" alt="cover">
+          <img data-src="/assets/gallery/second.png" alt="second">
+          <svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"></path></svg>
+          <span class="lucide lucide-star" data-icon="star"></span>
+          <img src="https://example.com/remote.png" alt="remote">
+        </div>
+      `
+    );
+
+    const htmlAssets = assets.filter((asset) => asset.sourceSyntax === 'html-ref');
+    expect(htmlAssets.map((asset) => asset.target)).toEqual(
+      expect.arrayContaining(['images/rendered-cover.png', 'gallery/second.png'])
+    );
+    expect(htmlAssets.some((asset) => asset.target === 'remote.png')).toBe(false);
+  });
+
+  it('returns no content assets when rendered content has no local asset reference', () => {
+    const assets = service.detectForContentOverride(
+      {
+        ...note,
+        content: 'No assets',
+        frontmatter: { flat: {}, nested: {}, tags: [] },
+      },
+      '<div><span class="icon">⭐</span><svg><path d="M0 0"></path></svg></div>'
+    );
+
+    expect(assets).toEqual([]);
+  });
+
   it('skips Leaflet blocks without imageOverlays', () => {
     const noteWithEmptyLeaflet: PublishableNote = {
       ...note,
