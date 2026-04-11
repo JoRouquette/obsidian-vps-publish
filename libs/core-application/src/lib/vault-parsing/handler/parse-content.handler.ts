@@ -141,8 +141,11 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
 
     await yieldScheduler.maybeYield();
 
-    // Step 8: Detect assets from content with inline Dataview expressions rendered locally.
-    // Final deterministic transforms remain server-owned.
+    // Step 8: Detect uploadable assets after Dataview/DataviewJS rendering has converged in note content.
+    // Invariant:
+    // - this step may look at inline Dataview rendered content to discover assets
+    // - it must not become a second routing/rendering pipeline
+    // - final HTML URL canonicalization remains backend-owned
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('detect-assets');
     publishableNotes = publishableNotes.map((note) => ({

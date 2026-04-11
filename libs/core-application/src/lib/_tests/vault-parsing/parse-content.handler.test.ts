@@ -251,4 +251,27 @@ Visible`,
     expect(result.content).toBe('Cover: `=this.cover`');
     expect(result.assets?.some((asset) => asset.target === 'cover.png')).toBe(true);
   });
+
+  it('keeps rendered dataviewjs html in note content while still discovering local html assets', async () => {
+    const handler = buildHandler();
+    const note: CollectedNote = {
+      noteId: 'dvjs',
+      title: 'DataviewJS',
+      vaultPath: 'Vault/Blog/DataviewJS.md',
+      relativePath: 'DataviewJS.md',
+      content: '<div class="dataviewjs"><img src="gallery/rendered-cover.png" alt="cover"></div>',
+      frontmatter: { publish: true } as any,
+      folderConfig: baseFolder,
+    };
+
+    const [result] = await handler.handle([note]);
+
+    expect(result.content).toContain('<img src="gallery/rendered-cover.png"');
+    expect(result.assets?.some((asset) => asset.target === 'gallery/rendered-cover.png')).toBe(
+      true
+    );
+    expect(
+      result.assets?.find((asset) => asset.target === 'gallery/rendered-cover.png')?.sourceSyntax
+    ).toBe('html-ref');
+  });
 });
