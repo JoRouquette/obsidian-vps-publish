@@ -239,6 +239,31 @@ describe('ValidateLinksService', () => {
       expect(fixedHtml).toContain('<a href="https://example.com">Example</a>');
     });
 
+    it('should preserve already public asset links', async () => {
+      const manifest = createMockManifest();
+
+      const html = `
+        <html>
+          <body>
+            <div class="markdown-body">
+              <p>Download: <a href="/assets/docs/file.pdf">File</a></p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const htmlPath = path.join(tempDir, 'test.html');
+      await fs.writeFile(htmlPath, html, 'utf-8');
+
+      const result = await service.validateAllLinks(tempDir, manifest);
+
+      expect(result.filesModified).toBe(0);
+
+      const fixedHtml = await fs.readFile(htmlPath, 'utf-8');
+      expect(fixedHtml).toContain('<a href="/assets/docs/file.pdf">File</a>');
+      expect(fixedHtml).not.toContain('wikilink-unresolved');
+    });
+
     it('should match links by slug', async () => {
       const manifest = createMockManifest();
 

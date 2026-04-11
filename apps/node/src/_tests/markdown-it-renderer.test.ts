@@ -540,6 +540,78 @@ Some text after.`;
     expect(html).toContain('Some text after.');
   });
 
+  it('canonicalizes local html images to public asset URLs without breaking rich html', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+
+    note.content = `
+<div class="dataviewjs">
+  <img src="gallery/rendered-cover.png" alt="cover">
+  <img data-src="./gallery/second.png" alt="second">
+</div>`;
+    note.assets = [
+      {
+        raw: '<img src="gallery/rendered-cover.png" alt="cover">',
+        sourceSyntax: 'html-ref',
+        target: 'gallery/rendered-cover.png',
+        kind: 'image',
+        display: { classes: [], rawModifiers: [] },
+      },
+      {
+        raw: '<img data-src="./gallery/second.png" alt="second">',
+        sourceSyntax: 'html-ref',
+        target: 'gallery/second.png',
+        kind: 'image',
+        display: { classes: [], rawModifiers: [] },
+      },
+    ];
+
+    const html = await renderer.render(note);
+
+    expect(html).toContain('src="/assets/gallery/rendered-cover.png"');
+    expect(html).toContain('data-src="/assets/gallery/second.png"');
+    expect(html).not.toContain('<figure class="md-asset');
+  });
+
+  it('preserves inline svg and simple icon nodes while canonicalizing only known asset refs', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+
+    note.content = `
+<div class="dataviewjs">
+  <svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"></path></svg>
+  <span class="iconify" data-icon="star">★</span>
+  <img src="icons/map.png" alt="map">
+</div>`;
+    note.assets = [
+      {
+        raw: '<img src="icons/map.png" alt="map">',
+        sourceSyntax: 'html-ref',
+        target: 'icons/map.png',
+        kind: 'image',
+        display: { classes: [], rawModifiers: [] },
+      },
+    ];
+
+    const html = await renderer.render(note);
+
+    expect(html).toContain('<svg viewBox="0 0 16 16">');
+    expect(html).toContain('data-icon="star"');
+    expect(html).toContain('>★</span>');
+    expect(html).toContain('src="/assets/icons/map.png"');
+  });
+
+  it('preserves already public asset links as download links instead of normalizing them as wikilinks', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = '<p><a href="/assets/docs/file.pdf">Download PDF</a></p>';
+
+    const html = await renderer.render(note);
+
+    expect(html).toContain('<a href="/assets/docs/file.pdf">Download PDF</a>');
+    expect(html).not.toContain('class="wikilink"');
+  });
+
   it('wraps inline HTML tables from dataview output in .table-wrapper', async () => {
     const renderer = new MarkdownItRenderer();
     const note = baseNote();
