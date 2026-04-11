@@ -1,3 +1,9 @@
+## [6.21.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.21.0...6.21.1) (2026-04-11)
+
+### Bug Fixes
+
+* **site:** scope DataviewJS inline-icon heading fix to .dv-js-output only ([80e3edb](https://github.com/JoRouquette/obsidian-vps-publish/commit/80e3edb87704692d92b6eb8eacedc42256bf5f2e))
+
 ## [6.21.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.20.1...6.21.0) (2026-04-11)
 
 ### Features
