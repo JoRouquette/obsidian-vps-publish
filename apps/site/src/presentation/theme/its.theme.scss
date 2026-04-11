@@ -138,6 +138,25 @@
   --radius-small: 0px;
   --radius-medium: 0px;
   --radius-large: 0px;
+
+  /* ========================================
+     Obsidian CSS variable compatibility shim (dark)
+     DataviewJS views use standard Obsidian CSS variables in their inline
+     <style> blocks.  These aliases map them to the site's design tokens so
+     published DataviewJS output renders consistently with Obsidian.
+     ======================================== */
+  --text-normal: var(--color-text-primary);
+  --text-muted: var(--color-text-secondary);
+  --text-faint: var(--color-text-tertiary);
+  --text-accent: var(--color-accent-light);
+  --text-error: var(--color-accent-light);
+  --background-primary: var(--color-bg-secondary);
+  --background-secondary: var(--color-surface-default);
+  --background-modifier-hover: var(--color-hover-bg);
+  --background-modifier-border: var(--color-border-default);
+  --interactive-accent: var(--color-accent-primary);
+  --interactive-hover: var(--color-hover-bg);
+  --interactive-normal: var(--color-surface-default);
 }
 
 /* ========================================================================
@@ -272,6 +291,25 @@
   --radius-small: 0px;
   --radius-medium: 0px;
   --radius-large: 0px;
+
+  /* ========================================
+     Obsidian CSS variable compatibility shim (light)
+     DataviewJS views use standard Obsidian CSS variables in their inline
+     <style> blocks.  These aliases map them to the site's design tokens so
+     published DataviewJS output renders consistently with Obsidian.
+     ======================================== */
+  --text-normal: var(--color-text-primary);
+  --text-muted: var(--color-text-secondary);
+  --text-faint: var(--color-text-tertiary);
+  --text-accent: var(--color-accent-light);
+  --text-error: var(--color-accent-light);
+  --background-primary: var(--color-bg-secondary);
+  --background-secondary: var(--color-surface-default);
+  --background-modifier-hover: var(--color-hover-bg);
+  --background-modifier-border: var(--color-border-default);
+  --interactive-accent: var(--color-accent-primary);
+  --interactive-hover: var(--color-hover-bg);
+  --interactive-normal: var(--color-surface-default);
 }
 
 /* ========================================================================
