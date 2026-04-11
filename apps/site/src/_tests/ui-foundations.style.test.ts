@@ -303,6 +303,13 @@ describe('Site UI foundations styles', () => {
     expect(viewerSource).toContain('pre > code {');
     expect(viewerSource).toContain('.frontmatter-card {');
     expect(viewerSource).toContain('.leaflet-map-placeholder {');
+
+    // Inline icons in DataviewJS output: the override must be scoped to .dv-js-output
+    // so the global `img { display: block }` reset is not affected outside DataviewJS blocks.
+    expect(viewerSource).toContain('.dv-js-output {');
+    expect(viewerSource).toMatch(
+      /\.dv-js-output[\s\S]*?h[1-6][\s\S]*?\{[\s\S]*?img[\s\S]*?\{[\s\S]*?display:\s*inline-block/
+    );
   });
 
   it('keeps home-specific chrome and asset affordances local instead of redefining shared rails', () => {

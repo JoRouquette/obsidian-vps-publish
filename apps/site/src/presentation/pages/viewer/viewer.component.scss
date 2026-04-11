@@ -136,6 +136,23 @@
       clear: both;
     }
 
+    /* DataviewJS output wrapper — scoped overrides for DataviewJS-generated content only.
+       The parent `img { display: block }` reset above applies to all img elements;
+       override it here for inline icons inside headings (e.g. geo-tree.js icon + label). */
+    .dv-js-output {
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        img {
+          display: inline-block;
+          vertical-align: middle;
+        }
+      }
+    }
+
     /* Images: clickable but no decorations */
     img {
       cursor: pointer;

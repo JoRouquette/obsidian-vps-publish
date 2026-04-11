@@ -148,7 +148,7 @@ export class DataviewToMarkdownConverter {
         }
       }
 
-      return html;
+      return `<div class="dv-js-output">${html}</div>`;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger?.error('Failed to extract DataviewJS HTML', { error: msg });
