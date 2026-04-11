@@ -156,6 +156,11 @@ export class ValidateLinksService {
         return;
       }
 
+      // Public asset links are already canonical output URLs, not internal page links.
+      if (href && this.isPublicAssetUrl(href)) {
+        return;
+      }
+
       if (href && (href.endsWith('/index') || href === '/index')) {
         return;
       }
@@ -364,6 +369,10 @@ export class ValidateLinksService {
 
   private normalizeWikilinkTarget(target: string): string {
     return normalizeManifestWikilinkTarget(target);
+  }
+
+  private isPublicAssetUrl(url: string): boolean {
+    return /^\/assets\//i.test(url);
   }
 
   private deriveCurrentRoutePath(contentRoot: string, htmlPath: string): string {
