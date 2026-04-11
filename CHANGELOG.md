@@ -1,3 +1,12 @@
+## [6.21.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.20.1...6.21.0) (2026-04-11)
+
+### Features
+
+* **core:** detect markdown-image and html-ref assets with sourceSyntax ([f2e245c](https://github.com/JoRouquette/obsidian-vps-publish/commit/f2e245c24f5070007ae0b6cdffdc09b933f67737))
+* **node:** canonicalize DataviewJS asset URLs and guard public asset links ([c35c994](https://github.com/JoRouquette/obsidian-vps-publish/commit/c35c994338071bc9c84176931a6cf3a6852fd764))
+* **obsidian:** shim DataviewJS runtime for faithful publishing capture ([87bd316](https://github.com/JoRouquette/obsidian-vps-publish/commit/87bd316a43bfa0501c9adc7ed511f94dcf12b05f))
+* **site:** alias Obsidian CSS variables to site design tokens ([0d0707c](https://github.com/JoRouquette/obsidian-vps-publish/commit/0d0707cb8edf9c7b416bc9de482fd84e06f46faa))
+
 ## [6.20.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.20.0...6.20.1) (2026-04-08)
 
 ## [6.20.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.19.1...6.20.0) (2026-03-28)
