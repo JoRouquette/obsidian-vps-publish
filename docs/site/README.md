@@ -19,6 +19,7 @@ Le frontend Angular est une Single Page Application (SPA) qui :
 
 - **[Markdown Rendering](./markdown-rendering.md)** - Rendu Markdown avancé : wikilinks, footnotes, filtrage de tags
 - **[Dataview](./dataview.md)** - Implémentation Dataview/DataviewJS côté client
+- **[Dataview Assets Pipeline](./dataview-assets-pipeline.md)** - Pipeline assets et icônes pour DataviewJS : détection, canonicalisation, upload
 - **[Leaflet](./leaflet.md)** - Intégration des cartes interactives Leaflet
 - **[Image Viewer](./image-viewer.md)** - Visualiseur d'images avec zoom et navigation
 
