@@ -65,3 +65,6 @@ npm-debug.log*
 .angular
 
 test-vault
+
+# Claude Code configuration
+.claude/
