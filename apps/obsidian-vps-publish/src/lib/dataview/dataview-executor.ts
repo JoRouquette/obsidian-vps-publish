@@ -23,6 +23,7 @@
  * ```
  */
 
+import { createRequire } from 'node:module';
 import path from 'node:path';
 
 import type { DataviewBlock } from '@core-domain/dataview/dataview-block';
@@ -187,11 +188,47 @@ export class DataviewExecutor {
       // Legacy DataviewJS views in some vaults still use require("//_assets/..."),
       // which Electron treats as an invalid absolute module path. During publishing,
       // shim require() so these old-style vault-root imports still resolve.
+      //
+      // Also shim getResourcePath() so that views that call
+      //   img.src = app.vault.adapter.getResourcePath(vaultRelativePath)
+      // produce vault-relative paths in the captured DOM (e.g. "_assets/_icones/Continent.ico")
+      // instead of Obsidian-internal app:// URLs.  The downstream DetectAssetsService
+      // filters app:// scheme as an external URL, which would silently drop these assets
+      // from the upload queue and leave broken images on the published site.
       const restoreRequire = this.installVaultRootRequireShim();
+      const restoreGetResourcePath = this.installGetResourcePathShim();
+
+      // Bypass the stableRender.js HTML cache for the duration of this execution.
+      //
+      // stableRender.js stores serialized container.innerHTML in globalThis.__stableRenderCache.
+      // If the data hash matches a previous Obsidian session, shouldRender() restores the
+      // stale HTML and returns false — the view script exits early without re-rendering.
+      // During publishing this produces broken output: cached HTML from an older version of
+      // the view (different DOM structure, empty content divs) is published as-is.
+      //
+      // We clear the map contents before execution so every shouldRender() call is a cache
+      // miss and the script always runs in full.  The original entries are restored in the
+      // finally block so Obsidian's own rendering state is not permanently affected.
+      //
+      // Note: stableRender.js closes over its internal `cache` reference at module-load time,
+      // so reassigning globalThis.__stableRenderCache has no effect — we must mutate the Map.
+      const stableRenderCache = (globalThis as Record<string, unknown>)['__stableRenderCache'] as
+        | Map<unknown, unknown>
+        | undefined;
+      const savedCacheEntries = stableRenderCache ? [...stableRenderCache.entries()] : null;
+      stableRenderCache?.clear();
+
       try {
         await this.dataviewApi.executeJs(code, container, component, filePath);
       } finally {
         restoreRequire?.();
+        restoreGetResourcePath?.();
+        if (stableRenderCache && savedCacheEntries) {
+          stableRenderCache.clear();
+          for (const [k, v] of savedCacheEntries) {
+            stableRenderCache.set(k, v);
+          }
+        }
       }
 
       // Wait for DOM updates to complete (Dataview may render asynchronously)
@@ -209,6 +246,26 @@ export class DataviewExecutor {
 
         lastChildCount = currentChildCount;
         await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      // Force-load all lazy <details> nodes before capturing the DOM for publishing.
+      //
+      // Views using createLazyDetails() (geo-tree.js) populate content on demand via a
+      // "toggle" event listener.  In JSDOM these events are never fired automatically, and
+      // on the published static site there is no JS to fire them either.  We simulate the
+      // sequence here: open each unloaded node and dispatch a synthetic toggle event so its
+      // contentBuilder runs synchronously.  The outer loop repeats because loading a parent
+      // node (continent) creates new lazy child nodes (nations, cities) that must also be
+      // expanded — we iterate until no new unloaded nodes remain (max 10 passes).
+      for (let pass = 0; pass < 10; pass++) {
+        const unloaded = Array.from(
+          container.querySelectorAll<HTMLDetailsElement>('details:not([data-loaded="true"])')
+        );
+        if (unloaded.length === 0) break;
+        for (const el of unloaded) {
+          el.open = true;
+          el.dispatchEvent(new Event('toggle'));
+        }
       }
 
       // Check if we got any meaningful output
@@ -295,10 +352,26 @@ export class DataviewExecutor {
       return null;
     }
 
+    // Use Node.js createRequire to load vault files from the filesystem.
+    //
+    // DO NOT call originalRequire(absolutePath) for vault files: in Obsidian,
+    // the global require is wrapped by plugins such as obsidian-codescript-toolkit
+    // which reject synchronous loads from absolute filesystem paths ("Cannot require
+    // synchronously from URL").  createRequire bypasses those wrappers entirely and
+    // uses Node.js's native module loader, which handles absolute paths correctly.
+    //
+    // We always resolve to an ABSOLUTE path before calling vaultRequire so the result
+    // is unambiguous regardless of the process CWD or how createRequire anchors
+    // relative paths.  Passing a relative path ('./_assets/...') would be resolved
+    // from the anchor file passed to createRequire — which could silently resolve to
+    // the wrong directory (e.g. the current note's folder instead of the vault root).
+    const vaultRequire = createRequire(path.join(basePath, '_stub_')) as RequireLike;
+
     const wrappedRequire = ((request: string) => {
       if (this.isLegacyVaultRootRequire(request)) {
         const vaultRelativePath = request.replace(/^\/+/, '').replace(/[\\/]+/g, path.sep);
-        return originalRequire(path.join(basePath, vaultRelativePath));
+        const absoluteVaultPath = path.join(basePath, vaultRelativePath);
+        return vaultRequire(absoluteVaultPath);
       }
 
       return originalRequire(request);
@@ -331,6 +404,31 @@ export class DataviewExecutor {
           Reflect.deleteProperty(globalScope.window, 'require');
         }
       }
+    };
+  }
+
+  /**
+   * Shim app.vault.adapter.getResourcePath() to return the vault-relative path as-is.
+   *
+   * In Obsidian/Electron, getResourcePath(relativePath) returns an app:// URL that the
+   * renderer can load as a local file.  During publishing we capture the DataviewJS DOM as
+   * HTML and hand it to DetectAssetsService, which rejects app:// URLs as external.
+   * Returning the bare vault-relative path lets the downstream detection pipeline see
+   * "_assets/_icones/Continent.ico" in <img src="..."> tags and upload those files.
+   *
+   * The shim is installed only for the duration of executeJs() and restored afterward.
+   */
+  private installGetResourcePathShim(): (() => void) | null {
+    const adapter = this.app.vault?.adapter as Record<string, unknown> | undefined;
+    if (!adapter || typeof adapter['getResourcePath'] !== 'function') {
+      return null;
+    }
+
+    const original = adapter['getResourcePath'] as (resourcePath: string) => string;
+    adapter['getResourcePath'] = (resourcePath: string) => resourcePath;
+
+    return () => {
+      adapter['getResourcePath'] = original;
     };
   }
 
