@@ -225,6 +225,56 @@ describe('Callout Aliases - Obsidian Spec Compliance', () => {
 
       expect(html).toContain('data-callout="mycustomtype"');
     });
+
+    it('unknown type should use the type name as icon fallback, not the first letter', async () => {
+      const renderer = new MarkdownItRenderer();
+      const note = baseNote();
+      note.content = '> [!list] Liste\n> Content.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="list"');
+      // Icon should be the type name 'list' (a valid Material Symbol), not 'l'
+      expect(html).toContain('data-icon="list"');
+      expect(html).not.toContain('data-icon="l"');
+    });
+
+    it('CSS-registered type without --callout-icon should use type name as icon', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/custom.css',
+          css: ".callout[data-callout='timeline'] { --callout-color: #6366f1; }",
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!timeline] Events\n> First event.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="timeline"');
+      // Icon should be the type name 'timeline' (valid Material Symbol), not 't'
+      expect(html).toContain('data-icon="timeline"');
+      expect(html).not.toContain('data-icon="t"');
+    });
+
+    it('CSS-registered type with lucide icon should map to Material Symbols', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/custom.css',
+          css: ".callout[data-callout='idea'] { --callout-icon: lucide-lightbulb; }",
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!idea] Great Idea\n> Details.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="idea"');
+      // lucide-lightbulb → strip 'lucide_' prefix → 'lightbulb' (valid Material Symbol)
+      expect(html).toContain('data-icon="lightbulb"');
+    });
   });
 
   describe('folding behavior with aliases', () => {
