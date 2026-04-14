@@ -284,7 +284,8 @@ describe('Site UI foundations styles', () => {
     expect(viewerSource).toContain(
       '--article-asset-float-max-width: var(--layout-article-float-asset-max);'
     );
-    expect(homeSource).toContain('--article-h1-size: clamp(1.5rem, 2.2vw, 1.85rem);');
+    // --article-h1/h2/hx-size intentionally omitted in home: the mixin fallback
+    // var(…, var(--font-size-heading-N)) already applies the global token.
     expect(homeSource).toContain('--article-callout-shadow-hover: 0 6px 16px');
     expect(homeSource).toContain('--article-callout-title-gap: var(--space-lg);');
   });
