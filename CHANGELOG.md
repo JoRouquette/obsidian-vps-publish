@@ -1,3 +1,14 @@
+## [6.21.2](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.21.1...6.21.2) (2026-04-14)
+
+### Bug Fixes
+
+* **home:** supprime block-size: 100% sur :host ([b508aee](https://github.com/JoRouquette/obsidian-vps-publish/commit/b508aee024f162add1c1966b436f0fb738b75135))
+* **shell:** remplace $row-top Sass par grid-rows auto et 100dvh ([eb84761](https://github.com/JoRouquette/obsidian-vps-publish/commit/eb8476173682b11c9a6eea34328f0a512e3af5a4))
+* **shell:** restaure min-height/overflow sur .main dans les media queries ([b6263bc](https://github.com/JoRouquette/obsidian-vps-publish/commit/b6263bc3a8e4cadf0b0ea980725cb3239647c0a4))
+* **site:** restore topbar row height in shell grid ([376fad4](https://github.com/JoRouquette/obsidian-vps-publish/commit/376fad4515b08d149de35c06418363ad5c0b716a))
+* **styles,shell:** supprime la scrollbar parasite sur <html> ([42e612d](https://github.com/JoRouquette/obsidian-vps-publish/commit/42e612d5d258d9196ec6d14729a702214be33e9e))
+* **viewer:** supprime block-size: 100% sur :host ([3a52549](https://github.com/JoRouquette/obsidian-vps-publish/commit/3a52549b126db40907bb5ac32d4268b40b7eb171))
+
 ## [6.21.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.21.0...6.21.1) (2026-04-11)
 
 ### Bug Fixes
