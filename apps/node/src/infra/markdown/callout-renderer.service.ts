@@ -307,7 +307,13 @@ ${bodyHtml}
   private extractDefinitionsFromCss(css: string): CalloutDefinition[] {
     const defs: CalloutDefinition[] = [];
     if (!css) return defs;
-    const ruleRegex = /\.callout\[data-callout[^{]+\{[^}]*\}/gms;
+    // Only match top-level callout rules (e.g. `.callout[data-callout='x']` or
+    // `.callout[data-callout='x'], .callout[data-callout='y']`).
+    // Sub-selector rules like `.callout[data-callout='x'] .callout-title` are
+    // intentionally excluded: they carry no icon information and would overwrite
+    // the icon extracted from the main rule with the type-name fallback.
+    const ruleRegex =
+      /\.callout\[data-callout[^\]]+\](?:\s*,\s*\.callout\[data-callout[^\]]+\])*\s*\{[^}]*\}/gms;
     const iconRegex = /--callout-icon\s*:\s*([^;]+);?/i;
 
     let match: RegExpExecArray | null;
@@ -415,6 +421,14 @@ ${bodyHtml}
       server: 'dns',
       brain: 'psychology',
       spell_check: 'spellcheck',
+      // Calendar: lucide uses bare 'calendar', Material Symbols uses 'calendar_today'
+      calendar: 'calendar_today',
+      // Lucide icons that have no direct Material Symbols match
+      bomb: 'dangerous',
+      gem: 'diamond',
+      toggle_right: 'toggle_on',
+      toggle_left: 'toggle_off',
+      logs: 'format_list_bulleted',
     };
 
     return aliases[baseName] ?? baseName;

@@ -208,6 +208,16 @@
       padding: var(--article-callout-content-padding, 0.65rem 1rem 0.85rem);
       background: color-mix(in oklab, var(--callout-color) 4%, var(--c-surface));
       font-size: var(--article-callout-content-size, inherit);
+
+      /* Collapse the margin of the first and last child so it doesn't stack
+         on top of the container padding and produce uneven vertical rhythm. */
+      > :first-child {
+        margin-top: 0;
+      }
+
+      > :last-child {
+        margin-bottom: 0;
+      }
     }
 
     details.callout:not([open]) .callout-content {
