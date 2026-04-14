@@ -61,7 +61,7 @@ export class CalloutRendererService {
         const normalized: CalloutDefinition = {
           type,
           label: def.label || this.capitalize(type),
-          icon: def.icon || type.charAt(0).toUpperCase(),
+          icon: def.icon || type,
           aliases: (def.aliases ?? []).map(this.sanitizeCalloutType),
         };
         this.definitions.push(normalized);
@@ -244,7 +244,7 @@ ${bodyHtml}
       this.lookup[rawType] ?? {
         type: rawType,
         label: this.capitalize(rawType),
-        icon: rawType.charAt(0).toUpperCase(),
+        icon: rawType,
       }
     );
   }
@@ -323,7 +323,7 @@ ${bodyHtml}
 
       const [primary, ...aliases] = names;
       const iconMatch = body.match(iconRegex);
-      const icon = iconMatch ? iconMatch[1].trim() : primary.charAt(0).toUpperCase();
+      const icon = iconMatch ? iconMatch[1].trim() : primary;
 
       defs.push({
         type: primary,
@@ -350,17 +350,73 @@ ${bodyHtml}
       .trim()
       .toLowerCase()
       .replace(/[\s-]+/g, '_');
+
+    // Strip the `lucide_` prefix used by many Obsidian themes — the remaining
+    // base name often matches a Material Symbols icon directly (e.g. list, star,
+    // bookmark, shield …). Cases that diverge are handled by the alias table below.
+    const baseName = cleaned.startsWith('lucide_') ? cleaned.slice(7) : cleaned;
+
     const aliases: Record<string, string> = {
+      // Legacy / generic
       sticky_note: 'sticky_note_2',
-      sticky_note_2: 'sticky_note_2',
       note: 'sticky_note_2',
       quote: 'format_quote',
       quotation_mark: 'format_quote',
       task: 'task_alt',
-      checklist: 'task_alt',
       warning_amber: 'warning',
       danger: 'report',
+      // Lucide base names that differ from Material Symbols
+      alert_triangle: 'warning',
+      alert_circle: 'error',
+      x_circle: 'cancel',
+      check_circle_2: 'check_circle',
+      help_circle: 'help',
+      file_text: 'description',
+      file_edit: 'edit_document',
+      map_pin: 'place',
+      graduation_cap: 'school',
+      list_checks: 'checklist',
+      list_todo: 'checklist',
+      refresh_cw: 'refresh',
+      rotate_cw: 'rotate_right',
+      rotate_ccw: 'rotate_left',
+      maximize: 'fullscreen',
+      minimize: 'fullscreen_exit',
+      more_horizontal: 'more_horiz',
+      more_vertical: 'more_vert',
+      external_link: 'open_in_new',
+      layout: 'dashboard',
+      volume_2: 'volume_up',
+      arrow_right: 'arrow_forward',
+      arrow_left: 'arrow_back',
+      arrow_up: 'arrow_upward',
+      arrow_down: 'arrow_downward',
+      chevron_up: 'expand_less',
+      chevron_down: 'expand_more',
+      x: 'close',
+      plus: 'add',
+      minus: 'remove',
+      trash: 'delete',
+      trash_2: 'delete',
+      flame: 'local_fire_department',
+      zap: 'bolt',
+      pen_tool: 'draw',
+      tool: 'build',
+      wrench: 'build',
+      package: 'inventory_2',
+      tags: 'sell',
+      eye_off: 'visibility_off',
+      users: 'group',
+      user: 'person',
+      git_branch: 'device_hub',
+      git_pull_request: 'call_merge',
+      hard_drive: 'storage',
+      cpu: 'memory',
+      server: 'dns',
+      brain: 'psychology',
+      spell_check: 'spellcheck',
     };
-    return aliases[cleaned] ?? cleaned;
+
+    return aliases[baseName] ?? baseName;
   }
 }
