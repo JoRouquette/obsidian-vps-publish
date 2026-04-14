@@ -275,6 +275,56 @@ describe('Callout Aliases - Obsidian Spec Compliance', () => {
       // lucide-lightbulb → strip 'lucide_' prefix → 'lightbulb' (valid Material Symbol)
       expect(html).toContain('data-icon="lightbulb"');
     });
+
+    it('CSS sub-selector rules should not overwrite the icon from the main rule', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/custom.css',
+          // Real-world pattern: main rule sets icon, sub-rules tweak typography
+          css: `
+            .callout[data-callout='list'] { --callout-icon: lucide-logs; }
+            .callout[data-callout='list'] .callout-title { font-size: 1.05em; }
+            .callout[data-callout='list'] .internal-link { color: blue; }
+          `,
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!list] Ma liste\n> Content.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="list"');
+      // lucide-logs → strip prefix → 'logs' → alias → 'format_list_bulleted'
+      expect(html).toContain('data-icon="format_list_bulleted"');
+      // Must NOT fall back to 'l' (first letter) or 'list' (type name)
+      expect(html).not.toContain('data-icon="l"');
+    });
+
+    it('multi-selector CSS rule should register aliases correctly', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/custom.css',
+          css: `.callout[data-callout='tresure'],
+.callout[data-callout='tresor'] { --callout-icon: lucide-gem; }`,
+        },
+      ]);
+
+      // Primary type renders as-is
+      const primaryNote = baseNote();
+      primaryNote.content = '> [!tresure] Trésor\n> Found it.';
+      const primaryHtml = await renderer.render(primaryNote);
+      expect(primaryHtml).toContain('data-callout="tresure"');
+      expect(primaryHtml).toContain('data-icon="diamond"');
+
+      // Alias 'tresor' resolves to the canonical primary type 'tresure'
+      const aliasNote = baseNote();
+      aliasNote.content = '> [!tresor] Trésor\n> Found it.';
+      const aliasHtml = await renderer.render(aliasNote);
+      expect(aliasHtml).toContain('data-callout="tresure"');
+      expect(aliasHtml).toContain('data-icon="diamond"');
+    });
   });
 
   describe('folding behavior with aliases', () => {
