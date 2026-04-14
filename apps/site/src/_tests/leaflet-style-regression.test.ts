@@ -34,8 +34,12 @@ describe('Leaflet style regressions', () => {
   it('keeps a targeted reset that does not override Leaflet-managed image overlay sizing', () => {
     const repoRoot = process.cwd();
     const source = readFileSync(join(repoRoot, 'apps/site/src/styles.scss'), 'utf8');
+    const projectJson = JSON.parse(readFileSync(join(repoRoot, 'apps/site/project.json'), 'utf8'));
 
-    expect(source).toContain("@import 'leaflet.fullscreen/dist/Control.FullScreen.css';");
+    // Leaflet CSS imports are loaded via the styles[] array in project.json (not @import in styles.scss)
+    const stylesArray: string[] = projectJson?.targets?.build?.options?.styles ?? [];
+    expect(stylesArray).toContain('node_modules/leaflet.fullscreen/dist/Control.FullScreen.css');
+
     expect(source).toContain('.leaflet-container .leaflet-marker-icon');
     expect(source).toContain('.leaflet-container img.leaflet-image-layer');
     expect(source).toContain('max-width: none !important;');
