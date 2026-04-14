@@ -1,5 +1,3 @@
-$row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: controls + breadcrumbs)
-
 :host {
   /* Normalized ITS theme tokens (60/30/10 distribution) */
   --c-surface: var(--color-bg-secondary); /* 60%: content reading area */
@@ -22,10 +20,14 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   --shell-interactive-pill-radius: var(--interactive-secondary-pill-radius);
   --shell-interactive-touch-target: var(--interactive-secondary-touch-target);
   --shell-interactive-hover-bg: color-mix(in srgb, var(--c-primary) 10%, transparent);
+  /* Topbar row height — inherited by app-logo to cap the logo image height and break
+     the circular block-size: 100% / auto track sizing dependency. */
+  --shell-topbar-height: 6.5rem;
 
   display: block;
-  /* Hauteur minimum = viewport, permet au contenu de pousser le footer naturellement si nécessaire */
-  min-height: 100vh;
+  /* Pas de min-height ici — .grid porte height: 100dvh et isole le scroll dans .main.
+     Une min-height: 100vh sur :host pousserait le document au-delà du viewport et activerait
+     la scrollbar parasite sur <html>. */
   color: var(--c-on-surface);
   background: var(--c-background);
 }
@@ -169,14 +171,16 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
 .grid {
   display: grid;
   grid-template-columns: min-content 1fr;
-  grid-template-rows: $row-top 1fr;
+  /* auto: sizes to TopBar content. Logo is prevented from inflating this row
+     via max-block-size: var(--shell-topbar-height) on .logo-img (see logo.component.scss). */
+  grid-template-rows: auto 1fr;
   grid-template-areas:
     'Logo TopBar'
     'vault-explorer main';
   gap: 0;
 
   /* Hauteur fixe = viewport pour contraindre les deux zones de scroll */
-  height: 100vh;
+  height: 100dvh;
   background: var(--c-background);
   transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -211,7 +215,6 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   background: var(--c-surface);
 
   min-width: 0;
-  min-height: 0;
   overflow: hidden;
 
   app-topbar,
@@ -365,10 +368,6 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   }
 }
 
-@media (max-width: 1100px) {
-  // Grid adapts automatically via dynamic sidebar width
-}
-
 // Tablet: Stack layout vertically
 @media (max-width: 900px) {
   :host {
@@ -387,9 +386,6 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
 
   .Logo {
     border-right: none;
-    // Tablet: Reduce logo height
-    min-height: clamp(3.5rem, 8vh, 5rem);
-    max-height: clamp(4.5rem, 10vh, 6rem);
   }
 
   // Mobile: Hide desktop toggle, show hamburger menu
@@ -490,7 +486,10 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   }
 
   .main {
-    /* Sur mobile, pas de double-scroll, le body scroll naturellement */
+    min-height: 0;
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding: var(--shell-pad-block) var(--shell-pad-inline) 0;
   }
 
@@ -508,8 +507,6 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
 
 // Mobile: Further optimize spacing and layout
 @media (max-width: 768px) {
-  $row-top-mobile: clamp(3.5rem, 7vh, 4.5rem);
-
   :host {
     --shell-pad-block: clamp(0.7rem, 2vw, 0.9rem);
     --shell-drawer-panel-width: min(var(--layout-shell-drawer-max-compact), 80vw);
@@ -520,15 +517,13 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
     max-height: clamp(4rem, 8vh, 5.5rem);
   }
 
-  .TopBar {
-    min-height: $row-top-mobile;
-  }
-
   .vault-explorer {
     width: var(--shell-drawer-panel-width);
   }
 
   .main {
+    min-height: 0;
+    overflow-y: auto;
     padding: var(--shell-pad-block) var(--shell-pad-inline) 0;
   }
 

@@ -41,7 +41,7 @@
     <app-logo></app-logo>
   </div>
 
-  <div class="TopBar mat-elevation-z2">
+  <header class="TopBar mat-elevation-z2">
     @defer {
       <app-topbar
         [siteName]="siteName()"
@@ -56,7 +56,7 @@
     } @placeholder {
       <div class="topbar-placeholder"></div>
     }
-  </div>
+  </header>
 
   <!-- Backdrop overlay for mobile menu -->
   @if (isMenuOpen()) {

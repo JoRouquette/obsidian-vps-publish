@@ -17,7 +17,7 @@ export class LogoComponent {
 
   readonly src = computed(() =>
     this.theme.isDark()
-      ? 'assets/logo/heptacle-origine-light-256.png'
-      : 'assets/logo/heptacle-origine-dark-256.png'
+      ? 'assets/logo/heptacle-origine-light-256.webp'
+      : 'assets/logo/heptacle-origine-dark-256.webp'
   );
 }
