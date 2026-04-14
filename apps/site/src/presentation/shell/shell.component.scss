@@ -481,7 +481,10 @@
   }
 
   .main {
-    /* Sur mobile, pas de double-scroll, le body scroll naturellement */
+    min-height: 0;
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding: var(--shell-pad-block) var(--shell-pad-inline) 0;
   }
 
@@ -514,6 +517,8 @@
   }
 
   .main {
+    min-height: 0;
+    overflow-y: auto;
     padding: var(--shell-pad-block) var(--shell-pad-inline) 0;
   }
 
