@@ -3,6 +3,12 @@
   inline-size: 100%;
 }
 
+.search-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 .search-field {
   inline-size: 100%;
 
@@ -26,6 +32,67 @@
     height: 40px;
     padding-block: 0;
   }
+
+  // Disabled state — applied when Material reflects [disabled] on the input
+  &:has(input:disabled) {
+    .search-ico {
+      opacity: 0.35;
+    }
+
+    input {
+      color: var(--color-text-tertiary);
+      -webkit-text-fill-color: var(
+        --color-text-tertiary
+      ); // Safari ignores color on disabled inputs
+      cursor: not-allowed;
+    }
+  }
+
+  // Error state — override outline to error color in all focus states
+  &.is-error {
+    .mdc-notched-outline__leading,
+    .mdc-notched-outline__notch,
+    .mdc-notched-outline__trailing {
+      border-color: var(--mat-sys-error);
+    }
+
+    &:focus-within {
+      .mdc-notched-outline__leading,
+      .mdc-notched-outline__notch,
+      .mdc-notched-outline__trailing {
+        border-color: var(--mat-sys-error);
+        border-width: 2px;
+      }
+    }
+  }
+}
+
+// CSS-only indeterminate spinner — no library
+.search-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+  border: 2px solid color-mix(in oklab, var(--mat-sys-outline-variant) 50%, transparent);
+  border-top-color: var(--mat-sys-primary);
+  border-radius: 50%;
+  animation: search-spin 0.75s linear infinite;
+}
+
+@keyframes search-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Error message
+.search-error {
+  margin: 0;
+  padding-inline: 0.25rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--mat-sys-error);
 }
 
 // Mobile: Ensure inputs and buttons scale properly for touch

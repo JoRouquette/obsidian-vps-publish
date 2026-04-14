@@ -21,11 +21,18 @@
         "assets": [
           "apps/site/src/favicon.ico",
           "apps/site/src/assets",
-          "apps/site/src/manifest.webmanifest"
+          "apps/site/src/manifest.webmanifest",
+          {
+            "glob": "**/*",
+            "input": "apps/site/public",
+            "output": "/"
+          }
         ],
         "styles": [
-          "apps/site/src/styles.scss",
-          "node_modules/leaflet.fullscreen/dist/Control.FullScreen.css"
+          "node_modules/leaflet/dist/leaflet.css",
+          "node_modules/leaflet.fullscreen/dist/Control.FullScreen.css",
+          "node_modules/katex/dist/katex.min.css",
+          "apps/site/src/styles.scss"
         ],
         "allowedCommonJsDependencies": ["leaflet", "leaflet.fullscreen"]
       },

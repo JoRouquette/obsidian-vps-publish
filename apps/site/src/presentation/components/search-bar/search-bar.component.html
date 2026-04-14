@@ -1,38 +1,55 @@
-<mat-form-field appearance="outline" class="search-field">
-  <mat-icon matPrefix class="search-ico">search</mat-icon>
-  <input
-    #searchInput
-    matInput
-    [type]="type"
-    [placeholder]="placeholder"
-    [value]="value"
-    (input)="onInput($event)"
-    (keydown)="onKeydown($event)"
-    autocomplete="off"
-    spellcheck="false"
-    aria-label="Rechercher"
-  />
-  @if (value.length > 0) {
-    <button
-      matSuffix
-      mat-icon-button
-      (click)="clear()"
-      aria-label="Effacer la recherche"
-      type="button"
-      class="clear-btn"
-    >
-      <mat-icon>close</mat-icon>
-    </button>
+<div class="search-wrap">
+  <mat-form-field
+    appearance="outline"
+    class="search-field"
+    [class.is-error]="errorMessage()"
+    [class.is-loading]="loading()"
+  >
+    <mat-icon matPrefix class="search-ico">search</mat-icon>
+    <input
+      #searchInput
+      matInput
+      [type]="type"
+      [placeholder]="placeholder"
+      [value]="_query()"
+      [disabled]="disabled() || loading()"
+      (input)="onInput($event)"
+      (keydown)="onKeydown($event)"
+      autocomplete="off"
+      spellcheck="false"
+      aria-label="Rechercher"
+      [attr.aria-invalid]="errorMessage() ? 'true' : null"
+      [attr.aria-describedby]="errorMessage() ? errorId : null"
+    />
+    @if (loading()) {
+      <span matSuffix class="search-spinner" aria-hidden="true"></span>
+    } @else if (_query().length > 0 && !disabled()) {
+      <button
+        matSuffix
+        mat-icon-button
+        (click)="clear()"
+        aria-label="Effacer la recherche"
+        type="button"
+        class="clear-btn"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
+    }
+    @if (showSubmitButton && !loading()) {
+      <button
+        matSuffix
+        mat-icon-button
+        (click)="searchSubmit.emit(_query())"
+        aria-label="Valider la recherche"
+        type="button"
+        [disabled]="disabled()"
+      >
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+    }
+  </mat-form-field>
+
+  @if (errorMessage()) {
+    <p class="search-error" [id]="errorId" role="alert">{{ errorMessage() }}</p>
   }
-  @if (showSubmitButton) {
-    <button
-      matSuffix
-      mat-icon-button
-      (click)="searchSubmit.emit(value)"
-      aria-label="Valider la recherche"
-      type="button"
-    >
-      <mat-icon>arrow_forward</mat-icon>
-    </button>
-  }
-</mat-form-field>
+</div>

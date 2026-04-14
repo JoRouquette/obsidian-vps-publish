@@ -6,6 +6,7 @@ import { CommonEngine } from '@angular/ssr/node';
 import express from 'express';
 
 import bootstrap from './main.server';
+import { sitemapHandler } from './sitemap-handler';
 
 // The Express app is exported so that it can be used by serverless Functions.
 export function app(): express.Express {
@@ -18,6 +19,12 @@ export function app(): express.Express {
 
   server.set('view engine', 'html');
   server.set('views', browserDistFolder);
+
+  // Sitemap XML – registered before *.*  so the .xml extension doesn't
+  // fall through to express.static (which would 404, then hit Angular SSR).
+  server.get('/sitemap.xml', (req, res) => {
+    void sitemapHandler(req, res);
+  });
 
   // Serve static files from /browser
   server.get(

@@ -15,6 +15,7 @@
         (click)="zoomOut()"
         title="Zoom arrière (-)"
         aria-label="Zoom arrière"
+        [disabled]="imgError()"
       >
         <mat-icon>remove</mat-icon>
       </button>
@@ -24,6 +25,7 @@
         (click)="resetZoom()"
         title="Ajuster (0)"
         aria-label="Réinitialiser le zoom"
+        [disabled]="imgError()"
       >
         <mat-icon>fit_screen</mat-icon>
       </button>
@@ -33,6 +35,7 @@
         (click)="zoomIn()"
         title="Zoom avant (+)"
         aria-label="Zoom avant"
+        [disabled]="imgError()"
       >
         <mat-icon>add</mat-icon>
       </button>
@@ -54,12 +57,34 @@
   </div>
 
   <div class="image-container">
+    <!-- Loading skeleton -->
+    @if (imgLoading()) {
+      <div class="img-skeleton" aria-hidden="true"></div>
+    }
+
+    <!-- Error state -->
+    @if (imgError()) {
+      <output class="img-error">
+        <mat-icon class="img-error-icon" aria-hidden="true">broken_image</mat-icon>
+        <p class="img-error-text">
+          Image non disponible
+          @if (altText()) {
+            — {{ altText() }}
+          }
+        </p>
+      </output>
+    }
+
     <img
       #imageEl
       [src]="imageSrc()"
       [alt]="altText()"
       [style.transform]="imageTransform()"
       [style.cursor]="scale() > 1 ? 'grab' : 'zoom-in'"
+      [class.is-loading]="imgLoading()"
+      [class.is-error]="imgError()"
+      (load)="onImageLoad()"
+      (error)="onImageError()"
       (mousedown)="onMouseDown($event)"
       (wheel)="onWheel($event)"
       (touchstart)="onTouchStart($event)"
@@ -69,8 +94,10 @@
   </div>
 
   <!-- Zoom level indicator -->
-  <div class="zoom-indicator">
-    <span class="zoom-value">{{ zoomPercentage() }}%</span>
-    <span class="hint">Double-clic pour zoomer</span>
-  </div>
+  @if (!imgError()) {
+    <div class="zoom-indicator">
+      <span class="zoom-value">{{ zoomPercentage() }}%</span>
+      <span class="hint">Double-clic pour zoomer</span>
+    </div>
+  }
 </dialog>
