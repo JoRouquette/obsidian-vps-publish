@@ -1,4 +1,7 @@
 <article class="viewer">
+  @if (title()) {
+    <h1 class="sr-only">{{ title() }}</h1>
+  }
   <div class="content" #contentEl [innerHTML]="html()" data-testid="viewer-content"></div>
 
   <span

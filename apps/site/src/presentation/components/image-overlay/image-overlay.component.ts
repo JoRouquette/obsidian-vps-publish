@@ -30,6 +30,9 @@ export class ImageOverlayComponent {
   translateX = signal(0);
   translateY = signal(0);
 
+  protected readonly imgLoading = signal(false);
+  protected readonly imgError = signal(false);
+
   // Focus management for accessibility
   private previouslyFocusedElement: HTMLElement | null = null;
 
@@ -50,6 +53,8 @@ export class ImageOverlayComponent {
     // Save current focus to restore on close
     this.previouslyFocusedElement = document.activeElement as HTMLElement;
 
+    this.imgLoading.set(true);
+    this.imgError.set(false);
     this.imageSrc.set(src);
     this.altText.set(alt);
     this.isOpen.set(true);
@@ -59,7 +64,20 @@ export class ImageOverlayComponent {
       this.dialogEl?.nativeElement.showModal();
       // Focus close button for keyboard users
       this.closeBtn?.nativeElement.focus();
+      // Resolve immediately if the browser already has the image cached
+      if (this.imageEl?.nativeElement.complete) {
+        this.imgLoading.set(false);
+      }
     });
+  }
+
+  onImageLoad(): void {
+    this.imgLoading.set(false);
+  }
+
+  onImageError(): void {
+    this.imgLoading.set(false);
+    this.imgError.set(true);
   }
 
   close() {

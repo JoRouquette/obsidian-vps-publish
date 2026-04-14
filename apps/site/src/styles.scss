@@ -1,11 +1,6 @@
 @use '@angular/material' as mat;
 @use './presentation/theme/its.theme' as theme;
 
-// Import Leaflet CSS for map rendering
-@import 'leaflet/dist/leaflet.css';
-@import 'leaflet.fullscreen/dist/Control.FullScreen.css';
-@import 'katex/dist/katex.min.css';
-
 // Note: Roboto fonts are now loaded via index.html with preload for better LCP
 // The font-family is already set in the ITS theme via --font-family-default
 
@@ -119,7 +114,9 @@ html,
 body {
   margin: 0;
   padding: 0;
-  /* Permet le scroll naturel sur body - le conteneur principal (shell) gère sa hauteur avec min-height: 100vh */
+  /* Le shell isole son scroll dans .main (height: 100dvh + overflow-y: auto).
+     overflow: hidden ici bloque la scrollbar parasite sur <html>/<body>. */
+  overflow: hidden;
 }
 
 html {
@@ -271,6 +268,20 @@ samp,
     'wght' 400,
     'GRAD' 0,
     'opsz' 24;
+}
+
+/* Visually hidden — accessible to screen readers, invisible to sighted users.
+   Standard WCAG technique for providing semantic context without visual duplication. */
+.sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 .katex-display {

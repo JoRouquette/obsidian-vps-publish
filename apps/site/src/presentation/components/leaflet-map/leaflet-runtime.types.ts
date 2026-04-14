@@ -7,6 +7,7 @@ export interface LeafletLatLngLiteral {
 
 export interface LeafletLayerInstance {
   addTo(map: LeafletMapInstance): LeafletLayerInstance;
+  on(event: 'tileerror', handler: () => void): this;
 }
 
 export interface LeafletMarkerInstance extends LeafletLayerInstance {
