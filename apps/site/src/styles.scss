@@ -114,7 +114,9 @@ html,
 body {
   margin: 0;
   padding: 0;
-  /* Permet le scroll naturel sur body - le conteneur principal (shell) gère sa hauteur avec min-height: 100vh */
+  /* Le shell isole son scroll dans .main (height: 100dvh + overflow-y: auto).
+     overflow: hidden ici bloque la scrollbar parasite sur <html>/<body>. */
+  overflow: hidden;
 }
 
 html {
