@@ -20,10 +20,14 @@
   --shell-interactive-pill-radius: var(--interactive-secondary-pill-radius);
   --shell-interactive-touch-target: var(--interactive-secondary-touch-target);
   --shell-interactive-hover-bg: color-mix(in srgb, var(--c-primary) 10%, transparent);
+  /* Topbar row height — inherited by app-logo to cap the logo image height and break
+     the circular block-size: 100% / auto track sizing dependency. */
+  --shell-topbar-height: 6.5rem;
 
   display: block;
-  /* Hauteur minimum = viewport, permet au contenu de pousser le footer naturellement si nécessaire */
-  min-height: 100vh;
+  /* Pas de min-height ici — .grid porte height: 100dvh et isole le scroll dans .main.
+     Une min-height: 100vh sur :host pousserait le document au-delà du viewport et activerait
+     la scrollbar parasite sur <html>. */
   color: var(--c-on-surface);
   background: var(--c-background);
 }
@@ -167,7 +171,9 @@
 .grid {
   display: grid;
   grid-template-columns: min-content 1fr;
-  grid-template-rows: clamp(4.5rem, 10vh, 6rem) 1fr;
+  /* auto: sizes to TopBar content. Logo is prevented from inflating this row
+     via max-block-size: var(--shell-topbar-height) on .logo-img (see logo.component.scss). */
+  grid-template-rows: auto 1fr;
   grid-template-areas:
     'Logo TopBar'
     'vault-explorer main';
@@ -204,7 +210,6 @@
 
 .TopBar {
   grid-area: TopBar;
-  min-height: clamp(3.5rem, 8vh, 5rem);
   display: flex;
   align-items: stretch;
   background: var(--c-surface);
