@@ -21,17 +21,20 @@
   --c-primary: var(--color-accent-header); /* 10%: accent */
   --c-secondary: var(--color-accent-secondary); /* 10%: accent */
   --c-headers: var(--color-accent-header); /* 10%: accent headers */
+  /* Hero title size — intentionally larger than --font-size-heading-1 (+~0.5rem).
+     Responsive mobile variants override .title { font-size } directly in media queries. */
+  --font-size-home-hero: clamp(1.5rem, 1.8vw + 0.75rem, 2.25rem);
   --article-body-line-height: 1.65;
   --article-heading-text-wrap: balance;
-  --article-h1-size: clamp(1.5rem, 2.2vw, 1.85rem);
+  /* --article-h1/h2/hx-size omitted: the mixin fallback var(…, var(--font-size-heading-N))
+     already applies the global token. Local pure-vw overrides were stuck at minimum on
+     all viewports ≤ 1024px and are removed. */
   --article-h1-margin: 1.5rem 0.75rem;
   --article-h1-line-height: 1.25;
   --article-h1-letter-spacing: -0.01em;
-  --article-h2-size: clamp(1.3rem, 1.8vw, 1.5rem);
   --article-h2-margin: 1.25rem 0.625rem;
   --article-h2-line-height: 1.3;
   --article-h2-letter-spacing: -0.005em;
-  --article-hx-size: clamp(1.05rem, 1.3vw, 1.15rem);
   --article-hx-margin: 1rem 0.5rem;
   --article-hx-line-height: 1.3;
   --article-hx-letter-spacing: -0.005em;
@@ -99,7 +102,7 @@
 .title {
   margin: 0;
   font-weight: 700;
-  font-size: clamp(1.5rem, 1.8vw + 0.75rem, 2.25rem);
+  font-size: var(--font-size-home-hero);
   line-height: 1.15;
   letter-spacing: -0.02em;
   color: var(--c-headers);
@@ -203,7 +206,7 @@
   }
 
   .index-count {
-    color: #666;
+    color: var(--color-text-tertiary);
     font-weight: 400;
     margin-left: 0.25rem;
   }

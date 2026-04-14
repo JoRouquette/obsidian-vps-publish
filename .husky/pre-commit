@@ -14,4 +14,4 @@ echo "pre-commit: format des fichiers impactés..."
 npx nx format:write --files "$STAGED_FILES"
 
 echo "pre-commit: ré-ajout des fichiers formatés"
-git add $(echo "$STAGED_FILES" | tr ',' ' ')
+git add -f $(echo "$STAGED_FILES" | tr ',' ' ')

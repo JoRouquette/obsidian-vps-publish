@@ -365,10 +365,6 @@ $row-top: clamp(4.5rem, 10vh, 6rem); // Responsive header height (2 lines: contr
   }
 }
 
-@media (max-width: 1100px) {
-  // Grid adapts automatically via dynamic sidebar width
-}
-
 // Tablet: Stack layout vertically
 @media (max-width: 900px) {
   :host {
