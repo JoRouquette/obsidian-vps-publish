@@ -167,7 +167,7 @@
 .grid {
   display: grid;
   grid-template-columns: min-content 1fr;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: clamp(4.5rem, 10vh, 6rem) 1fr;
   grid-template-areas:
     'Logo TopBar'
     'vault-explorer main';
