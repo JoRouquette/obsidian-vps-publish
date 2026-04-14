@@ -140,6 +140,8 @@ export class CalloutRendererService {
       const iconName = this.normalizeIconName(callout.icon);
       const bodyHtml = callout.inlineBodyHtml ?? '';
 
+      const bodySlot = bodyHtml ? `${bodyHtml}\n` : '';
+
       if (callout.isFoldable) {
         const foldAttr = ` data-callout-fold="${callout.fold}"`;
         const openAttr = callout.fold !== 'closed' ? ' open' : '';
@@ -149,8 +151,7 @@ export class CalloutRendererService {
   <span class="callout-label">${titleHtml}</span>
 </summary>
 <div class="callout-content">
-${bodyHtml}
-`;
+${bodySlot}`;
       }
 
       return `<div class="callout"${typeAttr}>
@@ -159,8 +160,7 @@ ${bodyHtml}
     <span class="callout-label">${titleHtml}</span>
   </div>
   <div class="callout-content">
-${bodyHtml}
-`;
+${bodySlot}`;
     };
 
     md.renderer.rules.blockquote_close = (tokens, idx, options, env, self) => {

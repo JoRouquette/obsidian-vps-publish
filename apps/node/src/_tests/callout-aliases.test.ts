@@ -301,6 +301,33 @@ describe('Callout Aliases - Obsidian Spec Compliance', () => {
       expect(html).not.toContain('data-icon="l"');
     });
 
+    it('CSS type with sub-selector rules and lucide icon mapping (optional-rule scenario)', async () => {
+      // Reproduces the exact real-world pattern that was showing data-icon="optional_rule"
+      // instead of data-icon="toggle_on" after republication
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/callouts.css',
+          css: `
+            .callout[data-callout='optional-rule'] { --callout-icon: lucide-toggle-right; --callout-color: 100, 220, 100; }
+            .callout[data-callout='optional-rule'] .callout-title { font-weight: 600; }
+            .callout[data-callout='optional-rule'] .callout-content { font-size: 0.95em; }
+          `,
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!optional-rule] Règle optionnelle\n> Ce contenu est optionnel.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="optional-rule"');
+      // lucide-toggle-right → strip prefix → 'toggle_right' → alias → 'toggle_on'
+      expect(html).toContain('data-icon="toggle_on"');
+      // Must NOT use the type name as fallback
+      expect(html).not.toContain('data-icon="optional_rule"');
+      expect(html).not.toContain('data-icon="optional-rule"');
+    });
+
     it('multi-selector CSS rule should register aliases correctly', async () => {
       const renderer = new MarkdownItRenderer();
       renderer['calloutRenderer'].extendFromStyles([
