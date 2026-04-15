@@ -7,6 +7,7 @@ export interface CalloutMeta {
   type: string;
   label: string;
   icon: string;
+  color?: string;
   title: string;
   isFoldable: boolean;
   fold: CalloutFold | null;
@@ -17,6 +18,7 @@ export interface CalloutDefinition {
   type: string;
   label: string;
   icon: string;
+  color?: string;
   aliases?: string[];
 }
 
@@ -51,6 +53,7 @@ export class CalloutRendererService {
       const existing = this.lookup[type];
       if (existing) {
         existing.icon = def.icon || existing.icon;
+        existing.color = def.color || existing.color;
         existing.label = def.label || existing.label;
         existing.aliases = Array.from(
           new Set(
@@ -61,7 +64,8 @@ export class CalloutRendererService {
         const normalized: CalloutDefinition = {
           type,
           label: def.label || this.capitalize(type),
-          icon: def.icon || type.charAt(0).toUpperCase(),
+          icon: def.icon || type,
+          color: def.color,
           aliases: (def.aliases ?? []).map(this.sanitizeCalloutType),
         };
         this.definitions.push(normalized);
@@ -138,29 +142,32 @@ export class CalloutRendererService {
       const titleHtml = md.renderInline(title, env);
       const typeAttr = ` data-callout="${callout.type}"`;
       const iconName = this.normalizeIconName(callout.icon);
+      const styleAttr = callout.color
+        ? ` style="--callout-color: ${this.escapeHtml(callout.color)}"`
+        : '';
       const bodyHtml = callout.inlineBodyHtml ?? '';
+
+      const bodySlot = bodyHtml ? `${bodyHtml}\n` : '';
 
       if (callout.isFoldable) {
         const foldAttr = ` data-callout-fold="${callout.fold}"`;
         const openAttr = callout.fold !== 'closed' ? ' open' : '';
-        return `<details class="callout"${typeAttr}${foldAttr}${openAttr}>
+        return `<details class="callout"${typeAttr}${foldAttr}${openAttr}${styleAttr}>
 <summary class="callout-title">
   <span class="callout-icon material-symbols-outlined" data-icon="${this.escapeHtml(iconName)}" aria-hidden="true">${this.escapeHtml(iconName)}</span>
   <span class="callout-label">${titleHtml}</span>
 </summary>
 <div class="callout-content">
-${bodyHtml}
-`;
+${bodySlot}`;
       }
 
-      return `<div class="callout"${typeAttr}>
+      return `<div class="callout"${typeAttr}${styleAttr}>
   <div class="callout-title">
     <span class="callout-icon material-symbols-outlined" data-icon="${this.escapeHtml(iconName)}" aria-hidden="true">${this.escapeHtml(iconName)}</span>
     <span class="callout-label">${titleHtml}</span>
   </div>
   <div class="callout-content">
-${bodyHtml}
-`;
+${bodySlot}`;
     };
 
     md.renderer.rules.blockquote_close = (tokens, idx, options, env, self) => {
@@ -244,7 +251,7 @@ ${bodyHtml}
       this.lookup[rawType] ?? {
         type: rawType,
         label: this.capitalize(rawType),
-        icon: rawType.charAt(0).toUpperCase(),
+        icon: rawType,
       }
     );
   }
@@ -263,6 +270,7 @@ ${bodyHtml}
       type: typeInfo.type,
       label: typeInfo.label,
       icon: typeInfo.icon,
+      color: typeInfo.color,
       title,
       isFoldable,
       fold,
@@ -307,8 +315,15 @@ ${bodyHtml}
   private extractDefinitionsFromCss(css: string): CalloutDefinition[] {
     const defs: CalloutDefinition[] = [];
     if (!css) return defs;
-    const ruleRegex = /\.callout\[data-callout[^{]+\{[^}]*\}/gms;
+    // Only match top-level callout rules (e.g. `.callout[data-callout='x']` or
+    // `.callout[data-callout='x'], .callout[data-callout='y']`).
+    // Sub-selector rules like `.callout[data-callout='x'] .callout-title` are
+    // intentionally excluded: they carry no icon information and would overwrite
+    // the icon extracted from the main rule with the type-name fallback.
+    const ruleRegex =
+      /\.callout\[data-callout[^\]]+\](?:\s*,\s*\.callout\[data-callout[^\]]+\])*\s*\{[^}]*\}/gms;
     const iconRegex = /--callout-icon\s*:\s*([^;]+);?/i;
+    const colorRegex = /--callout-color\s*:\s*([^;]+);?/i;
 
     let match: RegExpExecArray | null;
     while ((match = ruleRegex.exec(css)) !== null) {
@@ -323,17 +338,36 @@ ${bodyHtml}
 
       const [primary, ...aliases] = names;
       const iconMatch = body.match(iconRegex);
-      const icon = iconMatch ? iconMatch[1].trim() : primary.charAt(0).toUpperCase();
+      const icon = iconMatch ? iconMatch[1].trim() : primary;
+      const colorMatch = body.match(colorRegex);
+      const color = colorMatch ? this.normalizeColor(colorMatch[1]) : undefined;
 
       defs.push({
         type: primary,
         icon,
+        color,
         label: this.capitalize(primary),
         aliases,
       });
     }
 
     return defs;
+  }
+
+  /**
+   * Normalise la valeur de --callout-color extraite du CSS Obsidian.
+   * Obsidian stocke les couleurs en composantes R, G, B séparées (ex. "0, 184, 212")
+   * pour permettre rgba(var(--callout-color), 0.3). On les convertit en rgb() complet
+   * pour que le site puisse les utiliser directement dans color-mix() et comme valeur CSS.
+   */
+  private normalizeColor(raw: string): string {
+    const trimmed = raw.trim();
+    // Format Obsidian : "R, G, B" sans les parenthèses
+    if (/^\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}$/.test(trimmed)) {
+      return `rgb(${trimmed})`;
+    }
+    // Déjà une couleur CSS valide (hex, named, rgb(), hsl(), oklch()…)
+    return trimmed;
   }
 
   private escapeHtml(input: string): string {
@@ -350,17 +384,81 @@ ${bodyHtml}
       .trim()
       .toLowerCase()
       .replace(/[\s-]+/g, '_');
+
+    // Strip the `lucide_` prefix used by many Obsidian themes — the remaining
+    // base name often matches a Material Symbols icon directly (e.g. list, star,
+    // bookmark, shield …). Cases that diverge are handled by the alias table below.
+    const baseName = cleaned.startsWith('lucide_') ? cleaned.slice(7) : cleaned;
+
     const aliases: Record<string, string> = {
+      // Legacy / generic
       sticky_note: 'sticky_note_2',
-      sticky_note_2: 'sticky_note_2',
       note: 'sticky_note_2',
       quote: 'format_quote',
       quotation_mark: 'format_quote',
       task: 'task_alt',
-      checklist: 'task_alt',
       warning_amber: 'warning',
       danger: 'report',
+      // Lucide base names that differ from Material Symbols
+      alert_triangle: 'warning',
+      alert_circle: 'error',
+      x_circle: 'cancel',
+      check_circle_2: 'check_circle',
+      help_circle: 'help',
+      file_text: 'description',
+      file_edit: 'edit_document',
+      map_pin: 'place',
+      graduation_cap: 'school',
+      list_checks: 'checklist',
+      list_todo: 'checklist',
+      refresh_cw: 'refresh',
+      rotate_cw: 'rotate_right',
+      rotate_ccw: 'rotate_left',
+      maximize: 'fullscreen',
+      minimize: 'fullscreen_exit',
+      more_horizontal: 'more_horiz',
+      more_vertical: 'more_vert',
+      external_link: 'open_in_new',
+      layout: 'dashboard',
+      volume_2: 'volume_up',
+      arrow_right: 'arrow_forward',
+      arrow_left: 'arrow_back',
+      arrow_up: 'arrow_upward',
+      arrow_down: 'arrow_downward',
+      chevron_up: 'expand_less',
+      chevron_down: 'expand_more',
+      x: 'close',
+      plus: 'add',
+      minus: 'remove',
+      trash: 'delete',
+      trash_2: 'delete',
+      flame: 'local_fire_department',
+      zap: 'bolt',
+      pen_tool: 'draw',
+      tool: 'build',
+      wrench: 'build',
+      package: 'inventory_2',
+      tags: 'sell',
+      eye_off: 'visibility_off',
+      users: 'group',
+      user: 'person',
+      git_branch: 'device_hub',
+      git_pull_request: 'call_merge',
+      hard_drive: 'storage',
+      cpu: 'memory',
+      server: 'dns',
+      brain: 'psychology',
+      spell_check: 'spellcheck',
+      // Calendar: lucide uses bare 'calendar', Material Symbols uses 'calendar_today'
+      calendar: 'calendar_today',
+      // Lucide icons that have no direct Material Symbols match
+      bomb: 'dangerous',
+      gem: 'diamond',
+      toggle_right: 'toggle_on',
+      toggle_left: 'toggle_off',
+      logs: 'format_list_bulleted',
     };
-    return aliases[cleaned] ?? cleaned;
+
+    return aliases[baseName] ?? baseName;
   }
 }

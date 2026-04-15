@@ -358,7 +358,8 @@ export type AdvancedTranslations = {
   logLevelError: string;
   calloutStylesLabel: string;
   calloutStylesDescription: string;
-  calloutStylesPlaceholder: string;
+  calloutStylesEmpty: string;
+  calloutStylesRefresh: string;
   cleanup: {
     title: string;
     description: string;
@@ -699,10 +700,11 @@ export const en: Translations = {
       logLevelInfo: 'Info',
       logLevelWarn: 'Warning (default)',
       logLevelError: 'Error only',
-      calloutStylesLabel: 'Callout styles (CSS paths)',
+      calloutStylesLabel: 'Callout CSS snippets',
       calloutStylesDescription:
-        'Paths (one per line or comma separated) to CSS files in the vault. They will be uploaded, parsed and used to extend callout definitions on the server.',
-      calloutStylesPlaceholder: '.obsidian/snippets/callouts.css',
+        'Select which snippets from .obsidian/snippets to send to the server. They will be parsed to extract callout colors and icons.',
+      calloutStylesEmpty: 'No CSS files found in .obsidian/snippets.',
+      calloutStylesRefresh: 'Refresh',
       cleanup: {
         title: 'VPS cleanup',
         description:
@@ -1262,10 +1264,11 @@ export const fr: Translations = {
       logLevelInfo: 'Info',
       logLevelWarn: 'Warning (défaut)',
       logLevelError: 'Error uniquement',
-      calloutStylesLabel: 'Styles de callouts (chemins CSS)',
+      calloutStylesLabel: 'Snippets CSS callouts',
       calloutStylesDescription:
-        'Chemins (un par ligne ou séparés par des virgules) vers des fichiers CSS du vault. Ils seront envoyés, parsés et utilisés pour étendre la configuration des callouts côté serveur.',
-      calloutStylesPlaceholder: '.obsidian/snippets/callouts.css',
+        'Sélectionnez les snippets de .obsidian/snippets à envoyer au serveur. Ils seront analysés pour extraire les couleurs et icônes des callouts.',
+      calloutStylesEmpty: 'Aucun fichier CSS trouvé dans .obsidian/snippets.',
+      calloutStylesRefresh: 'Actualiser',
       cleanup: {
         title: 'Nettoyage du VPS',
         description:

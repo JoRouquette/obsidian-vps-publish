@@ -1,5 +1,5 @@
 import { LogLevel } from '@core-domain/ports/logger-port';
-import { type App, Modal, Notice, Setting } from 'obsidian';
+import { type App, type DataAdapter, Modal, Notice, Setting } from 'obsidian';
 
 import type { SettingsViewContext } from '../context';
 
@@ -63,28 +63,75 @@ export function renderAdvancedSection(root: HTMLElement, ctx: SettingsViewContex
         });
     });
 
-  new Setting(inner)
-    .setName(t.settings.advanced.calloutStylesLabel)
-    .setDesc(t.settings.advanced.calloutStylesDescription)
-    .addTextArea((text) => {
-      text
-        .setPlaceholder(t.settings.advanced.calloutStylesPlaceholder)
-        .setValue(settings.calloutStylePaths.join('\n'))
-        .onChange((value) => {
-          const paths = value
-            .split(/[\n,]/)
-            .map((p) => p.trim())
-            .filter(Boolean);
-          settings.calloutStylePaths = paths;
-          logger.debug('Callout style paths updated', { paths });
-          void ctx.save();
-        });
-
-      // Add CSS class for styling instead of direct style manipulation
-      text.inputEl.addClass('ptpv-textarea-large');
-    });
-
+  renderCalloutSnippets(inner, ctx);
   renderCleanupSetting(inner, ctx);
+}
+
+const SNIPPETS_FOLDER = '.obsidian/snippets';
+
+function renderCalloutSnippets(container: HTMLElement, ctx: SettingsViewContext): void {
+  const { t, settings, app, logger } = ctx;
+
+  const headerSetting = new Setting(container)
+    .setName(t.settings.advanced.calloutStylesLabel)
+    .setDesc(t.settings.advanced.calloutStylesDescription);
+
+  const listEl = container.createDiv({ cls: 'ptpv-snippets-list' });
+
+  const populate = async () => {
+    listEl.empty();
+
+    let files: string[] = [];
+    try {
+      const adapter = app.vault.adapter as DataAdapter & {
+        list(path: string): Promise<{ files: string[]; folders: string[] }>;
+      };
+      ({ files } = await adapter.list(SNIPPETS_FOLDER));
+    } catch {
+      // Folder does not exist or is not accessible
+    }
+
+    const cssFiles = files.filter((f) => f.endsWith('.css')).sort();
+
+    if (cssFiles.length === 0) {
+      listEl.createEl('p', {
+        text: t.settings.advanced.calloutStylesEmpty,
+        cls: 'setting-item-description',
+      });
+      return;
+    }
+
+    for (const filePath of cssFiles) {
+      const fileName = filePath.split('/').pop() ?? filePath;
+      const isEnabled = settings.calloutStylePaths.includes(filePath);
+
+      new Setting(listEl)
+        .setName(fileName)
+        .setClass('ptpv-snippet-item')
+        .addToggle((toggle) => {
+          toggle.setValue(isEnabled).onChange((checked) => {
+            if (checked) {
+              if (!settings.calloutStylePaths.includes(filePath)) {
+                settings.calloutStylePaths = [...settings.calloutStylePaths, filePath];
+              }
+            } else {
+              settings.calloutStylePaths = settings.calloutStylePaths.filter((p) => p !== filePath);
+            }
+            logger.debug('Callout snippet toggled', { filePath, checked });
+            void ctx.save();
+          });
+        });
+    }
+  };
+
+  headerSetting.addButton((btn) => {
+    btn
+      .setButtonText(t.settings.advanced.calloutStylesRefresh)
+      .setIcon('refresh-cw')
+      .onClick(() => void populate());
+  });
+
+  void populate();
 }
 
 function renderCleanupSetting(inner: HTMLElement, ctx: SettingsViewContext): void {
