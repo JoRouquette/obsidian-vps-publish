@@ -354,6 +354,73 @@ describe('Callout Aliases - Obsidian Spec Compliance', () => {
     });
   });
 
+  describe('custom callout color from CSS', () => {
+    it('CSS --callout-color in Obsidian R,G,B format should be injected as rgb() inline style', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/callouts.css',
+          css: ".callout[data-callout='optional-rule'] { --callout-icon: lucide-toggle-right; --callout-color: 100, 220, 100; }",
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!optional-rule] Règle optionnelle\n> Contenu.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="optional-rule"');
+      expect(html).toContain('data-icon="toggle_on"');
+      expect(html).toContain('style="--callout-color: rgb(100, 220, 100)"');
+    });
+
+    it('CSS --callout-color as hex value should be injected as-is', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/callouts.css',
+          css: ".callout[data-callout='idea'] { --callout-icon: lucide-lightbulb; --callout-color: #f59e0b; }",
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!idea] Idée\n> Bonne idée.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="idea"');
+      expect(html).toContain('style="--callout-color: #f59e0b"');
+    });
+
+    it('built-in callout types should not have an inline style color (SCSS handles it)', async () => {
+      const renderer = new MarkdownItRenderer();
+      const note = baseNote();
+      note.content = '> [!warning] Attention\n> Contenu.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="warning"');
+      expect(html).not.toContain('style="--callout-color');
+    });
+
+    it('foldable callout with custom color should have style on the details element', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/callouts.css',
+          css: ".callout[data-callout='event'] { --callout-icon: lucide-calendar; --callout-color: 99, 102, 241; }",
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!event]- Événement\n> Détails.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('<details class="callout"');
+      expect(html).toContain('data-callout="event"');
+      expect(html).toContain('style="--callout-color: rgb(99, 102, 241)"');
+      expect(html).toContain('data-icon="calendar_today"');
+    });
+  });
+
   describe('folding behavior with aliases', () => {
     it('[!faq]- should render foldable question callout closed by default', async () => {
       const renderer = new MarkdownItRenderer();

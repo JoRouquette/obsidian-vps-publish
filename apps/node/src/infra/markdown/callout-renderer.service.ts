@@ -7,6 +7,7 @@ export interface CalloutMeta {
   type: string;
   label: string;
   icon: string;
+  color?: string;
   title: string;
   isFoldable: boolean;
   fold: CalloutFold | null;
@@ -17,6 +18,7 @@ export interface CalloutDefinition {
   type: string;
   label: string;
   icon: string;
+  color?: string;
   aliases?: string[];
 }
 
@@ -51,6 +53,7 @@ export class CalloutRendererService {
       const existing = this.lookup[type];
       if (existing) {
         existing.icon = def.icon || existing.icon;
+        existing.color = def.color || existing.color;
         existing.label = def.label || existing.label;
         existing.aliases = Array.from(
           new Set(
@@ -62,6 +65,7 @@ export class CalloutRendererService {
           type,
           label: def.label || this.capitalize(type),
           icon: def.icon || type,
+          color: def.color,
           aliases: (def.aliases ?? []).map(this.sanitizeCalloutType),
         };
         this.definitions.push(normalized);
@@ -138,6 +142,9 @@ export class CalloutRendererService {
       const titleHtml = md.renderInline(title, env);
       const typeAttr = ` data-callout="${callout.type}"`;
       const iconName = this.normalizeIconName(callout.icon);
+      const styleAttr = callout.color
+        ? ` style="--callout-color: ${this.escapeHtml(callout.color)}"`
+        : '';
       const bodyHtml = callout.inlineBodyHtml ?? '';
 
       const bodySlot = bodyHtml ? `${bodyHtml}\n` : '';
@@ -145,7 +152,7 @@ export class CalloutRendererService {
       if (callout.isFoldable) {
         const foldAttr = ` data-callout-fold="${callout.fold}"`;
         const openAttr = callout.fold !== 'closed' ? ' open' : '';
-        return `<details class="callout"${typeAttr}${foldAttr}${openAttr}>
+        return `<details class="callout"${typeAttr}${foldAttr}${openAttr}${styleAttr}>
 <summary class="callout-title">
   <span class="callout-icon material-symbols-outlined" data-icon="${this.escapeHtml(iconName)}" aria-hidden="true">${this.escapeHtml(iconName)}</span>
   <span class="callout-label">${titleHtml}</span>
@@ -154,7 +161,7 @@ export class CalloutRendererService {
 ${bodySlot}`;
       }
 
-      return `<div class="callout"${typeAttr}>
+      return `<div class="callout"${typeAttr}${styleAttr}>
   <div class="callout-title">
     <span class="callout-icon material-symbols-outlined" data-icon="${this.escapeHtml(iconName)}" aria-hidden="true">${this.escapeHtml(iconName)}</span>
     <span class="callout-label">${titleHtml}</span>
@@ -263,6 +270,7 @@ ${bodySlot}`;
       type: typeInfo.type,
       label: typeInfo.label,
       icon: typeInfo.icon,
+      color: typeInfo.color,
       title,
       isFoldable,
       fold,
@@ -315,6 +323,7 @@ ${bodySlot}`;
     const ruleRegex =
       /\.callout\[data-callout[^\]]+\](?:\s*,\s*\.callout\[data-callout[^\]]+\])*\s*\{[^}]*\}/gms;
     const iconRegex = /--callout-icon\s*:\s*([^;]+);?/i;
+    const colorRegex = /--callout-color\s*:\s*([^;]+);?/i;
 
     let match: RegExpExecArray | null;
     while ((match = ruleRegex.exec(css)) !== null) {
@@ -330,16 +339,35 @@ ${bodySlot}`;
       const [primary, ...aliases] = names;
       const iconMatch = body.match(iconRegex);
       const icon = iconMatch ? iconMatch[1].trim() : primary;
+      const colorMatch = body.match(colorRegex);
+      const color = colorMatch ? this.normalizeColor(colorMatch[1]) : undefined;
 
       defs.push({
         type: primary,
         icon,
+        color,
         label: this.capitalize(primary),
         aliases,
       });
     }
 
     return defs;
+  }
+
+  /**
+   * Normalise la valeur de --callout-color extraite du CSS Obsidian.
+   * Obsidian stocke les couleurs en composantes R, G, B séparées (ex. "0, 184, 212")
+   * pour permettre rgba(var(--callout-color), 0.3). On les convertit en rgb() complet
+   * pour que le site puisse les utiliser directement dans color-mix() et comme valeur CSS.
+   */
+  private normalizeColor(raw: string): string {
+    const trimmed = raw.trim();
+    // Format Obsidian : "R, G, B" sans les parenthèses
+    if (/^\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}$/.test(trimmed)) {
+      return `rgb(${trimmed})`;
+    }
+    // Déjà une couleur CSS valide (hex, named, rgb(), hsl(), oklch()…)
+    return trimmed;
   }
 
   private escapeHtml(input: string): string {
