@@ -1,6 +1,6 @@
 {
   "name": "core-domain",
-  "version": "6.21.2",
+  "version": "6.22.0",
   "private": true,
   "type": "commonjs",
   "main": "./src/index.js",

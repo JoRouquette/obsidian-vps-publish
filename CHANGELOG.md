@@ -1,3 +1,18 @@
+## [6.22.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.21.2...6.22.0) (2026-04-15)
+
+### Features
+
+* **callout:** extrait --callout-color du CSS et l'injecte en style inline ([636980a](https://github.com/JoRouquette/obsidian-vps-publish/commit/636980aa65b23c85c147ab6b9dae5ac6fffd032d))
+* **plugin/settings:** snippet picker pour les styles callout ([b1029c5](https://github.com/JoRouquette/obsidian-vps-publish/commit/b1029c5867643fd9f7d978d20868b210af8da70b))
+
+### Bug Fixes
+
+* **callout:** corrige l'icône de fallback et ajoute le mapping Lucide → Material Symbols ([2deecac](https://github.com/JoRouquette/obsidian-vps-publish/commit/2deecac065b645910ca6d1fffe497104c038f88f))
+* **callout:** corrige la regex CSS et les marges internes des callouts ([7ef9d69](https://github.com/JoRouquette/obsidian-vps-publish/commit/7ef9d6946fb1659bdc045f014559ff8f57aeca6d))
+* **callout:** supprime le saut de ligne parasite dans callout-content ([069381b](https://github.com/JoRouquette/obsidian-vps-publish/commit/069381b519782ab030dbaa6d0bff9a6341b4f6e3))
+* **site:** align dataview blocks with article reading rail ([4eb587b](https://github.com/JoRouquette/obsidian-vps-publish/commit/4eb587b5f6ed95f754bcc923327df2ec6dfa945b))
+* **site:** restore callout rail selector contract ([9e4c2ff](https://github.com/JoRouquette/obsidian-vps-publish/commit/9e4c2ff09d8fdcc0b2b538c27e60877b8ec01d6f))
+
 ## [6.21.2](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.21.1...6.21.2) (2026-04-14)
 
 ### Bug Fixes
