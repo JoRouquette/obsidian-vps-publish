@@ -60,4 +60,14 @@ describe('Responsive visual QA guards', () => {
     expect(viewerSource).not.toContain('table-layout: auto;');
     expect(homeSource).not.toContain('table-layout: auto;');
   });
+
+  it('keeps textual Dataview wrappers on the shared readable rail without shrinking table blocks', () => {
+    expect(foundationSource).toContain(
+      "'.dataview.dataview-container:not(:has(.table-wrapper, table))'"
+    );
+    expect(foundationSource).toContain("'.dataviewjs:not(:has(.table-wrapper, table))'");
+    expect(foundationSource).toContain("'.dv-js-output:not(:has(.table-wrapper, table))'");
+    expect(foundationSource).toContain("'.dataview-view-result:not(:has(.table-wrapper, table))'");
+    expect(foundationSource).toContain('DataviewJS and legacy Dataview HTML frequently render');
+  });
 });

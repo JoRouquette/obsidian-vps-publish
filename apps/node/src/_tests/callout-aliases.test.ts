@@ -225,6 +225,200 @@ describe('Callout Aliases - Obsidian Spec Compliance', () => {
 
       expect(html).toContain('data-callout="mycustomtype"');
     });
+
+    it('unknown type should use the type name as icon fallback, not the first letter', async () => {
+      const renderer = new MarkdownItRenderer();
+      const note = baseNote();
+      note.content = '> [!list] Liste\n> Content.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="list"');
+      // Icon should be the type name 'list' (a valid Material Symbol), not 'l'
+      expect(html).toContain('data-icon="list"');
+      expect(html).not.toContain('data-icon="l"');
+    });
+
+    it('CSS-registered type without --callout-icon should use type name as icon', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/custom.css',
+          css: ".callout[data-callout='timeline'] { --callout-color: #6366f1; }",
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!timeline] Events\n> First event.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="timeline"');
+      // Icon should be the type name 'timeline' (valid Material Symbol), not 't'
+      expect(html).toContain('data-icon="timeline"');
+      expect(html).not.toContain('data-icon="t"');
+    });
+
+    it('CSS-registered type with lucide icon should map to Material Symbols', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/custom.css',
+          css: ".callout[data-callout='idea'] { --callout-icon: lucide-lightbulb; }",
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!idea] Great Idea\n> Details.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="idea"');
+      // lucide-lightbulb → strip 'lucide_' prefix → 'lightbulb' (valid Material Symbol)
+      expect(html).toContain('data-icon="lightbulb"');
+    });
+
+    it('CSS sub-selector rules should not overwrite the icon from the main rule', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/custom.css',
+          // Real-world pattern: main rule sets icon, sub-rules tweak typography
+          css: `
+            .callout[data-callout='list'] { --callout-icon: lucide-logs; }
+            .callout[data-callout='list'] .callout-title { font-size: 1.05em; }
+            .callout[data-callout='list'] .internal-link { color: blue; }
+          `,
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!list] Ma liste\n> Content.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="list"');
+      // lucide-logs → strip prefix → 'logs' → alias → 'format_list_bulleted'
+      expect(html).toContain('data-icon="format_list_bulleted"');
+      // Must NOT fall back to 'l' (first letter) or 'list' (type name)
+      expect(html).not.toContain('data-icon="l"');
+    });
+
+    it('CSS type with sub-selector rules and lucide icon mapping (optional-rule scenario)', async () => {
+      // Reproduces the exact real-world pattern that was showing data-icon="optional_rule"
+      // instead of data-icon="toggle_on" after republication
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/callouts.css',
+          css: `
+            .callout[data-callout='optional-rule'] { --callout-icon: lucide-toggle-right; --callout-color: 100, 220, 100; }
+            .callout[data-callout='optional-rule'] .callout-title { font-weight: 600; }
+            .callout[data-callout='optional-rule'] .callout-content { font-size: 0.95em; }
+          `,
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!optional-rule] Règle optionnelle\n> Ce contenu est optionnel.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="optional-rule"');
+      // lucide-toggle-right → strip prefix → 'toggle_right' → alias → 'toggle_on'
+      expect(html).toContain('data-icon="toggle_on"');
+      // Must NOT use the type name as fallback
+      expect(html).not.toContain('data-icon="optional_rule"');
+      expect(html).not.toContain('data-icon="optional-rule"');
+    });
+
+    it('multi-selector CSS rule should register aliases correctly', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/custom.css',
+          css: `.callout[data-callout='tresure'],
+.callout[data-callout='tresor'] { --callout-icon: lucide-gem; }`,
+        },
+      ]);
+
+      // Primary type renders as-is
+      const primaryNote = baseNote();
+      primaryNote.content = '> [!tresure] Trésor\n> Found it.';
+      const primaryHtml = await renderer.render(primaryNote);
+      expect(primaryHtml).toContain('data-callout="tresure"');
+      expect(primaryHtml).toContain('data-icon="diamond"');
+
+      // Alias 'tresor' resolves to the canonical primary type 'tresure'
+      const aliasNote = baseNote();
+      aliasNote.content = '> [!tresor] Trésor\n> Found it.';
+      const aliasHtml = await renderer.render(aliasNote);
+      expect(aliasHtml).toContain('data-callout="tresure"');
+      expect(aliasHtml).toContain('data-icon="diamond"');
+    });
+  });
+
+  describe('custom callout color from CSS', () => {
+    it('CSS --callout-color in Obsidian R,G,B format should be injected as rgb() inline style', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/callouts.css',
+          css: ".callout[data-callout='optional-rule'] { --callout-icon: lucide-toggle-right; --callout-color: 100, 220, 100; }",
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!optional-rule] Règle optionnelle\n> Contenu.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="optional-rule"');
+      expect(html).toContain('data-icon="toggle_on"');
+      expect(html).toContain('style="--callout-color: rgb(100, 220, 100)"');
+    });
+
+    it('CSS --callout-color as hex value should be injected as-is', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/callouts.css',
+          css: ".callout[data-callout='idea'] { --callout-icon: lucide-lightbulb; --callout-color: #f59e0b; }",
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!idea] Idée\n> Bonne idée.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="idea"');
+      expect(html).toContain('style="--callout-color: #f59e0b"');
+    });
+
+    it('built-in callout types should not have an inline style color (SCSS handles it)', async () => {
+      const renderer = new MarkdownItRenderer();
+      const note = baseNote();
+      note.content = '> [!warning] Attention\n> Contenu.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('data-callout="warning"');
+      expect(html).not.toContain('style="--callout-color');
+    });
+
+    it('foldable callout with custom color should have style on the details element', async () => {
+      const renderer = new MarkdownItRenderer();
+      renderer['calloutRenderer'].extendFromStyles([
+        {
+          path: 'snippets/callouts.css',
+          css: ".callout[data-callout='event'] { --callout-icon: lucide-calendar; --callout-color: 99, 102, 241; }",
+        },
+      ]);
+      const note = baseNote();
+      note.content = '> [!event]- Événement\n> Détails.';
+
+      const html = await renderer.render(note);
+
+      expect(html).toContain('<details class="callout"');
+      expect(html).toContain('data-callout="event"');
+      expect(html).toContain('style="--callout-color: rgb(99, 102, 241)"');
+      expect(html).toContain('data-icon="calendar_today"');
+    });
   });
 
   describe('folding behavior with aliases', () => {
