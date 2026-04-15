@@ -36,7 +36,10 @@
   blockquote,
   figcaption,
   hr,
-  .callout,
+  .callout {
+    @include article-readable-rail();
+  }
+
   #{$plugin-readable-blocks} {
     @include article-readable-rail();
   }
