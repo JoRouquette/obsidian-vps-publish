@@ -18,6 +18,11 @@
     - reading-flow blocks align to one common article column
     - page components should not recreate this width ownership locally
     - wide/local-scroll blocks opt out through the wide-content foundation */
+  $plugin-readable-blocks: '.dataview.dataview-container:not(:has(.table-wrapper, table))',
+    '.dataviewjs:not(:has(.table-wrapper, table))',
+    '.dv-js-output:not(:has(.table-wrapper, table))',
+    '.dataview-view-result:not(:has(.table-wrapper, table))';
+
   h1,
   h2,
   h3,
@@ -31,11 +36,39 @@
   blockquote,
   figcaption,
   hr,
-  .callout {
+  .callout,
+  #{$plugin-readable-blocks} {
     @include article-readable-rail();
   }
 
   .callout-content {
+    @include article-readable-rail();
+  }
+
+  /* DataviewJS and legacy Dataview HTML frequently render prose in generic block
+     wrappers rather than semantic p/ul/blockquote tags. Keep those wrappers on the
+     readable rail unless the block owns a wide/table layout that should stay on the
+     page-width rail. */
+  #{$plugin-readable-blocks} > :where(
+      div,
+      section,
+      article,
+      header,
+      footer,
+      p,
+      ul,
+      ol,
+      dl,
+      blockquote,
+      figcaption,
+      hr,
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6
+    ) {
     @include article-readable-rail();
   }
 }
