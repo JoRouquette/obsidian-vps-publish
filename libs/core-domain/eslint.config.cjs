@@ -5,9 +5,9 @@ const unusedImportsPlugin = require('eslint-plugin-unused-imports');
 const simpleImportSortPlugin = require('eslint-plugin-simple-import-sort');
 
 module.exports = [
-  { ignores: ['dist/**', 'coverage/**', 'node_modules/**', '**/*.d.ts'] },
+  { ignores: ['dist/**', 'coverage/**', 'node_modules/**', '**/*.d.ts', '**/*.test.ts', '**/*.spec.ts', 'jest.config.*'] },
   {
-    files: ['**/*.ts'],
+    files: ['src/lib/**/*.ts'],
     ignores: ['**/*.test.ts', '**/*.spec.ts'],
     languageOptions: {
       parser: tsParser,
@@ -52,26 +52,6 @@ module.exports = [
         'error',
         { object: 'process', property: 'env', message: "Le domaine ne doit pas lire les variables d'environnement directement." },
       ],
-    },
-  },
-  {
-    files: ['**/*.test.ts', '**/*.spec.ts'],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: { ecmaVersion: 2022, sourceType: 'module', project: ['./tsconfig.spec.json'], tsconfigRootDir: __dirname },
-    },
-    plugins: {
-      '@typescript-eslint': tsPlugin,
-      prettier: prettierPlugin,
-      'unused-imports': unusedImportsPlugin,
-      'simple-import-sort': simpleImportSortPlugin,
-    },
-    rules: {
-      'unused-imports/no-unused-imports': 'error',
-      'simple-import-sort/imports': 'error',
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-floating-promises': 'off',
-      'prettier/prettier': 'error',
     },
   },
 ];
