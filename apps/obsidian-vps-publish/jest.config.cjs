@@ -1,35 +1,18 @@
-/** @type {import('jest').Config} */
 module.exports = {
   displayName: 'obsidian-vps-publish',
-
-  preset: '../../jest.preset.js',
-
   testEnvironment: 'node',
-
-  rootDir: __dirname,
-
   transform: {
-    '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
+    '^.+\\.[tj]s$': ['ts-jest', { tsconfig: './tsconfig.json' }],
   },
-
-  moduleFileExtensions: ['ts', 'js', 'html'],
-
-  transformIgnorePatterns: ['node_modules/'],
-
+  moduleFileExtensions: ['ts', 'js'],
   moduleNameMapper: {
     '^obsidian$': '<rootDir>/src/_tests/__mocks__/obsidian.ts',
+    '^@core-domain$': '<rootDir>/libs/core-domain/src/index.ts',
+    '^@core-domain/(.*)$': '<rootDir>/libs/core-domain/src/lib/$1',
+    '^@core-application$': '<rootDir>/libs/core-application/src/index.ts',
+    '^@core-application/(.*)$': '<rootDir>/libs/core-application/src/lib/$1',
   },
-
-  coverageDirectory: '../../coverage/apps/obsidian-vps-publish',
-
-  // Temporary baseline while harmonizing quality gates across projects.
-  // Raise these thresholds as integration-heavy paths get more focused tests.
   coverageThreshold: {
-    global: {
-      statements: 35,
-      branches: 20,
-      functions: 35,
-      lines: 35,
-    },
+    global: { statements: 35, branches: 20, functions: 35, lines: 35 },
   },
 };

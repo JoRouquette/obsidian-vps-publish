@@ -1,24 +1,24 @@
 {
+  "branches": ["main"],
+  "repositoryUrl": "https://github.com/JoRouquette/vps-publish",
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
-    "@semantic-release/changelog",
+    [
+      "@semantic-release/changelog",
+      { "changelogFile": "CHANGELOG.md" }
+    ],
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const manifestPath=path.join(root,'manifest.json');const versionsPath=path.join(root,'apps','obsidian-vps-publish','versions.json');const manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'));manifest.version='${nextRelease.version}';fs.writeFileSync(manifestPath,JSON.stringify(manifest,null,2)+'\\n');let versions={};if(fs.existsSync(versionsPath))versions=JSON.parse(fs.readFileSync(versionsPath,'utf8'));if(manifest.minAppVersion){versions[manifest.version]=manifest.minAppVersion;fs.writeFileSync(versionsPath,JSON.stringify(versions,null,2)+'\\n');}}\""
+        "verifyConditionsCmd": "echo 'Ready for release'",
+        "prepareCmd": "node scripts/version-bump.mjs"
       }
     ],
     [
       "@semantic-release/git",
       {
-        "assets": [
-          "CHANGELOG.md",
-          "package.json",
-          "manifest.json",
-          "apps/obsidian-vps-publish/versions.json",
-          "dist/vps-publish/**"
-        ],
+        "assets": ["manifest.json", "versions.json", "CHANGELOG.md"],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ],
@@ -26,10 +26,10 @@
       "@semantic-release/github",
       {
         "assets": [
-          {
-            "path": "dist/vps-publish",
-            "label": "Plugin folder"
-          }
+          { "path": "main.js", "label": "main.js" },
+          { "path": "manifest.json", "label": "manifest.json" },
+          { "path": "styles.css", "label": "styles.css" },
+          { "path": "versions.json", "label": "versions.json" }
         ]
       }
     ]
