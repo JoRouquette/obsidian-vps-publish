@@ -1,0 +1,55 @@
+name: Release Obsidian Plugin
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+env:
+  NODE_VERSION: '22.14.0'
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    name: Lint, test and build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-dist
+          path: main.js
+          retention-days: 1
+  release:
+    name: Semantic release + GitHub release
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugin-dist
+      - run: npm run build
+      - run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

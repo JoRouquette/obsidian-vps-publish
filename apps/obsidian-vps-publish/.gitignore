@@ -1,0 +1,28 @@
+# Node
+node_modules/
+package-lock.json
+
+# Build
+main.js
+*.map
+
+# Dist
+dist/
+coverage/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Obsidian
+.obsidian/
+
+# Secrets
+.env
+.env.local
+
+# Semantic Release
+.releaserc.json.bak

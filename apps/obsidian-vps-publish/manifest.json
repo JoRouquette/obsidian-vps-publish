@@ -1,0 +1,10 @@
+{
+  "id": "vps-publish",
+  "name": "Publish to VPS",
+  "version": "6.22.0",
+  "minAppVersion": "1.5.0",
+  "description": "Publish selected vault folders to your personal VPS with property-based filtering and remote upload.",
+  "author": "JRouquette",
+  "authorUrl": "https://www.linkedin.com/in/jonathan-rouquette/",
+  "isDesktopOnly": true
+}
