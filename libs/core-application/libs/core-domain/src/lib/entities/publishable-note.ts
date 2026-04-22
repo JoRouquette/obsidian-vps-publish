@@ -1,0 +1,24 @@
+import type { AssetRef } from './asset-ref';
+import type { LeafletBlock } from './leaflet-block';
+import type { NoteCore } from './note-core';
+import type { NoteEligibility } from './note-eligibility';
+import type { NoteRoutingInfo } from './note-routing-info';
+import type { ResolvedWikilink } from './resolved-wikilink';
+
+/**
+ * PublishableNote = noyau + capacités OPTIONNELLES.
+ *
+ * Chaque usecase ajoute son petit morceau (routing, assets, wikilinks, etc.)
+ * en enrichissant la note, sans créer de hiérarchie de classes.
+ *
+ * NOTE: Dataview blocks are rendered to HTML and embedded directly in `content`.
+ * No separate metadata needed since blocks are replaced before upload.
+ */
+export interface PublishableNote extends NoteCore {
+  routing: NoteRoutingInfo;
+  publishedAt: Date;
+  eligibility: NoteEligibility;
+  assets?: AssetRef[];
+  resolvedWikilinks?: ResolvedWikilink[];
+  leafletBlocks?: LeafletBlock[];
+}
