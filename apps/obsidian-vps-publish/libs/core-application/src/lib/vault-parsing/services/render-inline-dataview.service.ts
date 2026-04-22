@@ -1,0 +1,167 @@
+import type { DomainFrontmatter } from '@core-domain/entities/domain-frontmatter';
+import type { InlineDataviewExpression } from '@core-domain/entities/inline-dataview-expression';
+import type { PublishableNote } from '@core-domain/entities/publishable-note';
+import type { LoggerPort } from '@core-domain/ports/logger-port';
+
+import { type BaseService } from '../../common/base-service';
+
+const INLINE_CODE_REGEX = /`([^`]*?)`/g;
+
+export class RenderInlineDataviewService implements BaseService {
+  private readonly _logger: LoggerPort;
+
+  constructor(logger: LoggerPort) {
+    this._logger = logger.child({ usecase: 'RenderInlineDataviewUseCase' });
+  }
+
+  process(notes: PublishableNote[]): PublishableNote[] {
+    this._logger.debug('Starting inline dataview rendering for notes', {
+      notesCount: notes.length,
+    });
+
+    return notes.map((note) => ({
+      ...note,
+      content: this.renderContent(note.content, note.frontmatter),
+    }));
+  }
+
+  renderContent(content: string, frontmatter: DomainFrontmatter): string {
+    const expressions: InlineDataviewExpression[] = [];
+
+    const renderedMarkdown = content.replace(
+      INLINE_CODE_REGEX,
+      (fullMatch: string, innerCode: string) => {
+        const codeRaw = innerCode;
+        const trimmed = codeRaw.trim();
+
+        if (!trimmed.startsWith('=')) {
+          this._logger.debug(`Skipping non-dataview inline code: ${fullMatch}`);
+          return fullMatch;
+        }
+
+        const expr = trimmed.slice(1).trim();
+        const resolvedValue = this.evaluateExpression(expr, frontmatter, this._logger);
+        const renderedText = this.renderValue(resolvedValue, this._logger);
+
+        expressions.push({
+          raw: fullMatch,
+          code: codeRaw,
+          expression: expr,
+          propertyPath: this.extractPropertyPath(expr),
+          resolvedValue,
+          renderedText,
+        });
+
+        this._logger.debug(
+          `Replaced inline code '${fullMatch}' with rendered value: '${renderedText}'`
+        );
+
+        return renderedText;
+      }
+    );
+
+    this._logger.debug(`Rendered ${expressions.length} inline dataview expressions in note.`);
+
+    return renderedMarkdown;
+  }
+
+  /**
+   * Evalue une expression Dataview inline.
+   * Gere :
+   *  - `this.property` : acces direct
+   *  - `join(this.property, separator)` : jointure de liste
+   *  - Autres fonctions peuvent etre ajoutees ici
+   */
+  private evaluateExpression(
+    expr: string,
+    frontmatter: DomainFrontmatter,
+    logger: LoggerPort
+  ): unknown {
+    const trimmedExpr = expr.trim();
+
+    const joinMatch = trimmedExpr.match(/^join\(\s*(this\.[^,]+)\s*,\s*["']([^"']*)["']\s*\)$/);
+    if (joinMatch) {
+      const propertyPath = joinMatch[1].replace(/^this\./, '').trim();
+      const separator = joinMatch[2];
+      logger.debug(
+        `Detected join() function: property='${propertyPath}', separator='${separator}'`
+      );
+
+      const value = this.getValueFromFrontmatter(frontmatter, propertyPath, logger);
+      const arrayValue = this.normalizeToArray(value);
+      return arrayValue.map((v) => String(v)).join(separator);
+    }
+
+    const THIS_PREFIX = 'this.';
+    if (trimmedExpr.startsWith(THIS_PREFIX)) {
+      const propertyPath = trimmedExpr.slice(THIS_PREFIX.length).trim();
+      if (!propertyPath) {
+        logger.debug('Property path is empty after "this."');
+        return undefined;
+      }
+      return this.getValueFromFrontmatter(frontmatter, propertyPath, logger);
+    }
+
+    logger.debug(`Expression '${expr}' not recognized, returning undefined`);
+    return undefined;
+  }
+
+  private extractPropertyPath(expr: string): string {
+    const joinMatch = expr.match(/join\(\s*this\.([^,]+)/);
+    if (joinMatch) {
+      return joinMatch[1].trim();
+    }
+
+    const thisMatch = expr.match(/this\.(.+)/);
+    if (thisMatch) {
+      return thisMatch[1].trim();
+    }
+
+    return '';
+  }
+
+  private normalizeToArray(value: unknown): unknown[] {
+    if (value === null || value === undefined) {
+      return [];
+    }
+    if (Array.isArray(value)) {
+      return value;
+    }
+    return [value];
+  }
+
+  private getValueFromFrontmatter(
+    frontmatter: DomainFrontmatter,
+    propertyPath: string,
+    logger: LoggerPort
+  ): unknown {
+    const segments = propertyPath.split('.').filter(Boolean);
+    let current: unknown = frontmatter.nested;
+
+    for (const segment of segments) {
+      if (current == null || typeof current !== 'object') {
+        logger.debug(`Property path segment '${segment}' not found in frontmatter.`);
+        return undefined;
+      }
+      current = (current as Record<string, unknown>)[segment];
+    }
+
+    logger.debug(`Resolved property path '${propertyPath}' to value`, { value: current });
+    return current;
+  }
+
+  private renderValue(value: unknown, logger: LoggerPort): string {
+    if (value === null || value === undefined) {
+      logger.debug('Value is null or undefined, rendering as empty string.');
+      return '';
+    }
+
+    if (Array.isArray(value)) {
+      logger.debug('Rendering array value', { value, length: value.length });
+      return value.map((v) => String(v)).join(', ');
+    }
+
+    logger.debug('Rendering scalar value', { value: String(value) });
+    return String(value);
+  }
+}

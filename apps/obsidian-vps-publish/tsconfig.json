@@ -17,6 +17,6 @@
       "@core-application/*": ["./libs/core-application/src/lib/*"]
     }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "libs/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
