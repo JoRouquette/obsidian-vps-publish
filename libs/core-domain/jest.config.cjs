@@ -7,6 +7,10 @@ module.exports = {
     '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
   moduleFileExtensions: ['ts', 'js'],
+  moduleNameMapper: {
+    '^@core-domain$': '<rootDir>/src/index.ts',
+    '^@core-domain/(.*)$': '<rootDir>/src/lib/$1',
+  },
   collectCoverageFrom: [
     '<rootDir>/src/lib/**/*.{ts,js}',
     '!<rootDir>/src/lib/**/_tests/**',
