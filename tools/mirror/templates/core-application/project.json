@@ -1,0 +1,56 @@
+{
+  "name": "core-application",
+  "sourceRoot": "libs/core-application/src",
+  "projectType": "library",
+  "tags": ["layer:application"],
+  "implicitDependencies": ["core-domain"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "outputs": ["{workspaceRoot}/dist/libs/core-application"],
+      "options": {
+        "command": "npx tsc -b libs/core-application/tsconfig.lib.json"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/core-application"],
+      "options": {
+        "jestConfig": "libs/core-application/jest.config.cjs"
+      },
+      "configurations": {
+        "ci": {
+          "codeCoverage": true
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{workspaceRoot}/coverage/libs/core-application"],
+      "options": {
+        "lintFilePatterns": ["libs/core-application/**/*.ts"]
+      }
+    },
+    "lint:fix": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{workspaceRoot}/coverage/libs/core-application"],
+      "options": {
+        "lintFilePatterns": ["libs/core-application/**/*.ts"],
+        "fix": true
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx prettier --check \"libs/core-application/**/*.{ts,json,md}\""
+      }
+    },
+    "format:write": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx prettier --write \"libs/core-application/**/*.{ts,json,md}\""
+      }
+    }
+  }
+}

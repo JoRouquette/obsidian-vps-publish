@@ -1,0 +1,141 @@
+# obsidian-vps-publish/.github/workflows/sync-mirrors.yml
+# Régénère chaque miroir AUTO-SUFFISANT depuis la source unique du monorepo,
+# et pousse dans l'ordre core-domain -> core-application -> vps-publish.
+# Ne s'exécute que sur un commit de release (chore(release): ...), après succès de ci-release.
+# Réutilise tools/mirror/regenerate.sh (même logique que la validation locale).
+# Pré-requis : secret SUBTREE_SYNC_TOKEN (PAT fine-grained, Contents:write sur les 3 miroirs).
+name: Sync mirrors after release
+
+on:
+  workflow_run:
+    workflows: ['Workspace CI, Release and Publishing']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '22.14.0'
+
+concurrency:
+  group: sync-mirrors
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Detect release commit
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    outputs:
+      is_release: ${{ steps.check.outputs.is_release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+      - id: check
+        run: |
+          MSG=$(git log -1 --pretty=%s)
+          echo "HEAD: $MSG"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] || [[ "$MSG" == chore\(release\):* ]]; then
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  sync-mirrors:
+    name: Regenerate and push mirrors (ordered)
+    needs: gate
+    if: needs.gate.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Regenerate and push mirrors
+        env:
+          GH_PAT: ${{ secrets.SUBTREE_SYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          chmod +x tools/mirror/regenerate.sh
+
+          # nom logique -> nom de dépôt GitHub du miroir
+          mirror_repo() {
+            case "$1" in
+              vps-publish) echo "vps-publish" ;;
+              *)           echo "vps-publish-$1" ;;
+            esac
+          }
+
+          push_mirror() {
+            local repo="$1"
+            local ghrepo; ghrepo="$(mirror_repo "$repo")"
+            local out="$RUNNER_TEMP/mirror-$repo"
+            bash tools/mirror/regenerate.sh "$repo" "$out"
+            ( cd "$out"
+              git init -q
+              git config user.name  "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add -A
+              git commit -q -m "chore: sync from monorepo (${GITHUB_SHA})"
+              git push -q --force \
+                "https://x-access-token:${GH_PAT}@github.com/JoRouquette/${ghrepo}.git" HEAD:main )
+            echo "::notice::pushed $repo -> $ghrepo"
+          }
+
+          # Ordre des dépendances : core-domain -> core-application -> vps-publish
+          push_mirror core-domain
+          push_mirror core-application
+          push_mirror vps-publish
+
+  mirror-release:
+    name: Create marketplace release on vps-publish
+    needs: [gate, sync-mirrors]
+    if: needs.gate.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --ignore-scripts --legacy-peer-deps
+        env:
+          HUSKY: 0
+
+      - name: Build plugin
+        run: npm run build:plugin
+
+      - name: Package Obsidian plugin
+        run: npm run package:plugin
+
+      - name: Read manifest id/version
+        id: manifest
+        run: |
+          echo "plugin_id=$(node -e "console.log(require('./manifest.json').id)")" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -e "console.log(require('./manifest.json').version)")" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update GitHub Release on vps-publish
+        env:
+          GH_TOKEN: ${{ secrets.SUBTREE_SYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          ID="${{ steps.manifest.outputs.plugin_id }}"
+          V="${{ steps.manifest.outputs.version }}"
+          # Le tag DOIT être exactement la version (sans préfixe 'v') pour la marketplace Obsidian.
+          A="dist/$ID/main.js dist/$ID/manifest.json dist/$ID/styles.css dist/$ID/versions.json"
+          if gh release view "$V" --repo JoRouquette/vps-publish >/dev/null 2>&1; then
+            gh release upload "$V" $A --repo JoRouquette/vps-publish --clobber
+          else
+            gh release create "$V" $A --repo JoRouquette/vps-publish --target main \
+              --title "Publish to VPS v$V" --notes "Automated release synced from monorepo (obsidian-vps-publish)."
+          fi

@@ -1,0 +1,136 @@
+{
+  "name": "obsidian-vps-publish",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/obsidian-vps-publish/src",
+  "projectType": "application",
+  "tags": ["layer:application", "type:plugin"],
+  "targets": {
+    "dev": {
+      "executor": "@nx/esbuild:esbuild",
+      "outputs": ["{workspaceRoot}/dist/apps/obsidian-vps-publish"],
+      "options": {
+        "platform": "node",
+        "outputPath": "dist/apps/obsidian-vps-publish",
+        "format": ["cjs"],
+        "bundle": true,
+        "main": "apps/obsidian-vps-publish/src/main.ts",
+        "tsConfig": "apps/obsidian-vps-publish/tsconfig.json",
+        "assets": [
+          "manifest.json",
+          "apps/obsidian-vps-publish/versions.json",
+          "apps/obsidian-vps-publish/styles.css"
+        ],
+        "external": [
+          "obsidian",
+          "electron",
+          "@codemirror/autocomplete",
+          "@codemirror/collab",
+          "@codemirror/commands",
+          "@codemirror/language",
+          "@codemirror/lint",
+          "@codemirror/search",
+          "@codemirror/state",
+          "@codemirror/view",
+          "@lezer/common",
+          "@lezer/highlight",
+          "@lezer/lr"
+        ],
+        "esbuildOptions": {
+          "target": "es2018",
+          "sourcemap": true,
+          "outExtension": {
+            ".js": ".js"
+          }
+        }
+      }
+    },
+    "build": {
+      "executor": "@nx/esbuild:esbuild",
+      "outputs": ["{workspaceRoot}/dist/apps/obsidian-vps-publish"],
+      "options": {
+        "platform": "node",
+        "outputPath": "dist/apps/obsidian-vps-publish",
+        "format": ["cjs"],
+        "bundle": true,
+        "main": "apps/obsidian-vps-publish/src/main.ts",
+        "tsConfig": "apps/obsidian-vps-publish/tsconfig.json",
+        "assets": [
+          "manifest.json",
+          "apps/obsidian-vps-publish/versions.json",
+          "apps/obsidian-vps-publish/styles.css"
+        ],
+        "external": [
+          "obsidian",
+          "electron",
+          "@codemirror/autocomplete",
+          "@codemirror/collab",
+          "@codemirror/commands",
+          "@codemirror/language",
+          "@codemirror/lint",
+          "@codemirror/search",
+          "@codemirror/state",
+          "@codemirror/view",
+          "@lezer/common",
+          "@lezer/highlight",
+          "@lezer/lr"
+        ],
+        "esbuildOptions": {
+          "target": "es2018",
+          "sourcemap": false,
+          "outExtension": {
+            ".js": ".js"
+          }
+        }
+      }
+    },
+    "package": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "outputs": ["{workspaceRoot}/dist/vps-publish"],
+      "options": {
+        "command": "node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));const id=manifest.id;const buildDir=path.join(root,'dist','apps','obsidian-vps-publish');const outDir=path.join(root,'dist',id);const ensure=(p,n)=>{if(!fs.existsSync(p)) throw new Error(`${n} not found: ${p}`)};const main=path.join(buildDir,'main.js');ensure(main,'main.js');fs.rmSync(outDir,{recursive:true,force:true});fs.mkdirSync(outDir,{recursive:true});fs.copyFileSync(main,path.join(outDir,'main.js'));fs.copyFileSync(path.join(root,'manifest.json'),path.join(outDir,'manifest.json'));const styles=path.join(root,'apps','obsidian-vps-publish','styles.css');if(fs.existsSync(styles)) fs.copyFileSync(styles,path.join(outDir,'styles.css'));const versions=path.join(root,'apps','obsidian-vps-publish','versions.json');if(fs.existsSync(versions)) fs.copyFileSync(versions,path.join(outDir,'versions.json'));\""
+      }
+    },
+    "update-test-vault": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["package"],
+      "options": {
+        "command": "node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const vaultDir=path.join(root,'test-vault', '.obsidian','plugins','vps-publish');const buildDir=path.join(root,'dist','vps-publish');const dataFile=path.join(vaultDir,'data.json');const ensure=(p,n)=>{if(!fs.existsSync(p)) throw new Error(`${n} not found: ${p}`)};ensure(buildDir,'build output');const backupData=fs.existsSync(dataFile)?fs.readFileSync(dataFile,'utf8'):null;fs.rmSync(vaultDir,{recursive:true,force:true});fs.mkdirSync(vaultDir,{recursive:true});fs.cpSync(buildDir,vaultDir,{recursive:true});if(backupData) fs.writeFileSync(dataFile,backupData,'utf8');const mf=path.join(vaultDir,'manifest.json');const m=JSON.parse(fs.readFileSync(mf,'utf8'));const now=new Date();const pad=(x)=>String(x).padStart(2,'0');const ts=now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'-'+pad(now.getHours())+pad(now.getMinutes())+pad(now.getSeconds());m.version=m.version+'-dev.'+ts;fs.writeFileSync(mf,JSON.stringify(m,null,2),'utf8');\""
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{workspaceRoot}/coverage/apps/obsidian-vps-publish"],
+      "options": {
+        "lintFilePatterns": ["apps/obsidian-vps-publish/**/*.ts"]
+      }
+    },
+    "lint:fix": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{workspaceRoot}/coverage/apps/obsidian-vps-publish"],
+      "options": {
+        "lintFilePatterns": ["apps/obsidian-vps-publish/**/*.ts"],
+        "fix": true
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/apps/obsidian-vps-publish"],
+      "options": {
+        "jestConfig": "apps/obsidian-vps-publish/jest.config.cjs"
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx prettier --check \"apps/obsidian-vps-publish/**/*.{ts,json,md,css,scss}\""
+      }
+    },
+    "format:write": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx prettier --write \"apps/obsidian-vps-publish/**/*.{ts,json,md,css,scss}\""
+      }
+    }
+  }
+}
