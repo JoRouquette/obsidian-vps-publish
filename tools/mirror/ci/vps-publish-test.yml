@@ -1,0 +1,22 @@
+# vps-publish/.github/workflows/test.yml
+# CI miroir informative (le monorepo est la source de vérité : qualité + release).
+# On garde le job `lint_test` (même nom, au cas où il serait un check requis),
+# mais sans cache:npm (pas de lockfile versionné) et lint/test non bloquants.
+name: Test
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  lint_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+      - run: npm install --no-audit --no-fund --legacy-peer-deps
+      - run: npm run lint
+        continue-on-error: true
+      - run: npm run test
+        continue-on-error: true

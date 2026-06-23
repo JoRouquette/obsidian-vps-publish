@@ -1,0 +1,1 @@
+{"version":3,"file":"notes.mapper.d.ts","sourceRoot":"","sources":["notes.mapper.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,KAAK,aAAa,EAA8C,MAAM,cAAc,CAAC;AAC9F,OAAO,EAAE,KAAK,MAAM,EAAE,MAAM,8BAA8B,CAAC;AAC3D,OAAO,EAAE,KAAK,eAAe,EAAE,MAAM,wCAAwC,CAAC;AAE9E,qBAAa,WAAY,YAAW,MAAM,CAAC,aAAa,EAAE,eAAe,CAAC;IACxE,GAAG,CAAC,IAAI,EAAE,aAAa,GAAG,eAAe;CA6B1C"}

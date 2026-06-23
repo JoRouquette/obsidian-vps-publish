@@ -1,6 +1,6 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "target": "ES2021",
     "lib": ["ES2021", "DOM"],
     "module": "commonjs",
@@ -9,14 +9,8 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "types": ["obsidian", "jest", "node"],
-    "paths": {
-      "@core-domain": ["./libs/core-domain/src/index.ts"],
-      "@core-domain/*": ["./libs/core-domain/src/lib/*"],
-      "@core-application": ["./libs/core-application/src/index.ts"],
-      "@core-application/*": ["./libs/core-application/src/lib/*"]
-    }
+    "types": ["obsidian", "jest", "node"]
   },
-  "include": ["src/**/*.ts", "libs/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

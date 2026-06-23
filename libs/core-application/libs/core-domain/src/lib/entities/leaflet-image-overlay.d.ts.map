@@ -1,0 +1,1 @@
+{"version":3,"file":"leaflet-image-overlay.d.ts","sourceRoot":"","sources":["leaflet-image-overlay.ts"],"names":[],"mappings":"AAAA;;;GAGG;AACH,MAAM,WAAW,mBAAmB;IAClC;;OAEG;IACH,IAAI,EAAE,MAAM,CAAC;IAEb;;OAEG;IACH,OAAO,EAAE,CAAC,MAAM,EAAE,MAAM,CAAC,CAAC;IAE1B;;OAEG;IACH,WAAW,EAAE,CAAC,MAAM,EAAE,MAAM,CAAC,CAAC;IAE9B;;OAEG;IACH,KAAK,CAAC,EAAE,MAAM,CAAC;CAChB"}

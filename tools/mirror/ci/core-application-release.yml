@@ -1,0 +1,37 @@
+# vps-publish-core-application/.github/workflows/release.yml
+# Miroir en lecture seule : lint / test uniquement.
+# Plus de semantic-release ici — le monorepo est la seule source de vérité.
+# Pensez à supprimer .releaserc.json de ce dépôt s'il existe.
+name: CI (mirror — read-only)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '22.14.0'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint and test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # Pas de cache: npm — pas de package-lock.json versionné dans ce miroir.
+      # npm install (pas ci) : ces libs n'ont pas forcément de package-lock.json synchronisé.
+      - run: npm install --no-audit --no-fund --legacy-peer-deps
+      # Lint/test informatifs : la qualité est garantie en amont par le monorepo.
+      - run: npm run lint
+        continue-on-error: true
+      - run: npm run test
+        continue-on-error: true

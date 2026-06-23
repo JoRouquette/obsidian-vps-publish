@@ -1,10 +1,8 @@
 # obsidian-vps-publish/.github/workflows/sync-mirrors.yml
-# Workflow AUTONOME (ne modifie pas ci-release.yml).
-# Se déclenche à la fin du pipeline principal ; ne s'exécute QUE sur un commit
-# de release (chore(release): ...), donc en pratique « après chaque release ».
-#
-# Pré-requis : secret SUBTREE_SYNC_TOKEN (PAT fine-grained, Contents:write sur
-# vps-publish, vps-publish-core-domain, vps-publish-core-application).
+# Régénère chaque miroir AUTO-SUFFISANT depuis la source unique du monorepo,
+# et pousse dans l'ordre core-domain -> core-application -> vps-publish.
+# Ne s'exécute que sur un commit de release (chore(release): ...).
+# Pré-requis : secret SUBTREE_SYNC_TOKEN (PAT fine-grained, Contents:write sur les 3 miroirs).
 name: Sync mirrors after release
 
 on:
@@ -38,15 +36,15 @@ jobs:
       - id: check
         run: |
           MSG=$(git log -1 --pretty=%s)
-          echo "HEAD subject: $MSG"
+          echo "HEAD: $MSG"
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] || [[ "$MSG" == chore\(release\):* ]]; then
             echo "is_release=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_release=false" >> "$GITHUB_OUTPUT"
           fi
 
-  sync-subtrees:
-    name: Push subtrees to mirror repos
+  sync-mirrors:
+    name: Regenerate and push mirrors (ordered)
     needs: gate
     if: needs.gate.outputs.is_release == 'true'
     runs-on: ubuntu-latest
@@ -55,28 +53,57 @@ jobs:
         with:
           fetch-depth: 0
           ref: main
-      - name: Push subtrees
+      - name: Build and push mirrors
         env:
           GH_PAT: ${{ secrets.SUBTREE_SYNC_TOKEN }}
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          sync() {
-            local prefix="$1" repo="$2" branch="_split_$2"
-            echo "::group::split $prefix -> $repo"
-            git subtree split --prefix="$prefix" -b "$branch"
-            git push --force "https://x-access-token:${GH_PAT}@github.com/JoRouquette/${repo}.git" "$branch:main"
-            git branch -D "$branch"
-            echo "::endgroup::"
+          ROOT="$PWD"
+          CI="$ROOT/tools/mirror/ci"
+
+          # finalize_and_push <repo> <ci_src:dest> [<ci_src:dest> ...]
+          finalize_and_push() {
+            local repo="$1"; shift
+            local out="$ROOT/out"
+            [ -f "$out/eslint.config.mirror.cjs" ] && mv -f "$out/eslint.config.mirror.cjs" "$out/eslint.config.cjs"
+            [ -f "$out/tsconfig.mirror.json" ] && mv -f "$out/tsconfig.mirror.json" "$out/tsconfig.json"
+            rm -rf "$out/.github"; mkdir -p "$out/.github/workflows"
+            local spec src dest
+            for spec in "$@"; do
+              src="${spec%%:*}"; dest="${spec##*:}"
+              cp "$CI/$src" "$out/.github/workflows/$dest"
+            done
+            rm -f "$out/project.json"
+            ( cd "$out"
+              git init -q
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add -A
+              git commit -q -m "chore: sync from monorepo (${GITHUB_SHA})"
+              git push -q --force "https://x-access-token:${GH_PAT}@github.com/JoRouquette/${repo}.git" HEAD:main )
+            echo "::notice::pushed $repo"
           }
-          sync "apps/obsidian-vps-publish" "vps-publish"
-          sync "libs/core-domain"          "vps-publish-core-domain"
-          sync "libs/core-application"     "vps-publish-core-application"
+
+          # ---- 1) core-domain (aucune dépendance) ----
+          rm -rf "$ROOT/out"; cp -r libs/core-domain "$ROOT/out"
+          finalize_and_push vps-publish-core-domain "core-domain-release.yml:release.yml"
+
+          # ---- 2) core-application (vendor core-domain) ----
+          rm -rf "$ROOT/out"; cp -r libs/core-application "$ROOT/out"
+          mkdir -p "$ROOT/out/libs/core-domain"
+          cp -r libs/core-domain/src "$ROOT/out/libs/core-domain/src"
+          finalize_and_push vps-publish-core-application "core-application-release.yml:release.yml"
+
+          # ---- 3) vps-publish (plugin ; vendor les deux libs) ----
+          rm -rf "$ROOT/out"; cp -r apps/obsidian-vps-publish "$ROOT/out"
+          mkdir -p "$ROOT/out/libs/core-domain" "$ROOT/out/libs/core-application"
+          cp -r libs/core-domain/src "$ROOT/out/libs/core-domain/src"
+          cp -r libs/core-application/src "$ROOT/out/libs/core-application/src"
+          finalize_and_push vps-publish "vps-publish-release.yml:release.yml" "vps-publish-test.yml:test.yml"
 
   mirror-release:
     name: Create marketplace release on vps-publish
-    needs: [gate, sync-subtrees]
+    needs: [gate, sync-mirrors]
     if: needs.gate.outputs.is_release == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -93,25 +120,21 @@ jobs:
           HUSKY: 0
       - run: npm run build
       - run: npm run package:plugin
-      - name: Read manifest id/version
-        id: manifest
+      - id: manifest
         run: |
           echo "plugin_id=$(node -e "console.log(require('./manifest.json').id)")" >> "$GITHUB_OUTPUT"
           echo "version=$(node -e "console.log(require('./manifest.json').version)")" >> "$GITHUB_OUTPUT"
-      - name: Create or update GitHub Release on mirror (vps-publish)
+      - name: Create or update release on vps-publish
         env:
           GH_TOKEN: ${{ secrets.SUBTREE_SYNC_TOKEN }}
         run: |
           set -euo pipefail
           ID="${{ steps.manifest.outputs.plugin_id }}"
           V="${{ steps.manifest.outputs.version }}"
-          ASSETS="dist/$ID/main.js dist/$ID/manifest.json dist/$ID/styles.css dist/$ID/versions.json"
+          A="dist/$ID/main.js dist/$ID/manifest.json dist/$ID/styles.css dist/$ID/versions.json"
           if gh release view "$V" --repo JoRouquette/vps-publish >/dev/null 2>&1; then
-            gh release upload "$V" $ASSETS --repo JoRouquette/vps-publish --clobber
+            gh release upload "$V" $A --repo JoRouquette/vps-publish --clobber
           else
-            gh release create "$V" $ASSETS \
-              --repo JoRouquette/vps-publish \
-              --target main \
-              --title "Publish to VPS v$V" \
-              --notes "Automated release synced from monorepo (obsidian-vps-publish)."
+            gh release create "$V" $A --repo JoRouquette/vps-publish --target main \
+              --title "Publish to VPS v$V" --notes "Automated release synced from monorepo."
           fi
