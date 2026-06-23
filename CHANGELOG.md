@@ -1,3 +1,12 @@
+## [6.22.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.22.0...6.22.1) (2026-06-23)
+
+### Bug Fixes
+
+* **ci:** assainit build/test/lint du monorepo (devendorise, libs canoniques, references TS, mappers jest) ([610c6e0](https://github.com/JoRouquette/obsidian-vps-publish/commit/610c6e062555b0817ab443c65ead6e7dc9383425))
+* **core-domain:** add self-referential [@core-domain](https://github.com/core-domain) path alias to tsconfig ([817a289](https://github.com/JoRouquette/obsidian-vps-publish/commit/817a289d7b905296144e307dce233dfe09ba903b))
+* **core-domain:** add self-referential moduleNameMapper so [@core-domain](https://github.com/core-domain) resolves in tests ([e4633a7](https://github.com/JoRouquette/obsidian-vps-publish/commit/e4633a76d33058ab94a9ac9ac7ab11575de82677))
+* **core-domain:** exclude test files from eslint to match original monorepo behavior ([0846a94](https://github.com/JoRouquette/obsidian-vps-publish/commit/0846a9401a1e58f765f431829a6966f9b82f7f20))
+
 ## [6.22.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.21.2...6.22.0) (2026-04-15)
 
 ### Features
