@@ -1,8 +1,8 @@
-import {
-  resolveCanonicalInternalLink,
-  parseInternalHref,
-} from '../../utils/internal-link-resolution.util';
 import type { ManifestPage } from '../../entities/manifest-page';
+import {
+  parseInternalHref,
+  resolveCanonicalInternalLink,
+} from '../../utils/internal-link-resolution.util';
 
 describe('internal-link-resolution.util', () => {
   const pages: ManifestPage[] = [

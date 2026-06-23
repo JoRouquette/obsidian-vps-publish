@@ -1,0 +1,1 @@
+{"version":3,"file":"leaflet-tile-server.d.ts","sourceRoot":"","sources":["leaflet-tile-server.ts"],"names":[],"mappings":"AAAA;;GAEG;AACH,MAAM,WAAW,iBAAiB;IAChC;;OAEG;IACH,GAAG,EAAE,MAAM,CAAC;IAEZ;;OAEG;IACH,UAAU,CAAC,EAAE,MAAM,EAAE,CAAC;IAEtB;;OAEG;IACH,WAAW,CAAC,EAAE,MAAM,CAAC;IAErB;;OAEG;IACH,OAAO,CAAC,EAAE,MAAM,CAAC;IAEjB;;OAEG;IACH,OAAO,CAAC,EAAE,MAAM,CAAC;CAClB"}

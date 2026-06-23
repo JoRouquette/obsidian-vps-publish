@@ -8,6 +8,7 @@ const simpleImportSortPlugin = require('eslint-plugin-simple-import-sort');
 const ignoreConfig = {
   ignores: [
     'dist/**',
+    'tools/**',
     'coverage/**',
     'node_modules/**',
     '.nx/**',

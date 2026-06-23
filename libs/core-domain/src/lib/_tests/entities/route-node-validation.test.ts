@@ -1,9 +1,9 @@
+import type { RouteTreeConfig } from '../../entities/route-node';
 import {
   getNodeConflicts,
   hasNodeConflicts,
   validateRouteTree,
 } from '../../entities/route-node-validation';
-import type { RouteNode, RouteTreeConfig } from '../../entities/route-node';
 
 describe('Route Validation', () => {
   describe('validateRouteTree', () => {

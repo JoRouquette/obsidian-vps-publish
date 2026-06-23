@@ -1,6 +1,6 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "target": "ES2021",
     "lib": ["ES2021", "DOM"],
     "module": "commonjs",
@@ -9,11 +9,7 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "types": ["node", "jest"],
-    "paths": {
-      "@core-domain": ["./libs/core-domain/src/index.ts"],
-      "@core-domain/*": ["./libs/core-domain/src/lib/*"]
-    }
+    "types": ["node", "jest"]
   },
-  "include": ["src/**/*.ts", "libs/**/*.ts"]
+  "include": ["src/**/*.ts"]
 }
