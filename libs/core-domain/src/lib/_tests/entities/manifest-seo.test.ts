@@ -1,5 +1,5 @@
-import type { ManifestPage } from '../../entities/manifest-page';
 import type { Manifest } from '../../entities/manifest';
+import type { ManifestPage } from '../../entities/manifest-page';
 
 describe('ManifestPage - SEO Fields', () => {
   it('should accept optional SEO fields', () => {

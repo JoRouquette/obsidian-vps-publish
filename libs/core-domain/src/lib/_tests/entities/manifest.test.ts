@@ -1,5 +1,5 @@
-import { ManifestPage } from '../../entities/manifest-page';
 import { Manifest } from '../../entities/manifest';
+import { ManifestPage } from '../../entities/manifest-page';
 import { Slug } from '../../value-objects/slug.value-object';
 
 describe('Manifest Entity', () => {

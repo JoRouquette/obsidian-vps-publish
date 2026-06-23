@@ -4,7 +4,9 @@
     "declaration": true,
     "declarationMap": true,
     "composite": true,
-    "types": ["node"]
+    "types": ["node"],
+    "outDir": "../../dist/libs/core-domain",
+    "rootDir": "src"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["jest.config.ts", "jest.config.cjs", "**/*.spec.ts", "**/*.test.ts"]

@@ -5,5 +5,5 @@
     "moduleResolution": "node",
     "types": ["jest", "node"]
   },
-  "include": ["src/**/*.ts", "libs/**/*.ts"]
+  "include": ["src/**/*.ts"]
 }
