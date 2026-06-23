@@ -1,15 +1,14 @@
 import {
-  PublishableNote,
+  AssetDisplayOptions,
+  AssetRef,
+  FolderConfig,
   NoteCore,
-  DomainFrontmatter,
+  NoteRoutingInfo,
   NoteWithAssets,
   NoteWithWikilinks as NoteWithWikiLinks,
-  NoteRoutingInfo,
-  AssetRef,
-  AssetDisplayOptions,
-  FolderConfig,
-  WikilinkRef,
+  PublishableNote,
   ResolvedWikilink,
+  WikilinkRef,
 } from '@core-domain';
 
 describe('Note Entities', () => {

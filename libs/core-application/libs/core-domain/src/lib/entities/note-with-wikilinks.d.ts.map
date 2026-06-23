@@ -1,0 +1,1 @@
+{"version":3,"file":"note-with-wikilinks.d.ts","sourceRoot":"","sources":["note-with-wikilinks.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,eAAe,EAAE,MAAM,oBAAoB,CAAC;AAC1D,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,qBAAqB,CAAC;AAC5D,OAAO,KAAK,EAAE,WAAW,EAAE,MAAM,gBAAgB,CAAC;AAElD,MAAM,WAAW,iBAAkB,SAAQ,eAAe;IACxD,SAAS,EAAE,WAAW,EAAE,CAAC;IACzB,iBAAiB,EAAE,gBAAgB,EAAE,CAAC;CACvC"}

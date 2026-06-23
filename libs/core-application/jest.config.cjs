@@ -8,8 +8,8 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'js'],
   moduleNameMapper: {
-    '^@core-domain$': '<rootDir>/libs/core-domain/src/index.ts',
-    '^@core-domain/(.*)$': '<rootDir>/libs/core-domain/src/lib/$1',
+    '^@core-domain$': '<rootDir>/../core-domain/src/index.ts',
+    '^@core-domain/(.*)$': '<rootDir>/../core-domain/src/lib/$1',
   },
   collectCoverageFrom: [
     '<rootDir>/src/lib/**/*.{ts,js}',

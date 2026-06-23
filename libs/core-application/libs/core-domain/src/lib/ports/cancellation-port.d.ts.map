@@ -1,0 +1,1 @@
+{"version":3,"file":"cancellation-port.d.ts","sourceRoot":"","sources":["cancellation-port.ts"],"names":[],"mappings":"AAAA;;;GAGG;AACH,MAAM,WAAW,gBAAgB;IAC/B;;OAEG;IACH,QAAQ,CAAC,WAAW,EAAE,OAAO,CAAC;IAE9B;;;OAGG;IACH,gBAAgB,IAAI,IAAI,CAAC;IAEzB;;OAEG;IACH,QAAQ,CAAC,QAAQ,EAAE,MAAM,IAAI,GAAG,IAAI,CAAC;CACtC;AAED;;GAEG;AACH,qBAAa,iBAAkB,SAAQ,KAAK;gBAC9B,OAAO,SAAwB;CAI5C"}

@@ -1,9 +1,9 @@
 import type { FolderConfig } from '../../entities/folder-config';
+import type { RouteNode, RouteTreeConfig } from '../../entities/route-node';
 import {
   migrateLegacyFoldersToRouteTree,
   migrateRouteTreeToLegacyFolders,
 } from '../../entities/route-node-migration';
-import type { RouteNode, RouteTreeConfig } from '../../entities/route-node';
 
 describe('Route Node Migration', () => {
   describe('migrateLegacyFoldersToRouteTree', () => {

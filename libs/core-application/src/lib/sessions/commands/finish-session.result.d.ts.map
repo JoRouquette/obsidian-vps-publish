@@ -1,0 +1,1 @@
+{"version":3,"file":"finish-session.result.d.ts","sourceRoot":"","sources":["finish-session.result.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,cAAc,EAAE,MAAM,cAAc,CAAC;AAEnD,MAAM,WAAW,mBAAmB;IAClC,SAAS,EAAE,MAAM,CAAC;IAClB,OAAO,EAAE,OAAO,CAAC;IACjB,0FAA0F;IAC1F,eAAe,CAAC,EAAE,MAAM,CAAC;IACzB,cAAc,CAAC,EAAE,cAAc,CAAC;CACjC"}

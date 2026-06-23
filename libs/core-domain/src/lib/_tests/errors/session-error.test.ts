@@ -1,8 +1,8 @@
 import {
   SessionError,
-  SessionNotFoundError,
   SessionExpiredError,
   SessionInvalidError,
+  SessionNotFoundError,
 } from '../../errors/session-error';
 
 describe('SessionError', () => {

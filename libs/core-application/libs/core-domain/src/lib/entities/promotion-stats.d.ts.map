@@ -1,0 +1,1 @@
+{"version":3,"file":"promotion-stats.d.ts","sourceRoot":"","sources":["promotion-stats.ts"],"names":[],"mappings":"AAAA;;GAEG;AACH,MAAM,WAAW,cAAc;IAC7B,yCAAyC;IACzC,cAAc,EAAE,MAAM,CAAC;IAEvB,0DAA0D;IAC1D,iBAAiB,EAAE,MAAM,CAAC;IAE1B,+DAA+D;IAC/D,YAAY,EAAE,MAAM,CAAC;IAErB,0CAA0C;IAC1C,eAAe,EAAE,MAAM,CAAC;IAExB,2DAA2D;IAC3D,kBAAkB,EAAE,MAAM,CAAC;CAC5B"}
