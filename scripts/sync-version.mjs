@@ -80,6 +80,9 @@ if (!manifest?.minAppVersion) {
   throw new Error(`minAppVersion manquant dans ${manifestPath}`);
 }
 
+const appManifestPath = 'apps/obsidian-vps-publish/manifest.json';
+updateJson(appManifestPath, (json) => ({ ...json, version: next }), { required: true });
+
 versionFiles.forEach(writeVersionFile);
 
 updateJson(
