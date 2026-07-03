@@ -48,6 +48,7 @@ module.exports = {
           'apps/site/src/version.ts',
           'apps/node/src/version.ts',
           'manifest.json',
+          'apps/obsidian-vps-publish/manifest.json',
           'apps/obsidian-vps-publish/versions.json',
           'apps/obsidian-vps-publish/package.json',
           'libs/core-application/package.json',
