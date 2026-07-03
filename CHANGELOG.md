@@ -1,3 +1,9 @@
+## [6.22.2](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.22.1...6.22.2) (2026-07-03)
+
+### Bug Fixes
+
+* **release:** bump apps/obsidian-vps-publish/manifest.json en lockstep (cohérence miroir/marketplace) ([d863ea5](https://github.com/JoRouquette/obsidian-vps-publish/commit/d863ea5048bf046e833521800eb5889cc736e2c5))
+
 ## [6.22.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.22.0...6.22.1) (2026-06-23)
 
 ### Bug Fixes
