@@ -1,16 +1,15 @@
 # obsidian-vps-publish/.github/workflows/sync-mirrors.yml
 # Régénère chaque miroir AUTO-SUFFISANT depuis la source unique du monorepo,
 # et pousse dans l'ordre core-domain -> core-application -> vps-publish.
-# Ne s'exécute que sur un commit de release (chore(release): ...), après succès de ci-release.
+# Déclenché sur publication d'une GitHub Release STABLE (semantic-release), ou manuellement.
+# (release: published est insensible au [skip ci] du commit de release, contrairement à workflow_run.)
 # Réutilise tools/mirror/regenerate.sh (même logique que la validation locale).
 # Pré-requis : secret SUBTREE_SYNC_TOKEN (PAT fine-grained, Contents:write sur les 3 miroirs).
 name: Sync mirrors after release
 
 on:
-  workflow_run:
-    workflows: ['Workspace CI, Release and Publishing']
-    types: [completed]
-    branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
 
 env:
@@ -22,27 +21,16 @@ concurrency:
 
 jobs:
   gate:
-    name: Detect release commit
+    name: Detect release event (stable only)
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      (github.event_name == 'release' && github.event.release.prerelease == false)
     outputs:
       is_release: ${{ steps.check.outputs.is_release }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main
       - id: check
-        run: |
-          MSG=$(git log -1 --pretty=%s)
-          echo "HEAD: $MSG"
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] || [[ "$MSG" == chore\(release\):* ]]; then
-            echo "is_release=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_release=false" >> "$GITHUB_OUTPUT"
-          fi
+        run: echo "is_release=true" >> "$GITHUB_OUTPUT"
 
   sync-mirrors:
     name: Regenerate and push mirrors (ordered)
