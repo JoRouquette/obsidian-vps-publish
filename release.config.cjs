@@ -2,7 +2,7 @@ const pluginManifest = require('./manifest.json');
 const PLUGIN_ID = pluginManifest.id;
 
 module.exports = {
-  branches: [{ name: 'main' }],
+  branches: [{ name: 'main' }, { name: 'develop', prerelease: 'alpha' }],
   tagFormat: '${version}',
   plugins: [
     [
@@ -48,6 +48,7 @@ module.exports = {
           'apps/site/src/version.ts',
           'apps/node/src/version.ts',
           'manifest.json',
+          'manifest-beta.json',
           'apps/obsidian-vps-publish/manifest.json',
           'apps/obsidian-vps-publish/versions.json',
           'apps/obsidian-vps-publish/package.json',
@@ -60,7 +61,12 @@ module.exports = {
     [
       '@semantic-release/github',
       {
-        assets: [{ path: `dist/${PLUGIN_ID}.zip`, label: 'Plugin bundle' }],
+        assets: [
+          { path: `dist/${PLUGIN_ID}.zip`, label: 'Plugin bundle' },
+          { path: `dist/${PLUGIN_ID}/main.js`, label: 'main.js' },
+          { path: `dist/${PLUGIN_ID}/manifest.json`, label: 'manifest.json' },
+          { path: `dist/${PLUGIN_ID}/styles.css`, label: 'styles.css' },
+        ],
       },
     ],
   ],

@@ -8,6 +8,9 @@ if (!next) {
   throw new Error('RELEASE_VERSION manquant');
 }
 
+// Une version de prerelease (ex. 6.23.0-alpha.1) contient un suffixe apres '-'.
+const isPrerelease = next.includes('-');
+
 const pkgFiles = [
   'package.json',
   'apps/obsidian-vps-publish/package.json',
@@ -83,16 +86,25 @@ if (!manifest?.minAppVersion) {
 const appManifestPath = 'apps/obsidian-vps-publish/manifest.json';
 updateJson(appManifestPath, (json) => ({ ...json, version: next }), { required: true });
 
+// manifest-beta.json (racine) : copie du manifest en lockstep avec la version publiee,
+// pour la diffusion des alpha via BRAT (cree le fichier s'il n'existe pas encore).
+fs.writeFileSync(path.join(rootDir, 'manifest-beta.json'), stringifyJson({ ...manifest }));
+console.log(`updated manifest-beta.json -> ${next}`);
+
 versionFiles.forEach(writeVersionFile);
 
-updateJson(
-  versionsPath,
-  (json) => {
-    if (json === null || Array.isArray(json) || typeof json !== 'object') {
-      throw new Error(`${versionsPath} doit etre un objet JSON { [version]: minAppVersion }`);
-    }
+// versions.json = mapping de compatibilite Obsidian (stable uniquement) :
+// on n'y ajoute pas les versions de prerelease alpha.
+if (!isPrerelease) {
+  updateJson(
+    versionsPath,
+    (json) => {
+      if (json === null || Array.isArray(json) || typeof json !== 'object') {
+        throw new Error(`${versionsPath} doit etre un objet JSON { [version]: minAppVersion }`);
+      }
 
-    return { ...json, [manifest.version]: manifest.minAppVersion };
-  },
-  { required: true }
-);
+      return { ...json, [manifest.version]: manifest.minAppVersion };
+    },
+    { required: true }
+  );
+}
