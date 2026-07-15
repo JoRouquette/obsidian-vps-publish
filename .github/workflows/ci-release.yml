@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
   workflow_dispatch:
 
 env:
@@ -188,6 +193,7 @@ jobs:
   semantic-release:
     name: Semantic release
     needs: [quality]
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -199,6 +205,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+          persist-credentials: true
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -213,12 +221,13 @@ jobs:
 
       - name: Run semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: npx semantic-release
 
   docker-images:
     name: Build and publish Docker images
     needs: semantic-release
+    if: github.event_name == 'push' && github.ref_name == 'main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
