@@ -15,6 +15,7 @@ import express from 'express';
 
 import { AdminDashboardService } from '../../admin/admin-dashboard.service';
 import { AdminRuntimeControlService } from '../../admin/admin-runtime-control.service';
+import { AdminSessionTokenService } from '../../admin/admin-session-token.service';
 import { EnvConfig } from '../../config/env-config';
 import { ContentVersionService } from '../../content-version/content-version.service';
 import { AssetsFileSystemStorage } from '../../filesystem/assets-file-system.storage';
@@ -34,6 +35,7 @@ import { SessionFinalizerService } from '../../sessions/session-finalizer.servic
 import { createAngularSSRService } from '../../ssr/angular-ssr.service';
 import { AssetHashService } from '../../utils/asset-hash.service';
 import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
+import { createAdminAuthController } from './controllers/admin-auth.controller';
 import { createAdminDashboardController } from './controllers/admin-dashboard.controller';
 import { createContentVersionController } from './controllers/content-version.controller';
 import {
@@ -46,7 +48,7 @@ import { createPingController } from './controllers/ping.controller';
 import { createSeoController } from './controllers/seo.controller';
 import { createSessionController } from './controllers/session-controller';
 import { FinalizationStreamTokenService } from './finalization-stream-token.service';
-import { createAdminAuthMiddleware } from './middleware/admin-auth.middleware';
+import { createAdminTokenAuthMiddleware } from './middleware/admin-token-auth.middleware';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
 import { BackpressureMiddleware } from './middleware/backpressure.middleware';
 import { ChunkedUploadMiddleware } from './middleware/chunked-upload.middleware';
@@ -350,16 +352,23 @@ export function createApp(rootLogger?: LoggerPort) {
   app.use('/api', apiRouter);
 
   if (EnvConfig.adminDashboardEnabled()) {
-    const adminRouter = express.Router();
-    adminRouter.use(
-      createAdminAuthMiddleware(
-        {
-          usernameHash: EnvConfig.adminUsernameHash(),
-          passwordHash: EnvConfig.adminPasswordHash(),
-        },
-        rootLogger
-      )
+    const adminCredentials = {
+      usernameHash: EnvConfig.adminUsernameHash(),
+      passwordHash: EnvConfig.adminPasswordHash(),
+    };
+    // Derive the token secret from the credential hashes so rotating the admin
+    // password invalidates every previously issued session token.
+    const adminSessionTokenService = new AdminSessionTokenService(
+      `${adminCredentials.usernameHash}:${adminCredentials.passwordHash}`
     );
+
+    const adminRouter = express.Router();
+    // Unauthenticated login endpoint that exchanges credentials for a token.
+    adminRouter.use(
+      createAdminAuthController(adminCredentials, adminSessionTokenService, rootLogger)
+    );
+    // Every other admin route requires a valid session token.
+    adminRouter.use(createAdminTokenAuthMiddleware(adminSessionTokenService, rootLogger));
     adminRouter.use(createAdminDashboardController(adminDashboardService, rootLogger));
     app.use(EnvConfig.adminApiPath(), adminRouter);
   }

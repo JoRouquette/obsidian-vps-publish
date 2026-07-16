@@ -126,7 +126,7 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    if (this.admin.credentials()) {
+    if (this.admin.isAuthenticated()) {
       void this.admin.refreshAll();
     }
   }

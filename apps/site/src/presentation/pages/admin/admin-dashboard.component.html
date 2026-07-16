@@ -15,7 +15,7 @@
         Configure `ADMIN_API_PATH`, `ADMIN_USERNAME_HASH` et `ADMIN_PASSWORD_HASH` cote serveur.
       </p>
     </mat-card>
-  } @else if (!admin.credentials()) {
+  } @else if (!admin.isAuthenticated()) {
     <mat-card class="panel login">
       <div class="panel-head">
         <div>
