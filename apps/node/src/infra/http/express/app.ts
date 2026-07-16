@@ -570,7 +570,8 @@ export function createApp(rootLogger?: LoggerPort) {
     EnvConfig.ssrEnabled(),
     rootLogger,
     EnvConfig.contentRoot(), // For cache invalidation based on manifest changes
-    true // Enable SSR caching
+    true, // Enable SSR caching
+    EnvConfig.baseUrlOrNull() ?? undefined // Trusted origin to avoid Host-header cache poisoning
   );
 
   const staticIndexPath = resolveStaticBrowserEntryPath(ANGULAR_DIST);

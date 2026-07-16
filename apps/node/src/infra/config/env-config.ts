@@ -278,6 +278,14 @@ export class EnvConfig {
   }
 
   /**
+   * Base URL if configured, otherwise null (no throw). Used to build a trusted
+   * origin for SSR so a forged Host header cannot poison absolute URLs / cache.
+   */
+  static baseUrlOrNull(): string | null {
+    return this.norm(process.env.BASE_URL) || null;
+  }
+
+  /**
    * Enable Angular SSR (Server-Side Rendering).
    * When enabled, the server will render Angular pages server-side for better SEO.
    * Default: true in production, false in development

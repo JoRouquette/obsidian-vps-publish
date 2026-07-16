@@ -25,6 +25,7 @@ jest.mock('../infra/config/env-config', () => ({
     loggerLevel: jest.fn(() => 'debug'),
     logFilePath: jest.fn(() => './tmp/node.log'),
     baseUrl: jest.fn(() => 'http://localhost:4200'),
+    baseUrlOrNull: jest.fn(() => null),
     siteName: jest.fn(() => 'Site'),
     author: jest.fn(() => 'Author'),
     repoUrl: jest.fn(() => 'http://repo'),

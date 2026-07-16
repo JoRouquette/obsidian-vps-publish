@@ -45,6 +45,33 @@ interface AngularSSRConfig {
   cacheEnabled?: boolean;
   /** Maximum cached pages */
   cacheMaxEntries?: number;
+  /** Trusted origin (scheme://host) used to build the render URL instead of the request Host header */
+  trustedOrigin?: string;
+}
+
+/**
+ * Build the absolute URL passed to the SSR engine. When a trusted origin is
+ * configured it is used instead of the client-controlled Host header, which
+ * prevents a forged Host from poisoning absolute URLs and the SSR cache.
+ */
+export function resolveRenderUrl(
+  originalUrl: string,
+  requestOrigin: string,
+  trustedOrigin?: string
+): string {
+  const base = trustedOrigin && trustedOrigin.length > 0 ? trustedOrigin : requestOrigin;
+  // Origin-form targets ('/…', '\…') are kept verbatim: parsing them would read '//docs/page'
+  // as a host, or throw on input Node accepts. Absolute targets keep only path, query and
+  // fragment. Leading slashes are collapsed so the path can never act as an authority, and
+  // collapsed again after '.'/'..' segment normalization, which can expose a new '//'.
+  let target = originalUrl;
+  if (!/^[/\\]/.test(originalUrl)) {
+    const { pathname, search, hash } = new URL(originalUrl, base);
+    target = `${pathname}${search}${hash}`;
+  }
+  const url = new URL(`${new URL(base).origin}${target.replace(/^[/\\]+/, '/')}`);
+  url.pathname = url.pathname.replace(/^\/{2,}/, '/');
+  return url.href;
 }
 
 /**
@@ -150,7 +177,8 @@ export class AngularSSRService {
       throw new Error('Angular SSR engine not initialized');
     }
 
-    const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+    const requestOrigin = `${req.protocol}://${req.get('host')}`;
+    const url = resolveRenderUrl(req.originalUrl, requestOrigin, this.config.trustedOrigin);
 
     this.logger?.debug('SSR rendering', { url });
 
@@ -265,7 +293,8 @@ export function createAngularSSRService(
   enabled: boolean,
   logger?: LoggerPort,
   contentRoot?: string,
-  cacheEnabled = true
+  cacheEnabled = true,
+  trustedOrigin?: string
 ): AngularSSRService {
   return new AngularSSRService(
     {
@@ -274,6 +303,7 @@ export function createAngularSSRService(
       enabled,
       contentRoot,
       cacheEnabled,
+      trustedOrigin,
     },
     logger
   );
