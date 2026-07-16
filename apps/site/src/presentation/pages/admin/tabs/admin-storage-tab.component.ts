@@ -1,10 +1,11 @@
 import { DecimalPipe, NgClass } from '@angular/common';
-import { Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 
 import { type AdminDashboardSnapshot } from '../../../../application/services/admin-dashboard.service';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   selector: 'app-admin-storage-tab',
   imports: [DecimalPipe, MatCardModule, NgClass],

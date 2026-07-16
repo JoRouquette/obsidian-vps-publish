@@ -1,6 +1,13 @@
 import { CdkTreeModule } from '@angular/cdk/tree';
 import type { ElementRef, OnDestroy, OnInit } from '@angular/core';
-import { Component, computed, effect, signal, ViewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  signal,
+  ViewChild,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -19,6 +26,7 @@ import { CatalogFacade } from '../../../application/facades/catalog-facade';
 import { SearchBarComponent } from '../search-bar/search-bar.component';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   selector: 'app-vault-explorer',
   imports: [

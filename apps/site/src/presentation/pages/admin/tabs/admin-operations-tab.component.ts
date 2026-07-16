@@ -1,4 +1,4 @@
-import { Component, input, type WritableSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, type WritableSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -11,6 +11,7 @@ import {
 } from '../../../../application/services/admin-dashboard.service';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   selector: 'app-admin-operations-tab',
   imports: [FormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule],

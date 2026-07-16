@@ -1,5 +1,6 @@
 import { DatePipe, NgComponentOutlet } from '@angular/common';
 import {
+  ChangeDetectionStrategy,
   Component,
   OnInit,
   Type,
@@ -38,6 +39,7 @@ interface AdminTabDefinition {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   selector: 'app-admin-dashboard',
   encapsulation: ViewEncapsulation.None,
