@@ -34,6 +34,10 @@ import type { ContentRepository } from '../../../domain/ports/content-repository
 import { CONTENT_REPOSITORY } from '../../../domain/ports/tokens';
 import { LeafletMapComponent } from '../../components/leaflet-map/leaflet-map.component';
 import { AnchorScrollService } from '../../services/anchor-scroll.service';
+import {
+  isLeafletControlLink,
+  isLeafletDebugLoggingEnabled,
+} from '../../services/leaflet-content.util';
 import type { LeafletLogSink } from '../../services/leaflet-injection.service';
 import { LeafletInjectionService } from '../../services/leaflet-injection.service';
 
@@ -126,7 +130,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     for (const link of links) {
       const href = link.getAttribute('href');
       if (!href) continue;
-      if (this.shouldIgnoreDecoratedInternalLink(link)) continue;
+      if (isLeafletControlLink(link)) continue;
 
       // Détecter les liens externes
       const isExternal = /^[a-z]+:\/\//i.test(href) || href.startsWith('mailto:');
@@ -165,18 +169,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
 
     void this.router.navigateByUrl(parsed.normalizedHref);
-  }
-
-  private shouldIgnoreDecoratedInternalLink(link: HTMLAnchorElement): boolean {
-    if (
-      link.classList.contains('leaflet-control-zoom-in') ||
-      link.classList.contains('leaflet-control-zoom-out') ||
-      link.classList.contains('leaflet-control-zoom-fullscreen')
-    ) {
-      return true;
-    }
-
-    return Boolean(link.closest('.leaflet-control-container'));
   }
 
   /**
@@ -239,7 +231,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private readonly leafletLog: LeafletLogSink = {
     info: (event, data) => {
-      if (!this.isLeafletVerboseLoggingEnabled()) return;
+      if (!isLeafletDebugLoggingEnabled(isPlatformBrowser(this.platformId))) return;
       // eslint-disable-next-line no-console
       console.info('[HomeComponent][Leaflet]', { event, ...data });
     },
@@ -252,18 +244,6 @@ export class HomeComponent implements OnInit, OnDestroy {
       console.error('[HomeComponent][Leaflet]', { event, ...data });
     },
   };
-
-  private isLeafletVerboseLoggingEnabled(): boolean {
-    if (!isPlatformBrowser(this.platformId)) return false;
-    try {
-      return (
-        globalThis.window.localStorage.getItem('vps:leaflet:debug') === '1' ||
-        globalThis.window.localStorage.getItem('leaflet:debug') === '1'
-      );
-    } catch {
-      return false;
-    }
-  }
 
   sections = computed<Section[]>(() => {
     const manifest = this.catalog.manifest();

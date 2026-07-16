@@ -46,6 +46,10 @@ import { OfflineDetectionService, VisitedPagesService } from '../../../infrastru
 import { ImageOverlayComponent } from '../../components/image-overlay/image-overlay.component';
 import { LeafletMapComponent } from '../../components/leaflet-map/leaflet-map.component';
 import { AnchorScrollService } from '../../services/anchor-scroll.service';
+import {
+  isLeafletControlLink,
+  isLeafletDebugLoggingEnabled,
+} from '../../services/leaflet-content.util';
 import type { LeafletLogSink } from '../../services/leaflet-injection.service';
 import { LeafletInjectionService } from '../../services/leaflet-injection.service';
 
@@ -236,7 +240,7 @@ export class ViewerComponent implements OnDestroy {
     for (const link of allLinks) {
       const href = link.getAttribute('href');
       if (!href) continue;
-      if (this.shouldIgnoreDecoratedInternalLink(link)) continue;
+      if (isLeafletControlLink(link)) continue;
 
       // Détecter les liens externes
       const isExternal = /^[a-z]+:\/\//i.test(href) || href.startsWith('mailto:');
@@ -325,18 +329,6 @@ export class ViewerComponent implements OnDestroy {
 
     // Naviguer vers la nouvelle page (le fragment sera géré après le rendu)
     void this.router.navigateByUrl(parsed.normalizedHref);
-  }
-
-  private shouldIgnoreDecoratedInternalLink(link: HTMLAnchorElement): boolean {
-    if (
-      link.classList.contains('leaflet-control-zoom-in') ||
-      link.classList.contains('leaflet-control-zoom-out') ||
-      link.classList.contains('leaflet-control-zoom-fullscreen')
-    ) {
-      return true;
-    }
-
-    return Boolean(link.closest('.leaflet-control-container'));
   }
 
   /**
@@ -508,7 +500,7 @@ export class ViewerComponent implements OnDestroy {
 
   private readonly leafletLog: LeafletLogSink = {
     info: (event, data) => {
-      if (!this.isLeafletVerboseLoggingEnabled()) return;
+      if (!isLeafletDebugLoggingEnabled(this.isBrowser)) return;
       console.info('[ViewerComponent][Leaflet]', {
         event,
         route: this.currentRoute(),
@@ -530,16 +522,4 @@ export class ViewerComponent implements OnDestroy {
       });
     },
   };
-
-  private isLeafletVerboseLoggingEnabled(): boolean {
-    if (!this.isBrowser) return false;
-    try {
-      return (
-        globalThis.window.localStorage.getItem('vps:leaflet:debug') === '1' ||
-        globalThis.window.localStorage.getItem('leaflet:debug') === '1'
-      );
-    } catch {
-      return false;
-    }
-  }
 }
