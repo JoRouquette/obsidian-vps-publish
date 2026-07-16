@@ -595,7 +595,7 @@ Some text after.`;
 
     const html = await renderer.render(note);
 
-    expect(html).toContain('<svg viewBox="0 0 16 16">');
+    expect(html).toContain('<svg viewbox="0 0 16 16">');
     expect(html).toContain('data-icon="star"');
     expect(html).toContain('>★</span>');
     expect(html).toContain('src="/assets/icons/map.png"');

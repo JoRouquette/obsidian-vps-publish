@@ -20,6 +20,7 @@ import {
 import { attachBlockAnchors, prepareBlockAnchors } from './block-anchor.util';
 import { CalloutRendererService } from './callout-renderer.service';
 import { HeadingSlugger } from './heading-slugger';
+import { sanitizeRenderedHtml } from './html-sanitizer';
 import { registerKatexRenderer } from './katex-renderer.plugin';
 import { TagFilterService } from './tag-filter.service';
 
@@ -207,13 +208,17 @@ export class MarkdownItRenderer implements MarkdownRendererPort {
     const ignoredTags = context?.ignoredTags ?? [];
     const filtered = this.tagFilter.filterTags(fixedFloats, ignoredTags);
 
+    // Final security pass: strip executable markup while preserving the trusted
+    // formatting our renderers emit (see html-sanitizer for the allowlist).
+    const sanitized = sanitizeRenderedHtml(filtered);
+
     this.logger?.debug('Markdown rendered to HTML', {
       noteId: note.noteId,
       slug: note.routing?.slug,
       ignoredTagsCount: ignoredTags.length,
     });
-    this.logger?.debug('Rendered HTML content', { htmlLength: filtered.length });
-    return filtered;
+    this.logger?.debug('Rendered HTML content', { htmlLength: sanitized.length });
+    return sanitized;
   }
 
   /**

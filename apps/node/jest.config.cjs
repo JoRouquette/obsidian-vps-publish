@@ -22,8 +22,11 @@ module.exports = {
   }),
 
   transformIgnorePatterns: [
-    // Transform file-type (ESM module) instead of ignoring it
-    'node_modules/(?!(file-type|strtok3|token-types|peek-readable)/)',
+    // Transform ESM-only dependencies instead of ignoring them:
+    // - file-type family (asset type detection)
+    // - htmlparser2 family (pulled in by sanitize-html for the render sanitization pass)
+    // `(?:.*/)?` also matches nested copies (e.g. sanitize-html/node_modules/htmlparser2).
+    'node_modules/(?!(?:.*/)?(file-type|strtok3|token-types|peek-readable|htmlparser2|domhandler|domutils|domelementtype|dom-serializer|entities)/)',
   ],
 
   moduleFileExtensions: ['ts', 'js', 'html'],
