@@ -116,6 +116,17 @@ export function createApp(rootLogger?: LoggerPort) {
       etag: true,
       lastModified: true,
       maxAge: '7d', // Cache assets for 7 days; frontend appends ?cv= for cache-busting
+      setHeaders: (res, filePath) => {
+        // Neutralize SVG assets viewed as a top-level document: block scripts via
+        // CSP and stop MIME sniffing. Images embedded via <img> are unaffected.
+        if (filePath.toLowerCase().endsWith('.svg')) {
+          res.setHeader(
+            'Content-Security-Policy',
+            "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+          );
+          res.setHeader('X-Content-Type-Options', 'nosniff');
+        }
+      },
     })
   );
 

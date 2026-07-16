@@ -9,6 +9,34 @@ import {
 import fileType from 'file-type';
 
 /**
+ * MIME types accepted for published assets. The detected (or extension-guessed)
+ * type must belong to this set; anything else — including the
+ * `application/octet-stream` fallback for undetectable/unknown content — is
+ * rejected so arbitrary executable or active content cannot be stored and
+ * served.
+ */
+const ALLOWED_MIME_TYPES: ReadonlySet<string> = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'application/pdf',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/wave',
+  'audio/ogg',
+  'video/ogg',
+  'application/ogg',
+  'video/mp4',
+  'video/webm',
+  'text/plain',
+  'text/markdown',
+  'application/json',
+]);
+
+/**
  * Asset validator that detects real MIME types from file bytes using file-type library.
  * Prevents MIME spoofing attacks by not trusting client-provided MIME types.
  * Optionally scans for viruses using an injected AssetScannerPort.
@@ -68,8 +96,8 @@ export class FileTypeAssetValidator implements AssetValidatorPort {
       });
     }
 
-    // Check 3: MIME mismatch warning (optional - we can choose to reject or just log)
-    // For now, we LOG but ACCEPT with the detected MIME (not client-provided)
+    // Check 3: MIME mismatch is informational; the detected type is trusted over
+    // the client-provided one.
     if (clientMimeType && detectedMimeType !== clientMimeType) {
       this.logger?.warn('MIME type mismatch detected (potential spoofing)', {
         filename,
@@ -77,8 +105,21 @@ export class FileTypeAssetValidator implements AssetValidatorPort {
         detectedMimeType,
         action: 'accepted_with_detected_mime',
       });
-      // If we wanted strict mode, we would throw here:
-      // throw new AssetValidationError(`MIME mismatch: client=${clientMimeType}, detected=${detectedMimeType}`, filename, 'MIME_MISMATCH');
+    }
+
+    // Check 3b: Enforce the MIME allowlist. Reject anything outside the set of
+    // supported asset types (and the octet-stream fallback for unknown content).
+    if (!ALLOWED_MIME_TYPES.has(detectedMimeType)) {
+      this.logger?.warn('Asset MIME type not allowed', {
+        filename,
+        detectedMimeType,
+        clientMimeType,
+      });
+      throw new AssetValidationError(
+        `Asset MIME type not allowed: ${detectedMimeType}`,
+        filename,
+        'INVALID_CONTENT'
+      );
     }
 
     // Check 4: Virus scan (if scanner is configured)
@@ -110,13 +151,17 @@ export class FileTypeAssetValidator implements AssetValidatorPort {
           throw error;
         }
 
-        // Log other errors but don't fail validation if scanner is misconfigured
-        this.logger?.error('Virus scan failed with error (validation continues)', {
+        // Fail closed: if a scanner is configured but cannot complete the scan,
+        // reject the asset rather than storing unscanned content.
+        this.logger?.error('Virus scan failed to complete; rejecting asset (fail-closed)', {
           filename,
           error,
         });
-        // In production, you might want to FAIL if scanner is enabled but not working
-        // For now, we log and continue (fail-open approach)
+        throw new AssetValidationError(
+          'Asset could not be scanned for threats',
+          filename,
+          'INVALID_CONTENT'
+        );
       }
     }
 
