@@ -17,7 +17,7 @@ import {
   ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltip, MatTooltipModule } from '@angular/material/tooltip';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
@@ -181,7 +181,10 @@ export class ViewerComponent implements OnDestroy {
 
     // Gérer le scroll vers fragment lors de navigation (deep links)
     this.router.events
-      .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        takeUntilDestroyed()
+      )
       .subscribe((event) => {
         const fragment = this.extractFragmentFromUrl(event.urlAfterRedirects);
         if (fragment) {

@@ -1,6 +1,7 @@
 import { type Routes } from '@angular/router';
 
 import { seoResolver } from '../../application/resolvers/seo.resolver';
+import { adminDashboardEnabledGuard } from '../pages/admin/admin-dashboard-enabled.guard';
 import { ShellComponent } from '../shell/shell.component';
 
 export const APP_ROUTES: Routes = [
@@ -27,6 +28,7 @@ export const APP_ROUTES: Routes = [
       },
       {
         path: 'admin',
+        canActivate: [adminDashboardEnabledGuard],
         loadComponent: () =>
           import('../pages/admin/admin-dashboard.component').then((m) => m.AdminDashboardComponent),
       },
