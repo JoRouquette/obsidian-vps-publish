@@ -9,6 +9,10 @@ Publish selected vault folders to your personal VPS with property-based filterin
 - Incremental sync — only changed files are uploaded
 - Desktop-only (requires Node.js file system access)
 
+## Network use disclosure
+
+This plugin uploads the notes and assets you explicitly select for publication to **your own self-hosted VPS endpoint**, which you configure in the plugin settings. No other remote service is contacted: no third-party servers, no telemetry, no analytics, no ads. No account or payment is required. The plugin does not access files outside your vault.
+
 ## Installation
 
 ### From Obsidian Community Plugins
