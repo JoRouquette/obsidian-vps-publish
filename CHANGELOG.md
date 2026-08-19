@@ -1,3 +1,5 @@
+## [6.22.3](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.22.2...6.22.3) (2026-08-19)
+
 ## [6.22.2](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.22.1...6.22.2) (2026-07-03)
 
 ### Bug Fixes
