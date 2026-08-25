@@ -27,8 +27,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      # Pas de cache: npm — ces miroirs n'ont pas de package-lock.json versionné.
-      - run: npm install --no-audit --no-fund --legacy-peer-deps
+          cache: npm
+      # Le miroir vps-publish embarque désormais un package-lock.json versionné
+      # (exigé par la vérification de build de la revue automatisée du répertoire).
+      - run: npm ci --no-audit --no-fund --legacy-peer-deps
       # Lint/test informatifs : la qualité est garantie en amont par le monorepo.
       # Ne pas bloquer le merge (le miroir ne peut pas être corrigé sans être écrasé au sync).
       - run: npm run lint

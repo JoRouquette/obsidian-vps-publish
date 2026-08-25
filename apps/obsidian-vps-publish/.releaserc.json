@@ -4,10 +4,7 @@
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
-    [
-      "@semantic-release/changelog",
-      { "changelogFile": "CHANGELOG.md" }
-    ],
+    ["@semantic-release/changelog", { "changelogFile": "CHANGELOG.md" }],
     [
       "@semantic-release/exec",
       {
@@ -28,8 +25,7 @@
         "assets": [
           { "path": "main.js", "label": "main.js" },
           { "path": "manifest.json", "label": "manifest.json" },
-          { "path": "styles.css", "label": "styles.css" },
-          { "path": "versions.json", "label": "versions.json" }
+          { "path": "styles.css", "label": "styles.css" }
         ]
       }
     ]

@@ -37,6 +37,11 @@ jobs:
     needs: gate
     if: needs.gate.outputs.is_release == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Requis pour signer les attestations de provenance des artefacts du plugin.
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -112,6 +117,19 @@ jobs:
           echo "plugin_id=$(node -e "console.log(require('./manifest.json').id)")" >> "$GITHUB_OUTPUT"
           echo "version=$(node -e "console.log(require('./manifest.json').version)")" >> "$GITHUB_OUTPUT"
 
+      # Provenance SLSA des artefacts publiés du plugin.
+      # ⚠️ Limite connue : l'attestation est rattachée au dépôt qui exécute le workflow,
+      # donc à obsidian-vps-publish — PAS au miroir JoRouquette/vps-publish où vit la
+      # release. Vérification :
+      #   gh attestation verify main.js --repo JoRouquette/obsidian-vps-publish
+      # La revue automatisée du répertoire Obsidian, qui inspecte le miroir, ne la voit pas.
+      - name: Attest plugin build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            dist/${{ steps.manifest.outputs.plugin_id }}/main.js
+            dist/${{ steps.manifest.outputs.plugin_id }}/styles.css
+
       - name: Create or update GitHub Release on vps-publish
         env:
           GH_TOKEN: ${{ secrets.SUBTREE_SYNC_TOKEN }}
@@ -120,7 +138,9 @@ jobs:
           ID="${{ steps.manifest.outputs.plugin_id }}"
           V="${{ steps.manifest.outputs.version }}"
           # Le tag DOIT être exactement la version (sans préfixe 'v') pour la marketplace Obsidian.
-          A="dist/$ID/main.js dist/$ID/manifest.json dist/$ID/styles.css dist/$ID/versions.json"
+          # versions.json n'est PAS un asset de release supporté par le répertoire Obsidian :
+          # il reste versionné dans le dépôt miroir, mais n'est plus attaché à la release.
+          A="dist/$ID/main.js dist/$ID/manifest.json dist/$ID/styles.css"
           if gh release view "$V" --repo JoRouquette/vps-publish >/dev/null 2>&1; then
             gh release upload "$V" $A --repo JoRouquette/vps-publish --clobber
           else
