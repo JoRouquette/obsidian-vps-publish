@@ -37,7 +37,7 @@ export class YieldScheduler {
    * Unconditionally yield control to event loop
    */
   async forceYield(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
     this.operationCount = 0;
     this.lastYieldTime = performance.now();
   }

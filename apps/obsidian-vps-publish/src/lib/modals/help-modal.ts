@@ -43,7 +43,7 @@ export class HelpModal extends Modal {
 
     // Quick navigation (TOC)
     const toc = contentEl.createDiv({ cls: 'help-toc' });
-    toc.createEl('span', { text: this.t.help.tocLabel ?? 'Jump to: ', cls: 'help-toc-label' });
+    toc.createSpan({ text: this.t.help.tocLabel ?? 'Jump to: ', cls: 'help-toc-label' });
     sections.forEach(({ id, section }, i) => {
       const link = toc.createEl('a', {
         text: section.title,

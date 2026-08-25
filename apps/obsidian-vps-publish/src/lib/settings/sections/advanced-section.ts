@@ -1,6 +1,7 @@
 import { LogLevel } from '@core-domain/ports/logger-port';
 import { type App, type DataAdapter, Modal, Notice, Setting } from 'obsidian';
 
+import { markDestructive } from '../../utils/destructive-button.util';
 import type { SettingsViewContext } from '../context';
 
 function logLevelToString(level: LogLevel): string {
@@ -67,7 +68,14 @@ export function renderAdvancedSection(root: HTMLElement, ctx: SettingsViewContex
   renderCleanupSetting(inner, ctx);
 }
 
-const SNIPPETS_FOLDER = '.obsidian/snippets';
+/**
+ * Le dossier de configuration n'est PAS toujours `.obsidian` : l'utilisateur peut
+ * le renommer. On le dérive donc de `Vault#configDir` au lieu de le figer, sinon
+ * la lecture des snippets de callouts est cassée pour ces vaults.
+ */
+function snippetsFolder(app: SettingsViewContext['app']): string {
+  return `${app.vault.configDir}/snippets`;
+}
 
 function renderCalloutSnippets(container: HTMLElement, ctx: SettingsViewContext): void {
   const { t, settings, app, logger } = ctx;
@@ -86,7 +94,7 @@ function renderCalloutSnippets(container: HTMLElement, ctx: SettingsViewContext)
       const adapter = app.vault.adapter as DataAdapter & {
         list(path: string): Promise<{ files: string[]; folders: string[] }>;
       };
-      ({ files } = await adapter.list(SNIPPETS_FOLDER));
+      ({ files } = await adapter.list(snippetsFolder(app)));
     } catch {
       // Folder does not exist or is not accessible
     }
@@ -166,7 +174,7 @@ function renderCleanupSetting(inner: HTMLElement, ctx: SettingsViewContext): voi
   });
 
   cleanupSetting.addButton((btn) => {
-    btn.setButtonText(t.settings.advanced.cleanup.button).setWarning();
+    markDestructive(btn.setButtonText(t.settings.advanced.cleanup.button));
     if (!settings.vpsConfigs?.length) {
       btn.setDisabled(true);
     }

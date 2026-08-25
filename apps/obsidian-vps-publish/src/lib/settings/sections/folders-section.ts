@@ -306,20 +306,20 @@ function renderCompactFolderItem(
 
   // Sub-text (route)
   const subText = item.createDiv({ cls: 'ptpv-folder-item-subtext' });
-  subText.createEl('span', { text: `${t.settings.folders.routePrefix}${folderCfg.routeBase}` });
+  subText.createSpan({ text: `${t.settings.folders.routePrefix}${folderCfg.routeBase}` });
 
   // Indicators
   const indicators = item.createDiv({ cls: 'ptpv-folder-item-indicators' });
 
   if (folderCfg.flattenTree) {
-    indicators.createEl('span', {
+    indicators.createSpan({
       cls: 'ptpv-indicator',
       text: t.settings.folders.flattenedIndicator,
     });
   }
 
   if (folderCfg.customIndexFile) {
-    indicators.createEl('span', {
+    indicators.createSpan({
       cls: 'ptpv-indicator',
       text: t.settings.folders.customIndexIndicator,
     });
@@ -328,7 +328,7 @@ function renderCompactFolderItem(
   if (folderCfg.ignoredCleanupRuleIds.length > 0) {
     const count = folderCfg.ignoredCleanupRuleIds.length;
     const plural = count > 1 ? 's' : '';
-    indicators.createEl('span', {
+    indicators.createSpan({
       cls: 'ptpv-indicator',
       text: translate(t, 'settings.folders.exceptionsIndicator', {
         count: count.toString(),

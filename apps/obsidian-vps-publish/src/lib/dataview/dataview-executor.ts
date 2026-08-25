@@ -23,6 +23,10 @@
  * ```
  */
 
+// Le manifest déclare isDesktopOnly: true — les modules Node sont donc légitimes ici.
+// Ils servent à patcher require() pour les vues DataviewJS héritées.
+/* eslint-disable obsidianmd/no-nodejs-modules */
+
 import { createRequire } from 'node:module';
 import path from 'node:path';
 
@@ -168,8 +172,7 @@ export class DataviewExecutor {
   private async executeJs(code: string, filePath: string): Promise<JsExecutionResult> {
     try {
       // Create a temporary container for rendering
-      const container = document.createElement('div');
-      container.className = 'dv-js-container';
+      const container = createDiv({ cls: 'dv-js-container' });
 
       // Create a minimal component for Dataview API
       const component: Component = {
@@ -212,6 +215,7 @@ export class DataviewExecutor {
       //
       // Note: stableRender.js closes over its internal `cache` reference at module-load time,
       // so reassigning globalThis.__stableRenderCache has no effect — we must mutate the Map.
+      // eslint-disable-next-line obsidianmd/no-global-this -- le cache de stableRender.js vit sur globalThis, pas sur window
       const stableRenderCache = (globalThis as Record<string, unknown>)['__stableRenderCache'] as
         | Map<unknown, unknown>
         | undefined;
@@ -245,7 +249,7 @@ export class DataviewExecutor {
         }
 
         lastChildCount = currentChildCount;
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        await new Promise((resolve) => window.setTimeout(resolve, 50));
       }
 
       // Force-load all lazy <details> nodes before capturing the DOM for publishing.
@@ -336,6 +340,7 @@ export class DataviewExecutor {
       return null;
     }
 
+    // eslint-disable-next-line obsidianmd/no-global-this -- portee globale volontaire : on y patche require, et le type expose window
     const globalScope = globalThis as typeof globalThis & {
       require?: RequireLike;
       window?: Window & { require?: RequireLike };

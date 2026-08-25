@@ -51,36 +51,30 @@ export class NoticeProgressAdapter implements ProgressPort {
       ? translate(this.translations, 'common.initializing')
       : 'Initializing...';
 
-    // Create notice with Obsidian-style progress bar
-    const container = document.createElement('div');
-    container.className = 'vps-publish-progress-container';
+    // Create notice with Obsidian-style progress bar.
+    // Les enfants sont créés en place (createDiv/createSpan) : plus d'appendChild.
+    const container = createDiv({ cls: 'vps-publish-progress-container' });
 
     // Message
-    const messageSpan = document.createElement('span');
-    messageSpan.className = 'vps-publish-progress-message';
-    messageSpan.textContent = this.label;
+    const messageSpan = container.createSpan({
+      cls: 'vps-publish-progress-message',
+      text: this.label,
+    });
     this.messageEl = messageSpan;
 
     // Progress bar wrapper (Obsidian-style)
-    const progressWrapper = document.createElement('div');
-    progressWrapper.className = 'progress-bar';
+    const progressWrapper = container.createDiv({ cls: 'progress-bar' });
 
-    const progressBarFill = document.createElement('div');
-    progressBarFill.className = 'progress-bar-fill';
+    const progressBarFill = progressWrapper.createDiv({ cls: 'progress-bar-fill' });
     progressBarFill.setCssStyles({ width: '0%' });
     this.progressBarFillEl = progressBarFill;
 
-    progressWrapper.appendChild(progressBarFill);
-
     // Step message
-    const stepSpan = document.createElement('span');
-    stepSpan.className = 'vps-publish-progress-step';
-    stepSpan.textContent = this.currentStep;
+    const stepSpan = container.createSpan({
+      cls: 'vps-publish-progress-step',
+      text: this.currentStep,
+    });
     this.stepEl = stepSpan;
-
-    container.appendChild(messageSpan);
-    container.appendChild(progressWrapper);
-    container.appendChild(stepSpan);
 
     this.notice = new Notice('', 0);
     // Replace notice content with our custom HTML

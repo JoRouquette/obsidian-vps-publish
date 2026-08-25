@@ -14,7 +14,7 @@ export function renderLanguageSection(root: HTMLElement, ctx: SettingsViewContex
     .setDesc(t.settings.language.description)
     .addDropdown((dropdown) => {
       dropdown
-        .addOption('system', 'System / Système')
+        .addOption('system', t.settings.language.system)
         .addOption('en', 'English')
         .addOption('fr', 'Français')
         .setValue(settings.locale ?? 'system')

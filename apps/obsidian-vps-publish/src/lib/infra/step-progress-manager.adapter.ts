@@ -276,7 +276,7 @@ export class StepProgressManagerAdapter implements StepProgressManagerPort {
       // Schedule a deferred update
       this.pendingProgressUpdate = true;
       const delay = this.progressThrottleMs - elapsed;
-      setTimeout(() => {
+      window.setTimeout(() => {
         this.pendingProgressUpdate = false;
         this.updateProgressBar();
         this.lastProgressUpdateTime = Date.now();

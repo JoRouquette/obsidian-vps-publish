@@ -116,6 +116,7 @@
     "esbuild": "^0.19.2",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-obsidianmd": "^0.4.2",
     "eslint-plugin-playwright": "^1.6.2",
     "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-simple-import-sort": "^12.1.1",

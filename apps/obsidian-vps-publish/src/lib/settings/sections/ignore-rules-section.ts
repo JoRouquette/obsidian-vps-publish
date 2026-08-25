@@ -93,7 +93,7 @@ function renderIgnoreRule(
 
   const ruleContainer = container.createDiv({ cls: 'ptpv-ignore-rule' });
 
-  ruleContainer.createEl('div', {
+  ruleContainer.createDiv({
     cls: 'ptpv-ignore-rule__title',
     text: `${t.settings.ignoreRules.valueLabel ?? 'Ignore rule'} #${index + 1}`,
   });
@@ -227,8 +227,8 @@ function renderIgnoreRule(
   new Setting(booleanRow).addDropdown((dropdown) => {
     boolDropdown = dropdown;
     dropdown
-      .addOption('true', 'true')
-      .addOption('false', 'false')
+      .addOption('true', 'True')
+      .addOption('false', 'False')
       .setValue(rule.ignoreIf === false ? 'false' : 'true')
       .onChange((value) => {
         logger.debug('Ignore rule boolean value changed', { vpsId: vps.id, index, value });

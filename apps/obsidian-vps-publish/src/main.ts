@@ -215,8 +215,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     this.addSettingTab(new ObsidianVpsPublishSettingTab(this.app, this, this.logger));
 
+    // NOTE: Obsidian préfixe déjà l'ID de commande par l'ID du plugin.
+    // L'ID complet est donc `vps-publish:publish` (auparavant `vps-publish:vps-publish`).
     this.addCommand({
-      id: 'vps-publish',
+      id: 'publish',
       name: t.plugin.commandPublish,
       callback: async () => {
         if (!this.settings.vpsConfigs || this.settings.vpsConfigs.length === 0) {
@@ -238,7 +240,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     });
 
     this.addCommand({
-      id: 'vps-publish-debug',
+      id: 'debug-background-throttle',
       name: t.plugin.commandPublish + ' (Debug: Background Throttle)',
       callback: async () => {
         if (!this.settings.vpsConfigs || this.settings.vpsConfigs.length === 0) {
@@ -470,7 +472,14 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     if (needsSave) {
       this.logger.info('Auto-saving migrated settings');
       await this.saveSettings();
-      new Notice('VPS configuration migrated to new route-based model (BREAKING CHANGE)', 5000);
+      // TODO: cette notice est la seule chaîne d'interface codée en dur en anglais
+      // (elle est émise avant la résolution des traductions). À passer par l'i18n.
+      /* eslint-disable obsidianmd/ui/sentence-case -- la règle exige « Vps » : VPS est un acronyme */
+      new Notice(
+        'Your VPS configuration was migrated to the new route-based model (breaking change)',
+        5000
+      );
+      /* eslint-enable obsidianmd/ui/sentence-case */
     }
   }
 

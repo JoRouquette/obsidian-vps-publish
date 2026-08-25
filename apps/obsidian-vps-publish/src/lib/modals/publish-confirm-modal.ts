@@ -71,11 +71,11 @@ export class PublishConfirmModal extends Modal {
     const deduplicationText = deduplicationRow.createDiv({
       cls: 'ptpv-confirm-modal__checkbox-text',
     });
-    deduplicationText.createEl('div', {
+    deduplicationText.createDiv({
       text: t.deduplicationLabel,
       cls: 'ptpv-confirm-modal__checkbox-label',
     });
-    deduplicationText.createEl('div', {
+    deduplicationText.createDiv({
       text: t.deduplicationDescription,
       cls: 'ptpv-confirm-modal__checkbox-description',
     });

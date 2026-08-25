@@ -127,6 +127,8 @@ type LanguageTranslations = {
   title: string;
   label: string;
   description: string;
+  /** Libellé de l'option « suivre la langue du système ». */
+  system: string;
 };
 
 type VpsTranslations = {
@@ -519,6 +521,7 @@ export const en: Translations = {
       title: 'Language selection',
       label: 'Language',
       description: 'Choose plugin language.',
+      system: 'System',
     },
     vps: {
       title: 'VPS configuration',
@@ -702,8 +705,8 @@ export const en: Translations = {
       logLevelError: 'Error only',
       calloutStylesLabel: 'Callout CSS snippets',
       calloutStylesDescription:
-        'Select which snippets from .obsidian/snippets to send to the server. They will be parsed to extract callout colors and icons.',
-      calloutStylesEmpty: 'No CSS files found in .obsidian/snippets.',
+        'Select which snippets from your vault snippets folder to send to the server. They will be parsed to extract callout colors and icons.',
+      calloutStylesEmpty: 'No CSS files found in your snippets folder.',
       calloutStylesRefresh: 'Refresh',
       cleanup: {
         title: 'VPS cleanup',
@@ -962,7 +965,7 @@ export const en: Translations = {
     frontmatterProperty: 'e.g. publish, draft, private',
     tagsList: 'e.g. draft, private, internal',
     enterVpsName: 'Enter VPS name',
-    calloutStylesPaths: '.obsidian/snippets/callouts.css',
+    calloutStylesPaths: 'snippets/callouts.css',
   },
   sessionErrors: {
     startFailed: 'Failed to start session',
@@ -1080,6 +1083,7 @@ export const fr: Translations = {
       title: 'Sélection de la langue',
       label: 'Langue',
       description: 'Choisir la langue du plugin.',
+      system: 'Système',
     },
     vps: {
       title: 'Configuration du VPS',
@@ -1266,8 +1270,8 @@ export const fr: Translations = {
       logLevelError: 'Error uniquement',
       calloutStylesLabel: 'Snippets CSS callouts',
       calloutStylesDescription:
-        'Sélectionnez les snippets de .obsidian/snippets à envoyer au serveur. Ils seront analysés pour extraire les couleurs et icônes des callouts.',
-      calloutStylesEmpty: 'Aucun fichier CSS trouvé dans .obsidian/snippets.',
+        'Sélectionnez les snippets du dossier de snippets de votre coffre à envoyer au serveur. Ils seront analysés pour extraire les couleurs et icônes des callouts.',
+      calloutStylesEmpty: 'Aucun fichier CSS trouvé dans le dossier de snippets.',
       calloutStylesRefresh: 'Actualiser',
       cleanup: {
         title: 'Nettoyage du VPS',
@@ -1529,7 +1533,7 @@ export const fr: Translations = {
     frontmatterProperty: 'ex: publish, draft, private',
     tagsList: 'ex: draft, private, internal',
     enterVpsName: 'Nom exact du VPS',
-    calloutStylesPaths: '.obsidian/snippets/callouts.css',
+    calloutStylesPaths: 'snippets/callouts.css',
   },
   sessionErrors: {
     startFailed: 'Échec du démarrage de la session',

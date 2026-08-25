@@ -246,7 +246,7 @@ function renderRouteNode(
   item.ondragend = () => {
     item.removeClass('is-dragging');
     // Clean up any drag-over classes
-    document
+    activeDocument
       .querySelectorAll('.drag-over-top, .drag-over-bottom, .drag-over-child')
       .forEach((el) => {
         el.removeClass('drag-over-top');
@@ -337,7 +337,7 @@ function renderRouteNode(
   item.setCssStyles({ paddingLeft: `${depth * 20}px` });
 
   // Drag handle icon (always first)
-  const dragHandle = item.createEl('span', {
+  const dragHandle = item.createSpan({
     cls: 'ptpv-route-drag-handle',
     attr: { 'aria-label': 'Drag to reorder' },
   });
@@ -376,7 +376,7 @@ function renderRouteNode(
   const hasChildren = node.children && node.children.length > 0;
   if (hasChildren) {
     const isExpanded = state.expandedNodes.has(node.id);
-    const btnExpand = item.createEl('span', {
+    const btnExpand = item.createSpan({
       cls: 'ptpv-route-expand-btn',
       attr: { 'aria-label': isExpanded ? 'Collapse' : 'Expand' },
     });

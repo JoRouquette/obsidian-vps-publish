@@ -4,12 +4,12 @@
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/). Semantic release derives version bumps and changelogs from commit types:
 
-| Type | Bump | Example |
-|---|---|---|
-| `feat:` | minor | `feat(settings): add SSH key path option` |
-| `fix:` | patch | `fix(upload): retry on 503` |
-| `feat!:` / `BREAKING CHANGE:` | major | `feat!: remove legacy sync endpoint` |
-| `chore:`, `docs:`, `refactor:`, `test:` | none | — |
+| Type                                    | Bump  | Example                                   |
+| --------------------------------------- | ----- | ----------------------------------------- |
+| `feat:`                                 | minor | `feat(settings): add SSH key path option` |
+| `fix:`                                  | patch | `fix(upload): retry on 503`               |
+| `feat!:` / `BREAKING CHANGE:`           | major | `feat!: remove legacy sync endpoint`      |
+| `chore:`, `docs:`, `refactor:`, `test:` | none  | —                                         |
 
 ## Workflow
 

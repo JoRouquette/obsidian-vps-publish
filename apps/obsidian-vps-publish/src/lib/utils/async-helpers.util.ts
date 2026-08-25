@@ -8,7 +8,7 @@
  * Call this periodically in long-running synchronous loops to keep UI responsive.
  */
 export function yieldToEventLoop(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+  return new Promise((resolve) => window.setTimeout(resolve, 0));
 }
 
 /**
