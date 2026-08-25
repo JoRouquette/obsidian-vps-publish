@@ -1695,3 +1695,8 @@
 .vps-publish-help-modal .help-section[id] {
   scroll-margin-top: 1rem;
 }
+
+/* Generic visibility toggle (used for the cancel ribbon icon) */
+.vps-publish-hidden {
+  display: none;
+}

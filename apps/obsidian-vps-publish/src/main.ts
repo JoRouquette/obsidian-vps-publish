@@ -370,7 +370,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         new Notice('Cancelling publishing...', 3000);
       }
     });
-    this.cancelRibbonIcon.style.display = 'none'; // Hide initially
+    this.cancelRibbonIcon.toggleClass('vps-publish-hidden', true); // Hide initially
 
     this.logger.debug('Plugin loaded.');
   }
@@ -380,7 +380,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
    */
   private showCancelRibbon() {
     if (this.cancelRibbonIcon) {
-      this.cancelRibbonIcon.style.display = 'flex';
+      this.cancelRibbonIcon.toggleClass('vps-publish-hidden', false);
     }
   }
 
@@ -389,7 +389,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
    */
   private hideCancelRibbon() {
     if (this.cancelRibbonIcon) {
-      this.cancelRibbonIcon.style.display = 'none';
+      this.cancelRibbonIcon.toggleClass('vps-publish-hidden', true);
     }
   }
 

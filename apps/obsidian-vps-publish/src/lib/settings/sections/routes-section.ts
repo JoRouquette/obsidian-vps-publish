@@ -334,7 +334,7 @@ function renderRouteNode(
   };
 
   // Indent based on depth
-  item.style.paddingLeft = `${depth * 20}px`;
+  item.setCssStyles({ paddingLeft: `${depth * 20}px` });
 
   // Drag handle icon (always first)
   const dragHandle = item.createEl('span', {
