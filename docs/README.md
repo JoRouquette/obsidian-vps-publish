@@ -35,6 +35,7 @@ docs/
 ├── architecture.md           # Clean Architecture, CQRS, monorepo (transverse)
 ├── development.md            # Setup local, workflows, conventions (transverse)
 ├── docker.md                 # Container, déploiement (transverse)
+├── vps-setup.md              # Guide de référence : déploiement VPS complet (transverse)
 ├── release.md                # Process de release, versioning (transverse)
 │
 ├── site/                     # Documentation Frontend Angular
@@ -147,6 +148,7 @@ Ce script est exécuté en CI pour garantir le respect des règles.
 - **[Développement local sans Docker](./LOCAL_DEV.md)** - Guide pour développer en local sur Windows sans Docker
 - **[Configuration Plugin → Localhost (Quickstart)](./PLUGIN_LOCALHOST_QUICKSTART.md)** - Configuration rapide du plugin pour le dev local
 - **[Docker](./docker.md)** - Image container, volumes, healthcheck, déploiement
+- **[Déploiement VPS](./vps-setup.md)** - Guide de référence : nginx TLS, pare-feu, Watchtower, troubleshooting, compatibilité
 - **[Release](./release.md)** - Processus de release, semantic-release, versioning
 
 ### Frontend Angular (`site/`)
@@ -173,8 +175,9 @@ Ce script est exécuté en CI pour garantir le respect des règles.
 
 ### Pour le déploiement
 
-1. Lire [Docker](./docker.md) pour comprendre l'image et les volumes
-2. Consulter [API](./api/) pour la configuration des variables d'environnement
+1. Suivre le **[guide de déploiement VPS](./vps-setup.md)** (architecture de référence de bout en bout)
+2. Lire [Docker](./docker.md) pour comprendre l'image et les volumes
+3. Consulter [API](./api/) pour la configuration des variables d'environnement
 
 ### Pour contribuer
 
@@ -206,6 +209,7 @@ Ce script est exécuté en CI pour garantir le respect des règles.
 
 **Je déploie l'application**
 
+- [Déploiement VPS](./vps-setup.md)
 - [Docker](./docker.md)
 - [Release](./release.md)
 

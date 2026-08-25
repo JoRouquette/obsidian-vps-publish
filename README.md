@@ -186,6 +186,17 @@ See `docs/ssr-guide.md` for complete SSR documentation.
 ## Contributors / deeper docs
 
 Architecture, build, release, and API notes live in `/docs`. Start with `docs/README.md`.
+For a production deployment walkthrough (nginx TLS, firewall, auto-updates), see [docs/vps-setup.md](docs/vps-setup.md) ([English](docs/en/vps-setup.md)).
+
+## Related repositories & links
+
+This monorepo is the **single source of truth**. Read-only mirrors are regenerated on every stable release:
+
+- Obsidian Community listing: <https://community.obsidian.md/plugins/vps-publish>
+- Docker image (server: API + site): <https://hub.docker.com/r/jorouquette/obsidian-vps-publish>
+- Plugin mirror: <https://github.com/JoRouquette/vps-publish>
+- Domain library mirror: <https://github.com/JoRouquette/vps-publish-core-domain>
+- Application library mirror: <https://github.com/JoRouquette/vps-publish-core-application>
 
 ## License
 
