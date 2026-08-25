@@ -87,6 +87,8 @@ export class NoticeProgressAdapter implements ProgressPort {
     const noticeEl = (this.notice as unknown as { noticeEl?: HTMLElement }).noticeEl;
     if (noticeEl) {
       noticeEl.empty();
+      // Marqueur explicite pour le CSS : évite un sélecteur `:has()` sur `.notice`.
+      noticeEl.addClass('vps-publish-progress-notice');
       noticeEl.appendChild(container);
     }
   }

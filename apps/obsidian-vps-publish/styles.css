@@ -31,7 +31,9 @@
 }
 
 /* Progress bar for publishing notifications - Obsidian native style */
-.notice:has(.vps-publish-progress-container) {
+/* La classe est posée sur le noticeEl par NoticeProgressAdapter.start() :
+   pas de `:has()`, donc pas de dépendance à un sélecteur récent. */
+.notice.vps-publish-progress-notice {
   min-width: 320px;
   max-width: 400px;
 }
@@ -606,14 +608,17 @@
   opacity: 0.7;
 }
 
-/* Input error indicator for empty regex fields */
-.obsidian-vps-publish-settings .ptpv-input-error {
-  border: 2px solid var(--text-error) !important;
-  background-color: var(--background-modifier-error) !important;
+/* Input error indicator for empty regex fields.
+   Sélecteur qualifié (élément + attribut) plutôt que `!important` : la spécificité
+   suffit à battre le style d'input natif d'Obsidian.
+   La classe est posée sur `text.inputEl` dans vps-section.ts. */
+.obsidian-vps-publish-settings input[type='text'].ptpv-input-error {
+  border: 2px solid var(--text-error);
+  background-color: var(--background-modifier-error);
 }
 
-.obsidian-vps-publish-settings .ptpv-input-error:focus {
-  box-shadow: 0 0 0 2px var(--text-error) !important;
+.obsidian-vps-publish-settings input[type='text'].ptpv-input-error:focus {
+  box-shadow: 0 0 0 2px var(--text-error);
 }
 
 /* Séparateur visuel entre les règles */
