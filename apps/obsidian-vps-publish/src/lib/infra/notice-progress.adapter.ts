@@ -67,7 +67,7 @@ export class NoticeProgressAdapter implements ProgressPort {
 
     const progressBarFill = document.createElement('div');
     progressBarFill.className = 'progress-bar-fill';
-    progressBarFill.style.width = '0%';
+    progressBarFill.setCssStyles({ width: '0%' });
     this.progressBarFillEl = progressBarFill;
 
     progressWrapper.appendChild(progressBarFill);
@@ -118,7 +118,7 @@ export class NoticeProgressAdapter implements ProgressPort {
    */
   private performUpdate(percent: number, stepMessage: string): void {
     if (this.progressBarFillEl) {
-      this.progressBarFillEl.style.width = `${percent}%`;
+      this.progressBarFillEl.setCssStyles({ width: `${percent}%` });
     }
 
     if (this.stepEl) {
