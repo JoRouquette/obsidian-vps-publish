@@ -1,3 +1,9 @@
+## [6.22.4](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.22.3...6.22.4) (2026-08-25)
+
+### Bug Fixes
+
+* **plugin:** replace direct style assignments (no-static-styles-assignment) ([#23](https://github.com/JoRouquette/obsidian-vps-publish/issues/23)) ([b38b481](https://github.com/JoRouquette/obsidian-vps-publish/commit/b38b481e9dcec8ea93f79e0ec39ffd5a21783801))
+
 ## [6.22.3](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.22.2...6.22.3) (2026-08-19)
 
 ## [6.22.2](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.22.1...6.22.2) (2026-07-03)
