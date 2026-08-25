@@ -7,6 +7,28 @@ The unified image serves the API, static content, and the Angular SPA.
 - Volumes: mount `CONTENT_ROOT` and `ASSETS_ROOT` to persist rendered HTML/manifest and uploaded assets.
 - Healthcheck: `http://localhost:${PORT}/health`.
 
+> For a complete production walkthrough (nginx TLS front, firewall, auto-updates), see the [VPS setup guide](./vps-setup.md) ([English](./en/vps-setup.md)).
+
+## What the image contains
+
+One self-contained image runs the whole self-hosted stack:
+
+- **Node API** (`apps/node`) — receives plugin uploads (`/api/**`, authenticated with the `x-api-key` header), renders and stores publications, serves `/content/**`, `/assets/**`, `/health`, and `/public-config`.
+- **Angular SPA** (`apps/site`) — the public website, served statically from `UI_ROOT` on `/`.
+- **Shared libraries** (`libs/core-domain`, `libs/core-application`) — bundled into the API at build time.
+
+## Published tags
+
+Every stable release publishes to Docker Hub — <https://hub.docker.com/r/jorouquette/obsidian-vps-publish>:
+
+| Tag           | Meaning                                             |
+| ------------- | --------------------------------------------------- |
+| `X.Y.Z`       | Immutable release tag (matches the plugin version). |
+| `<short-sha>` | Commit-pinned build.                                |
+| `latest`      | Most recent stable release.                         |
+
+Versioning is **lockstep** with the plugin: image `X.Y.Z` pairs with plugin `X.Y.Z` (see the [compatibility matrix](./vps-setup.md#matrice-de-compatibilité)). Pre-releases (`-alpha.N`) never publish images.
+
 ## Quick run
 
 ```bash

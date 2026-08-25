@@ -118,6 +118,7 @@ This script runs in CI to enforce compliance.
 - **[Contributing Guide](../CONTRIBUTING.md)** - Prerequisites, installation, workflow, conventions (FR + EN)
 - **[Architecture](./architecture.md)** - Clean Architecture, CQRS, monorepo structure
 - **[Development](./development.md)** - Local setup, npm scripts, Git workflows
+- **[VPS setup](./vps-setup.md)** - Reference deployment guide: nginx TLS, firewall, Watchtower, troubleshooting, compatibility
 
 ### Angular Frontend (`site/`)
 
@@ -143,8 +144,9 @@ This script runs in CI to enforce compliance.
 
 ### For Deployment
 
-1. Read [Docker](../docker.md) (French) to understand the image and volumes
-2. Consult [API](./api/) for environment variable configuration
+1. Follow the **[VPS setup guide](./vps-setup.md)** (end-to-end reference architecture)
+2. Read [Docker](../docker.md) to understand the image and volumes
+3. Consult [API](./api/) for environment variable configuration
 
 ### To Contribute
 
@@ -171,7 +173,8 @@ This script runs in CI to enforce compliance.
 
 **I'm deploying the application**
 
-- [Docker](../docker.md) (French)
+- [VPS setup](./vps-setup.md)
+- [Docker](../docker.md)
 - [Release](../release.md) (French)
 
 ---
