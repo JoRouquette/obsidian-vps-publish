@@ -16,9 +16,13 @@ export function markDestructive(button: ButtonComponent): ButtonComponent {
     setDestructive?: () => ButtonComponent;
   };
 
+  // L'appel est précisément gardé par la détection ci-dessus : c'est tout l'objet
+  // de ce helper, puisque minAppVersion reste 1.5.0.
+  /* eslint-disable obsidianmd/no-unsupported-api */
   if (typeof candidate.setDestructive === 'function') {
     return candidate.setDestructive();
   }
+  /* eslint-enable obsidianmd/no-unsupported-api */
 
   // Repli volontaire sur l'API dépréciée : c'est la seule disponible avant 1.13.
   return button.setWarning();
