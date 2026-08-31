@@ -1,7 +1,7 @@
 import type { SettingDefinitionItem } from 'obsidian';
 
 import type { SettingsViewContext } from './context';
-import { type SectionRenderer, SectionPage } from './section-page';
+import { SectionPage, type SectionRenderer } from './section-page';
 import { renderAdvancedSection } from './sections/advanced-section';
 import { renderIgnoreRulesSection } from './sections/ignore-rules-section';
 import { renderRoutesSection } from './sections/routes-section';
