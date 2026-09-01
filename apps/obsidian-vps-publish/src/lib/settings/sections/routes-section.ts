@@ -29,6 +29,75 @@ interface RoutesUIState {
   hasUnsavedChanges: boolean; // Track if there are unsaved changes
   draggedNodeId: string | null; // ID of the node being dragged
   draggedNodeParentId: string | null; // Parent ID (null for root)
+  searchQuery: string; // Filtre de l'arbre (éphémère, non persisté)
+}
+
+/**
+ * Ordre d'affichage des frères.
+ *
+ * L'ordre n'a **aucune signification fonctionnelle** : le domaine ne fait que
+ * parcourir l'arbre, et les routes sont adressées par leurs segments. C'est donc
+ * un confort de lecture, réglable par serveur.
+ *
+ * Le tri s'applique désormais aux racines **et** aux enfants. Auparavant seules
+ * les racines étaient triées, ce qui rendait les boutons monter/descendre
+ * inopérants à la racine et fonctionnels un niveau plus bas — le même bouton
+ * faisait deux choses selon la profondeur.
+ */
+function orderedSiblings(nodes: RouteNode[], vps: VpsConfig): RouteNode[] {
+  if (vps.sortRoutesAlphabetically === false) return nodes;
+
+  return [...nodes].sort((a, b) => {
+    const segmentA = (a.segment || '').toLowerCase();
+    const segmentB = (b.segment || '').toLowerCase();
+    // La racine (segment vide) reste en tête.
+    if (segmentA === '' && segmentB !== '') return -1;
+    if (segmentA !== '' && segmentB === '') return 1;
+    return segmentA.localeCompare(segmentB);
+  });
+}
+
+/** Un nœud correspond-il à la recherche, par son segment, son nom ou son dossier ? */
+function nodeMatchesQuery(node: RouteNode, query: string): boolean {
+  const haystack = [node.segment, node.displayName, node.vaultFolder, node.customIndexFile]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(query);
+}
+
+/**
+ * Identifiants des nœuds à afficher pour une recherche donnée : ceux qui
+ * correspondent, **plus leurs ancêtres**, sans quoi un résultat profond
+ * n'aurait aucun chemin pour être atteint.
+ */
+function visibleNodeIds(roots: RouteNode[], query: string): Set<string> {
+  const visible = new Set<string>();
+
+  const walk = (node: RouteNode): boolean => {
+    let anyChildMatches = false;
+    for (const child of node.children ?? []) {
+      // Pas de court-circuit : tous les descendants doivent être évalués.
+      anyChildMatches = walk(child) || anyChildMatches;
+    }
+    const matches = nodeMatchesQuery(node, query) || anyChildMatches;
+    if (matches) visible.add(node.id);
+    return matches;
+  };
+
+  roots.forEach(walk);
+  return visible;
+}
+
+/** Tous les identifiants de l'arbre, pour « tout déplier ». */
+function allNodeIds(roots: RouteNode[]): string[] {
+  const ids: string[] = [];
+  const walk = (node: RouteNode): void => {
+    ids.push(node.id);
+    (node.children ?? []).forEach(walk);
+  };
+  roots.forEach(walk);
+  return ids;
 }
 
 /**
@@ -46,6 +115,7 @@ function getOrCreateUiState(vpsId: string): RoutesUIState {
       hasUnsavedChanges: false,
       draggedNodeId: null,
       draggedNodeParentId: null,
+      searchQuery: '',
     };
     uiStates.set(vpsId, state);
   }
@@ -108,32 +178,91 @@ export function renderVpsRoutes(root: HTMLElement, vps: VpsConfig, ctx: Settings
       state.hasUnsavedChanges = true;
     }
 
-    // Render tree container
+    // Barre d'outils de l'arbre : recherche, pliage global, ordre d'affichage.
+    const toolbar = vpsSection.createDiv({ cls: 'ptpv-routes-toolbar' });
     const treeContainer = vpsSection.createDiv({ cls: 'ptpv-routes-tree' });
 
     const updateTree = () => {
       treeContainer.empty();
-      // Sort roots alphabetically by segment for organized display
-      const sortedRoots = [...routeTree.roots].sort((a, b) => {
-        const segmentA = (a.segment || '').toLowerCase();
-        const segmentB = (b.segment || '').toLowerCase();
-        // Empty segments first, then alphabetical
-        if (segmentA === '' && segmentB !== '') return -1;
-        if (segmentA !== '' && segmentB === '') return 1;
-        return segmentA.localeCompare(segmentB);
-      });
-      sortedRoots.forEach((rootNode, index) => {
+
+      const query = state.searchQuery.trim().toLowerCase();
+      // `null` = pas de filtre actif ; sinon, ensemble des nœuds à afficher.
+      const visible = query ? visibleNodeIds(routeTree.roots, query) : null;
+
+      const roots = orderedSiblings(routeTree.roots, vps).filter(
+        (node) => !visible || visible.has(node.id)
+      );
+
+      if (roots.length === 0) {
+        treeContainer.createDiv({
+          cls: 'ptpv-routes-no-results',
+          text: t.settings.routes.noResults ?? 'No route matches this search',
+        });
+        return;
+      }
+
+      roots.forEach((rootNode, index) => {
         renderRouteNode(
           treeContainer,
           vps,
           rootNode,
           ctx,
           0,
-          index === sortedRoots.length - 1,
-          state
+          index === roots.length - 1,
+          state,
+          visible
         );
       });
     };
+
+    // --- Barre d'outils ---------------------------------------------------
+    // Ces trois commandes ne re-rendent que l'arbre, pas tout l'onglet : un
+    // `ctx.refresh()` à chaque frappe rendrait la recherche inutilisable, le
+    // champ perdant le focus entre deux caractères.
+    new Setting(toolbar)
+      .setName(t.settings.routes.searchLabel ?? 'Search')
+      .addSearch((search) => {
+        search
+          .setPlaceholder(t.settings.routes.searchPlaceholder ?? 'Segment, name or folder')
+          .setValue(state.searchQuery)
+          .onChange((value) => {
+            state.searchQuery = value;
+            updateTree();
+          });
+      })
+      .addExtraButton((btn) => {
+        btn
+          .setIcon('chevrons-down-up')
+          .setTooltip(t.settings.routes.collapseAll ?? 'Collapse all')
+          .onClick(() => {
+            state.expandedNodes.clear();
+            updateTree();
+          });
+      })
+      .addExtraButton((btn) => {
+        btn
+          .setIcon('chevrons-up-down')
+          .setTooltip(t.settings.routes.expandAll ?? 'Expand all')
+          .onClick(() => {
+            allNodeIds(routeTree.roots).forEach((id) => state.expandedNodes.add(id));
+            updateTree();
+          });
+      });
+
+    new Setting(toolbar)
+      .setName(t.settings.routes.sortAlphabeticallyLabel ?? 'Sort alphabetically')
+      .setDesc(
+        t.settings.routes.sortAlphabeticallyDescription ??
+          'Display only — route order has no effect on the published site.'
+      )
+      .addToggle((toggle) => {
+        toggle.setValue(vps.sortRoutesAlphabetically ?? true).onChange((value) => {
+          logger.debug('Route sorting changed', { vpsId: vps.id, sortAlphabetically: value });
+          vps.sortRoutesAlphabetically = value;
+          void ctx.save();
+          updateTree();
+        });
+      });
 
     // Initial tree render
     updateTree();
@@ -243,7 +372,9 @@ function renderRouteNode(
   ctx: SettingsViewContext,
   depth: number,
   _isLastSibling: boolean,
-  state: RoutesUIState
+  state: RoutesUIState,
+  // Ensemble des nœuds retenus par la recherche, ou `null` si aucun filtre.
+  visible: Set<string> | null = null
 ): void {
   const { logger } = ctx;
 
@@ -420,22 +551,57 @@ function renderRouteNode(
     item.createDiv({ cls: 'ptpv-route-expand-spacer' });
   }
 
-  // Label: segment + indicators + validation
+  // Label : segment, puis le dossier publié, puis les indicateurs.
   const label = item.createDiv({ cls: 'ptpv-route-label' });
-  const segmentText = node.segment || '/';
-  const indicators: string[] = [];
-  if (node.vaultFolder) indicators.push('📁');
-  if (node.customIndexFile) indicators.push('📄');
-  if (node.additionalFiles && node.additionalFiles.length > 0) indicators.push('📎');
-  if (node.flattenTree) indicators.push('⬇');
+  const t = ctx.t;
+
+  // Le nœud à segment vide est la racine du site : le dire, plutôt que « / » nu.
+  if (node.segment) {
+    label.createSpan({ cls: 'ptpv-route-segment', text: node.segment });
+  } else {
+    label.createSpan({ cls: 'ptpv-route-segment', text: '/' });
+    label.createSpan({
+      cls: 'ptpv-route-root-hint',
+      text: t.settings.routes.rootRouteHint ?? 'site root',
+    });
+  }
+
+  if (node.displayName) {
+    label.createSpan({ cls: 'ptpv-route-display-name', text: node.displayName });
+  }
+
+  // Le dossier publié est l'information la plus utile de la ligne : sans lui, il
+  // fallait ouvrir chaque nœud pour savoir ce que la route expose.
+  if (node.vaultFolder) {
+    label.createSpan({ cls: 'ptpv-route-folder', text: node.vaultFolder });
+  }
+
+  // Indicateurs : icônes natives plutôt qu'emoji, avec une infobulle qui dit ce
+  // qu'elles signifient.
+  const indicators = label.createSpan({ cls: 'ptpv-route-indicators' });
+  const addIndicator = (icon: string, tooltip: string): void => {
+    const el = indicators.createSpan({ cls: 'ptpv-route-indicator', attr: { title: tooltip } });
+    setIcon(el, icon);
+  };
+
+  if (node.customIndexFile) {
+    addIndicator('file-text', t.settings.routes.indicatorCustomIndex ?? 'Custom index file');
+  }
+  if (node.additionalFiles && node.additionalFiles.length > 0) {
+    addIndicator(
+      'paperclip',
+      `${t.settings.routes.indicatorAdditionalFiles ?? 'Additional files'} (${node.additionalFiles.length})`
+    );
+  }
+  if (node.flattenTree) {
+    addIndicator('chevrons-down', t.settings.routes.indicatorFlatten ?? 'Flattened tree');
+  }
 
   // Check for validation errors
   const conflicts = getNodeConflicts(state.tempRouteTree!, node.id);
   if (conflicts.length > 0) {
     label.addClass('ptpv-route-has-conflicts');
-    indicators.push('⚠️');
 
-    // Add tooltip with conflict details
     const conflictMessages = conflicts
       .map((c) => {
         const nodesStr = c.conflictingNodes.map((n) => `#${n.id}`).join(', ');
@@ -443,11 +609,10 @@ function renderRouteNode(
       })
       .join('\n');
 
+    addIndicator('alert-triangle', conflictMessages);
     label.setAttribute('title', `Route conflicts:\n${conflictMessages}`);
     label.setAttribute('aria-label', `Route has conflicts: ${conflictMessages}`);
   }
-
-  label.textContent = `${segmentText} ${indicators.join(' ')}`;
 
   // Actions
   const actions = item.createDiv({ cls: 'ptpv-route-actions' });
@@ -507,20 +672,28 @@ function renderRouteNode(
     renderRouteEditor(editorContainer, vps, node, ctx, state);
   }
 
-  // Render children (if expanded)
-  if (hasChildren && state.expandedNodes.has(node.id)) {
-    const childrenContainer = nodeContainer.createDiv({ cls: 'ptpv-route-children' });
-    node.children!.forEach((child, index) => {
-      renderRouteNode(
-        childrenContainer,
-        vps,
-        child,
-        ctx,
-        depth + 1,
-        index === node.children!.length - 1,
-        state
-      );
-    });
+  // Render children (if expanded).
+  // Une recherche active déplie d'office : masquer un résultat derrière un nœud
+  // replié reviendrait à ne pas le trouver.
+  if (hasChildren && (state.expandedNodes.has(node.id) || visible)) {
+    const children = orderedSiblings(node.children!, vps).filter(
+      (child) => !visible || visible.has(child.id)
+    );
+    if (children.length > 0) {
+      const childrenContainer = nodeContainer.createDiv({ cls: 'ptpv-route-children' });
+      children.forEach((child, index) => {
+        renderRouteNode(
+          childrenContainer,
+          vps,
+          child,
+          ctx,
+          depth + 1,
+          index === children.length - 1,
+          state,
+          visible
+        );
+      });
+    }
   }
 }
 

@@ -239,6 +239,18 @@ type FoldersTranslations = {
 
 type RoutesTranslations = {
   /** Badge signalant des modifications de routes non enregistrées. */
+  /** Barre d outils de l arbre de routes (toutes optionnelles : repli fourni dans le code). */
+  searchLabel?: string;
+  searchPlaceholder?: string;
+  noResults?: string;
+  collapseAll?: string;
+  expandAll?: string;
+  sortAlphabeticallyLabel?: string;
+  sortAlphabeticallyDescription?: string;
+  rootRouteHint?: string;
+  indicatorCustomIndex?: string;
+  indicatorAdditionalFiles?: string;
+  indicatorFlatten?: string;
   unsavedBadge: string;
   addRootRoute: string;
   addChildRoute: string;
@@ -631,6 +643,18 @@ export const en: Translations = {
       sortExceptionsDesc: 'Sort: Exceptions (Most first)',
     },
     routes: {
+      searchLabel: 'Search',
+      searchPlaceholder: 'Segment, name or folder',
+      noResults: 'No route matches this search',
+      collapseAll: 'Collapse all',
+      expandAll: 'Expand all',
+      sortAlphabeticallyLabel: 'Sort alphabetically',
+      sortAlphabeticallyDescription:
+        'Display only — route order has no effect on the published site.',
+      rootRouteHint: 'site root',
+      indicatorCustomIndex: 'Custom index file',
+      indicatorAdditionalFiles: 'Additional files',
+      indicatorFlatten: 'Flattened tree',
       unsavedBadge: 'Unsaved changes',
       addRootRoute: 'Add root route',
       addChildRoute: '+ Child',
@@ -1196,6 +1220,18 @@ export const fr: Translations = {
       sortExceptionsDesc: 'Tri : Exceptions (Plus en premier)',
     },
     routes: {
+      searchLabel: 'Rechercher',
+      searchPlaceholder: 'Segment, nom ou dossier',
+      noResults: 'Aucune route ne correspond à cette recherche',
+      collapseAll: 'Tout replier',
+      expandAll: 'Tout déplier',
+      sortAlphabeticallyLabel: 'Trier par ordre alphabétique',
+      sortAlphabeticallyDescription:
+        'Affichage seulement — l ordre des routes n a aucun effet sur le site publié.',
+      rootRouteHint: 'racine du site',
+      indicatorCustomIndex: 'Fichier d index personnalisé',
+      indicatorAdditionalFiles: 'Fichiers supplémentaires',
+      indicatorFlatten: 'Arborescence aplatie',
       unsavedBadge: 'Modifications non enregistrées',
       addRootRoute: 'Ajouter une route racine',
       addChildRoute: '+ Enfant',

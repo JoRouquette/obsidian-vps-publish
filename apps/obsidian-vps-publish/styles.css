@@ -1720,3 +1720,69 @@
   font-weight: var(--font-medium);
   vertical-align: middle;
 }
+
+/* --- Arbre de routes : barre d'outils et ligne de nœud --- */
+
+.obsidian-vps-publish-settings .ptpv-routes-toolbar {
+  margin-bottom: 0.5rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-routes-no-results {
+  padding: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+}
+
+/* Le libellé d'une route se lit de gauche à droite : segment, nom affiché,
+   dossier publié, puis indicateurs. Le dossier est l'information la plus utile
+   de la ligne — auparavant il fallait ouvrir le nœud pour la connaître. */
+.obsidian-vps-publish-settings .ptpv-route-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.obsidian-vps-publish-settings .ptpv-route-segment {
+  font-weight: var(--font-medium);
+  color: var(--text-normal);
+}
+
+.obsidian-vps-publish-settings .ptpv-route-root-hint,
+.obsidian-vps-publish-settings .ptpv-route-display-name {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+}
+
+.obsidian-vps-publish-settings .ptpv-route-folder {
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.obsidian-vps-publish-settings .ptpv-route-indicators {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.obsidian-vps-publish-settings .ptpv-route-indicator {
+  display: inline-flex;
+  color: var(--text-faint);
+}
+
+.obsidian-vps-publish-settings .ptpv-route-indicator .svg-icon {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+
+.obsidian-vps-publish-settings .ptpv-route-has-conflicts .ptpv-route-indicator:last-child {
+  color: var(--text-error);
+}
