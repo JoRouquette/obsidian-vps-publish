@@ -33,15 +33,16 @@ function stringToLogLevel(value: string): LogLevel {
   }
 }
 
-export function renderAdvancedSection(root: HTMLElement, ctx: SettingsViewContext): void {
+/**
+ * Contenu des réglages avancés, **sans accordéon**.
+ *
+ * C'est la forme utilisée par l'API déclarative : la section y est une page
+ * navigable, et un `<details>` replié à l'intérieur d'une page serait redondant
+ * — en plus de soustraire son contenu à la recherche des paramètres.
+ */
+export function renderAdvancedContent(root: HTMLElement, ctx: SettingsViewContext): void {
   const { t, settings, logger } = ctx;
-  const block = root.createDiv({ cls: 'ptpv-block' });
-  const details = block.createEl('details', { cls: 'ptpv-advanced' });
-  details.createEl('summary', {
-    text: t.settings.advanced.title,
-  });
-
-  const inner = details.createDiv({ cls: 'ptpv-advanced__content' });
+  const inner = root.createDiv({ cls: 'ptpv-advanced__content' });
 
   new Setting(inner)
     .setName(t.settings.advanced.logLevelLabel)
@@ -66,6 +67,17 @@ export function renderAdvancedSection(root: HTMLElement, ctx: SettingsViewContex
 
   renderCalloutSnippets(inner, ctx);
   renderCleanupSetting(inner, ctx);
+}
+
+/**
+ * Chemin `display()` (Obsidian < 1.13) : l'accordéon est conservé, faute de
+ * page navigable sur ces versions. Le contenu, lui, est le même.
+ */
+export function renderAdvancedSection(root: HTMLElement, ctx: SettingsViewContext): void {
+  const block = root.createDiv({ cls: 'ptpv-block' });
+  const details = block.createEl('details', { cls: 'ptpv-advanced' });
+  details.createEl('summary', { text: ctx.t.settings.advanced.title });
+  renderAdvancedContent(details, ctx);
 }
 
 /**

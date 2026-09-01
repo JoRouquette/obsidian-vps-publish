@@ -11,27 +11,71 @@ import type { SettingsViewContext } from '../context';
  * Render ignore rules section - now organized by VPS
  * Note: frontmatterKeysToExclude and frontmatterTagsToExclude remain global
  */
-export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewContext): void {
-  const { t, settings, logger } = ctx;
-
-  const ignoreBlock = root.createDiv({ cls: 'ptpv-block' });
-
-  new Setting(ignoreBlock).setName(t.settings.ignoreRules.title).setHeading();
-
-  // Global ignore settings section
-  const globalSection = ignoreBlock.createDiv({ cls: 'ptpv-ignore-global-section' });
-  globalSection.createEl('h4', {
-    text: t.settings.ignoreRules.globalTitle ?? 'Global rules (all VPS)',
-    cls: 'ptpv-section-subheading',
-  });
+/**
+ * Règles d'ignore **globales** : elles s'appliquent à tous les serveurs.
+ * Extraites pour pouvoir vivre seules dans une entrée déclarative, séparées des
+ * règles propres à chaque serveur.
+ */
+export function renderGlobalIgnoreRules(root: HTMLElement, ctx: SettingsViewContext): void {
+  const { t } = ctx;
+  const globalSection = root.createDiv({ cls: 'ptpv-ignore-global-section' });
   globalSection.createEl('p', {
     text: t.settings.ignoreRules.globalHelp ?? 'These rules apply to all VPS configurations.',
     cls: 'ptpv-section-help',
   });
   renderFrontmatterKeysExclude(globalSection, ctx);
   renderFrontmatterTagsExclude(globalSection, ctx);
+}
 
-  // Per-VPS rules section
+/**
+ * Règles d'ignore d'**un** serveur. C'est la brique que l'API déclarative place
+ * sous la page du serveur concerné, plutôt que dans une liste qui parcourrait
+ * tous les serveurs.
+ */
+export function renderVpsIgnoreRules(
+  root: HTMLElement,
+  vps: VpsConfig,
+  ctx: SettingsViewContext
+): void {
+  const { t, logger } = ctx;
+  const vpsSection = root.createDiv({ cls: 'ptpv-ignore-vps-section' });
+
+  if (!Array.isArray(vps.ignoreRules)) {
+    vps.ignoreRules = [];
+  }
+
+  vps.ignoreRules.forEach((rule, ruleIndex) => {
+    renderIgnoreRule(vpsSection, vps, rule, ruleIndex, ctx);
+  });
+
+  const rowAddIgnoreRule = vpsSection.createDiv({ cls: 'ptpv-button-row' });
+  const btnAddIgnoreRule = rowAddIgnoreRule.createEl('button', {
+    text: t.settings.ignoreRules.addButton ?? 'Add ignore rule',
+  });
+  btnAddIgnoreRule.onclick = () => {
+    logger.debug('Adding new ignore rule to VPS', { vpsId: vps.id });
+    vps.ignoreRules.push({ property: 'publish', ignoreIf: false });
+    void ctx.save().then(() => ctx.refresh());
+  };
+}
+
+/**
+ * Chemin `display()` (Obsidian < 1.13) : tout sur un seul écran, global puis un
+ * bloc par serveur.
+ */
+export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewContext): void {
+  const { t, settings } = ctx;
+
+  const ignoreBlock = root.createDiv({ cls: 'ptpv-block' });
+
+  new Setting(ignoreBlock).setName(t.settings.ignoreRules.title).setHeading();
+
+  ignoreBlock.createEl('h4', {
+    text: t.settings.ignoreRules.globalTitle ?? 'Global rules (all VPS)',
+    cls: 'ptpv-section-subheading',
+  });
+  renderGlobalIgnoreRules(ignoreBlock, ctx);
+
   const perVpsHeading = ignoreBlock.createDiv({ cls: 'ptpv-ignore-pervps-header' });
   perVpsHeading.createEl('h4', {
     text: t.settings.ignoreRules.perVpsTitle ?? 'Per-VPS rules',
@@ -42,40 +86,13 @@ export function renderIgnoreRulesSection(root: HTMLElement, ctx: SettingsViewCon
     cls: 'ptpv-section-help',
   });
 
-  // Ignore rules per VPS
   settings.vpsConfigs.forEach((vps, vpsIndex) => {
-    const vpsSection = ignoreBlock.createDiv({ cls: 'ptpv-ignore-vps-section' });
-
-    new Setting(vpsSection)
+    new Setting(ignoreBlock)
       .setName(
         `${vps.name || translate(t, 'common.vpsNumberFallback', { number: (vpsIndex + 1).toString() })} - ${t.settings.ignoreRules.rulesLabel ?? 'Ignore Rules'}`
       )
       .setHeading();
-
-    // Ensure ignoreRules array exists
-    if (!Array.isArray(vps.ignoreRules)) {
-      vps.ignoreRules = [];
-    }
-
-    vps.ignoreRules.forEach((rule, ruleIndex) => {
-      renderIgnoreRule(vpsSection, vps, rule, ruleIndex, ctx);
-    });
-
-    // Add ignore rule button for this VPS
-    const rowAddIgnoreRule = vpsSection.createDiv({
-      cls: 'ptpv-button-row',
-    });
-    const btnAddIgnoreRule = rowAddIgnoreRule.createEl('button', {
-      text: t.settings.ignoreRules.addButton ?? 'Add ignore rule',
-    });
-    btnAddIgnoreRule.onclick = () => {
-      logger.debug('Adding new ignore rule to VPS', { vpsId: vps.id });
-      vps.ignoreRules.push({
-        property: 'publish',
-        ignoreIf: false,
-      });
-      void ctx.save().then(() => ctx.refresh());
-    };
+    renderVpsIgnoreRules(ignoreBlock, vps, ctx);
   });
 }
 

@@ -151,6 +151,8 @@ type VpsTranslations = {
   actionsTitle: string;
   actionsDescription: string;
   uploadButton: string;
+  /** Titre de la page « Connexion » d un serveur (API déclarative). */
+  connectionTitle: string;
   cleanupRulesTitle: string;
   cleanupRulesDescription: string;
   addCleanupRule: string;
@@ -236,6 +238,8 @@ type FoldersTranslations = {
 };
 
 type RoutesTranslations = {
+  /** Badge signalant des modifications de routes non enregistrées. */
+  unsavedBadge: string;
   addRootRoute: string;
   addChildRoute: string;
   editRoute: string;
@@ -526,6 +530,7 @@ export const en: Translations = {
     vps: {
       title: 'VPS configuration',
       addButton: 'Add VPS',
+      connectionTitle: 'Connection',
       deleteButton: 'Delete VPS',
       deleteLastForbidden: 'At least one VPS is required',
       primaryBadge: 'Primary',
@@ -626,6 +631,7 @@ export const en: Translations = {
       sortExceptionsDesc: 'Sort: Exceptions (Most first)',
     },
     routes: {
+      unsavedBadge: 'Unsaved changes',
       addRootRoute: 'Add root route',
       addChildRoute: '+ Child',
       editRoute: 'Edit',
@@ -1088,6 +1094,7 @@ export const fr: Translations = {
     vps: {
       title: 'Configuration du VPS',
       addButton: 'Ajouter un VPS',
+      connectionTitle: 'Connexion',
       deleteButton: 'Supprimer le VPS',
       deleteLastForbidden: 'Au moins un VPS est requis',
       primaryBadge: 'Principal',
@@ -1189,6 +1196,7 @@ export const fr: Translations = {
       sortExceptionsDesc: 'Tri : Exceptions (Plus en premier)',
     },
     routes: {
+      unsavedBadge: 'Modifications non enregistrées',
       addRootRoute: 'Ajouter une route racine',
       addChildRoute: '+ Enfant',
       editRoute: 'Éditer',

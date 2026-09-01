@@ -53,22 +53,27 @@ function getOrCreateUiState(vpsId: string): RoutesUIState {
 }
 
 /**
- * Render routes section - NEW route-first UI with tree structure
+ * Indique si l'arbre de routes d'un serveur porte des modifications non
+ * enregistrées.
+ *
+ * Cette section est la seule du plugin à travailler sur un **brouillon** validé
+ * par un bouton « Enregistrer » ; partout ailleurs l'écriture est immédiate.
+ * Exposer l'état permet de le signaler à l'utilisateur au lieu de le laisser
+ * découvrir la différence en perdant son travail.
  */
-export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext): void {
-  const { t, settings, logger } = ctx;
+export function hasUnsavedRouteChanges(vpsId: string): boolean {
+  return uiStates.get(vpsId)?.hasUnsavedChanges ?? false;
+}
 
-  const routesBlock = root.createDiv({ cls: 'ptpv-block' });
+/**
+ * Arbre de routes d'**un** serveur. C'est la brique que l'API déclarative place
+ * sous la page du serveur concerné.
+ */
+export function renderVpsRoutes(root: HTMLElement, vps: VpsConfig, ctx: SettingsViewContext): void {
+  const { t, logger } = ctx;
 
-  // Render routes organized by VPS
-  settings.vpsConfigs.forEach((vps, vpsIndex) => {
-    const vpsSection = routesBlock.createDiv({ cls: 'ptpv-routes-vps-section' });
-
-    new Setting(vpsSection)
-      .setName(
-        `${vps.name || translate(t, 'common.vpsNumberFallback', { number: (vpsIndex + 1).toString() })} - Routes`
-      )
-      .setHeading();
+  {
+    const vpsSection = root.createDiv({ cls: 'ptpv-routes-vps-section' });
 
     const state = getOrCreateUiState(vps.id);
 
@@ -199,11 +204,32 @@ export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext)
       ctx.refresh();
       new Notice(t.common.cancelled || 'Annulé');
     };
-  });
+  }
+}
 
-  // Reset temp state on section unmount
-  root.addEventListener('DOMContentLoaded', () => {
-    uiStates.clear();
+/**
+ * Chemin `display()` (Obsidian < 1.13) : un bloc de routes par serveur, à la
+ * suite, sur un seul écran.
+ */
+export function renderRoutesSection(root: HTMLElement, ctx: SettingsViewContext): void {
+  const { t, settings } = ctx;
+
+  const routesBlock = root.createDiv({ cls: 'ptpv-block' });
+
+  settings.vpsConfigs.forEach((vps, vpsIndex) => {
+    const name =
+      vps.name || translate(t, 'common.vpsNumberFallback', { number: (vpsIndex + 1).toString() });
+    const heading = new Setting(routesBlock).setName(`${name} - Routes`).setHeading();
+
+    // Le brouillon des routes est invisible autrement : on le signale ici.
+    if (hasUnsavedRouteChanges(vps.id)) {
+      heading.nameEl.createSpan({
+        cls: 'ptpv-unsaved-badge',
+        text: t.settings.routes?.unsavedBadge ?? 'Unsaved changes',
+      });
+    }
+
+    renderVpsRoutes(routesBlock, vps, ctx);
   });
 }
 
