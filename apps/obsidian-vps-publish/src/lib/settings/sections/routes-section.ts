@@ -32,25 +32,31 @@ interface RoutesUIState {
   searchQuery: string; // Filtre de l'arbre (éphémère, non persisté)
 }
 
+/** Le tri alphabétique des racines est-il actif pour ce serveur ? */
+function rootsAreSorted(vps: VpsConfig): boolean {
+  return vps.sortRoutesAlphabetically !== false;
+}
+
 /**
- * Ordre d'affichage des frères.
+ * Ordre d'affichage des **racines** uniquement.
  *
- * L'ordre n'a **aucune signification fonctionnelle** : le domaine ne fait que
- * parcourir l'arbre, et les routes sont adressées par leurs segments. C'est donc
- * un confort de lecture, réglable par serveur.
+ * L'asymétrie racines/enfants est **voulue** : les racines sont classées pour
+ * rester lisibles, les enfants gardent l'ordre que l'utilisateur leur a donné.
+ * L'ordre n'ayant aucune signification fonctionnelle — le domaine ne fait que
+ * parcourir l'arbre, les routes étant adressées par leurs segments — c'est un
+ * choix de présentation, réglable par serveur.
  *
- * Le tri s'applique désormais aux racines **et** aux enfants. Auparavant seules
- * les racines étaient triées, ce qui rendait les boutons monter/descendre
- * inopérants à la racine et fonctionnels un niveau plus bas — le même bouton
- * faisait deux choses selon la profondeur.
+ * Corollaire assumé : tant que le tri est actif, réordonner une racine à la main
+ * ne peut rien produire. Les commandes de déplacement sont donc masquées à ce
+ * niveau (voir `renderRouteNode`), plutôt que de rester cliquables sans effet.
  */
-function orderedSiblings(nodes: RouteNode[], vps: VpsConfig): RouteNode[] {
-  if (vps.sortRoutesAlphabetically === false) return nodes;
+function orderedRoots(nodes: RouteNode[], vps: VpsConfig): RouteNode[] {
+  if (!rootsAreSorted(vps)) return nodes;
 
   return [...nodes].sort((a, b) => {
     const segmentA = (a.segment || '').toLowerCase();
     const segmentB = (b.segment || '').toLowerCase();
-    // La racine (segment vide) reste en tête.
+    // La racine du site (segment vide) reste en tête.
     if (segmentA === '' && segmentB !== '') return -1;
     if (segmentA !== '' && segmentB === '') return 1;
     return segmentA.localeCompare(segmentB);
@@ -189,7 +195,7 @@ export function renderVpsRoutes(root: HTMLElement, vps: VpsConfig, ctx: Settings
       // `null` = pas de filtre actif ; sinon, ensemble des nœuds à afficher.
       const visible = query ? visibleNodeIds(routeTree.roots, query) : null;
 
-      const roots = orderedSiblings(routeTree.roots, vps).filter(
+      const roots = orderedRoots(routeTree.roots, vps).filter(
         (node) => !visible || visible.has(node.id)
       );
 
@@ -493,41 +499,53 @@ function renderRouteNode(
   // Indent based on depth
   item.setCssStyles({ paddingLeft: `${depth * 20}px` });
 
-  // Drag handle icon (always first)
-  const dragHandle = item.createSpan({
-    cls: 'ptpv-route-drag-handle',
-    attr: { 'aria-label': 'Drag to reorder' },
-  });
-  setIcon(dragHandle, 'grip-vertical');
+  // Le tri alphabétique ne s'applique qu'aux racines, délibérément. Tant qu'il
+  // est actif, replacer une racine à la main n'aurait aucun effet visible : on
+  // masque donc les commandes de déplacement à ce niveau, au lieu de les laisser
+  // cliquables, sans résultat, et salissant l'état « non enregistré ».
+  // Les enfants, eux, gardent toujours leur ordre manuel.
+  const canReorder = depth > 0 || !rootsAreSorted(vps);
 
-  // Keyboard move buttons (accessible alternative to drag & drop)
-  const moveControls = item.createDiv({ cls: 'ptpv-route-move-controls' });
+  if (canReorder) {
+    // Drag handle icon (always first)
+    const dragHandle = item.createSpan({
+      cls: 'ptpv-route-drag-handle',
+      attr: { 'aria-label': 'Drag to reorder' },
+    });
+    setIcon(dragHandle, 'grip-vertical');
 
-  const moveUpBtn = moveControls.createEl('button', {
-    cls: 'ptpv-route-move-btn clickable-icon',
-    attr: {
-      'aria-label': ctx.t.routesKeyboard?.moveUp ?? 'Move up',
-      tabindex: '0',
-    },
-  });
-  setIcon(moveUpBtn, 'chevron-up');
-  moveUpBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    moveNodeUp(state, node, ctx);
-  });
+    // Keyboard move buttons (accessible alternative to drag & drop)
+    const moveControls = item.createDiv({ cls: 'ptpv-route-move-controls' });
 
-  const moveDownBtn = moveControls.createEl('button', {
-    cls: 'ptpv-route-move-btn clickable-icon',
-    attr: {
-      'aria-label': ctx.t.routesKeyboard?.moveDown ?? 'Move down',
-      tabindex: '0',
-    },
-  });
-  setIcon(moveDownBtn, 'chevron-down');
-  moveDownBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    moveNodeDown(state, node, ctx);
-  });
+    const moveUpBtn = moveControls.createEl('button', {
+      cls: 'ptpv-route-move-btn clickable-icon',
+      attr: {
+        'aria-label': ctx.t.routesKeyboard?.moveUp ?? 'Move up',
+        tabindex: '0',
+      },
+    });
+    setIcon(moveUpBtn, 'chevron-up');
+    moveUpBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      moveNodeUp(state, node, ctx);
+    });
+
+    const moveDownBtn = moveControls.createEl('button', {
+      cls: 'ptpv-route-move-btn clickable-icon',
+      attr: {
+        'aria-label': ctx.t.routesKeyboard?.moveDown ?? 'Move down',
+        tabindex: '0',
+      },
+    });
+    setIcon(moveDownBtn, 'chevron-down');
+    moveDownBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      moveNodeDown(state, node, ctx);
+    });
+  } else {
+    // Conserver l'alignement des colonnes avec les lignes réordonnables.
+    item.createDiv({ cls: 'ptpv-route-move-spacer' });
+  }
 
   // Expand/collapse button (if has children)
   const hasChildren = node.children && node.children.length > 0;
@@ -676,9 +694,9 @@ function renderRouteNode(
   // Une recherche active déplie d'office : masquer un résultat derrière un nœud
   // replié reviendrait à ne pas le trouver.
   if (hasChildren && (state.expandedNodes.has(node.id) || visible)) {
-    const children = orderedSiblings(node.children!, vps).filter(
-      (child) => !visible || visible.has(child.id)
-    );
+    // Les enfants gardent leur ordre stocké : c'est délibéré, le tri ne concerne
+    // que les racines.
+    const children = node.children!.filter((child) => !visible || visible.has(child.id));
     if (children.length > 0) {
       const childrenContainer = nodeContainer.createDiv({ cls: 'ptpv-route-children' });
       children.forEach((child, index) => {

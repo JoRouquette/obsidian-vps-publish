@@ -1786,3 +1786,12 @@
 .obsidian-vps-publish-settings .ptpv-route-has-conflicts .ptpv-route-indicator:last-child {
   color: var(--text-error);
 }
+
+/* Le tri alphabétique ne concerne que les racines : leurs commandes de
+   déplacement sont masquées tant qu'il est actif, puisqu'elles n'auraient aucun
+   effet. Ce vide conserve l'alignement des colonnes avec les lignes enfants,
+   qui restent réordonnables. */
+.obsidian-vps-publish-settings .ptpv-route-move-spacer {
+  width: var(--size-4-12);
+  flex-shrink: 0;
+}

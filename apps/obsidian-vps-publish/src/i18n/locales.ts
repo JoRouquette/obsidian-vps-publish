@@ -648,9 +648,9 @@ export const en: Translations = {
       noResults: 'No route matches this search',
       collapseAll: 'Collapse all',
       expandAll: 'Expand all',
-      sortAlphabeticallyLabel: 'Sort alphabetically',
+      sortAlphabeticallyLabel: 'Sort root routes alphabetically',
       sortAlphabeticallyDescription:
-        'Display only — route order has no effect on the published site.',
+        'Display only. Child routes always keep the order you give them.',
       rootRouteHint: 'site root',
       indicatorCustomIndex: 'Custom index file',
       indicatorAdditionalFiles: 'Additional files',
@@ -1225,9 +1225,9 @@ export const fr: Translations = {
       noResults: 'Aucune route ne correspond à cette recherche',
       collapseAll: 'Tout replier',
       expandAll: 'Tout déplier',
-      sortAlphabeticallyLabel: 'Trier par ordre alphabétique',
+      sortAlphabeticallyLabel: 'Trier les routes racines par ordre alphabétique',
       sortAlphabeticallyDescription:
-        'Affichage seulement — l ordre des routes n a aucun effet sur le site publié.',
+        'Affichage seulement. Les routes enfants gardent toujours l ordre que vous leur donnez.',
       rootRouteHint: 'racine du site',
       indicatorCustomIndex: 'Fichier d index personnalisé',
       indicatorAdditionalFiles: 'Fichiers supplémentaires',
