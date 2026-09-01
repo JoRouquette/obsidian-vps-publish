@@ -30,6 +30,29 @@ interface RoutesUIState {
   draggedNodeId: string | null; // ID of the node being dragged
   draggedNodeParentId: string | null; // Parent ID (null for root)
   searchQuery: string; // Filtre de l'arbre (éphémère, non persisté)
+  /**
+   * Redessine l'arbre **et** l'état des boutons Enregistrer/Annuler, sans
+   * reconstruire tout l'onglet. Renseigné par `renderVpsRoutes`.
+   */
+  redraw: (() => void) | null;
+}
+
+/**
+ * Redessine localement si possible, sinon retombe sur un rendu complet.
+ *
+ * Déplier, déplacer, ouvrir un éditeur ou supprimer un nœud sont des actions
+ * **locales à l'arbre** : les faire passer par `ctx.refresh()` reconstruisait
+ * tout l'onglet, et faisait perdre la position de défilement et le focus.
+ *
+ * Le repli sur `ctx.refresh()` couvre le cas où l'arbre n'a pas encore été
+ * rendu — il ne devrait pas se produire, mais il évite une action sans effet.
+ */
+function redrawTree(state: RoutesUIState, ctx: SettingsViewContext): void {
+  if (state.redraw) {
+    state.redraw();
+    return;
+  }
+  ctx.refresh();
 }
 
 /** Le tri alphabétique des racines est-il actif pour ce serveur ? */
@@ -122,6 +145,7 @@ function getOrCreateUiState(vpsId: string): RoutesUIState {
       draggedNodeId: null,
       draggedNodeParentId: null,
       searchQuery: '',
+      redraw: null,
     };
     uiStates.set(vpsId, state);
   }
@@ -188,6 +212,16 @@ export function renderVpsRoutes(root: HTMLElement, vps: VpsConfig, ctx: Settings
     const toolbar = vpsSection.createDiv({ cls: 'ptpv-routes-toolbar' });
     const treeContainer = vpsSection.createDiv({ cls: 'ptpv-routes-tree' });
 
+    // Les boutons Enregistrer/Annuler vivent hors du conteneur d'arbre : un
+    // re-rendu local de l'arbre seul les laisserait désactivés alors que
+    // l'utilisateur vient de modifier quelque chose. On redessine donc les deux.
+    // Renseigné plus bas, une fois les boutons créés.
+    let refreshActions: () => void = () => {};
+    const redraw = (): void => {
+      updateTree();
+      refreshActions();
+    };
+
     const updateTree = () => {
       treeContainer.empty();
 
@@ -233,7 +267,7 @@ export function renderVpsRoutes(root: HTMLElement, vps: VpsConfig, ctx: Settings
           .setValue(state.searchQuery)
           .onChange((value) => {
             state.searchQuery = value;
-            updateTree();
+            redraw();
           });
       })
       .addExtraButton((btn) => {
@@ -242,7 +276,7 @@ export function renderVpsRoutes(root: HTMLElement, vps: VpsConfig, ctx: Settings
           .setTooltip(t.settings.routes.collapseAll ?? 'Collapse all')
           .onClick(() => {
             state.expandedNodes.clear();
-            updateTree();
+            redraw();
           });
       })
       .addExtraButton((btn) => {
@@ -251,7 +285,7 @@ export function renderVpsRoutes(root: HTMLElement, vps: VpsConfig, ctx: Settings
           .setTooltip(t.settings.routes.expandAll ?? 'Expand all')
           .onClick(() => {
             allNodeIds(routeTree.roots).forEach((id) => state.expandedNodes.add(id));
-            updateTree();
+            redraw();
           });
       });
 
@@ -266,7 +300,7 @@ export function renderVpsRoutes(root: HTMLElement, vps: VpsConfig, ctx: Settings
           logger.debug('Route sorting changed', { vpsId: vps.id, sortAlphabetically: value });
           vps.sortRoutesAlphabetically = value;
           void ctx.save();
-          updateTree();
+          redraw();
         });
       });
 
@@ -291,7 +325,7 @@ export function renderVpsRoutes(root: HTMLElement, vps: VpsConfig, ctx: Settings
       routeTree.roots.push(newRoute);
       state.editingNodeId = newRoute.id; // Auto-open editor
       state.hasUnsavedChanges = true;
-      ctx.refresh();
+      redraw();
     };
 
     // Save/Cancel buttons at the bottom
@@ -301,9 +335,7 @@ export function renderVpsRoutes(root: HTMLElement, vps: VpsConfig, ctx: Settings
 
     const btnSave = actionRow.createEl('button', {
       text: t.common.save || 'Sauvegarder',
-      cls: state.hasUnsavedChanges ? 'mod-cta' : '',
     });
-    btnSave.disabled = !state.hasUnsavedChanges;
     btnSave.onclick = async () => {
       logger.debug('Saving route tree changes', { vpsId: vps.id });
 
@@ -329,16 +361,29 @@ export function renderVpsRoutes(root: HTMLElement, vps: VpsConfig, ctx: Settings
     const btnCancel = actionRow.createEl('button', {
       text: t.common.cancel || 'Annuler',
     });
-    btnCancel.disabled = !state.hasUnsavedChanges;
     btnCancel.onclick = () => {
       logger.debug('Cancelling route tree changes', { vpsId: vps.id });
       // Reset temp state
       state.tempRouteTree = null;
       state.hasUnsavedChanges = false;
       state.editingNodeId = null;
+      // Rendu complet volontaire : le brouillon est jeté, et le badge « non
+      // enregistré » du titre vit hors de cette section.
       ctx.refresh();
       new Notice(t.common.cancelled || 'Annulé');
     };
+
+    // Refléter l'état « non enregistré » sur les deux boutons. Appelé par
+    // `redraw()`, donc à chaque action locale sur l'arbre.
+    refreshActions = () => {
+      btnSave.disabled = !state.hasUnsavedChanges;
+      btnSave.toggleClass('mod-cta', state.hasUnsavedChanges);
+      btnCancel.disabled = !state.hasUnsavedChanges;
+    };
+    refreshActions();
+
+    // À partir d'ici, les actions locales de l'arbre passent par `redraw()`.
+    state.redraw = redraw;
   }
 }
 
@@ -493,7 +538,7 @@ function renderRouteNode(
     state.hasUnsavedChanges = true;
     state.draggedNodeId = null;
     state.draggedNodeParentId = null;
-    ctx.refresh();
+    redrawTree(state, ctx);
   };
 
   // Indent based on depth
@@ -527,7 +572,7 @@ function renderRouteNode(
     setIcon(moveUpBtn, 'chevron-up');
     moveUpBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      moveNodeUp(state, node, ctx);
+      moveNodeUp(state, node, { refresh: () => redrawTree(state, ctx) });
     });
 
     const moveDownBtn = moveControls.createEl('button', {
@@ -540,7 +585,7 @@ function renderRouteNode(
     setIcon(moveDownBtn, 'chevron-down');
     moveDownBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      moveNodeDown(state, node, ctx);
+      moveNodeDown(state, node, { refresh: () => redrawTree(state, ctx) });
     });
   } else {
     // Conserver l'alignement des colonnes avec les lignes réordonnables.
@@ -562,7 +607,7 @@ function renderRouteNode(
       } else {
         state.expandedNodes.add(node.id);
       }
-      ctx.refresh();
+      redrawTree(state, ctx);
     };
   } else {
     // Spacer for alignment
@@ -638,7 +683,7 @@ function renderRouteNode(
   const btnEdit = actions.createEl('button', { text: ctx.t.settings.routes.editRoute });
   btnEdit.onclick = () => {
     state.editingNodeId = node.id;
-    ctx.refresh();
+    redrawTree(state, ctx);
   };
 
   const btnAddChild = actions.createEl('button', { text: ctx.t.settings.routes.addChildRoute });
@@ -655,7 +700,7 @@ function renderRouteNode(
     state.expandedNodes.add(node.id); // Auto-expand parent
     state.editingNodeId = newChild.id; // Auto-open editor
     state.hasUnsavedChanges = true;
-    ctx.refresh();
+    redrawTree(state, ctx);
   };
 
   const btnDelete = actions.createEl('button', { text: ctx.t.settings.routes.deleteRoute });
@@ -670,7 +715,7 @@ function renderRouteNode(
       state.editingNodeId = null;
     }
     state.hasUnsavedChanges = true;
-    ctx.refresh();
+    redrawTree(state, ctx);
   };
 
   // Detailed editor (if this node is being edited)
@@ -684,7 +729,7 @@ function renderRouteNode(
     closeBtn.setAttribute('title', ctx.t.settings.folders.closeEditor);
     closeBtn.onclick = () => {
       state.editingNodeId = null;
-      ctx.refresh();
+      redrawTree(state, ctx);
     };
 
     renderRouteEditor(editorContainer, vps, node, ctx, state);
@@ -820,7 +865,7 @@ function renderRouteEditor(
         if (!node.additionalFiles) return;
         node.additionalFiles.splice(index, 1);
         state.hasUnsavedChanges = true;
-        ctx.refresh();
+        redrawTree(state, ctx);
       });
     });
   });
@@ -831,7 +876,7 @@ function renderRouteEditor(
       if (!node.additionalFiles) node.additionalFiles = [];
       node.additionalFiles.push('');
       state.hasUnsavedChanges = true;
-      ctx.refresh();
+      redrawTree(state, ctx);
     });
   });
 
@@ -844,7 +889,7 @@ function renderRouteEditor(
       .setCta()
       .onClick(() => {
         state.editingNodeId = null;
-        ctx.refresh();
+        redrawTree(state, ctx);
       });
   });
 }
