@@ -1795,3 +1795,13 @@
   width: var(--size-4-12);
   flex-shrink: 0;
 }
+
+/* Message de validation affiché sous le champ concerné.
+   Remplace les Notice en coin d'écran, qui ne disaient pas quel champ était en
+   cause et disparaissaient d'elles-mêmes. */
+.obsidian-vps-publish-settings .ptpv-field-error {
+  grid-column: 1 / -1;
+  margin-top: 0.25rem;
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
+}
