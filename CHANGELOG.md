@@ -1,3 +1,9 @@
+## [6.24.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.23.0...6.24.0) (2026-09-10)
+
+### Features
+
+* **plugin:** require Obsidian 1.13 and make the mirror match the directory ([#27](https://github.com/JoRouquette/obsidian-vps-publish/issues/27)) ([50c5a9a](https://github.com/JoRouquette/obsidian-vps-publish/commit/50c5a9af56f2e1378478fa126a6fab30e6389321))
+
 ## [6.23.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.22.5...6.23.0) (2026-09-10)
 
 ### Features
