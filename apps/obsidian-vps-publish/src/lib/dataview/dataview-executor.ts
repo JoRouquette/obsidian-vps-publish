@@ -23,15 +23,8 @@
  * ```
  */
 
-// Le manifest déclare isDesktopOnly: true — les modules Node sont donc légitimes ici.
-// Ils servent à patcher require() pour les vues DataviewJS héritées.
-/* eslint-disable obsidianmd/no-nodejs-modules */
-
-import { createRequire } from 'node:module';
-import path from 'node:path';
-
 import type { DataviewBlock } from '@core-domain/dataview/dataview-block';
-import type { Component } from 'obsidian';
+import { type Component, Platform } from 'obsidian';
 
 /**
  * Minimal Dataview API interface.
@@ -214,11 +207,12 @@ export class DataviewExecutor {
       // finally block so Obsidian's own rendering state is not permanently affected.
       //
       // Note: stableRender.js closes over its internal `cache` reference at module-load time,
-      // so reassigning globalThis.__stableRenderCache has no effect — we must mutate the Map.
-      // eslint-disable-next-line obsidianmd/no-global-this -- le cache de stableRender.js vit sur globalThis, pas sur window
-      const stableRenderCache = (globalThis as Record<string, unknown>)['__stableRenderCache'] as
-        | Map<unknown, unknown>
-        | undefined;
+      // so reassigning window.__stableRenderCache has no effect — we must mutate the Map.
+      // stableRender.js et le plugin sont évalués dans le même realm : `window` EST
+      // le global qui porte ce cache.
+      const stableRenderCache = (window as unknown as Record<string, unknown>)[
+        '__stableRenderCache'
+      ] as Map<unknown, unknown> | undefined;
       const savedCacheEntries = stableRenderCache ? [...stableRenderCache.entries()] : null;
       stableRenderCache?.clear();
 
@@ -335,13 +329,23 @@ export class DataviewExecutor {
   }
 
   private installVaultRootRequireShim(): (() => void) | null {
+    // Garde de plateforme d'abord : les modules Node ne sont chargés qu'ici, en
+    // require() différé, parce qu'ils n'existent pas sur mobile. Le manifest
+    // déclare isDesktopOnly, mais la règle obsidianmd/no-nodejs-modules exige la
+    // garde explicite — un import statique ne peut, lui, jamais être gardé.
+    if (!Platform.isDesktop) {
+      return null;
+    }
+
     const basePath = this.getVaultBasePath();
     if (!basePath) {
       return null;
     }
 
-    // eslint-disable-next-line obsidianmd/no-global-this -- portee globale volontaire : on y patche require, et le type expose window
-    const globalScope = globalThis as typeof globalThis & {
+    const { createRequire } = require('node:module') as typeof import('node:module');
+    const path = require('node:path') as typeof import('node:path');
+
+    const globalScope = window as typeof window & {
       require?: RequireLike;
       window?: Window & { require?: RequireLike };
     };

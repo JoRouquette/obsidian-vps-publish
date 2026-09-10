@@ -42,22 +42,19 @@ export async function processWithConcurrencyControl<T, R>(
       const task = queue.shift();
       if (!task) break;
 
-      try {
-        results[task.index] = await processItem(task.item, task.index);
-        completed++;
+      // Pas de try/catch ici : il ne faisait que relancer l'erreur telle quelle.
+      // Elle remonte d'elle-même au `Promise.all` ci-dessous.
+      results[task.index] = await processItem(task.item, task.index);
+      completed++;
 
-        if (onProgress) {
-          onProgress(completed, items.length);
-        }
+      if (onProgress) {
+        onProgress(completed, items.length);
+      }
 
-        // Yield to event loop after processing batch
-        batchCount++;
-        if (batchCount % batchSize === 0) {
-          await yieldToEventLoop();
-        }
-      } catch (error) {
-        // Re-throw to be caught by Promise.all
-        throw error;
+      // Yield to event loop after processing batch
+      batchCount++;
+      if (batchCount % batchSize === 0) {
+        await yieldToEventLoop();
       }
     }
   });
