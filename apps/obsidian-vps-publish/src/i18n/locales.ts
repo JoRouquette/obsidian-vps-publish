@@ -127,6 +127,8 @@ type LanguageTranslations = {
   title: string;
   label: string;
   description: string;
+  /** Libellé de l'option « suivre la langue du système ». */
+  system: string;
 };
 
 type VpsTranslations = {
@@ -149,6 +151,8 @@ type VpsTranslations = {
   actionsTitle: string;
   actionsDescription: string;
   uploadButton: string;
+  /** Titre de la page « Connexion » d un serveur (API déclarative). */
+  connectionTitle: string;
   cleanupRulesTitle: string;
   cleanupRulesDescription: string;
   addCleanupRule: string;
@@ -234,6 +238,20 @@ type FoldersTranslations = {
 };
 
 type RoutesTranslations = {
+  /** Badge signalant des modifications de routes non enregistrées. */
+  /** Barre d outils de l arbre de routes (toutes optionnelles : repli fourni dans le code). */
+  searchLabel?: string;
+  searchPlaceholder?: string;
+  noResults?: string;
+  collapseAll?: string;
+  expandAll?: string;
+  sortAlphabeticallyLabel?: string;
+  sortAlphabeticallyDescription?: string;
+  rootRouteHint?: string;
+  indicatorCustomIndex?: string;
+  indicatorAdditionalFiles?: string;
+  indicatorFlatten?: string;
+  unsavedBadge: string;
   addRootRoute: string;
   addChildRoute: string;
   editRoute: string;
@@ -519,10 +537,12 @@ export const en: Translations = {
       title: 'Language selection',
       label: 'Language',
       description: 'Choose plugin language.',
+      system: 'System',
     },
     vps: {
       title: 'VPS configuration',
       addButton: 'Add VPS',
+      connectionTitle: 'Connection',
       deleteButton: 'Delete VPS',
       deleteLastForbidden: 'At least one VPS is required',
       primaryBadge: 'Primary',
@@ -623,6 +643,19 @@ export const en: Translations = {
       sortExceptionsDesc: 'Sort: Exceptions (Most first)',
     },
     routes: {
+      searchLabel: 'Search',
+      searchPlaceholder: 'Segment, name or folder',
+      noResults: 'No route matches this search',
+      collapseAll: 'Collapse all',
+      expandAll: 'Expand all',
+      sortAlphabeticallyLabel: 'Sort root routes alphabetically',
+      sortAlphabeticallyDescription:
+        'Display only. Child routes always keep the order you give them.',
+      rootRouteHint: 'site root',
+      indicatorCustomIndex: 'Custom index file',
+      indicatorAdditionalFiles: 'Additional files',
+      indicatorFlatten: 'Flattened tree',
+      unsavedBadge: 'Unsaved changes',
       addRootRoute: 'Add root route',
       addChildRoute: '+ Child',
       editRoute: 'Edit',
@@ -702,8 +735,8 @@ export const en: Translations = {
       logLevelError: 'Error only',
       calloutStylesLabel: 'Callout CSS snippets',
       calloutStylesDescription:
-        'Select which snippets from .obsidian/snippets to send to the server. They will be parsed to extract callout colors and icons.',
-      calloutStylesEmpty: 'No CSS files found in .obsidian/snippets.',
+        'Select which snippets from your vault snippets folder to send to the server. They will be parsed to extract callout colors and icons.',
+      calloutStylesEmpty: 'No CSS files found in your snippets folder.',
       calloutStylesRefresh: 'Refresh',
       cleanup: {
         title: 'VPS cleanup',
@@ -962,7 +995,7 @@ export const en: Translations = {
     frontmatterProperty: 'e.g. publish, draft, private',
     tagsList: 'e.g. draft, private, internal',
     enterVpsName: 'Enter VPS name',
-    calloutStylesPaths: '.obsidian/snippets/callouts.css',
+    calloutStylesPaths: 'snippets/callouts.css',
   },
   sessionErrors: {
     startFailed: 'Failed to start session',
@@ -1080,10 +1113,12 @@ export const fr: Translations = {
       title: 'Sélection de la langue',
       label: 'Langue',
       description: 'Choisir la langue du plugin.',
+      system: 'Système',
     },
     vps: {
       title: 'Configuration du VPS',
       addButton: 'Ajouter un VPS',
+      connectionTitle: 'Connexion',
       deleteButton: 'Supprimer le VPS',
       deleteLastForbidden: 'Au moins un VPS est requis',
       primaryBadge: 'Principal',
@@ -1185,6 +1220,19 @@ export const fr: Translations = {
       sortExceptionsDesc: 'Tri : Exceptions (Plus en premier)',
     },
     routes: {
+      searchLabel: 'Rechercher',
+      searchPlaceholder: 'Segment, nom ou dossier',
+      noResults: 'Aucune route ne correspond à cette recherche',
+      collapseAll: 'Tout replier',
+      expandAll: 'Tout déplier',
+      sortAlphabeticallyLabel: 'Trier les routes racines par ordre alphabétique',
+      sortAlphabeticallyDescription:
+        'Affichage seulement. Les routes enfants gardent toujours l ordre que vous leur donnez.',
+      rootRouteHint: 'racine du site',
+      indicatorCustomIndex: 'Fichier d index personnalisé',
+      indicatorAdditionalFiles: 'Fichiers supplémentaires',
+      indicatorFlatten: 'Arborescence aplatie',
+      unsavedBadge: 'Modifications non enregistrées',
       addRootRoute: 'Ajouter une route racine',
       addChildRoute: '+ Enfant',
       editRoute: 'Éditer',
@@ -1266,8 +1314,8 @@ export const fr: Translations = {
       logLevelError: 'Error uniquement',
       calloutStylesLabel: 'Snippets CSS callouts',
       calloutStylesDescription:
-        'Sélectionnez les snippets de .obsidian/snippets à envoyer au serveur. Ils seront analysés pour extraire les couleurs et icônes des callouts.',
-      calloutStylesEmpty: 'Aucun fichier CSS trouvé dans .obsidian/snippets.',
+        'Sélectionnez les snippets du dossier de snippets de votre coffre à envoyer au serveur. Ils seront analysés pour extraire les couleurs et icônes des callouts.',
+      calloutStylesEmpty: 'Aucun fichier CSS trouvé dans le dossier de snippets.',
       calloutStylesRefresh: 'Actualiser',
       cleanup: {
         title: 'Nettoyage du VPS',
@@ -1529,7 +1577,7 @@ export const fr: Translations = {
     frontmatterProperty: 'ex: publish, draft, private',
     tagsList: 'ex: draft, private, internal',
     enterVpsName: 'Nom exact du VPS',
-    calloutStylesPaths: '.obsidian/snippets/callouts.css',
+    calloutStylesPaths: 'snippets/callouts.css',
   },
   sessionErrors: {
     startFailed: 'Échec du démarrage de la session',

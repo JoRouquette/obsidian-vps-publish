@@ -31,7 +31,9 @@
 }
 
 /* Progress bar for publishing notifications - Obsidian native style */
-.notice:has(.vps-publish-progress-container) {
+/* La classe est posée sur le noticeEl par NoticeProgressAdapter.start() :
+   pas de `:has()`, donc pas de dépendance à un sélecteur récent. */
+.notice.vps-publish-progress-notice {
   min-width: 320px;
   max-width: 400px;
 }
@@ -606,14 +608,17 @@
   opacity: 0.7;
 }
 
-/* Input error indicator for empty regex fields */
-.obsidian-vps-publish-settings .ptpv-input-error {
-  border: 2px solid var(--text-error) !important;
-  background-color: var(--background-modifier-error) !important;
+/* Input error indicator for empty regex fields.
+   Sélecteur qualifié (élément + attribut) plutôt que `!important` : la spécificité
+   suffit à battre le style d'input natif d'Obsidian.
+   La classe est posée sur `text.inputEl` dans vps-section.ts. */
+.obsidian-vps-publish-settings input[type='text'].ptpv-input-error {
+  border: 2px solid var(--text-error);
+  background-color: var(--background-modifier-error);
 }
 
-.obsidian-vps-publish-settings .ptpv-input-error:focus {
-  box-shadow: 0 0 0 2px var(--text-error) !important;
+.obsidian-vps-publish-settings input[type='text'].ptpv-input-error:focus {
+  box-shadow: 0 0 0 2px var(--text-error);
 }
 
 /* Séparateur visuel entre les règles */
@@ -1699,4 +1704,104 @@
 /* Generic visibility toggle (used for the cancel ribbon icon) */
 .vps-publish-hidden {
   display: none;
+}
+
+/* Badge « modifications non enregistrées » — les routes sont la seule section
+   à travailler sur un brouillon validé par un bouton Enregistrer ; partout
+   ailleurs l'écriture est immédiate. Sans ce marqueur, rien ne distingue les
+   deux modèles à l'écran. */
+.obsidian-vps-publish-settings .ptpv-unsaved-badge {
+  margin-left: 0.5em;
+  padding: 0.1em 0.5em;
+  border-radius: var(--radius-s);
+  background-color: var(--background-modifier-error);
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-medium);
+  vertical-align: middle;
+}
+
+/* --- Arbre de routes : barre d'outils et ligne de nœud --- */
+
+.obsidian-vps-publish-settings .ptpv-routes-toolbar {
+  margin-bottom: 0.5rem;
+}
+
+.obsidian-vps-publish-settings .ptpv-routes-no-results {
+  padding: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+}
+
+/* Le libellé d'une route se lit de gauche à droite : segment, nom affiché,
+   dossier publié, puis indicateurs. Le dossier est l'information la plus utile
+   de la ligne — auparavant il fallait ouvrir le nœud pour la connaître. */
+.obsidian-vps-publish-settings .ptpv-route-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.obsidian-vps-publish-settings .ptpv-route-segment {
+  font-weight: var(--font-medium);
+  color: var(--text-normal);
+}
+
+.obsidian-vps-publish-settings .ptpv-route-root-hint,
+.obsidian-vps-publish-settings .ptpv-route-display-name {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+}
+
+.obsidian-vps-publish-settings .ptpv-route-folder {
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.obsidian-vps-publish-settings .ptpv-route-indicators {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.obsidian-vps-publish-settings .ptpv-route-indicator {
+  display: inline-flex;
+  color: var(--text-faint);
+}
+
+.obsidian-vps-publish-settings .ptpv-route-indicator .svg-icon {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+
+.obsidian-vps-publish-settings .ptpv-route-has-conflicts .ptpv-route-indicator:last-child {
+  color: var(--text-error);
+}
+
+/* Le tri alphabétique ne concerne que les racines : leurs commandes de
+   déplacement sont masquées tant qu'il est actif, puisqu'elles n'auraient aucun
+   effet. Ce vide conserve l'alignement des colonnes avec les lignes enfants,
+   qui restent réordonnables. */
+.obsidian-vps-publish-settings .ptpv-route-move-spacer {
+  width: var(--size-4-12);
+  flex-shrink: 0;
+}
+
+/* Message de validation affiché sous le champ concerné.
+   Remplace les Notice en coin d'écran, qui ne disaient pas quel champ était en
+   cause et disparaissaient d'elles-mêmes. */
+.obsidian-vps-publish-settings .ptpv-field-error {
+  grid-column: 1 / -1;
+  margin-top: 0.25rem;
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
 }

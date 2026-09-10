@@ -10,7 +10,9 @@ import { translate } from '../../../i18n';
 import { PublishConfirmModal } from '../../modals/publish-confirm-modal';
 import { FileSuggest } from '../../suggesters/file-suggester';
 import { defaultSanitizationRules } from '../../utils/create-default-folder-config.util';
+import { markDestructive } from '../../utils/destructive-button.util';
 import type { SettingsViewContext } from '../context';
+import { setFieldError } from '../field-error.util';
 
 /**
  * Helper to get nested translation value from a key like "settings.cleanupRules.removeCodeBlocks.name"
@@ -29,17 +31,31 @@ function getNestedTranslation(t: Translations, key: string): string | undefined 
   return typeof current === 'string' ? current : undefined;
 }
 
-export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): void {
+/**
+ * Réglages d'**un** serveur : identité, connexion, index racine, actions,
+ * règles de nettoyage, suppression.
+ *
+ * C'est la brique que l'API déclarative place sous la page du serveur. Le
+ * `<fieldset>` n'a plus de rôle de séparation visuelle dans ce contexte — il
+ * n'y a qu'un serveur par page — mais il est conservé pour que les deux chemins
+ * de rendu partagent exactement le même code.
+ */
+export function renderVpsDetails(
+  root: HTMLElement,
+  vps: VpsConfig,
+  index: number,
+  ctx: SettingsViewContext,
+  // Le chemin déclaratif sort les règles de nettoyage dans leur propre page ;
+  // le chemin `display()` les garde ici, faute de page où les mettre.
+  options: { includeCleanupRules?: boolean } = {}
+): void {
+  const { includeCleanupRules = true } = options;
   const { t, settings, logger, vpsHelpers } = ctx;
 
-  const vpsBlock = root.createDiv({ cls: 'ptpv-block' });
-
-  new Setting(vpsBlock).setName(t.settings.vps.title).setHeading();
-
-  settings.vpsConfigs.forEach((vps, index) => {
+  {
     // First VPS gets primary styling
     const isPrimary = index === 0;
-    const vpsFieldset = vpsBlock.createEl('fieldset', {
+    const vpsFieldset = root.createEl('fieldset', {
       cls: isPrimary ? 'ptpv-vps ptpv-vps--primary' : 'ptpv-vps',
     });
     const legendText = vps.name || vps.id || `${t.settings.vps.title} #${index + 1}`;
@@ -49,82 +65,116 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
     }
 
     // VPS Name
-    new Setting(vpsFieldset)
+    //
+    // La saisie va dans un **brouillon** : `vps.name` n'est écrit qu'une fois
+    // la valeur validée. Auparavant `onChange` écrivait directement dans la
+    // configuration, si bien que « restaurer la valeur précédente » au `blur`
+    // restaurait en fait la saisie fautive — elle avait déjà écrasé l'ancienne.
+    const nameSetting = new Setting(vpsFieldset)
       .setName(t.settings.vps.nameLabel)
-      .setDesc(t.settings.vps.nameDescription)
-      .addText((text) => {
-        text
-          .setPlaceholder(translate(t, 'placeholders.vpsName'))
-          .setValue(vps.name)
-          .onChange((value) => {
-            // Update value in real-time without trimming or validating
-            vps.name = value;
-          });
+      .setDesc(t.settings.vps.nameDescription);
 
-        // Validate and save only on blur (when user leaves the field)
-        text.inputEl.addEventListener('blur', () => {
-          void (async () => {
-            const trimmed = vps.name.trim();
-            if (!trimmed) {
-              logger.warn('VPS name cannot be empty');
-              new Notice(t.settings.vps.nameRequired ?? 'VPS name is required');
-              vps.name = text.inputEl.value = vps.name || 'VPS'; // Restore previous or default
-              return;
-            }
-            if (!vpsHelpers.isVpsNameUnique(trimmed, vps.id)) {
-              logger.warn('VPS name already exists', { name: trimmed });
-              new Notice(t.settings.vps.nameDuplicate ?? `VPS name "${trimmed}" already exists`);
-              text.inputEl.value = vps.name; // Restore previous value
-              return;
-            }
-            // Only trim and save when leaving the field
-            vps.name = trimmed;
-            logger.debug('VPS name finalized', { name: trimmed });
-            await ctx.save();
-            ctx.refresh();
-          })();
+    nameSetting.addText((text) => {
+      let draft = vps.name;
+
+      text
+        .setPlaceholder(translate(t, 'placeholders.vpsName'))
+        .setValue(vps.name)
+        .onChange((value) => {
+          draft = value;
+          // L'erreur disparaît dès que l'utilisateur reprend sa saisie.
+          setFieldError(nameSetting, text.inputEl, null);
         });
-      });
 
-    // VPS URL (baseUrl)
-    new Setting(vpsFieldset)
+      // Validate and save only on blur (when user leaves the field)
+      text.inputEl.addEventListener('blur', () => {
+        void (async () => {
+          const trimmed = draft.trim();
+
+          if (!trimmed) {
+            logger.warn('VPS name cannot be empty');
+            setFieldError(
+              nameSetting,
+              text.inputEl,
+              t.settings.vps.nameRequired ?? 'VPS name is required'
+            );
+            return;
+          }
+          if (!vpsHelpers.isVpsNameUnique(trimmed, vps.id)) {
+            logger.warn('VPS name already exists', { name: trimmed });
+            setFieldError(
+              nameSetting,
+              text.inputEl,
+              t.settings.vps.nameDuplicate ?? `VPS name "${trimmed}" already exists`
+            );
+            return;
+          }
+
+          setFieldError(nameSetting, text.inputEl, null);
+          if (trimmed === vps.name) return;
+
+          vps.name = trimmed;
+          text.inputEl.value = trimmed;
+          logger.debug('VPS name finalized', { name: trimmed });
+          await ctx.save();
+          ctx.refresh();
+        })();
+      });
+    });
+
+    // VPS URL (baseUrl) — même principe de brouillon que le nom.
+    const urlSetting = new Setting(vpsFieldset)
       .setName(t.settings.vps.urlLabel)
-      .setDesc(t.settings.vps.urlDescription)
-      .addText((text) => {
-        const legacyVps = vps as unknown as { url?: string };
-        text
-          .setPlaceholder(translate(t, 'placeholders.vpsUrl'))
-          .setValue(vps.baseUrl || legacyVps.url || '')
-          .onChange((value) => {
-            // Update value in real-time without trimming
-            vps.baseUrl = value;
-            // Clean up legacy field if present
-            delete legacyVps.url;
-          });
+      .setDesc(t.settings.vps.urlDescription);
 
-        // Validate and save only on blur
-        text.inputEl.addEventListener('blur', () => {
-          void (async () => {
-            const trimmed = vps.baseUrl.trim();
-            if (!trimmed) {
-              logger.warn('VPS URL cannot be empty');
-              new Notice(t.settings.vps.urlRequired ?? 'VPS URL is required');
-              vps.baseUrl = text.inputEl.value = vps.baseUrl || 'https://'; // Restore
-              return;
-            }
-            if (!vpsHelpers.isVpsUrlUnique(trimmed, vps.id)) {
-              logger.warn('VPS URL already exists', { url: trimmed });
-              new Notice(t.settings.vps.urlDuplicate ?? `VPS URL "${trimmed}" already exists`);
-              text.inputEl.value = vps.baseUrl; // Restore previous value
-              return;
-            }
-            // Only trim and save when leaving the field
-            vps.baseUrl = trimmed;
-            logger.debug('VPS url finalized', { url: trimmed });
-            await ctx.save();
-          })();
+    urlSetting.addText((text) => {
+      const legacyVps = vps as unknown as { url?: string };
+      let draft = vps.baseUrl || legacyVps.url || '';
+
+      text
+        .setPlaceholder(translate(t, 'placeholders.vpsUrl'))
+        .setValue(draft)
+        .onChange((value) => {
+          draft = value;
+          setFieldError(urlSetting, text.inputEl, null);
         });
+
+      // Validate and save only on blur
+      text.inputEl.addEventListener('blur', () => {
+        void (async () => {
+          const trimmed = draft.trim();
+
+          if (!trimmed) {
+            logger.warn('VPS URL cannot be empty');
+            setFieldError(
+              urlSetting,
+              text.inputEl,
+              t.settings.vps.urlRequired ?? 'VPS URL is required'
+            );
+            return;
+          }
+          if (!vpsHelpers.isVpsUrlUnique(trimmed, vps.id)) {
+            logger.warn('VPS URL already exists', { url: trimmed });
+            setFieldError(
+              urlSetting,
+              text.inputEl,
+              t.settings.vps.urlDuplicate ?? `VPS URL "${trimmed}" already exists`
+            );
+            return;
+          }
+
+          setFieldError(urlSetting, text.inputEl, null);
+          if (trimmed === vps.baseUrl && legacyVps.url === undefined) return;
+
+          vps.baseUrl = trimmed;
+          text.inputEl.value = trimmed;
+          // Clean up legacy field if present
+          delete legacyVps.url;
+          logger.debug('VPS url finalized', { url: trimmed });
+          await ctx.save();
+        })();
       });
+    });
 
     // VPS API Key
     new Setting(vpsFieldset)
@@ -171,7 +221,9 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
     renderVpsActions(vpsFieldset, vps, ctx);
 
     // Cleanup Rules (Sanitization) for this VPS
-    renderCleanupRulesSection(vpsFieldset, vps, ctx);
+    if (includeCleanupRules) {
+      renderCleanupRulesSection(vpsFieldset, vps, ctx);
+    }
 
     // Delete VPS button (at the bottom, away from main controls)
     const deleteSetting = new Setting(vpsFieldset).setName(
@@ -179,9 +231,7 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
     );
 
     deleteSetting.addButton((btn) => {
-      btn
-        .setIcon('trash')
-        .setWarning()
+      markDestructive(btn.setIcon('trash'))
         .setDisabled(settings.vpsConfigs.length <= 1)
         .setTooltip(
           settings.vpsConfigs.length <= 1
@@ -200,7 +250,21 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
           ctx.refresh();
         });
     });
-  });
+  }
+}
+
+/**
+ * Chemin `display()` (Obsidian < 1.13) : tous les serveurs empilés sur un seul
+ * écran, chacun dans son `<fieldset>`.
+ */
+export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): void {
+  const { t, settings } = ctx;
+
+  const vpsBlock = root.createDiv({ cls: 'ptpv-block' });
+
+  new Setting(vpsBlock).setName(t.settings.vps.title).setHeading();
+
+  settings.vpsConfigs.forEach((vps, index) => renderVpsDetails(vpsBlock, vps, index, ctx));
 
   vpsBlock.createDiv({
     cls: 'ptpv-help',
@@ -215,29 +279,41 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
     text: t.settings.vps.addButton ?? 'Add VPS',
   });
   addVpsBtn.addClass('mod-cta');
-  addVpsBtn.onclick = async () => {
-    const newVps: VpsConfig = {
-      id: `vps-${Date.now()}`,
-      name: `VPS ${settings.vpsConfigs.length + 1}`,
-      baseUrl: '',
-      apiKey: '',
-      ignoreRules: [],
-      cleanupRules: defaultSanitizationRules(),
-      folders: [
-        {
-          id: `folder-${Date.now()}`,
-          vpsId: `vps-${Date.now()}`,
-          vaultFolder: '',
-          routeBase: '/',
-          ignoredCleanupRuleIds: [],
-        },
-      ],
-    };
-    logger.debug('Adding new VPS config', { id: newVps.id });
-    settings.vpsConfigs.push(newVps);
-    await ctx.save();
-    ctx.refresh();
+  addVpsBtn.onclick = () => void addVpsConfig(ctx);
+}
+
+/**
+ * Ajoute un serveur avec ses valeurs par défaut.
+ *
+ * Extrait du bouton « Ajouter un VPS » pour que l'affordance d'ajout de la
+ * liste déclarative (`addItem`) et le bouton du chemin `display()` créent
+ * exactement le même objet — une divergence ici produirait des serveurs
+ * incomplets selon la version d'Obsidian.
+ */
+export async function addVpsConfig(ctx: SettingsViewContext): Promise<void> {
+  const { settings, logger } = ctx;
+  const id = `vps-${Date.now()}`;
+  const newVps: VpsConfig = {
+    id,
+    name: `VPS ${settings.vpsConfigs.length + 1}`,
+    baseUrl: '',
+    apiKey: '',
+    ignoreRules: [],
+    cleanupRules: defaultSanitizationRules(),
+    folders: [
+      {
+        id: `folder-${Date.now()}`,
+        vpsId: id,
+        vaultFolder: '',
+        routeBase: '/',
+        ignoredCleanupRuleIds: [],
+      },
+    ],
   };
+  logger.debug('Adding new VPS config', { id: newVps.id });
+  settings.vpsConfigs.push(newVps);
+  await ctx.save();
+  ctx.refresh();
 }
 
 /**
@@ -290,7 +366,7 @@ function renderVpsActions(container: HTMLElement, vps: VpsConfig, ctx: SettingsV
 /**
  * Render cleanup/sanitization rules section for a specific VPS
  */
-function renderCleanupRulesSection(
+export function renderCleanupRulesSection(
   container: HTMLElement,
   vps: VpsConfig,
   ctx: SettingsViewContext

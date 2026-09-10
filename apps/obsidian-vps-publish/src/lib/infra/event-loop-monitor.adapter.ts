@@ -10,7 +10,7 @@ import type { LoggerPort } from '@core-domain/ports/logger-port';
  * High lag values indicate the event loop is blocked, causing UI freezes.
  */
 export class EventLoopMonitorAdapter {
-  private intervalHandle: ReturnType<typeof setInterval> | null = null;
+  private intervalHandle: ReturnType<Window['setInterval']> | null = null;
   private lastCheckTime = 0;
   private lagSamples: number[] = [];
   private readonly checkIntervalMs: number;
@@ -39,8 +39,8 @@ export class EventLoopMonitorAdapter {
     this.lagSamples = [];
     this.lastCheckTime = Date.now();
 
-    // Use globalThis for cross-environment compatibility (Node.js + Browser)
-    this.intervalHandle = globalThis.setInterval(() => {
+    // window.* (et non globalThis) : compatibilité des fenêtres popout d'Obsidian.
+    this.intervalHandle = window.setInterval(() => {
       const now = Date.now();
       const expectedTime = this.lastCheckTime + this.checkIntervalMs;
       const drift = now - expectedTime;
@@ -76,7 +76,7 @@ export class EventLoopMonitorAdapter {
     }
 
     if (this.intervalHandle !== null) {
-      globalThis.clearInterval(this.intervalHandle);
+      window.clearInterval(this.intervalHandle);
       this.intervalHandle = null;
     }
 

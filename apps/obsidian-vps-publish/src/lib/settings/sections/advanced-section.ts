@@ -1,6 +1,7 @@
 import { LogLevel } from '@core-domain/ports/logger-port';
 import { type App, type DataAdapter, Modal, Notice, Setting } from 'obsidian';
 
+import { markDestructive } from '../../utils/destructive-button.util';
 import type { SettingsViewContext } from '../context';
 
 function logLevelToString(level: LogLevel): string {
@@ -32,15 +33,16 @@ function stringToLogLevel(value: string): LogLevel {
   }
 }
 
-export function renderAdvancedSection(root: HTMLElement, ctx: SettingsViewContext): void {
+/**
+ * Contenu des réglages avancés, **sans accordéon**.
+ *
+ * C'est la forme utilisée par l'API déclarative : la section y est une page
+ * navigable, et un `<details>` replié à l'intérieur d'une page serait redondant
+ * — en plus de soustraire son contenu à la recherche des paramètres.
+ */
+export function renderAdvancedContent(root: HTMLElement, ctx: SettingsViewContext): void {
   const { t, settings, logger } = ctx;
-  const block = root.createDiv({ cls: 'ptpv-block' });
-  const details = block.createEl('details', { cls: 'ptpv-advanced' });
-  details.createEl('summary', {
-    text: t.settings.advanced.title,
-  });
-
-  const inner = details.createDiv({ cls: 'ptpv-advanced__content' });
+  const inner = root.createDiv({ cls: 'ptpv-advanced__content' });
 
   new Setting(inner)
     .setName(t.settings.advanced.logLevelLabel)
@@ -67,7 +69,25 @@ export function renderAdvancedSection(root: HTMLElement, ctx: SettingsViewContex
   renderCleanupSetting(inner, ctx);
 }
 
-const SNIPPETS_FOLDER = '.obsidian/snippets';
+/**
+ * Chemin `display()` (Obsidian < 1.13) : l'accordéon est conservé, faute de
+ * page navigable sur ces versions. Le contenu, lui, est le même.
+ */
+export function renderAdvancedSection(root: HTMLElement, ctx: SettingsViewContext): void {
+  const block = root.createDiv({ cls: 'ptpv-block' });
+  const details = block.createEl('details', { cls: 'ptpv-advanced' });
+  details.createEl('summary', { text: ctx.t.settings.advanced.title });
+  renderAdvancedContent(details, ctx);
+}
+
+/**
+ * Le dossier de configuration n'est PAS toujours `.obsidian` : l'utilisateur peut
+ * le renommer. On le dérive donc de `Vault#configDir` au lieu de le figer, sinon
+ * la lecture des snippets de callouts est cassée pour ces vaults.
+ */
+function snippetsFolder(app: SettingsViewContext['app']): string {
+  return `${app.vault.configDir}/snippets`;
+}
 
 function renderCalloutSnippets(container: HTMLElement, ctx: SettingsViewContext): void {
   const { t, settings, app, logger } = ctx;
@@ -86,7 +106,7 @@ function renderCalloutSnippets(container: HTMLElement, ctx: SettingsViewContext)
       const adapter = app.vault.adapter as DataAdapter & {
         list(path: string): Promise<{ files: string[]; folders: string[] }>;
       };
-      ({ files } = await adapter.list(SNIPPETS_FOLDER));
+      ({ files } = await adapter.list(snippetsFolder(app)));
     } catch {
       // Folder does not exist or is not accessible
     }
@@ -166,7 +186,7 @@ function renderCleanupSetting(inner: HTMLElement, ctx: SettingsViewContext): voi
   });
 
   cleanupSetting.addButton((btn) => {
-    btn.setButtonText(t.settings.advanced.cleanup.button).setWarning();
+    markDestructive(btn.setButtonText(t.settings.advanced.cleanup.button));
     if (!settings.vpsConfigs?.length) {
       btn.setDisabled(true);
     }

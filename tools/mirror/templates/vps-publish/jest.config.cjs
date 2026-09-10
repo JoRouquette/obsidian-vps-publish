@@ -1,6 +1,9 @@
 module.exports = {
   displayName: 'obsidian-vps-publish',
   testEnvironment: 'node',
+  // Voir jest.setup.cjs : alias `window` -> globalThis, requis parce que le code
+  // du plugin utilise `window.setTimeout` (guidelines Obsidian, compat popout).
+  setupFiles: ['<rootDir>/jest.setup.cjs'],
   transform: {
     '^.+\\.[tj]s$': ['ts-jest', { tsconfig: './tsconfig.json' }],
   },

@@ -64,6 +64,11 @@ npm-debug.log*
 .github/instructions/nx.instructions.md
 .angular
 
+# Vestige : le coffre de recette n'est plus dans le dépôt. Avec le développement
+# en worktrees, un coffre par arborescence signifierait un data.json par branche.
+# Il est désormais externe, désigné par OBSIDIAN_TEST_VAULT
+# (cf. apps/obsidian-vps-publish/scripts/deploy-to-vault.mjs).
+# Conservé pour ignorer les reliquats dans les worktrees existantes.
 test-vault
 
 # Claude Code configuration

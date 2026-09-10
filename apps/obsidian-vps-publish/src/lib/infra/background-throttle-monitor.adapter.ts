@@ -45,7 +45,7 @@ export interface BackgroundThrottleMetrics {
 }
 
 export class BackgroundThrottleMonitorAdapter {
-  private heartbeatHandle: ReturnType<typeof setInterval> | null = null;
+  private heartbeatHandle: ReturnType<Window['setInterval']> | null = null;
   private lastHeartbeatTime = 0;
   private expectedNextHeartbeat = 0;
   private heartbeats: HeartbeatTick[] = [];
@@ -93,18 +93,18 @@ export class BackgroundThrottleMonitorAdapter {
     this.timeInForegroundMs = 0;
 
     // Record initial visibility state
-    this.currentlyVisible = document.visibilityState === 'visible';
+    this.currentlyVisible = activeDocument.visibilityState === 'visible';
     this.visibilityEvents.push({
       timestamp: this.startTime,
       type: this.currentlyVisible ? 'visible' : 'hidden',
-      state: document.visibilityState,
+      state: activeDocument.visibilityState,
     });
 
     // Setup visibility change listener
     this.visibilityChangeListener = () => {
       const now = performance.now();
       const wasVisible = this.currentlyVisible;
-      this.currentlyVisible = document.visibilityState === 'visible';
+      this.currentlyVisible = activeDocument.visibilityState === 'visible';
 
       // Accumulate time in previous state
       const elapsed = now - this.lastVisibilityChangeTime;
@@ -118,11 +118,11 @@ export class BackgroundThrottleMonitorAdapter {
       this.visibilityEvents.push({
         timestamp: now,
         type: this.currentlyVisible ? 'visible' : 'hidden',
-        state: document.visibilityState,
+        state: activeDocument.visibilityState,
       });
 
       this.logger.debug(`[BackgroundThrottle] Visibility changed`, {
-        state: document.visibilityState,
+        state: activeDocument.visibilityState,
         timestampMs: now.toFixed(2),
       });
     };
@@ -133,7 +133,7 @@ export class BackgroundThrottleMonitorAdapter {
       this.visibilityEvents.push({
         timestamp: now,
         type: 'focus',
-        state: document.visibilityState,
+        state: activeDocument.visibilityState,
       });
       this.logger.debug(`[BackgroundThrottle] Window focused`, {
         timestampMs: now.toFixed(2),
@@ -145,7 +145,7 @@ export class BackgroundThrottleMonitorAdapter {
       this.visibilityEvents.push({
         timestamp: now,
         type: 'blur',
-        state: document.visibilityState,
+        state: activeDocument.visibilityState,
       });
       this.logger.debug(`[BackgroundThrottle] Window blurred`, {
         timestampMs: now.toFixed(2),
@@ -153,12 +153,12 @@ export class BackgroundThrottleMonitorAdapter {
     };
 
     // Attach event listeners
-    document.addEventListener('visibilitychange', this.visibilityChangeListener);
+    activeDocument.addEventListener('visibilitychange', this.visibilityChangeListener);
     window.addEventListener('focus', this.focusListener);
     window.addEventListener('blur', this.blurListener);
 
     // Start heartbeat
-    this.heartbeatHandle = globalThis.setInterval(() => {
+    this.heartbeatHandle = window.setInterval(() => {
       const now = performance.now();
       const drift = now - this.expectedNextHeartbeat;
 
@@ -174,7 +174,7 @@ export class BackgroundThrottleMonitorAdapter {
           expectedMs: this.expectedNextHeartbeat.toFixed(2),
           actualMs: now.toFixed(2),
           driftMs: drift.toFixed(2),
-          visibilityState: document.visibilityState,
+          visibilityState: activeDocument.visibilityState,
         });
       }
 
@@ -184,7 +184,7 @@ export class BackgroundThrottleMonitorAdapter {
 
     this.logger.info('[BackgroundThrottle] Monitor started', {
       heartbeatIntervalMs: this.heartbeatIntervalMs,
-      initialVisibilityState: document.visibilityState,
+      initialVisibilityState: activeDocument.visibilityState,
     });
   }
 
@@ -209,13 +209,13 @@ export class BackgroundThrottleMonitorAdapter {
 
     // Stop heartbeat
     if (this.heartbeatHandle !== null) {
-      globalThis.clearInterval(this.heartbeatHandle);
+      window.clearInterval(this.heartbeatHandle);
       this.heartbeatHandle = null;
     }
 
     // Remove event listeners
     if (this.visibilityChangeListener) {
-      document.removeEventListener('visibilitychange', this.visibilityChangeListener);
+      activeDocument.removeEventListener('visibilitychange', this.visibilityChangeListener);
       this.visibilityChangeListener = null;
     }
     if (this.focusListener) {

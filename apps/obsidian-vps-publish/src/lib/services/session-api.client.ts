@@ -476,17 +476,17 @@ export class SessionApiClient {
       const eventSource = new eventSourceCtor(streamUrl.toString());
       let settled = false;
       let connected = false;
-      let connectTimeout: ReturnType<typeof setTimeout> | null = null;
-      let idleTimeout: ReturnType<typeof setTimeout> | null = null;
+      let connectTimeout: ReturnType<Window['setTimeout']> | null = null;
+      let idleTimeout: ReturnType<Window['setTimeout']> | null = null;
 
       const cleanup = () => {
         if (connectTimeout) {
-          clearTimeout(connectTimeout);
+          window.clearTimeout(connectTimeout);
           connectTimeout = null;
         }
 
         if (idleTimeout) {
-          clearTimeout(idleTimeout);
+          window.clearTimeout(idleTimeout);
           idleTimeout = null;
         }
 
@@ -516,10 +516,10 @@ export class SessionApiClient {
 
       const resetIdleTimeout = () => {
         if (idleTimeout) {
-          clearTimeout(idleTimeout);
+          window.clearTimeout(idleTimeout);
         }
 
-        idleTimeout = setTimeout(() => {
+        idleTimeout = window.setTimeout(() => {
           settle(
             () => undefined,
             new FinalizationRealtimeError(
@@ -533,7 +533,7 @@ export class SessionApiClient {
       const markConnected = () => {
         connected = true;
         if (connectTimeout) {
-          clearTimeout(connectTimeout);
+          window.clearTimeout(connectTimeout);
           connectTimeout = null;
         }
         resetIdleTimeout();
@@ -664,7 +664,7 @@ export class SessionApiClient {
       eventSource.addEventListener('heartbeat', handleHeartbeat);
       eventSource.addEventListener('error', handleError);
 
-      connectTimeout = setTimeout(() => {
+      connectTimeout = window.setTimeout(() => {
         settle(
           () => undefined,
           new FinalizationRealtimeError(
@@ -677,11 +677,15 @@ export class SessionApiClient {
   }
 
   private getEventSourceConstructor(): EventSourceConstructor | undefined {
+    // Détection de capacité : EventSource peut provenir de Node comme du navigateur.
+    // La portée globale est donc volontaire ici — `window` ne conviendrait pas.
+    /* eslint-disable obsidianmd/no-global-this */
     const candidate = (
       globalThis as typeof globalThis & {
         EventSource?: EventSourceConstructor;
       }
     ).EventSource;
+    /* eslint-enable obsidianmd/no-global-this */
 
     return typeof candidate === 'function' ? candidate : undefined;
   }
@@ -739,5 +743,5 @@ function parseLimit(value: unknown): number {
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }

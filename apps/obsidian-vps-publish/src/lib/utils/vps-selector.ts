@@ -37,7 +37,7 @@ export class VpsSelectorModal extends SuggestModal<VpsConfig> {
   }
 
   renderSuggestion(vps: VpsConfig, el: HTMLElement): void {
-    el.createEl('div', { text: vps.name, cls: 'vps-selector-name' });
+    el.createDiv({ text: vps.name, cls: 'vps-selector-name' });
     el.createEl('small', { text: vps.baseUrl, cls: 'vps-selector-url' });
   }
 

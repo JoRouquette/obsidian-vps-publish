@@ -57,6 +57,20 @@ export interface VpsConfig {
    * This file's content will be used as the root index page (/).
    */
   customRootIndexFile?: string;
+
+  /**
+   * Display-only: sort the route tree alphabetically instead of honouring the
+   * stored order.
+   *
+   * Sibling order carries **no functional meaning** — the domain only ever
+   * traverses the tree, and routes are addressed by their segments. This is a
+   * reading comfort, not a publishing behaviour.
+   *
+   * Defaults to `true`, which matches how root routes were already displayed.
+   * Turn it off to control the order by hand, which is what the drag handle and
+   * the move buttons then actually do.
+   */
+  sortRoutesAlphabetically?: boolean;
 }
 
 /**

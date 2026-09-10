@@ -5,6 +5,6 @@
   "minAppVersion": "1.5.0",
   "description": "Publish selected vault folders to your personal VPS with property-based filtering and remote upload.",
   "author": "JRouquette",
-  "authorUrl": "https://www.linkedin.com/in/jonathan-rouquette/",
+  "authorUrl": "https://github.com/JoRouquette",
   "isDesktopOnly": true
 }

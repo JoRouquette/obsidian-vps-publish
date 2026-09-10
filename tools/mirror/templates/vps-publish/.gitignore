@@ -1,6 +1,8 @@
 # Node
 node_modules/
-package-lock.json
+# package-lock.json est volontairement VERSIONNÉ sur le miroir :
+# la revue automatisée du répertoire Obsidian exige un lockfile pour vérifier
+# que le main.js publié correspond bien aux sources.
 
 # Build
 main.js

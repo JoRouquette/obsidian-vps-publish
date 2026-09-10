@@ -13,7 +13,7 @@ type PreparedBatchSizing<T> = {
  * Yield to event loop helper
  */
 async function yieldToEventLoop(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+  return new Promise((resolve) => window.setTimeout(resolve, 0));
 }
 
 export function jsonSizeBytes(payload: unknown): number {

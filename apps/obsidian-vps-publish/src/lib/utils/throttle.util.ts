@@ -41,7 +41,7 @@ export function throttle<T extends (...args: Parameters<T>) => void>(
 
     // Clear any pending trailing call
     if (timeoutId) {
-      clearTimeout(timeoutId as number);
+      window.clearTimeout(timeoutId as number);
       timeoutId = null;
     }
 
@@ -63,7 +63,7 @@ export function throttle<T extends (...args: Parameters<T>) => void>(
     // Schedule trailing call if enabled
     if (trailing) {
       const remainingTime = intervalMs - timeSinceLastCall;
-      timeoutId = setTimeout(() => {
+      timeoutId = window.setTimeout(() => {
         if (lastArgs) {
           invoke(lastArgs);
           lastArgs = null;
@@ -76,7 +76,7 @@ export function throttle<T extends (...args: Parameters<T>) => void>(
   // Force immediate execution of pending call
   throttled.flush = () => {
     if (timeoutId) {
-      clearTimeout(timeoutId as number);
+      window.clearTimeout(timeoutId as number);
       timeoutId = null;
     }
     if (lastArgs) {
@@ -88,7 +88,7 @@ export function throttle<T extends (...args: Parameters<T>) => void>(
   // Cancel pending call
   throttled.cancel = () => {
     if (timeoutId) {
-      clearTimeout(timeoutId as number);
+      window.clearTimeout(timeoutId as number);
       timeoutId = null;
     }
     lastArgs = null;
@@ -112,10 +112,10 @@ export function debounce<T extends (...args: Parameters<T>) => void>(
     lastArgs = args;
 
     if (timeoutId) {
-      clearTimeout(timeoutId as number);
+      window.clearTimeout(timeoutId as number);
     }
 
-    timeoutId = setTimeout(() => {
+    timeoutId = window.setTimeout(() => {
       fn(...args);
       lastArgs = null;
       timeoutId = null;
@@ -124,7 +124,7 @@ export function debounce<T extends (...args: Parameters<T>) => void>(
 
   debounced.flush = () => {
     if (timeoutId) {
-      clearTimeout(timeoutId as number);
+      window.clearTimeout(timeoutId as number);
       timeoutId = null;
     }
     if (lastArgs) {
@@ -135,7 +135,7 @@ export function debounce<T extends (...args: Parameters<T>) => void>(
 
   debounced.cancel = () => {
     if (timeoutId) {
-      clearTimeout(timeoutId as number);
+      window.clearTimeout(timeoutId as number);
       timeoutId = null;
     }
     lastArgs = null;
