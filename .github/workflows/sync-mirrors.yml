@@ -39,9 +39,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Requis pour signer les attestations de provenance des artefacts du plugin.
-      id-token: write
-      attestations: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -89,6 +86,14 @@ jobs:
     needs: [gate, sync-mirrors]
     if: needs.gate.outputs.is_release == 'true'
     runs-on: ubuntu-latest
+    # C'est ICI que vit l'étape d'attestation, pas dans `sync-mirrors` : les
+    # permissions doivent donc être portées par ce job. Les avoir posées sur le
+    # job voisin a fait échouer la release 6.23.0 sur
+    # `missing "id-token" permission`, après que les miroirs eurent été poussés.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
         with:
