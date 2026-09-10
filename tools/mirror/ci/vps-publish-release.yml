@@ -30,7 +30,12 @@ jobs:
           cache: npm
       # Le miroir vps-publish embarque désormais un package-lock.json versionné
       # (exigé par la vérification de build de la revue automatisée du répertoire).
-      - run: npm ci --no-audit --no-fund --legacy-peer-deps
+      # ⚠️ PAS de --legacy-peer-deps : le répertoire lance un `npm ci` nu. Ce drapeau
+      # a masqué en 6.23.0 un lockfile généré sans les peers CodeMirror d'obsidian,
+      # et la revue est tombée en « lockfile out of date » + build verification KO.
+      # Cette commande doit rester identique à celle du répertoire, sinon la CI du
+      # miroir ne détecte plus la panne qu'elle est censée prévenir.
+      - run: npm ci --no-audit --no-fund
       # Lint/test informatifs : la qualité est garantie en amont par le monorepo.
       # Ne pas bloquer le merge (le miroir ne peut pas être corrigé sans être écrasé au sync).
       - run: npm run lint
