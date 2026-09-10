@@ -1,3 +1,9 @@
+## [6.23.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.22.5...6.23.0) (2026-09-10)
+
+### Features
+
+* **plugin:** rework the settings around servers and clear the directory review ([#25](https://github.com/JoRouquette/obsidian-vps-publish/issues/25)) ([ec8e857](https://github.com/JoRouquette/obsidian-vps-publish/commit/ec8e857e72f70139f1ab3028d9e27c51ff57e91c))
+
 ## [6.22.5](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.22.4...6.22.5) (2026-08-25)
 
 ## [6.22.4](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.22.3...6.22.4) (2026-08-25)
