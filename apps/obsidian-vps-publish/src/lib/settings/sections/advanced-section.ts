@@ -1,7 +1,6 @@
 import { LogLevel } from '@core-domain/ports/logger-port';
 import { type App, type DataAdapter, Modal, Notice, Setting } from 'obsidian';
 
-import { markDestructive } from '../../utils/destructive-button.util';
 import type { SettingsViewContext } from '../context';
 
 function logLevelToString(level: LogLevel): string {
@@ -186,7 +185,7 @@ function renderCleanupSetting(inner: HTMLElement, ctx: SettingsViewContext): voi
   });
 
   cleanupSetting.addButton((btn) => {
-    markDestructive(btn.setButtonText(t.settings.advanced.cleanup.button));
+    btn.setButtonText(t.settings.advanced.cleanup.button).setDestructive();
     if (!settings.vpsConfigs?.length) {
       btn.setDisabled(true);
     }

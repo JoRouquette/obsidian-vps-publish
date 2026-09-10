@@ -45,3 +45,16 @@ export interface App {
   vault: unknown;
   metadataCache: unknown;
 }
+
+/**
+ * `Platform.isDesktop` garde le chargement différé des modules Node dans
+ * `DataviewExecutor`. On le fixe à `true` : les suites tournent sur le poste de
+ * développement et doivent exercer le même chemin qu'en production desktop —
+ * le plugin déclare `isDesktopOnly`.
+ */
+export const Platform = {
+  isDesktop: true,
+  isDesktopApp: true,
+  isMobile: false,
+  isMobileApp: false,
+};

@@ -1,9 +1,3 @@
-// `SettingPage` est @since 1.13.0 alors que le manifest déclare minAppVersion 1.5.0.
-// Ce fichier n'est atteint que par `getSettingDefinitions()`, qu'Obsidian n'appelle
-// jamais avant 1.13 : sur les versions antérieures, c'est `display()` qui s'exécute
-// et ce module n'est jamais instancié. L'écart est donc volontaire et sans risque.
-/* eslint-disable obsidianmd/no-unsupported-api */
-
 import { SettingPage } from 'obsidian';
 
 import type { SettingsViewContext } from './context';
@@ -18,10 +12,6 @@ export type SectionRenderer = (root: HTMLElement, ctx: SettingsViewContext) => v
  * des lignes répétables, conditionnelles et réordonnables. Elles ne se décrivent
  * pas en `SettingDefinitionControl`. Plutôt que d'en maintenir une seconde
  * implémentation, on les rend telles quelles dans une sous-page navigable.
- *
- * C'est ce qui permet de servir `display()` aux versions < 1.13 ET
- * `getSettingDefinitions()` à partir de 1.13 **sans dupliquer une seule ligne**
- * d'interface : les deux chemins appellent les mêmes `render*Section()`.
  */
 export class SectionPage extends SettingPage {
   constructor(

@@ -677,15 +677,14 @@ export class SessionApiClient {
   }
 
   private getEventSourceConstructor(): EventSourceConstructor | undefined {
-    // Détection de capacité : EventSource peut provenir de Node comme du navigateur.
-    // La portée globale est donc volontaire ici — `window` ne conviendrait pas.
-    /* eslint-disable obsidianmd/no-global-this */
+    // Détection de capacité : le plugin tourne dans le renderer Electron, où
+    // EventSource est porté par `window`. Le test `typeof === 'function'` couvre
+    // les environnements qui ne l'exposent pas (les tests s'exécutent en Node).
     const candidate = (
-      globalThis as typeof globalThis & {
+      window as typeof window & {
         EventSource?: EventSourceConstructor;
       }
     ).EventSource;
-    /* eslint-enable obsidianmd/no-global-this */
 
     return typeof candidate === 'function' ? candidate : undefined;
   }

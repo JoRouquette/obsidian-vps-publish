@@ -20,6 +20,7 @@ type NoticeTranslations = {
   completedIn: string;
   debugModeHint: string;
   keepFocusWarning: string;
+  settingsMigrated: string;
 };
 
 type PublishingStatsTranslations = {
@@ -948,6 +949,8 @@ export const en: Translations = {
     debugModeHint: '\n\n💡 Enable debug logging to see detailed performance metrics.',
     keepFocusWarning:
       '⚠️ Keep this window focused during publishing to avoid delays. Switching tabs or minimizing may slow down the process.',
+    settingsMigrated:
+      'Your VPS configuration was migrated to the new route-based model (breaking change).',
   },
   publishingStats: {
     summary: '📊 Publishing Summary',
@@ -1530,6 +1533,8 @@ export const fr: Translations = {
       '\n\n💡 Activez le mode debug pour voir les métriques de performance détaillées.',
     keepFocusWarning:
       "⚠️ Gardez cette fenêtre au premier plan pendant la publication pour éviter les ralentissements. Changer d'onglet ou minimiser peut ralentir le processus.",
+    settingsMigrated:
+      'Votre configuration VPS a été migrée vers le nouveau modèle par routes (changement incompatible).',
   },
   publishingStats: {
     summary: '📊 Résumé de la publication',

@@ -60,19 +60,21 @@ export function translate<K extends TranslationKey>(
   params?: Record<string, string | number>
 ): string {
   const keys = key.split('.');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let value: any = translations;
+  // `unknown` plutôt que `any` : la descente dans un objet de traductions imbriqué
+  // perd le type à chaque niveau, mais chaque accès reste gardé par le `k in value`
+  // ci-dessous. `any` imposerait une directive eslint, que le répertoire Obsidian
+  // refuse (« Disabling '@typescript-eslint/no-explicit-any' is not allowed »).
+  let value: unknown = translations;
 
   for (const k of keys) {
     if (value && typeof value === 'object' && k in value) {
-      value = value[k];
+      value = (value as Record<string, unknown>)[k];
     } else {
       // Key not found, fallback to EN
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let enValue: any = en;
+      let enValue: unknown = en;
       for (const enKey of keys) {
         if (enValue && typeof enValue === 'object' && enKey in enValue) {
-          enValue = enValue[enKey];
+          enValue = (enValue as Record<string, unknown>)[enKey];
         } else {
           // Even EN fallback failed, return key itself
           if (typeof console !== 'undefined' && console.debug) {

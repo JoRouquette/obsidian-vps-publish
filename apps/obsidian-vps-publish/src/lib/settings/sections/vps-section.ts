@@ -10,7 +10,6 @@ import { translate } from '../../../i18n';
 import { PublishConfirmModal } from '../../modals/publish-confirm-modal';
 import { FileSuggest } from '../../suggesters/file-suggester';
 import { defaultSanitizationRules } from '../../utils/create-default-folder-config.util';
-import { markDestructive } from '../../utils/destructive-button.util';
 import type { SettingsViewContext } from '../context';
 import { setFieldError } from '../field-error.util';
 
@@ -231,7 +230,9 @@ export function renderVpsDetails(
     );
 
     deleteSetting.addButton((btn) => {
-      markDestructive(btn.setIcon('trash'))
+      btn
+        .setIcon('trash')
+        .setDestructive()
         .setDisabled(settings.vpsConfigs.length <= 1)
         .setTooltip(
           settings.vpsConfigs.length <= 1

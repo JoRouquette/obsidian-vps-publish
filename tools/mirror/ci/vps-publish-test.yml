@@ -1,7 +1,10 @@
 # vps-publish/.github/workflows/test.yml
 # CI miroir informative (le monorepo est la source de vérité : qualité + release).
 # On garde le job `lint_test` (même nom, au cas où il serait un check requis),
-# mais sans cache:npm (pas de lockfile versionné) et lint/test non bloquants.
+# avec lint/test non bloquants. Le lockfile est versionné depuis la 6.23.0 :
+# l'install se fait donc en `npm ci` nu, comme la vérification de build du
+# répertoire — surtout pas en --legacy-peer-deps, qui masquerait un lock amputé
+# de ses peers (la panne de la revue 6.23.0).
 name: Test
 on:
   pull_request:
@@ -15,7 +18,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.14.0'
-      - run: npm install --no-audit --no-fund --legacy-peer-deps
+          cache: npm
+      - run: npm ci --no-audit --no-fund
       - run: npm run lint
         continue-on-error: true
       - run: npm run test

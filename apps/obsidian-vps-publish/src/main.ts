@@ -472,14 +472,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     if (needsSave) {
       this.logger.info('Auto-saving migrated settings');
       await this.saveSettings();
-      // TODO: cette notice est la seule chaîne d'interface codée en dur en anglais
-      // (elle est émise avant la résolution des traductions). À passer par l'i18n.
-      /* eslint-disable obsidianmd/ui/sentence-case -- la règle exige « Vps » : VPS est un acronyme */
-      new Notice(
-        'Your VPS configuration was migrated to the new route-based model (breaking change)',
-        5000
-      );
-      /* eslint-enable obsidianmd/ui/sentence-case */
+      // `this.settings` est affecté juste au-dessus : les traductions sont donc
+      // résolvables ici, ce qui lève le TODO qui laissait cette notice en dur.
+      const { t } = getTranslations(this.app, this.settings);
+      new Notice(t.notice.settingsMigrated, 5000);
     }
   }
 
