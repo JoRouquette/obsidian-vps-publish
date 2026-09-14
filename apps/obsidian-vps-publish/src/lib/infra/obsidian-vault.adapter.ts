@@ -66,8 +66,7 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
         this.logger.debug('Collecting custom root index file', { path: this.customRootIndexFile });
         const rawContent = await this.app.vault.read(rootIndexFile);
         const cache = this.app.metadataCache.getFileCache(rootIndexFile);
-        const frontmatter: Record<string, unknown> =
-          (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+        const frontmatter: Record<string, unknown> = cache?.frontmatter ?? {};
 
         const content = this.stripFrontmatter(rawContent);
 
@@ -133,8 +132,7 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
           this.logger.debug('Reading file', { path: node.path });
           const rawContent = await this.app.vault.read(node);
           const cache = this.app.metadataCache.getFileCache(node);
-          const frontmatter: Record<string, unknown> =
-            (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+          const frontmatter: Record<string, unknown> = cache?.frontmatter ?? {};
 
           // Strip YAML frontmatter from content before sending to backend
           // Frontmatter is already parsed into the 'frontmatter' field
@@ -185,8 +183,7 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
             });
             const rawContent = await this.app.vault.read(customIndexFile);
             const cache = this.app.metadataCache.getFileCache(customIndexFile);
-            const frontmatter: Record<string, unknown> =
-              (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+            const frontmatter: Record<string, unknown> = cache?.frontmatter ?? {};
 
             const content = this.stripFrontmatter(rawContent);
 
@@ -244,8 +241,7 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
 
             const rawContent = await this.app.vault.read(additionalFile);
             const cache = this.app.metadataCache.getFileCache(additionalFile);
-            const frontmatter: Record<string, unknown> =
-              (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+            const frontmatter: Record<string, unknown> = cache?.frontmatter ?? {};
 
             const content = this.stripFrontmatter(rawContent);
 
@@ -308,8 +304,7 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
         this.logger.debug('Collecting custom root index file', { path: this.customRootIndexFile });
         const rawContent = await this.app.vault.read(rootIndexFile);
         const cache = this.app.metadataCache.getFileCache(rootIndexFile);
-        const frontmatter: Record<string, unknown> =
-          (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+        const frontmatter: Record<string, unknown> = cache?.frontmatter ?? {};
 
         const content = this.stripFrontmatter(rawContent);
 
@@ -413,8 +408,7 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
 
             const rawContent = await this.app.vault.read(fileNode);
             const cache = this.app.metadataCache.getFileCache(fileNode);
-            const frontmatter: Record<string, unknown> =
-              (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+            const frontmatter: Record<string, unknown> = cache?.frontmatter ?? {};
 
             const content = this.stripFrontmatter(rawContent);
 
@@ -452,8 +446,7 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
           if (customIndexFile && customIndexFile instanceof TFile) {
             const rawContent = await this.app.vault.read(customIndexFile);
             const cache = this.app.metadataCache.getFileCache(customIndexFile);
-            const frontmatter: Record<string, unknown> =
-              (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+            const frontmatter: Record<string, unknown> = cache?.frontmatter ?? {};
 
             const content = this.stripFrontmatter(rawContent);
 
@@ -489,8 +482,7 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
           if (additionalFile && additionalFile instanceof TFile) {
             const rawContent = await this.app.vault.read(additionalFile);
             const cache = this.app.metadataCache.getFileCache(additionalFile);
-            const frontmatter: Record<string, unknown> =
-              (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+            const frontmatter: Record<string, unknown> = cache?.frontmatter ?? {};
 
             const content = this.stripFrontmatter(rawContent);
 
@@ -528,8 +520,7 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
         if (customIndexFile && customIndexFile instanceof TFile) {
           const rawContent = await this.app.vault.read(customIndexFile);
           const cache = this.app.metadataCache.getFileCache(customIndexFile);
-          const frontmatter: Record<string, unknown> =
-            (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+          const frontmatter: Record<string, unknown> = cache?.frontmatter ?? {};
 
           const content = this.stripFrontmatter(rawContent);
 
@@ -559,8 +550,7 @@ export class ObsidianVaultAdapter implements VaultPort<CollectedNote[]> {
           if (additionalFile && additionalFile instanceof TFile) {
             const rawContent = await this.app.vault.read(additionalFile);
             const cache = this.app.metadataCache.getFileCache(additionalFile);
-            const frontmatter: Record<string, unknown> =
-              (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
+            const frontmatter: Record<string, unknown> = cache?.frontmatter ?? {};
 
             const content = this.stripFrontmatter(rawContent);
 

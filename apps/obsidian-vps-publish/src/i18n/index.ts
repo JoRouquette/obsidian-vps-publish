@@ -80,7 +80,7 @@ export function translate<K extends TranslationKey>(
           if (typeof console !== 'undefined' && console.debug) {
             console.debug(`[i18n] Missing translation key: ${key}`);
           }
-          return key as string;
+          return key;
         }
       }
       value = enValue;
@@ -92,7 +92,7 @@ export function translate<K extends TranslationKey>(
     if (typeof console !== 'undefined' && console.debug) {
       console.debug(`[i18n] Translation key is not a string: ${key}`);
     }
-    return key as string;
+    return key;
   }
 
   // Apply interpolation if params provided

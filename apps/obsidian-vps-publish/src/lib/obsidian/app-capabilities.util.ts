@@ -52,5 +52,5 @@ export function getDataviewPlugin(app: unknown): DataviewPluginLike | null {
   if (!registry) return null;
 
   const plugin = registry['dataview'];
-  return isRecord(plugin) ? (plugin as DataviewPluginLike) : null;
+  return isRecord(plugin) ? plugin : null;
 }

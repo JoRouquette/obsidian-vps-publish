@@ -44,7 +44,7 @@ function createNote(
 }
 
 export const deterministicTransformParityIgnoreRules: IgnoreRule[] = [
-  { property: 'publish', ignoreIf: false } as IgnoreRule,
+  { property: 'publish', ignoreIf: false },
 ];
 
 export const deterministicTransformParityFixtures: FixtureCorpus[] = [

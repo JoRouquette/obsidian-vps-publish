@@ -158,7 +158,7 @@ export class ContentSanitizerService implements BaseService {
 
       if (value && typeof value === 'object' && !Array.isArray(value)) {
         this.removeNestedKeys(value as Record<string, unknown>, keysToRemove, noteId);
-        if (Object.keys(value as Record<string, unknown>).length === 0) {
+        if (Object.keys(value).length === 0) {
           delete target[key];
         }
       }
@@ -189,7 +189,7 @@ export class ContentSanitizerService implements BaseService {
       const next = target[key];
       if (next && typeof next === 'object' && !Array.isArray(next)) {
         this.deletePathRecursive(next as Record<string, unknown>, rest);
-        if (Object.keys(next as Record<string, unknown>).length === 0) {
+        if (Object.keys(next).length === 0) {
           delete target[key];
         }
       }

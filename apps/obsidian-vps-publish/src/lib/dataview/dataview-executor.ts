@@ -345,10 +345,7 @@ export class DataviewExecutor {
     const { createRequire } = require('node:module') as typeof import('node:module');
     const path = require('node:path') as typeof import('node:path');
 
-    const globalScope = window as typeof window & {
-      require?: RequireLike;
-      window?: Window & { require?: RequireLike };
-    };
+    const globalScope = window;
 
     const originalRequire =
       typeof globalScope.require === 'function'
@@ -374,7 +371,7 @@ export class DataviewExecutor {
     // relative paths.  Passing a relative path ('./_assets/...') would be resolved
     // from the anchor file passed to createRequire — which could silently resolve to
     // the wrong directory (e.g. the current note's folder instead of the vault root).
-    const vaultRequire = createRequire(path.join(basePath, '_stub_')) as RequireLike;
+    const vaultRequire = createRequire(path.join(basePath, '_stub_'));
 
     const wrappedRequire = ((request: string) => {
       if (this.isLegacyVaultRootRequire(request)) {

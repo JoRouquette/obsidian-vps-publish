@@ -527,14 +527,14 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
 
   private resolveContentStorage(sessionId: string): ContentStoragePort {
     if (typeof this.contentStorage === 'function') {
-      return (this.contentStorage as ContentStorageFactory)(sessionId);
+      return this.contentStorage(sessionId);
     }
     return this.contentStorage;
   }
 
   private resolveManifestStorage(sessionId: string): ManifestPort {
     if (typeof this.manifestStorage === 'function') {
-      return (this.manifestStorage as ManifestStorageFactory)(sessionId);
+      return this.manifestStorage(sessionId);
     }
     return this.manifestStorage;
   }

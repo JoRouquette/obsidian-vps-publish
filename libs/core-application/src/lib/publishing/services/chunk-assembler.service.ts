@@ -154,7 +154,10 @@ export class ChunkAssemblerService {
         error,
         compressedSize: compressed.length,
       });
-      throw new Error(`Failed to decompress upload ${uploadId}: ${error}`);
+      // `error` est `unknown` dans un catch : l'interpoler tel quel produisait
+      // « [object Object] » pour toute erreur non-Error.
+      const raison = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to decompress upload ${uploadId}: ${raison}`);
     }
   }
 
