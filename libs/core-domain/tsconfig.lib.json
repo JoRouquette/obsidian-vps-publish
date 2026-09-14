@@ -6,7 +6,10 @@
     "composite": true,
     "types": ["node"],
     "outDir": "../../dist/libs/core-domain",
-    "rootDir": "src"
+    "rootDir": "src",
+    // Pendant de core-application : les deux tsconfig.lib.json sont homonymes,
+    // et sans ce chemin explicite `tsc -b` les fait se marcher dessus (TS6377).
+    "tsBuildInfoFile": "../../dist/libs/core-domain/tsconfig.lib.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["jest.config.ts", "jest.config.cjs", "**/*.spec.ts", "**/*.test.ts"]

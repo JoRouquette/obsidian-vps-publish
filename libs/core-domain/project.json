@@ -5,12 +5,18 @@
   "tags": ["layer:domain"],
   "targets": {
     "build": {
-      "executor": "@nx/js:tsc",
+      "_comment": [
+        "Même exécuteur que core-application, et ce n'est pas cosmétique.",
+        "core-application se bâtit par un `tsc -b` brut, qui refuse d'exploiter les",
+        "sorties d'un projet référencé qu'il n'a pas produites lui-même : avec",
+        "@nx/js:tsc ici, le .tsbuildinfo attendu n'existait pas et la compilation de",
+        "core-application échouait en cascade de TS6305. L'écart était masqué tant que",
+        "des .d.ts traînaient dans libs/core-domain/src ; il est apparu en les retirant."
+      ],
+      "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/dist/libs/core-domain"],
       "options": {
-        "outputPath": "dist/libs/core-domain",
-        "main": "libs/core-domain/src/index.ts",
-        "tsConfig": "libs/core-domain/tsconfig.lib.json"
+        "command": "npx tsc -b libs/core-domain/tsconfig.lib.json"
       }
     },
     "test": {
