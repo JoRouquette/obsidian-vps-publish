@@ -1,3 +1,9 @@
+## [6.24.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.24.0...6.24.1) (2026-09-15)
+
+### Bug Fixes
+
+* **build:** stop shipping compiled output, and cut the review's issue count ([#28](https://github.com/JoRouquette/obsidian-vps-publish/issues/28)) ([7e27d7e](https://github.com/JoRouquette/obsidian-vps-publish/commit/7e27d7e533d0e113ea18eab3280f06118764ff5c)), closes [IgnoreRule#toString](https://github.com/JoRouquette/IgnoreRule/issues/toString) [Array#toString](https://github.com/JoRouquette/Array/issues/toString)
+
 ## [6.24.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.23.0...6.24.0) (2026-09-10)
 
 ### Features
