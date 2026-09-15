@@ -680,11 +680,7 @@ export class SessionApiClient {
     // Détection de capacité : le plugin tourne dans le renderer Electron, où
     // EventSource est porté par `window`. Le test `typeof === 'function'` couvre
     // les environnements qui ne l'exposent pas (les tests s'exécutent en Node).
-    const candidate = (
-      window as typeof window & {
-        EventSource?: EventSourceConstructor;
-      }
-    ).EventSource;
+    const candidate = window.EventSource;
 
     return typeof candidate === 'function' ? candidate : undefined;
   }

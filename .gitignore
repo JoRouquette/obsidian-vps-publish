@@ -2,6 +2,18 @@
 /dist
 /apps/node/src/infra/filesystem/dist/
 /libs/core-application/src/lib/_tests/publishing/dist/
+
+# Sortie de compilation émise à côté des sources.
+# 438 fichiers (.js, .d.ts, .d.ts.map) avaient fini versionnés sous libs/*/src,
+# puis recopiés dans le miroir scanné par la revue du répertoire Obsidian.
+# La cause a été corrigée (outDir/rootDir dans libs/core-application/tsconfig.lib.json) ;
+# ces motifs sont le filet, pour qu'un `tsc -p` égaré ne les ramène pas.
+# Les .d.ts ÉCRITS À LA MAIN vivent sous apps/*/src/types/ et ne sont pas concernés.
+/libs/*/src/**/*.js
+/libs/*/src/**/*.d.ts
+/libs/*/src/**/*.d.ts.map
+/libs/*/src/**/*.js.map
+*.tsbuildinfo
 /.idea
 .env
 .env.**

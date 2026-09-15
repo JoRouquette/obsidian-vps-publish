@@ -64,11 +64,10 @@ export class NormalizeFrontmatterService implements BaseService {
         }
 
         const tagsRaw =
-          (source as Record<string, unknown>)['tags'] ??
-          (this.isDomainFrontmatter(frontmatter) ? frontmatter.tags : undefined);
+          source['tags'] ?? (this.isDomainFrontmatter(frontmatter) ? frontmatter.tags : undefined);
         const tags =
           Array.isArray(tagsRaw) && tagsRaw.every((t) => typeof t === 'string')
-            ? (tagsRaw as string[])
+            ? tagsRaw
             : typeof tagsRaw === 'string'
               ? [tagsRaw]
               : [];

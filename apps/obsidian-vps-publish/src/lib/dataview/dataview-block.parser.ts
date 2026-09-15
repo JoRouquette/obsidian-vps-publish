@@ -27,8 +27,6 @@
 import type {
   DataviewBlock,
   DataviewBlockKind,
-  DataviewJsBlock,
-  DataviewQueryBlock,
   DataviewQueryType,
 } from '@core-domain/dataview/dataview-block';
 
@@ -189,12 +187,12 @@ function createBlock(
       ...base,
       kind: 'query',
       queryType: detectQueryType(contentRaw),
-    } as DataviewQueryBlock;
+    };
   } else {
     return {
       ...base,
       kind: 'js',
-    } as DataviewJsBlock;
+    };
   }
 }
 

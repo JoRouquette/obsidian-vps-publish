@@ -4,7 +4,7 @@ import type { LoggerPort } from '@core-domain/ports/logger-port';
 
 import { getTranslations } from '../../i18n';
 import type ObsidianVpsPublishPlugin from '../../main';
-import type { PluginSettings, SettingsContext as BaseContext } from './plugin-settings.type';
+import type { SettingsContext as BaseContext } from './plugin-settings.type';
 
 export type SettingsViewContext = BaseContext & {
   plugin: ObsidianVpsPublishPlugin;
@@ -40,11 +40,11 @@ export function buildSettingsContext(
   logger: LoggerPort,
   refresh: () => void
 ): SettingsViewContext {
-  const { t } = getTranslations(plugin.app, plugin.settings as PluginSettings);
+  const { t } = getTranslations(plugin.app, plugin.settings);
 
   const base: BaseContext = {
     app: plugin.app,
-    settings: plugin.settings as PluginSettings,
+    settings: plugin.settings,
     save: () => plugin.saveSettings(),
     refresh,
     logger,

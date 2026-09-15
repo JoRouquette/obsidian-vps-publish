@@ -5,7 +5,18 @@
     "declarationMap": true,
     "composite": true,
     "types": ["node"],
-    "disableSourceOfProjectReferenceRedirect": true
+    "disableSourceOfProjectReferenceRedirect": true,
+    // Sans outDir/rootDir, `composite` + `declarationMap` émettaient les .js,
+    // .d.ts et .d.ts.map À CÔTÉ DES SOURCES, dans src/. Ces artefacts ont fini
+    // versionnés, puis recopiés dans le miroir par le `cp -a` de regenerate.sh,
+    // et scannés par la revue du répertoire Obsidian. core-domain avait déjà
+    // ces deux clés ; leur absence ici était l'écart.
+    "outDir": "../../dist/libs/core-application",
+    "rootDir": "src",
+    // Les deux libs ont un tsconfig.lib.json homonyme : `tsc -b` leur dérive le
+    // MÊME chemin de .tsbuildinfo sous dist/libs/ et refuse de bâtir (TS6377).
+    // On le nomme donc explicitement de chaque côté.
+    "tsBuildInfoFile": "../../dist/libs/core-application/tsconfig.lib.tsbuildinfo"
   },
   "references": [{ "path": "../core-domain/tsconfig.lib.json" }],
   "include": ["src/**/*.ts"],

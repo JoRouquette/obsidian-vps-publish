@@ -12,6 +12,10 @@ export class IgnoreRule {
   }
 
   toString(): string {
-    return `IgnoreRule(property=${this.property}, ignoreIf=${this.ignoreIf}, ignoreValues=${this.ignoreValues})`;
+    // `ignoreValues` est un tableau : l'interpoler directement donnait la
+    // conversion implicite d'Array#toString, illisible dès qu'une valeur contient
+    // une virgule. On le sérialise explicitement.
+    const valeurs = this.ignoreValues ? JSON.stringify(this.ignoreValues) : 'undefined';
+    return `IgnoreRule(property=${this.property}, ignoreIf=${String(this.ignoreIf)}, ignoreValues=${valeurs})`;
   }
 }

@@ -261,7 +261,7 @@ export class UploadAssetsHandler implements CommandHandler<
 
   private resolveAssetStorage(sessionId: string): AssetStoragePort {
     if (typeof this.assetStorage === 'function') {
-      return (this.assetStorage as AssetStorageFactory)(sessionId);
+      return this.assetStorage(sessionId);
     }
     return this.assetStorage;
   }
@@ -271,7 +271,7 @@ export class UploadAssetsHandler implements CommandHandler<
       throw new Error('ManifestStorage not configured');
     }
     if (typeof this.manifestStorage === 'function') {
-      return (this.manifestStorage as ManifestStorageFactory)(sessionId);
+      return this.manifestStorage(sessionId);
     }
     return this.manifestStorage;
   }

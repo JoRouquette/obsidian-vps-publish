@@ -130,7 +130,7 @@ export class NoticeProgressAdapter implements ProgressPort {
     const durationText = this.formatDuration(duration);
 
     // Close persistent notice
-    const closableNotice = this.notice as (Notice & { hide?: () => void }) | null;
+    const closableNotice = this.notice;
     closableNotice?.hide?.();
     this.notice = null;
 
