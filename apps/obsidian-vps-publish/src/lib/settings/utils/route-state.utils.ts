@@ -15,7 +15,7 @@ interface TempRouteState {
 export function cloneRouteTree(routeTree: { roots: RouteNode[] }): {
   roots: RouteNode[];
 } {
-  return JSON.parse(JSON.stringify(routeTree));
+  return JSON.parse(JSON.stringify(routeTree)) as { roots: RouteNode[] };
 }
 
 /**

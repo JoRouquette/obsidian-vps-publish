@@ -7,6 +7,7 @@ import { translate } from '../../../i18n';
 import { FileSuggest } from '../../suggesters/file-suggester';
 import { FolderSuggest } from '../../suggesters/folder-suggester';
 import type { SettingsViewContext } from '../context';
+import { cloneRouteTree } from '../utils/route-state.utils';
 import {
   canDeleteNode,
   deleteNodeFromTree,
@@ -193,10 +194,12 @@ export function renderVpsRoutes(root: HTMLElement, vps: VpsConfig, ctx: Settings
 
     // Initialize temp route tree if not already set
     if (!state.tempRouteTree) {
-      state.tempRouteTree = JSON.parse(JSON.stringify(vps.routeTree));
+      state.tempRouteTree = cloneRouteTree(vps.routeTree);
     }
 
-    const routeTree = state.tempRouteTree!; // Non-null assertion safe here after check
+    // `cloneRouteTree` rendant un type non nullable, le contrôle ci-dessus suffit
+    // désormais à TypeScript : l'assertion non-nulle d'avant n'a plus lieu d'être.
+    const routeTree = state.tempRouteTree;
 
     // Ensure at least one root route
     if (routeTree.roots.length === 0) {
@@ -350,7 +353,7 @@ export function renderVpsRoutes(root: HTMLElement, vps: VpsConfig, ctx: Settings
       }
 
       // Apply temp changes to actual settings
-      vps.routeTree = JSON.parse(JSON.stringify(state.tempRouteTree));
+      vps.routeTree = cloneRouteTree(state.tempRouteTree!);
       state.hasUnsavedChanges = false;
       state.tempRouteTree = null;
       await ctx.save();

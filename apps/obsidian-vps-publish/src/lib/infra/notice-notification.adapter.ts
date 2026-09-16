@@ -142,13 +142,13 @@ export class NoticeNotificationAdapter implements NotificationPort {
 
   private getPrefix(type: NotificationType): string {
     switch (type) {
-      case 'SUCCESS':
+      case NotificationType.SUCCESS:
         return '✅';
-      case 'WARNING':
+      case NotificationType.WARNING:
         return '⚠️';
-      case 'ERROR':
+      case NotificationType.ERROR:
         return '❌';
-      case 'INFO':
+      case NotificationType.INFO:
       default:
         return '';
     }

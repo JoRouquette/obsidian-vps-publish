@@ -321,7 +321,8 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       id: 'open-help',
       name: t.plugin.commandOpenHelp,
       callback: () => {
-        const { HelpModal } = require('./lib/modals/help-modal');
+        const { HelpModal } =
+          require('./lib/modals/help-modal') as typeof import('./lib/modals/help-modal');
         new HelpModal(this.app, t).open();
       },
     });
@@ -399,7 +400,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
   // Settings Management
   // ---------------------------------------------------------------------------
   async loadSettings() {
-    const internalRaw = (await this.loadData()) ?? {};
+    const internalRaw: unknown = (await this.loadData()) ?? {};
     let snapshotRaw: unknown = null;
     try {
       const adapter = this.app.vault.adapter;
@@ -525,8 +526,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       new Notice(t.settings.testConnection.success);
     } else {
       this.logger.error('VPS connection test failed', { vpsId: vps.id, error: res.error });
-      const errorMsg = res.error instanceof Error ? res.error.message : JSON.stringify(res.error);
-      new Notice(translate(t, 'settings.testConnection.failedWithError', { error: errorMsg }));
+      new Notice(
+        translate(t, 'settings.testConnection.failedWithError', { error: res.error.message })
+      );
     }
   }
 
@@ -1523,8 +1525,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       new Notice(t.settings.testConnection.success);
     } else {
       this.logger.error('VPS connection test failed: ', { error: res.error });
-      const errorMsg = res.error instanceof Error ? res.error.message : JSON.stringify(res.error);
-      new Notice(translate(t, 'settings.testConnection.failedWithError', { error: errorMsg }));
+      new Notice(
+        translate(t, 'settings.testConnection.failedWithError', { error: res.error.message })
+      );
     }
   }
 

@@ -699,7 +699,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       if (typeof rawCanonical === 'string' && rawCanonical.trim()) {
         result.canonicalSlug = rawCanonical.trim();
       } else if (Array.isArray(rawCanonical) && rawCanonical.length > 0) {
-        const first = rawCanonical[0];
+        const first: unknown = rawCanonical[0];
         if (typeof first === 'string' && first.trim()) {
           result.canonicalSlug = first.trim();
         }
