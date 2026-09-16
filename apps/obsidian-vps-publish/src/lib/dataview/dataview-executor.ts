@@ -373,7 +373,7 @@ export class DataviewExecutor {
     // the wrong directory (e.g. the current note's folder instead of the vault root).
     const vaultRequire = createRequire(path.join(basePath, '_stub_'));
 
-    const wrappedRequire = ((request: string) => {
+    const wrappedRequire = ((request: string): unknown => {
       if (this.isLegacyVaultRootRequire(request)) {
         const vaultRelativePath = request.replace(/^\/+/, '').replace(/[\\/]+/g, path.sep);
         const absoluteVaultPath = path.join(basePath, vaultRelativePath);

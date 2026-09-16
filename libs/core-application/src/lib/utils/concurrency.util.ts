@@ -151,7 +151,7 @@ export async function processWithControlledConcurrency<T, R>(
 
   const limiter = new ConcurrencyLimiter(concurrency);
   const yieldScheduler = new YieldScheduler(yieldEveryN, yieldEveryMs);
-  const results: R[] = new Array(items.length);
+  const results: R[] = new Array<R>(items.length);
 
   let completed = 0;
 

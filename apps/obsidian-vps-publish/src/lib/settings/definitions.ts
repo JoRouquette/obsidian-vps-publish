@@ -75,8 +75,11 @@ export function buildSettingDefinitions(ctx: SettingsViewContext): SettingDefini
       name: t.help.settingsButtonLabel,
       desc: t.help.settingsButtonDescription,
       action: () => {
-        // require paresseux : évite un cycle d'import avec le modal d'aide.
-        const { HelpModal } = require('../modals/help-modal');
+        // require paresseux : évite un cycle d'import avec le modal d'aide. Le
+        // `as typeof import(...)` est purement un type — il disparaît à la
+        // compilation et ne réintroduit donc pas le cycle.
+        const { HelpModal } =
+          require('../modals/help-modal') as typeof import('../modals/help-modal');
         new HelpModal(ctx.app, t).open();
       },
     },

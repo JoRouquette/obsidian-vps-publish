@@ -30,7 +30,7 @@ export async function processWithConcurrencyControl<T, R>(
   } = {}
 ): Promise<R[]> {
   const { concurrency = 5, batchSize = 10, onProgress } = options;
-  const results: R[] = new Array(items.length);
+  const results: R[] = new Array<R>(items.length);
   const queue: Array<{ item: T; index: number }> = items.map((item, index) => ({ item, index }));
 
   let completed = 0;
