@@ -186,8 +186,20 @@ export class SessionApiClient {
         : 'startSession failed';
       throw new Error(errorMsg, { cause: result.error });
     }
-    const parsed = JSON.parse(result.text ?? '{}');
-    const serverLimit = parseLimit(parsed.maxBytesPerRequest);
+
+    // La réponse du serveur est une donnée externe : elle est lue et validée ici,
+    // pas désérialisée à l'aveugle. L'erreur technique reste accessible en `cause`.
+    let session: StartSessionResponse;
+    try {
+      session = readStartSessionResponse(result.text ?? '', this.logger);
+    } catch (error) {
+      const errorMsg = this.translations
+        ? translate(this.translations, 'sessionErrors.startFailed')
+        : 'startSession failed';
+      throw new Error(errorMsg, { cause: error });
+    }
+
+    const serverLimit = session.maxBytesPerRequest;
     const effectiveLimit =
       payload.maxBytesPerRequest > 0
         ? Math.min(payload.maxBytesPerRequest, serverLimit)
@@ -200,11 +212,8 @@ export class SessionApiClient {
     });
 
     return {
-      sessionId: parsed.sessionId,
+      ...session,
       maxBytesPerRequest: effectiveLimit,
-      existingAssetHashes: parsed.existingAssetHashes ?? [],
-      existingSourceNoteHashesByVaultPath: parsed.existingSourceNoteHashesByVaultPath ?? {},
-      pipelineChanged: parsed.pipelineChanged,
     };
   }
 
@@ -722,19 +731,155 @@ function isTransientBackpressureResponse(response: HttpResponse): boolean {
   return response.isError && response.httpStatus?.startsWith('429') === true;
 }
 
-function parseLimit(value: unknown): number {
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
-    const match = value.match(/^(\\d+(?:\\.\\d+)?)\\s*(kb|mb)?$/i);
-    if (match) {
-      const num = parseFloat(match[1]);
-      const unit = match[2]?.toLowerCase();
-      if (unit === 'mb') return Math.floor(num * 1024 * 1024);
-      if (unit === 'kb') return Math.floor(num * 1024);
-      return Math.floor(num);
+/**
+ * Lit et valide la réponse de `/api/session/start`.
+ *
+ * `sessionId` et `maxBytesPerRequest` sont indispensables : une réponse qui n'en
+ * porte pas d'exploitable fait échouer la session immédiatement, plutôt que de
+ * laisser une valeur manquante casser plus loin sans indice. Les champs
+ * optionnels, eux, ne sont que des optimisations : une forme inattendue est
+ * signalée puis ignorée.
+ */
+function readStartSessionResponse(rawText: string, logger: LoggerPort): StartSessionResponse {
+  const payload = parseSessionPayload(rawText);
+
+  const response: StartSessionResponse = {
+    sessionId: readSessionId(payload),
+    maxBytesPerRequest: readServerLimit(payload),
+    existingAssetHashes: [],
+    existingSourceNoteHashesByVaultPath: {},
+  };
+
+  const assetHashes = payload.existingAssetHashes;
+  if (assetHashes !== undefined && assetHashes !== null) {
+    const read = readStringArray(assetHashes);
+    if (read === undefined) {
+      logger.warn('Ignoring malformed "existingAssetHashes" in the session start response');
+    } else {
+      response.existingAssetHashes = read;
     }
   }
-  return 8 * 1024 * 1024; // fallback 8MB
+
+  const noteHashes = payload.existingSourceNoteHashesByVaultPath;
+  if (noteHashes !== undefined && noteHashes !== null) {
+    const read = readStringRecord(noteHashes);
+    if (read === undefined) {
+      logger.warn(
+        'Ignoring malformed "existingSourceNoteHashesByVaultPath" in the session start response; every note will be republished'
+      );
+    } else {
+      response.existingSourceNoteHashesByVaultPath = read;
+    }
+  }
+
+  const pipelineChanged = payload.pipelineChanged;
+  if (pipelineChanged !== undefined && pipelineChanged !== null) {
+    if (typeof pipelineChanged === 'boolean') {
+      response.pipelineChanged = pipelineChanged;
+    } else {
+      logger.warn('Ignoring malformed "pipelineChanged" in the session start response');
+    }
+  }
+
+  return response;
+}
+
+function parseSessionPayload(rawText: string): Record<string, unknown> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch (error) {
+    throw new Error('Session start response is not valid JSON', { cause: error });
+  }
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('Session start response is not a JSON object');
+  }
+
+  return parsed as Record<string, unknown>;
+}
+
+function readSessionId(payload: Record<string, unknown>): string {
+  const value = payload.sessionId;
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error('Session start response carries no usable "sessionId"');
+  }
+
+  return value;
+}
+
+function readServerLimit(payload: Record<string, unknown>): number {
+  const limit = readLimit(payload.maxBytesPerRequest);
+  if (limit === undefined) {
+    throw new Error(
+      `Session start response carries no usable "maxBytesPerRequest" (${JSON.stringify(payload.maxBytesPerRequest)})`
+    );
+  }
+
+  return limit;
+}
+
+/**
+ * Accepte un nombre d'octets, ou une taille écrite en clair (« 8mb », « 512 kb »).
+ * Rend `undefined` sur tout le reste : c'est à l'appelant d'échouer, pas à cette
+ * fonction de deviner une limite qui ne serait pas celle du serveur.
+ */
+function readLimit(value: unknown): number | undefined {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : undefined;
+  }
+
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const match = /^(\d+(?:\.\d+)?)\s*(kb|mb)?$/i.exec(value.trim());
+  if (!match) {
+    return undefined;
+  }
+
+  const num = Number.parseFloat(match[1]);
+  if (!Number.isFinite(num) || num <= 0) {
+    return undefined;
+  }
+
+  const unit = match[2]?.toLowerCase();
+  if (unit === 'mb') return Math.floor(num * 1024 * 1024);
+  if (unit === 'kb') return Math.floor(num * 1024);
+
+  return Math.floor(num);
+}
+
+function readStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const entries: string[] = [];
+  for (const entry of value as unknown[]) {
+    if (typeof entry !== 'string') {
+      return undefined;
+    }
+    entries.push(entry);
+  }
+
+  return entries;
+}
+
+function readStringRecord(value: unknown): Record<string, string> | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const record: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof entry !== 'string') {
+      return undefined;
+    }
+    record[key] = entry;
+  }
+
+  return record;
 }
 
 function sleep(ms: number): Promise<void> {

@@ -253,6 +253,94 @@ describe('SessionApiClient', () => {
     );
   });
 
+  it('reads a server limit expressed as a string', async () => {
+    const requestUrl = jest.fn().mockResolvedValue({ status: 200, headers: {}, text: '' });
+    const handler = {
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValue(responseOk('{"sessionId":"s1","maxBytesPerRequest":"2mb"}')),
+    };
+    jest.doMock('obsidian', () => ({ requestUrl }));
+
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, mockLogger());
+    const res = await client.startSession({
+      notesPlanned: 1,
+      assetsPlanned: 0,
+      maxBytesPerRequest: 0,
+    });
+
+    // Sans borne côté client, la limite du serveur fait foi telle quelle.
+    expect(res.maxBytesPerRequest).toBe(2 * 1024 * 1024);
+  });
+
+  it('refuses a session response without a usable sessionId', async () => {
+    const requestUrl = jest.fn().mockResolvedValue({ status: 200, headers: {}, text: '' });
+    const handler = {
+      handleResponseAsync: jest.fn().mockResolvedValue(responseOk('{"maxBytesPerRequest":1024}')),
+    };
+    jest.doMock('obsidian', () => ({ requestUrl }));
+
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, mockLogger());
+    const start = () =>
+      client.startSession({ notesPlanned: 1, assetsPlanned: 0, maxBytesPerRequest: 1024 });
+
+    await expect(start()).rejects.toThrow('startSession failed');
+    await expect(start()).rejects.toMatchObject({
+      cause: expect.objectContaining({
+        message: expect.stringContaining('sessionId'),
+      }),
+    });
+  });
+
+  it('refuses a session response whose size limit cannot be read', async () => {
+    const requestUrl = jest.fn().mockResolvedValue({ status: 200, headers: {}, text: '' });
+    const handler = {
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValue(responseOk('{"sessionId":"s1","maxBytesPerRequest":"huge"}')),
+    };
+    jest.doMock('obsidian', () => ({ requestUrl }));
+
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, mockLogger());
+    const start = () =>
+      client.startSession({ notesPlanned: 1, assetsPlanned: 0, maxBytesPerRequest: 1024 });
+
+    await expect(start()).rejects.toThrow('startSession failed');
+    await expect(start()).rejects.toMatchObject({
+      cause: expect.objectContaining({
+        message: expect.stringContaining('maxBytesPerRequest'),
+      }),
+    });
+  });
+
+  it('ignores a malformed optional field instead of failing the session', async () => {
+    const requestUrl = jest.fn().mockResolvedValue({ status: 200, headers: {}, text: '' });
+    const handler = {
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValue(
+          responseOk('{"sessionId":"s1","maxBytesPerRequest":1024,"existingAssetHashes":"nope"}')
+        ),
+    };
+    jest.doMock('obsidian', () => ({ requestUrl }));
+
+    const logger = mockLogger();
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, logger);
+    const res = await client.startSession({
+      notesPlanned: 1,
+      assetsPlanned: 0,
+      maxBytesPerRequest: 1024,
+    });
+
+    expect(res.sessionId).toBe('s1');
+    expect(res.existingAssetHashes).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('existingAssetHashes'));
+  });
+
   it('throws when uploadNotes fails', async () => {
     const requestUrl = jest.fn().mockResolvedValue({ status: 500, headers: {}, text: 'err' });
     const handler = {
