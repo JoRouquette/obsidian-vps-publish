@@ -145,7 +145,7 @@ export class ChunkAssemblerService {
       });
 
       // Parse JSON
-      const data = JSON.parse(decompressed);
+      const data: unknown = JSON.parse(decompressed);
 
       return data;
     } catch (error) {

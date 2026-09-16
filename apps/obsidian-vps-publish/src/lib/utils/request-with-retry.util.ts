@@ -106,8 +106,9 @@ function extractRetryAfter(response: RequestUrlResponse): number | null {
     }
 
     // Check response body for retryAfterMs
-    if (response.json && typeof response.json === 'object' && 'retryAfterMs' in response.json) {
-      const retryAfterMs = response.json.retryAfterMs;
+    const body: unknown = response.json;
+    if (body && typeof body === 'object' && 'retryAfterMs' in body) {
+      const retryAfterMs = body.retryAfterMs;
       if (typeof retryAfterMs === 'number') {
         return retryAfterMs;
       }
