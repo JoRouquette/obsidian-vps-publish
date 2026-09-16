@@ -7,6 +7,7 @@ import { translate } from '../../../i18n';
 import { FileSuggest } from '../../suggesters/file-suggester';
 import { FolderSuggest } from '../../suggesters/folder-suggester';
 import type { SettingsViewContext } from '../context';
+import { cloneRouteTree } from '../utils/route-state.utils';
 import {
   canDeleteNode,
   deleteNodeFromTree,
@@ -17,7 +18,6 @@ import {
   isDescendant,
   removeNodeFromTree,
 } from '../utils/route-tree.utils';
-import { cloneRouteTree } from '../utils/route-state.utils';
 import { renderIgnoredCleanupRulesSettings } from './ignored-cleanup-rules-settings.util';
 
 /**
