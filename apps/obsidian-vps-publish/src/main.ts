@@ -525,8 +525,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       new Notice(t.settings.testConnection.success);
     } else {
       this.logger.error('VPS connection test failed', { vpsId: vps.id, error: res.error });
-      const errorMsg = res.error instanceof Error ? res.error.message : JSON.stringify(res.error);
-      new Notice(translate(t, 'settings.testConnection.failedWithError', { error: errorMsg }));
+      new Notice(
+        translate(t, 'settings.testConnection.failedWithError', { error: res.error.message })
+      );
     }
   }
 
@@ -1523,8 +1524,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       new Notice(t.settings.testConnection.success);
     } else {
       this.logger.error('VPS connection test failed: ', { error: res.error });
-      const errorMsg = res.error instanceof Error ? res.error.message : JSON.stringify(res.error);
-      new Notice(translate(t, 'settings.testConnection.failedWithError', { error: errorMsg }));
+      new Notice(
+        translate(t, 'settings.testConnection.failedWithError', { error: res.error.message })
+      );
     }
   }
 

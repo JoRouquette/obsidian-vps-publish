@@ -184,7 +184,7 @@ export class SessionApiClient {
       const errorMsg = this.translations
         ? translate(this.translations, 'sessionErrors.startFailed')
         : 'startSession failed';
-      throw result.error ?? new Error(errorMsg);
+      throw new Error(errorMsg, { cause: result.error });
     }
     const parsed = JSON.parse(result.text ?? '{}');
     const serverLimit = parseLimit(parsed.maxBytesPerRequest);
@@ -217,7 +217,7 @@ export class SessionApiClient {
       const errorMsg = this.translations
         ? translate(this.translations, 'sessionErrors.uploadNotesFailed')
         : 'uploadNotes failed';
-      throw result.error ?? new Error(errorMsg);
+      throw new Error(errorMsg, { cause: result.error });
     }
   }
 
@@ -229,7 +229,7 @@ export class SessionApiClient {
       const errorMsg = this.translations
         ? translate(this.translations, 'sessionErrors.uploadAssetsFailed')
         : 'uploadAssets failed';
-      throw result.error ?? new Error(errorMsg);
+      throw new Error(errorMsg, { cause: result.error });
     }
   }
 
@@ -247,7 +247,7 @@ export class SessionApiClient {
         });
         return;
       }
-      throw result.error ?? new Error('uploadChunk failed');
+      throw new Error('uploadChunk failed', { cause: result.error });
     }
   }
 
@@ -264,7 +264,7 @@ export class SessionApiClient {
         });
         return;
       }
-      throw result.error ?? new Error('uploadAssetChunk failed');
+      throw new Error('uploadAssetChunk failed', { cause: result.error });
     }
   }
 
@@ -291,7 +291,7 @@ export class SessionApiClient {
       const errorMsg = this.translations
         ? translate(this.translations, 'sessionErrors.finishFailed')
         : 'finishSession failed';
-      throw result.error ?? new Error(errorMsg);
+      throw new Error(errorMsg, { cause: result.error });
     }
     const parsed = JSON.parse(result.text ?? '{}') as FinishSessionResponse | undefined;
 
@@ -341,7 +341,7 @@ export class SessionApiClient {
       const errorMsg = this.translations
         ? translate(this.translations, 'sessionErrors.abortFailed')
         : 'abortSession failed';
-      throw result.error ?? new Error(errorMsg);
+      throw new Error(errorMsg, { cause: result.error });
     }
   }
 
@@ -351,7 +351,7 @@ export class SessionApiClient {
       const errorMsg = this.translations
         ? translate(this.translations, 'sessionErrors.cleanupFailed')
         : 'cleanupVps failed';
-      throw result.error ?? new Error(errorMsg);
+      throw new Error(errorMsg, { cause: result.error });
     }
     this.logger.debug('VPS cleanup completed', { targetName });
   }
@@ -403,7 +403,7 @@ export class SessionApiClient {
           await sleep(pollIntervalMs);
           continue;
         }
-        throw result.error ?? new Error('finalization status polling failed');
+        throw new Error('finalization status polling failed', { cause: result.error });
       }
 
       const parsed = JSON.parse(result.text ?? '{}') as FinalizationStatusResponse;

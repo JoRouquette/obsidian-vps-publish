@@ -263,7 +263,12 @@ describe('SessionApiClient', () => {
     const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
     const client = new Client('http://api', 'k', handler as any, mockLogger());
 
-    await expect(client.uploadNotes('s1', [])).rejects.toThrow('fail');
+    // L'erreur remontée porte le message destiné à l'utilisateur ; l'erreur d'origine
+    // reste accessible en `cause`, ce qui préserve le diagnostic.
+    await expect(client.uploadNotes('s1', [])).rejects.toThrow('uploadNotes failed');
+    await expect(client.uploadNotes('s1', [])).rejects.toMatchObject({
+      cause: expect.objectContaining({ message: 'fail' }),
+    });
   });
 
   it('uses the correct abortSession endpoint', async () => {
