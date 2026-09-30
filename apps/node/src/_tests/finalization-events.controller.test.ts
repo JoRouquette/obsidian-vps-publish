@@ -5,6 +5,7 @@ import request from 'supertest';
 
 import { createFinalizationEventsController } from '../infra/http/express/controllers/finalization-events.controller';
 import { FinalizationStreamTokenService } from '../infra/http/express/finalization-stream-token.service';
+import { createCorsMiddleware } from '../infra/http/express/middleware/cors.middleware';
 import { type FinalizationJob } from '../infra/sessions/session-finalization-job.service';
 
 type ParsedSseEvent = {
@@ -71,6 +72,10 @@ describe('finalizationEventsController', () => {
     jobService = new FakeFinalizationJobService({ ...baseJob });
     tokenService = new FinalizationStreamTokenService('test-secret', 15 * 60 * 1000);
     app = express();
+    // Mirrors what `createApp` mounts: the global CORS middleware with no
+    // configured origin — the state a fresh deployment starts from — then the
+    // events router. Composing both is what exercises their interaction.
+    app.use(createCorsMiddleware([]));
     app.use(createFinalizationEventsController(jobService as any, tokenService));
     server = createServer(app);
 
@@ -130,6 +135,68 @@ describe('finalizationEventsController', () => {
 
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: 'scope_mismatch' });
+  });
+
+  // The symptom users actually hit: the browser blocked the EventSource because
+  // this route answered without an allow-origin header. Everything else the plugin
+  // calls goes through Obsidian's `requestUrl`, which bypasses CORS, so this route
+  // is the only one where it shows.
+  it('lets the Obsidian desktop origin read the stream with no origin configured', async () => {
+    const { token } = tokenService.createToken('session-1', 'job-1');
+    const stream = await openSseStream(baseUrl, token, 'app://obsidian.md');
+
+    expect(stream.response.status).toBe(200);
+    expect(stream.response.headers.get('access-control-allow-origin')).toBe('app://obsidian.md');
+    expect(stream.response.headers.get('access-control-allow-credentials')).toBeNull();
+    // A single header each, despite both middlewares running: `res.set` replaces
+    // and `res.vary` deduplicates.
+    expect(stream.response.headers.get('vary')).toBe('Origin');
+
+    stream.abortController.abort();
+  });
+
+  // What the route-scoped mounting buys, and the only part of it a refactoring
+  // could silently undo: the allowance runs before the handler's own error
+  // replies. Move the call inside the handler "for clarity" and a rejected token
+  // comes back to the plugin as an opaque network error instead of a readable 410.
+  it.each([
+    ['an expired token', 410],
+    ['a rejected token', 403],
+  ])('still allows the origin to read the error for %s', async (_label, expectedStatus) => {
+    const service =
+      expectedStatus === 410
+        ? new FinalizationStreamTokenService('test-secret', -1)
+        : new FinalizationStreamTokenService('other-secret', 15 * 60 * 1000);
+    const { token } = service.createToken('session-1', 'job-1');
+
+    const res = await request(app)
+      .get('/events/session/session-1/finalization')
+      .query({ jobId: 'job-1', token })
+      .set('Origin', 'app://obsidian.md')
+      .set('Accept', 'text/event-stream');
+
+    expect(res.status).toBe(expectedStatus);
+    expect(res.headers['access-control-allow-origin']).toBe('app://obsidian.md');
+  });
+
+  it('still allows the origin to read the error when jobId is missing', async () => {
+    const res = await request(app)
+      .get('/events/session/session-1/finalization')
+      .set('Origin', 'app://obsidian.md')
+      .set('Accept', 'text/event-stream');
+
+    expect(res.status).toBe(400);
+    expect(res.headers['access-control-allow-origin']).toBe('app://obsidian.md');
+  });
+
+  it('answers a rejected origin without an allow-origin header', async () => {
+    const { token } = tokenService.createToken('session-1', 'job-1');
+    const stream = await openSseStream(baseUrl, token, 'https://evil.dev');
+
+    expect(stream.response.headers.get('access-control-allow-origin')).toBeNull();
+    expect(stream.response.headers.get('vary')).toContain('Origin');
+
+    stream.abortController.abort();
   });
 
   it('streams an initial snapshot immediately for a valid token', async () => {
@@ -274,13 +341,14 @@ describe('finalizationEventsController', () => {
   });
 });
 
-async function openSseStream(baseUrl: string, token: string) {
+async function openSseStream(baseUrl: string, token: string, origin?: string) {
   const abortController = new AbortController();
   const response = await fetch(
     `${baseUrl}/events/session/session-1/finalization?jobId=job-1&token=${encodeURIComponent(token)}`,
     {
       headers: {
         Accept: 'text/event-stream',
+        ...(origin ? { Origin: origin } : {}),
       },
       signal: abortController.signal,
     }

@@ -1,11 +1,12 @@
 import { type LoggerPort } from '@core-domain';
-import { type Request, type Response, Router as createRouter } from 'express';
+import { type RequestHandler, Router as createRouter } from 'express';
 
 import {
   type FinalizationJob,
   type SessionFinalizationJobService,
 } from '../../../sessions/session-finalization-job.service';
 import { type FinalizationStreamTokenService } from '../finalization-stream-token.service';
+import { allowObsidianDesktopOrigin } from '../middleware/cors.middleware';
 
 export function createFinalizationEventsController(
   finalizationJobService: SessionFinalizationJobService,
@@ -15,7 +16,10 @@ export function createFinalizationEventsController(
   const router = createRouter();
   const log = logger?.child({ module: 'finalizationEventsController' });
 
-  router.get('/events/session/:sessionId/finalization', (req: Request, res: Response) => {
+  // Typed explicitly: extracted from the `router.get` call, the handler would
+  // otherwise lose the contextual `RouteParameters` inference and `req.params`
+  // would widen to a dictionary of strings, where a misspelt param still compiles.
+  const streamFinalization: RequestHandler<{ sessionId: string }> = (req, res) => {
     const { sessionId } = req.params;
     const jobId = getSingleQueryParam(req.query.jobId);
     const token = getSingleQueryParam(req.query.token);
@@ -129,7 +133,17 @@ export function createFinalizationEventsController(
 
     req.on('close', cleanup);
     req.on('error', () => cleanup());
-  });
+  };
+
+  // This stream is the only request the plugin makes that the browser subjects to
+  // CORS; everything else goes through Obsidian's `requestUrl`, which bypasses it.
+  // The allowance is mounted on this route rather than on the global middleware so
+  // that `ALLOWED_ORIGINS` stays the sole authority everywhere else.
+  router.get(
+    '/events/session/:sessionId/finalization',
+    allowObsidianDesktopOrigin,
+    streamFinalization
+  );
 
   return router;
 }
