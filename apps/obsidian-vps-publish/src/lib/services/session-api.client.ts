@@ -80,12 +80,33 @@ interface EventSourceLike {
 
 type EventSourceConstructor = new (url: string) => EventSourceLike;
 
+/**
+ * Retries for a single finalization status request. `requestUrlWithRetry` already
+ * honours the server's `Retry-After` header and its `retryAfterMs` body hint, so
+ * enabling retries here is what makes the client obey the backpressure it is told
+ * about. It was previously set to zero retries, which turned every 429 into an
+ * immediate failure handed back to the polling loop.
+ */
 const FINALIZATION_STATUS_RETRY_CONFIG: RetryConfig = {
-  maxRetries: 0,
+  maxRetries: 3,
   initialDelayMs: 1000,
-  maxDelayMs: 1000,
-  backoffMultiplier: 1,
+  maxDelayMs: 15000,
+  backoffMultiplier: 2,
 };
+
+/** Interval between two status polls while the server answers normally. */
+const FINALIZATION_POLL_INTERVAL_MS = 1500;
+
+/**
+ * Ceiling for the polling interval once the server starts pushing back. Without
+ * it the loop kept polling every {@link FINALIZATION_POLL_INTERVAL_MS} for the
+ * whole ten-minute window, so a server answering 429 was asked again at the
+ * nominal rate — amplifying the very load it was reporting.
+ */
+const FINALIZATION_POLL_MAX_INTERVAL_MS = 30000;
+
+/** Applied to the polling interval on each consecutive backpressure signal. */
+const FINALIZATION_POLL_BACKOFF_MULTIPLIER = 2;
 
 const FINALIZATION_SSE_CONNECT_TIMEOUT_MS = 10000;
 const FINALIZATION_SSE_IDLE_TIMEOUT_MS = 45000;
@@ -379,8 +400,41 @@ export class SessionApiClient {
     };
   }> {
     const timeoutMs = 10 * 60 * 1000;
-    const pollIntervalMs = 1500;
     const startTime = Date.now();
+
+    // Grows on each backpressure signal reported to this loop, so a loaded server
+    // is not asked again at the nominal rate for the whole timeout window.
+    //
+    // It resets on any poll that comes back without an error — including one whose
+    // internal retries absorbed a 429 or three. Under moderate but persistent
+    // throttling the outer interval therefore stays nominal; the load is bounded by
+    // the retry backoff inside `requestUrlWithRetry`, not by this one.
+    let pollIntervalMs = FINALIZATION_POLL_INTERVAL_MS;
+    const backOff = (): number => {
+      pollIntervalMs = Math.min(
+        pollIntervalMs * FINALIZATION_POLL_BACKOFF_MULTIPLIER,
+        FINALIZATION_POLL_MAX_INTERVAL_MS
+      );
+      return pollIntervalMs;
+    };
+
+    /**
+     * Sleeps without overshooting the timeout window, and reports whether any
+     * budget is left. The loop only checks its budget at the top, so an unbounded
+     * sleep here would let a run end well past `timeoutMs`: each iteration can burn
+     * seconds of internal retries before reaching this point, and the interval above
+     * climbs to {@link FINALIZATION_POLL_MAX_INTERVAL_MS}. Returning `false` ends the
+     * loop on the timeout path instead.
+     */
+    const sleepWithinBudget = async (delayMs: number): Promise<boolean> => {
+      const remainingMs = timeoutMs - (Date.now() - startTime);
+      if (remainingMs <= 0) {
+        return false;
+      }
+
+      await sleep(Math.min(delayMs, remainingMs));
+      return true;
+    };
 
     while (Date.now() - startTime < timeoutMs) {
       let result: HttpResponse;
@@ -391,12 +445,16 @@ export class SessionApiClient {
         );
       } catch (error) {
         if (isTransientBackpressureError(error)) {
+          const delayMs = backOff();
           this.logger.warn('Finalization status polling throttled by server backpressure', {
             sessionId,
             jobId,
             error: error instanceof Error ? error.message : String(error),
+            nextPollInMs: delayMs,
           });
-          await sleep(pollIntervalMs);
+          if (!(await sleepWithinBudget(delayMs))) {
+            break;
+          }
           continue;
         }
         throw error;
@@ -404,16 +462,22 @@ export class SessionApiClient {
 
       if (result.isError) {
         if (isTransientBackpressureResponse(result)) {
+          const delayMs = backOff();
           this.logger.warn('Finalization status polling returned HTTP 429', {
             sessionId,
             jobId,
             httpStatus: result.httpStatus,
+            nextPollInMs: delayMs,
           });
-          await sleep(pollIntervalMs);
+          if (!(await sleepWithinBudget(delayMs))) {
+            break;
+          }
           continue;
         }
         throw new Error('finalization status polling failed', { cause: result.error });
       }
+
+      pollIntervalMs = FINALIZATION_POLL_INTERVAL_MS;
 
       const parsed = JSON.parse(result.text ?? '{}') as FinalizationStatusResponse;
       onFinalizationUpdate?.(parsed);
@@ -435,10 +499,15 @@ export class SessionApiClient {
         throw new Error(parsed.error || `Finalization job failed: ${jobId}`);
       }
 
-      await sleep(pollIntervalMs);
+      if (!(await sleepWithinBudget(pollIntervalMs))) {
+        break;
+      }
     }
 
-    throw new Error(`Finalization polling timed out after ${timeoutMs}ms for ${jobId}`);
+    throw new Error(
+      `Finalization polling timed out after ${Date.now() - startTime}ms ` +
+        `(budget ${timeoutMs}ms) for ${jobId}`
+    );
   }
 
   private async waitForFinalizationViaSse(

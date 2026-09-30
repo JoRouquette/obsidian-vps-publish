@@ -12,6 +12,38 @@ const responseOk = (text: string) => ({
   text,
 });
 
+const COMPLETED_JOB_JSON =
+  '{"jobId":"job-1","sessionId":"s1","status":"completed","progress":100,' +
+  '"result":{"promotionStats":{"notesPublished":2,"notesDeduplicated":0,"notesDeleted":0,' +
+  '"assetsPublished":0,"assetsDeduplicated":0}}}';
+
+const acceptedFinalizationJob = () => ({
+  status: 202,
+  headers: {},
+  text: JSON.stringify({ sessionId: 's1', jobId: 'job-1', status: 'queued' }),
+});
+
+const completedFinalizationJob = () => ({
+  status: 200,
+  headers: {},
+  text: COMPLETED_JOB_JSON,
+});
+
+const queuedJobResponse = () => responseOk('{"sessionId":"s1","jobId":"job-1","status":"queued"}');
+
+const completedJobResponse = () => responseOk(COMPLETED_JOB_JSON);
+
+/**
+ * Reads back the interval the finalization loop announced after each
+ * backpressure signal. The loop logs `nextPollInMs` precisely so its pacing is
+ * observable, which lets a test assert how the client behaves under 429 rather
+ * than merely that it eventually succeeds.
+ */
+const announcedPollDelays = (logger: { warn: jest.Mock }): number[] =>
+  logger.warn.mock.calls
+    .map(([, meta]) => (meta as { nextPollInMs?: number } | undefined)?.nextPollInMs)
+    .filter((value): value is number => typeof value === 'number');
+
 type MockEventSourceListener = (event?: { data?: string }) => void;
 
 class MockEventSource {
@@ -454,7 +486,7 @@ describe('SessionApiClient', () => {
         headers: {},
         text: JSON.stringify({ sessionId: 's1', jobId: 'job-1', status: 'queued' }),
       })
-      .mockRejectedValueOnce(new Error('Server under load after 0 retries (429)'))
+      .mockRejectedValueOnce(new Error('Server under load after 3 retries (429)'))
       .mockResolvedValueOnce({
         status: 200,
         headers: {},
@@ -505,6 +537,88 @@ describe('SessionApiClient', () => {
 
     expect(result.promotionStats?.notesPublished).toBe(2);
     expect(requestUrlWithRetry).toHaveBeenCalledTimes(3);
+  });
+
+  it('widens the poll interval on each consecutive backpressure signal, up to the ceiling', async () => {
+    jest.useFakeTimers();
+    const logger = mockLogger();
+
+    const backpressure = () => new Error('Server under load after 3 retries (429)');
+    const requestUrlWithRetry = jest
+      .fn()
+      .mockResolvedValueOnce(acceptedFinalizationJob())
+      .mockRejectedValueOnce(backpressure())
+      .mockRejectedValueOnce(backpressure())
+      .mockRejectedValueOnce(backpressure())
+      .mockRejectedValueOnce(backpressure())
+      .mockRejectedValueOnce(backpressure())
+      .mockRejectedValueOnce(backpressure())
+      .mockResolvedValueOnce(completedFinalizationJob());
+    const handler = {
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValueOnce(queuedJobResponse())
+        .mockResolvedValueOnce(completedJobResponse()),
+    };
+
+    jest.doMock('obsidian', () => ({ requestUrl: jest.fn() }));
+    jest.doMock('../lib/utils/request-with-retry.util', () => ({ requestUrlWithRetry }));
+
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, logger);
+
+    const resultPromise = client.finishSession('s1', { notesProcessed: 1, assetsProcessed: 0 });
+    await jest.runAllTimersAsync();
+    await resultPromise;
+
+    // Doubling from the 1500 ms nominal interval, then held at the 30 s ceiling.
+    // The previous code slept a flat 1500 ms on every 429, so it announced nothing
+    // and kept polling a server that was asking to be left alone. The last two
+    // values cover the ceiling itself: without it the sequence would carry on to
+    // 48000 and beyond.
+    expect(announcedPollDelays(logger)).toEqual([3000, 6000, 12000, 24000, 30000, 30000]);
+  });
+
+  it('returns to the nominal poll interval once the server answers again', async () => {
+    jest.useFakeTimers();
+    const logger = mockLogger();
+
+    const requestUrlWithRetry = jest
+      .fn()
+      .mockResolvedValueOnce(acceptedFinalizationJob())
+      .mockRejectedValueOnce(new Error('Server under load after 3 retries (429)'))
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        text: JSON.stringify({ jobId: 'job-1', sessionId: 's1', status: 'running', progress: 40 }),
+      })
+      .mockRejectedValueOnce(new Error('Server under load after 3 retries (429)'))
+      .mockResolvedValueOnce(completedFinalizationJob());
+    const handler = {
+      handleResponseAsync: jest
+        .fn()
+        .mockResolvedValueOnce(queuedJobResponse())
+        .mockResolvedValueOnce({
+          isError: false,
+          text: '{"jobId":"job-1","sessionId":"s1","status":"running","progress":40}',
+        })
+        .mockResolvedValueOnce(completedJobResponse()),
+    };
+
+    jest.doMock('obsidian', () => ({ requestUrl: jest.fn() }));
+    jest.doMock('../lib/utils/request-with-retry.util', () => ({ requestUrlWithRetry }));
+
+    const { SessionApiClient: Client } = await import('../lib/services/session-api.client');
+    const client = new Client('http://api', 'k', handler as any, logger);
+
+    const resultPromise = client.finishSession('s1', { notesProcessed: 1, assetsProcessed: 0 });
+    await jest.runAllTimersAsync();
+    await resultPromise;
+
+    // The server answered normally between the two 429, so the escalation starts
+    // over from the nominal interval instead of carrying on: 3000 both times,
+    // not 3000 then 6000.
+    expect(announcedPollDelays(logger)).toEqual([3000, 3000]);
   });
 
   it('uses SSE finalization events when realtime metadata is returned', async () => {
