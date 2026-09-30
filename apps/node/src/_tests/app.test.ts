@@ -53,7 +53,9 @@ jest.mock('../infra/config/env-config', () => ({
   },
 }));
 
+import { EnvConfig } from '../infra/config/env-config';
 import { createApp } from '../infra/http/express/app';
+import { FinalizationStreamTokenService } from '../infra/http/express/finalization-stream-token.service';
 
 describe('createApp', () => {
   it('mounts routes and public config', async () => {
@@ -85,5 +87,57 @@ describe('createApp', () => {
     } finally {
       setIntervalSpy.mockRestore();
     }
+  });
+
+  // The backpressure middleware is safe by default: without the authorizer that
+  // createApp wires in, the finalization stream is shed like any request and no
+  // unit test notices. With a full quota, only this wiring lets the stream
+  // through.
+  describe('finalization stream under a full request quota', () => {
+    const streamPath = '/events/session/session-1/finalization';
+
+    async function requestStream(token: string) {
+      (EnvConfig.maxActiveRequests as jest.Mock).mockReturnValueOnce(0);
+      const setIntervalSpy = jest
+        .spyOn(global, 'setInterval')
+        .mockImplementation(
+          ((..._args: Parameters<typeof setInterval>) =>
+            ({ unref: jest.fn() }) as unknown as NodeJS.Timeout) as typeof setInterval
+        );
+
+      try {
+        const { app } = createApp();
+        return await request(app)
+          .get(`${streamPath}?jobId=job-1&token=${token}`)
+          .set('Accept', 'text/event-stream');
+      } finally {
+        setIntervalSpy.mockRestore();
+      }
+    }
+
+    it('lets a stream with a valid token reach the stream handler', async () => {
+      // Same secret derivation as createApp, from the mocked API key.
+      const token = new FinalizationStreamTokenService('secret:finalization-sse').createToken(
+        'session-1',
+        'job-1'
+      ).token;
+
+      const res = await requestStream(token);
+
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe('job_not_found');
+    });
+
+    it('sheds a stream with a forged token', async () => {
+      const token = new FinalizationStreamTokenService('another-secret').createToken(
+        'session-1',
+        'job-1'
+      ).token;
+
+      const res = await requestStream(token);
+
+      expect(res.status).toBe(429);
+      expect(res.body.cause).toBe('active_requests');
+    });
   });
 });

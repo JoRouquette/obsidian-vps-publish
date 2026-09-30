@@ -36,7 +36,10 @@ import { AssetHashService } from '../../utils/asset-hash.service';
 import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
 import { createAdminDashboardController } from './controllers/admin-dashboard.controller';
 import { createContentVersionController } from './controllers/content-version.controller';
-import { createFinalizationEventsController } from './controllers/finalization-events.controller';
+import {
+  createFinalizationEventsController,
+  createFinalizationStreamAuthorizer,
+} from './controllers/finalization-events.controller';
 import { createHealthCheckController } from './controllers/health-check.controller';
 import { createMaintenanceController } from './controllers/maintenance-controller';
 import { createPingController } from './controllers/ping.controller';
@@ -268,6 +271,9 @@ export function createApp(rootLogger?: LoggerPort) {
   );
   const finalizationStreamTokenService = new FinalizationStreamTokenService(
     `${EnvConfig.apiKey()}:finalization-sse`
+  );
+  backpressure.authorizeFinalizationStreams(
+    createFinalizationStreamAuthorizer(finalizationStreamTokenService)
   );
 
   // Content version service for PWA cache invalidation

@@ -23,9 +23,15 @@ const DEFAULT_CONFIG: BackpressureConfig = {
   maxActiveRequests: 50, // Max 50 concurrent requests
 };
 
-const FINALIZATION_SSE_ROUTE_PATTERN = /^\/events\/session\/[^/]+\/finalization(?:$|\?)/;
+/**
+ * Tells whether a request is a finalization stream carrying a token valid for
+ * its session and job. Built next to the stream controller, which owns the
+ * route and the token check.
+ */
+export type FinalizationStreamAuthorizer = (req: Request) => boolean;
 
 export class BackpressureMiddleware {
+  private finalizationStreamAuthorizer: FinalizationStreamAuthorizer | null = null;
   private activeRequests = 0;
   private eventLoopLagMs = 0;
   private lastEventLoopCheck = Date.now();
@@ -68,6 +74,14 @@ export class BackpressureMiddleware {
     }
   }
 
+  /**
+   * Enables the finalization stream exemptions. Until an authorizer is set, the
+   * stream is shed like any other request.
+   */
+  authorizeFinalizationStreams(authorizer: FinalizationStreamAuthorizer): void {
+    this.finalizationStreamAuthorizer = authorizer;
+  }
+
   stopEventLoopMonitoring(): void {
     if (this.lagIntervalId) {
       clearInterval(this.lagIntervalId);
@@ -81,10 +95,40 @@ export class BackpressureMiddleware {
   handle() {
     return (req: Request, res: Response, next: NextFunction) => {
       const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
-      const isSseRequest = this.isSseRequest(req);
+
+      // An authenticated finalization stream is exempt from two shedding causes,
+      // not three. Authenticated means a stream token valid for its session and
+      // job: the Accept header and the path alone are client-controlled, and would
+      // let anyone skip the shedding.
+      //
+      // Active requests: the stream lives for the whole finalization, so counting
+      // it would hold a slot for minutes.
+      //
+      // Event loop lag: refusing the stream does not relieve the loop, since the
+      // finalization it reports on keeps running whether or not someone listens.
+      // What a refusal does cost is visibility: an EventSource never exposes the
+      // HTTP status to JavaScript, so the plugin sees a 429 exactly as it would
+      // see a dead server, and can only fall back to status polling.
+      //
+      // Memory pressure is deliberately NOT exempt. It is the last guard against an
+      // out-of-memory kill on hosts that often run without swap, and admitting one
+      // more stream adds buffers the heap cannot afford. The plugin's polling
+      // fallback, with its back-off, is the right answer there.
+      //
+      // Accepted risk: the token is a bearer token, valid for its lifetime and not
+      // single-use, so whoever holds it can open several exempt streams for the
+      // same job. Holding it already requires the API key or a leaked URL.
+      //
+      // Evaluated lazily and at most once per request. An ordinary request stops
+      // at the method and Accept checks and never reaches the token's HMAC, and
+      // memory pressure alone rejects before the token is needed. A stream that
+      // passes every threshold is still checked once, to keep it uncounted.
+      let authorizedStream: boolean | undefined;
+      const isAuthorizedStream = (): boolean =>
+        (authorizedStream ??= this.isAuthorizedFinalizationStream(req));
 
       // Check active requests
-      if (!isSseRequest && this.activeRequests >= this.config.maxActiveRequests) {
+      if (this.activeRequests >= this.config.maxActiveRequests && !isAuthorizedStream()) {
         this.rejectionCounters.active_requests++;
         const retryAfterMs = 5000;
         this.logger?.warn('[BACKPRESSURE] Too many active requests', {
@@ -113,7 +157,7 @@ export class BackpressureMiddleware {
       }
 
       // Check event loop lag
-      if (this.eventLoopLagMs > this.config.maxEventLoopLagMs) {
+      if (this.eventLoopLagMs > this.config.maxEventLoopLagMs && !isAuthorizedStream()) {
         this.rejectionCounters.event_loop_lag++;
         const retryAfterMs = 5000;
         this.logger?.warn('[BACKPRESSURE] High event loop lag', {
@@ -168,7 +212,7 @@ export class BackpressureMiddleware {
       }
 
       // Track active requests
-      if (!isSseRequest) {
+      if (!isAuthorizedStream()) {
         this.activeRequests++;
         let released = false;
         const release = () => {
@@ -242,19 +286,18 @@ export class BackpressureMiddleware {
     return Number.isFinite(value) && (value ?? 0) > 0 ? (value ?? null) : null;
   }
 
-  private isSseRequest(req: Request): boolean {
+  // The cheap checks come first, so an ordinary request never reaches the
+  // authorizer and its HMAC.
+  private isAuthorizedFinalizationStream(req: Request): boolean {
+    if (!this.finalizationStreamAuthorizer || req.method !== 'GET') {
+      return false;
+    }
+
     const accept = req.headers?.accept;
     if (typeof accept !== 'string' || !accept.includes('text/event-stream')) {
       return false;
     }
 
-    const requestPath =
-      typeof req.originalUrl === 'string'
-        ? req.originalUrl
-        : typeof req.path === 'string'
-          ? req.path
-          : '';
-
-    return FINALIZATION_SSE_ROUTE_PATTERN.test(requestPath);
+    return this.finalizationStreamAuthorizer(req);
   }
 }
