@@ -56,6 +56,7 @@ jest.mock('../infra/config/env-config', () => ({
 import { EnvConfig } from '../infra/config/env-config';
 import { createApp } from '../infra/http/express/app';
 import { FinalizationStreamTokenService } from '../infra/http/express/finalization-stream-token.service';
+import { readFirstChunk } from './helpers/read-first-chunk';
 
 describe('createApp', () => {
   it('mounts routes and public config', async () => {
@@ -86,6 +87,40 @@ describe('createApp', () => {
       });
     } finally {
       setIntervalSpy.mockRestore();
+    }
+  });
+
+  // compression() sits in front of every route. Without the SSE exclusion that
+  // createApp wires in, a client sending Accept-Encoding receives nothing: the
+  // first event stays in the compression buffer.
+  it('delivers the first server-sent event uncompressed to a client that accepts gzip', async () => {
+    const setIntervalSpy = jest
+      .spyOn(global, 'setInterval')
+      .mockImplementation(
+        ((..._args: Parameters<typeof setInterval>) =>
+          ({ unref: jest.fn() }) as unknown as NodeJS.Timeout) as typeof setInterval
+      );
+    const clearIntervalSpy = jest.spyOn(global, 'clearInterval').mockImplementation(() => {});
+
+    const { app } = createApp();
+    const server = app.listen(0);
+    try {
+      await new Promise<void>((resolve) => server.once('listening', () => resolve()));
+
+      const first = await readFirstChunk(
+        server,
+        '/events/content',
+        { Accept: 'text/event-stream', 'Accept-Encoding': 'gzip, deflate, br' },
+        { until: '"type":"connected"' }
+      );
+
+      expect(first.contentEncoding).toBeUndefined();
+      expect(first.body).toContain('"type":"connected"');
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      setIntervalSpy.mockRestore();
+      clearIntervalSpy.mockRestore();
     }
   });
 

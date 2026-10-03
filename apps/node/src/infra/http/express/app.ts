@@ -50,6 +50,7 @@ import { createAdminAuthMiddleware } from './middleware/admin-auth.middleware';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
 import { BackpressureMiddleware } from './middleware/backpressure.middleware';
 import { ChunkedUploadMiddleware } from './middleware/chunked-upload.middleware';
+import { shouldCompress } from './middleware/compression-filter';
 import { createCorsMiddleware } from './middleware/cors.middleware';
 import { createMaintenanceModeMiddleware } from './middleware/maintenance-mode.middleware';
 import { PerformanceMonitoringMiddleware } from './middleware/performance-monitoring.middleware';
@@ -81,19 +82,12 @@ export function createApp(rootLogger?: LoggerPort) {
   const perfMonitor = new PerformanceMonitoringMiddleware(rootLogger);
   app.use(perfMonitor.handle());
 
-  // Enable compression for all responses (gzip/deflate)
+  // Compress responses above 1 KB, except server-sent events
   app.use(
     compression({
       level: 6, // Balance between speed and compression ratio
       threshold: 1024, // Only compress responses > 1KB
-      filter: (req, res) => {
-        // Don't compress if the client doesn't support it
-        if (req.headers['x-no-compression']) {
-          return false;
-        }
-        // Use default compression filter
-        return compression.filter(req, res);
-      },
+      filter: shouldCompress,
     })
   );
 
