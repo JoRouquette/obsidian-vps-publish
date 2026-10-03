@@ -95,6 +95,10 @@ curl -fsS http://127.0.0.1:3000/health   # doit répondre avant de continuer
 `/etc/nginx/sites-available/publish.example.com` :
 
 ```nginx
+# Directive de niveau http (ce fichier est inclus dans le bloc http de nginx.conf) ;
+# son nom est global : la déclarer une seule fois, ou la renommer par site
+log_format publish_sse '$remote_addr [$time_local] "$request_method $uri" $status $body_bytes_sent';
+
 server {
   listen 443 ssl;
   http2 on;
@@ -117,18 +121,31 @@ server {
     proxy_read_timeout 30s;
   }
 
-  # CORS strict pour l'API, réservé au client Obsidian
+  # API : le CORS est géré par le conteneur (ALLOWED_ORIGINS), nginx n'ajoute aucun en-tête
   location ^~ /api/ {
     proxy_pass         http://127.0.0.1:3000/api/;
     proxy_set_header   Host              $host;
     proxy_set_header   X-Real-IP         $remote_addr;
     proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
     proxy_set_header   X-Forwarded-Proto $scheme;
+  }
 
-    add_header Access-Control-Allow-Origin "app://obsidian.md" always;
-    add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
-    add_header Access-Control-Allow-Headers "Content-Type, x-api-key" always;
-    if ($request_method = OPTIONS) { return 204; }
+  # Flux SSE (suivi de finalisation, version du contenu) : connexions longues,
+  # le serveur envoie un heartbeat toutes les 30 s
+  location ^~ /events/ {
+    proxy_pass         http://127.0.0.1:3000/events/;
+    proxy_http_version 1.1;
+    proxy_set_header   Connection        "";
+    proxy_set_header   Host              $host;
+    proxy_set_header   X-Real-IP         $remote_addr;
+    proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header   X-Forwarded-Proto $scheme;
+    proxy_buffering    off;
+    proxy_read_timeout 90s;
+
+    # Garde le jeton du flux (query string) hors du journal d'accès ;
+    # l'error.log de nginx garde la ligne de requête complète en cas d'erreur amont
+    access_log         /var/log/nginx/publish-sse.log publish_sse;
   }
 }
 
@@ -210,15 +227,15 @@ En pratique : plugin et image d'une même version mineure fonctionnent ensemble 
 
 ## Troubleshooting
 
-| Symptôme                             | Cause probable & remède                                                                                            |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | --------------- |
-| `401 Unauthorized` à la publication  | `API key` du plugin ≠ `API_KEY` du conteneur. Vérifier aussi que le header `x-api-key` est autorisé côté CORS.     |
-| Erreur CORS dans la console Obsidian | `app://obsidian.md` absent de `ALLOWED_ORIGINS` (conteneur) ou du header `Access-Control-Allow-Origin` (nginx).    |
-| `413 Request Entity Too Large`       | `client_max_body_size` nginx trop bas pour vos assets (défaut nginx : 1m). Passer à `20m` ou plus.                 |
-| `502 Bad Gateway`                    | Conteneur arrêté ou unhealthy : `docker ps`, `curl 127.0.0.1:3000/health`, `docker logs personal-publish`.         |
-| Site vide après publication          | Volumes non persistés (`./content`, `./assets`) ou publication filtrée par les règles d'exclusion du plugin.       |
-| Certificat expiré                    | `sudo certbot renew --dry-run`, vérifier le timer (`systemctl list-timers                                          | grep certbot`). |
-| Disque plein                         | `df -h /` ; purger les vieilles images : `docker image prune -a` (Watchtower `--cleanup` le fait automatiquement). |
+| Symptôme                             | Cause probable & remède                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `401 Unauthorized` à la publication  | `API key` du plugin ≠ `API_KEY` du conteneur.                                                                                                                                                                                                                                                                                                                                               |
+| Erreur CORS dans la console Obsidian | Seul le flux `/events/session/…/finalization` est soumis au CORS (les autres appels du plugin passent par `requestUrl`), et `ALLOWED_ORIGINS` ne le concerne pas. Chercher des en-têtes `Access-Control-*` ajoutés aussi par nginx (le doublon est rejeté), ou une réponse qui n'en porte aucun : page d'erreur 502/504 de nginx, ou 429 du délestage du conteneur (logs `[BACKPRESSURE]`). |
+| `413 Request Entity Too Large`       | `client_max_body_size` nginx trop bas pour vos assets (défaut nginx : 1m). Passer à `20m` ou plus.                                                                                                                                                                                                                                                                                          |
+| `502 Bad Gateway`                    | Conteneur arrêté ou unhealthy : `docker ps`, `curl 127.0.0.1:3000/health`, `docker logs personal-publish`.                                                                                                                                                                                                                                                                                  |
+| Site vide après publication          | Volumes non persistés (`./content`, `./assets`) ou publication filtrée par les règles d'exclusion du plugin.                                                                                                                                                                                                                                                                                |
+| Certificat expiré                    | `sudo certbot renew --dry-run`, vérifier le timer (`systemctl list-timers \| grep certbot`).                                                                                                                                                                                                                                                                                                |
+| Disque plein                         | `df -h /` ; purger les vieilles images : `docker image prune -a` (Watchtower `--cleanup` le fait automatiquement).                                                                                                                                                                                                                                                                          |
 
 ## Références
 
