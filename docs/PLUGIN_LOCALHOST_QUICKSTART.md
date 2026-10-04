@@ -75,7 +75,7 @@ ASSETS_ROOT=./tmp/assets
 UI_ROOT=./tmp/ui
 API_KEY=devkeylocal
 LOGGER_LEVEL=debug
-ALLOWED_ORIGINS=*,app://obsidian,http://localhost:4200,http://localhost:3000
+ALLOWED_ORIGINS=*,app://obsidian.md,http://localhost:4200,http://localhost:3000
 BASE_URL=http://localhost:3000
 ```
 

@@ -12,7 +12,7 @@ services:
       UI_SERVER_ROOT: /ui-server
       SSR_ENABLED: 'false'
       LOGGER_LEVEL: 'warn'
-      ALLOWED_ORIGINS: https://example.com,app://obsidian
+      ALLOWED_ORIGINS: https://example.com,app://obsidian.md
       BASE_URL: https://example.com
       SITE_NAME: Scribe d'Ektaron
       HOME_WELCOME_TITLE: Bienvenue sur votre site de lore.

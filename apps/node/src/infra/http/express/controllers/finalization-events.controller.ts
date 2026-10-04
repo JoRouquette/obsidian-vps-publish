@@ -1,11 +1,58 @@
 import { type LoggerPort } from '@core-domain';
-import { type Request, type Response, Router as createRouter } from 'express';
+import { type Request, type RequestHandler, Router as createRouter } from 'express';
 
 import {
   type FinalizationJob,
   type SessionFinalizationJobService,
 } from '../../../sessions/session-finalization-job.service';
 import { type FinalizationStreamTokenService } from '../finalization-stream-token.service';
+import { type FinalizationStreamAuthorizer } from '../middleware/backpressure.middleware';
+import { allowObsidianDesktopOrigin } from '../middleware/cors.middleware';
+
+const FINALIZATION_STREAM_PATH = '/events/session/:sessionId/finalization';
+
+// FINALIZATION_STREAM_PATH as Express matches it at the root of the app: case
+// insensitive, optional trailing slash. finalization-stream-authorizer.test.ts
+// mounts the real router to keep the two aligned.
+const FINALIZATION_STREAM_PATH_PATTERN = /^\/events\/session\/([^/]+)\/finalization\/?$/i;
+
+/**
+ * Builds the check the backpressure middleware uses to recognise an
+ * authenticated finalization stream. It sits next to the stream handler it
+ * mirrors: same route, same query helper, same token check, and a test that
+ * compares both on the real router. The middleware adds its own cheap
+ * prefilter (GET, SSE Accept header) before calling it. The stream URL handed
+ * to the plugin is still built separately, by the session controller.
+ *
+ * It runs before routing, so the session id comes from the path, decoded the
+ * way Express decodes route parameters. The query is already parsed by Express
+ * at that point.
+ */
+export function createFinalizationStreamAuthorizer(
+  tokenService: FinalizationStreamTokenService
+): FinalizationStreamAuthorizer {
+  return (req: Request): boolean => {
+    const match = FINALIZATION_STREAM_PATH_PATTERN.exec(req.path);
+    if (!match) {
+      return false;
+    }
+
+    let sessionId: string;
+    try {
+      sessionId = decodeURIComponent(match[1]);
+    } catch {
+      return false;
+    }
+
+    const jobId = getSingleQueryParam(req.query.jobId);
+    if (!jobId) {
+      return false;
+    }
+
+    const token = getSingleQueryParam(req.query.token);
+    return tokenService.validateToken(token, sessionId, jobId).ok;
+  };
+}
 
 export function createFinalizationEventsController(
   finalizationJobService: SessionFinalizationJobService,
@@ -15,7 +62,10 @@ export function createFinalizationEventsController(
   const router = createRouter();
   const log = logger?.child({ module: 'finalizationEventsController' });
 
-  router.get('/events/session/:sessionId/finalization', (req: Request, res: Response) => {
+  // Typed explicitly: extracted from the `router.get` call, the handler would
+  // otherwise lose the contextual `RouteParameters` inference and `req.params`
+  // would widen to a dictionary of strings, where a misspelt param still compiles.
+  const streamFinalization: RequestHandler<{ sessionId: string }> = (req, res) => {
     const { sessionId } = req.params;
     const jobId = getSingleQueryParam(req.query.jobId);
     const token = getSingleQueryParam(req.query.token);
@@ -129,7 +179,13 @@ export function createFinalizationEventsController(
 
     req.on('close', cleanup);
     req.on('error', () => cleanup());
-  });
+  };
+
+  // This stream is the only request the plugin makes that the browser subjects to
+  // CORS; everything else goes through Obsidian's `requestUrl`, which bypasses it.
+  // The allowance is mounted on this route rather than on the global middleware so
+  // that `ALLOWED_ORIGINS` stays the sole authority everywhere else.
+  router.get(FINALIZATION_STREAM_PATH, allowObsidianDesktopOrigin, streamFinalization);
 
   return router;
 }

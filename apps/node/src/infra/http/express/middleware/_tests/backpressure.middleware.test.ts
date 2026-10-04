@@ -3,7 +3,71 @@
  * Verifies that server protection mechanisms work as expected
  */
 
-import { BackpressureMiddleware } from '../backpressure.middleware';
+import { createFinalizationStreamAuthorizer } from '../../controllers/finalization-events.controller';
+import { FinalizationStreamTokenService } from '../../finalization-stream-token.service';
+import {
+  BackpressureMiddleware,
+  type FinalizationStreamAuthorizer,
+} from '../backpressure.middleware';
+
+// The real authorizer and token service, so the exemption is tested against the
+// same route and signature the stream controller checks. How the authorizer
+// reads the request is covered by finalization-stream-authorizer.test.ts.
+const streamTokens = new FinalizationStreamTokenService('backpressure-test-secret');
+const streamAuthorizer = createFinalizationStreamAuthorizer(streamTokens);
+const VALID_STREAM_TOKEN = streamTokens.createToken('session-1', 'job-1').token;
+const FORGED_STREAM_TOKEN = new FinalizationStreamTokenService('another-secret').createToken(
+  'session-1',
+  'job-1'
+).token;
+
+const NO_LOAD = {
+  maxEventLoopLagMs: Number.MAX_SAFE_INTEGER,
+  maxMemoryUsageMB: Number.MAX_SAFE_INTEGER,
+  maxActiveRequests: Number.MAX_SAFE_INTEGER,
+};
+
+// The shape Express hands the middleware: path without the query, query
+// already parsed.
+function streamRequest({
+  token,
+  method = 'GET',
+  path = '/events/session/session-1/finalization',
+  accept = 'text/event-stream',
+}: { token?: string; method?: string; path?: string; accept?: string | null } = {}) {
+  return {
+    method,
+    path,
+    query: token ? { jobId: 'job-1', token } : { jobId: 'job-1' },
+    headers: accept ? { accept } : {},
+  };
+}
+
+const ORDINARY_REQUEST = { method: 'GET', path: '/api/ping', query: {}, headers: {} };
+
+function runOnce(
+  config: Partial<typeof NO_LOAD>,
+  req: Record<string, unknown>,
+  authorizer: FinalizationStreamAuthorizer | null = streamAuthorizer
+) {
+  const strictMiddleware = new BackpressureMiddleware({ ...NO_LOAD, ...config });
+  if (authorizer) {
+    strictMiddleware.authorizeFinalizationStreams(authorizer);
+  }
+  const next = jest.fn();
+  const res = {
+    status: jest.fn().mockReturnThis(),
+    json: jest.fn().mockReturnThis(),
+    header: jest.fn().mockReturnThis(),
+    on: jest.fn().mockReturnThis(),
+  } as any;
+
+  strictMiddleware.handle()(req as any, res, next);
+  const activeRequests = strictMiddleware.getLoadMetrics().activeRequests;
+  strictMiddleware.stopEventLoopMonitoring();
+
+  return { next, res, activeRequests };
+}
 
 describe('Backpressure Middleware', () => {
   let middleware: BackpressureMiddleware;
@@ -146,66 +210,126 @@ describe('Backpressure Middleware', () => {
       expect(metrics2.activeRequests).toBe(initialActive);
     });
 
-    it('should not count finalization SSE requests against the active request quota', () => {
-      const strictMiddleware = new BackpressureMiddleware({
-        maxEventLoopLagMs: Number.MAX_SAFE_INTEGER,
-        maxMemoryUsageMB: Number.MAX_SAFE_INTEGER,
-        maxActiveRequests: 0,
+    describe('finalization stream exemption', () => {
+      // The measured lag starts at 0 and the check is strict (lag > threshold),
+      // so -1 forces the lag cause without depending on the machine's load.
+      const EVENT_LOOP_LAG = { maxEventLoopLagMs: -1 };
+      const MEMORY_PRESSURE = { maxMemoryUsageMB: 1 };
+      const FULL_QUOTA = { maxActiveRequests: 0 };
+
+      describe('on the active request quota', () => {
+        it('should not count an authenticated stream', () => {
+          const { next, res, activeRequests } = runOnce(
+            FULL_QUOTA,
+            streamRequest({ token: VALID_STREAM_TOKEN })
+          );
+
+          expect(next).toHaveBeenCalled();
+          expect(res.status).not.toHaveBeenCalled();
+          expect(activeRequests).toBe(0);
+        });
+
+        // The Accept header, the method and the path are client-controlled:
+        // without a valid token, a request that looks like the stream is an
+        // ordinary request.
+        it.each([
+          ['a forged token', streamRequest({ token: FORGED_STREAM_TOKEN })],
+          [
+            'a POST with a valid token',
+            streamRequest({ token: VALID_STREAM_TOKEN, method: 'POST' }),
+          ],
+          [
+            'another route with the SSE accept header',
+            streamRequest({ token: VALID_STREAM_TOKEN, path: '/api/ping' }),
+          ],
+        ])('should count and shed %s', (_label, req) => {
+          const { next, res } = runOnce(FULL_QUOTA, req);
+
+          expect(next).not.toHaveBeenCalled();
+          expect(res.status).toHaveBeenCalledWith(429);
+          expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ cause: 'active_requests' })
+          );
+        });
       });
-      const handler = strictMiddleware.handle();
-      const next = jest.fn();
 
-      const sseReq = {
-        originalUrl: '/events/session/session-1/finalization?jobId=job-1',
-        headers: {
-          accept: 'text/event-stream',
-        },
-      } as any;
-      const sseRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockReturnThis(),
-        header: jest.fn().mockReturnThis(),
-        on: jest.fn().mockReturnThis(),
-      } as any;
+      describe('on event loop lag', () => {
+        // The lag check and the request tracking both ask for the verdict: the
+        // token must still be checked only once.
+        it('should exempt an authenticated stream, checking its token once', () => {
+          const authorizer = jest.fn(streamAuthorizer);
 
-      handler(sseReq, sseRes, next);
+          const { next, res } = runOnce(
+            EVENT_LOOP_LAG,
+            streamRequest({ token: VALID_STREAM_TOKEN }),
+            authorizer
+          );
 
-      expect(next).toHaveBeenCalled();
-      expect(sseRes.status).not.toHaveBeenCalled();
-      expect(strictMiddleware.getLoadMetrics().activeRequests).toBe(0);
+          expect(next).toHaveBeenCalled();
+          expect(res.status).not.toHaveBeenCalled();
+          expect(authorizer).toHaveBeenCalledTimes(1);
+        });
 
-      strictMiddleware.stopEventLoopMonitoring();
-    });
+        it.each([
+          ['a forged token', streamRequest({ token: FORGED_STREAM_TOKEN })],
+          ['no token', streamRequest()],
+          ['no SSE accept header', streamRequest({ token: VALID_STREAM_TOKEN, accept: null })],
+        ])('should shed a stream with %s', (_label, req) => {
+          const { next, res } = runOnce(EVENT_LOOP_LAG, req);
 
-    it('should not exempt non-finalization routes that send the SSE accept header', () => {
-      const strictMiddleware = new BackpressureMiddleware({
-        maxEventLoopLagMs: Number.MAX_SAFE_INTEGER,
-        maxMemoryUsageMB: Number.MAX_SAFE_INTEGER,
-        maxActiveRequests: 0,
+          expect(next).not.toHaveBeenCalled();
+          expect(res.header).toHaveBeenCalledWith('X-RateLimit-Cause', 'event_loop_lag');
+        });
+
+        // Safe by default: until the app wires the authorizer in, nothing is exempt.
+        it('should shed an authenticated stream when no authorizer is set', () => {
+          const { next, res } = runOnce(
+            EVENT_LOOP_LAG,
+            streamRequest({ token: VALID_STREAM_TOKEN }),
+            null
+          );
+
+          expect(next).not.toHaveBeenCalled();
+          expect(res.header).toHaveBeenCalledWith('X-RateLimit-Cause', 'event_loop_lag');
+        });
       });
-      const handler = strictMiddleware.handle();
-      const next = jest.fn();
 
-      const nonSseReq = {
-        originalUrl: '/api/ping',
-        headers: {
-          accept: 'text/event-stream',
-        },
-      } as any;
-      const nonSseRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockReturnThis(),
-        header: jest.fn().mockReturnThis(),
-        on: jest.fn().mockReturnThis(),
-      } as any;
+      describe('on memory pressure', () => {
+        // Memory pressure stays the out-of-memory guard, authenticated stream
+        // included, so the token check is not even worth its HMAC there.
+        it('should shed an authenticated stream without checking its token', () => {
+          const authorizer = jest.fn(streamAuthorizer);
 
-      handler(nonSseReq, nonSseRes, next);
+          const { next, res } = runOnce(
+            MEMORY_PRESSURE,
+            streamRequest({ token: VALID_STREAM_TOKEN }),
+            authorizer
+          );
 
-      expect(next).not.toHaveBeenCalled();
-      expect(nonSseRes.status).toHaveBeenCalledWith(429);
-      expect(strictMiddleware.getLoadMetrics().activeRequests).toBe(0);
+          expect(next).not.toHaveBeenCalled();
+          expect(res.header).toHaveBeenCalledWith('X-RateLimit-Cause', 'memory_pressure');
+          expect(authorizer).not.toHaveBeenCalled();
+        });
+      });
 
-      strictMiddleware.stopEventLoopMonitoring();
+      it.each([
+        ['event loop lag', EVENT_LOOP_LAG, 'event_loop_lag'],
+        ['memory pressure', MEMORY_PRESSURE, 'memory_pressure'],
+      ])('should still shed ordinary requests on %s', (_label, config, cause) => {
+        const { next, res } = runOnce(config, ORDINARY_REQUEST);
+
+        expect(next).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(429);
+        expect(res.header).toHaveBeenCalledWith('X-RateLimit-Cause', cause);
+      });
+
+      it('should not call the authorizer for an ordinary request', () => {
+        const authorizer = jest.fn(streamAuthorizer);
+
+        runOnce(FULL_QUOTA, ORDINARY_REQUEST, authorizer);
+
+        expect(authorizer).not.toHaveBeenCalled();
+      });
     });
   });
 

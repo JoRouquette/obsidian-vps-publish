@@ -36,7 +36,10 @@ import { AssetHashService } from '../../utils/asset-hash.service';
 import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
 import { createAdminDashboardController } from './controllers/admin-dashboard.controller';
 import { createContentVersionController } from './controllers/content-version.controller';
-import { createFinalizationEventsController } from './controllers/finalization-events.controller';
+import {
+  createFinalizationEventsController,
+  createFinalizationStreamAuthorizer,
+} from './controllers/finalization-events.controller';
 import { createHealthCheckController } from './controllers/health-check.controller';
 import { createMaintenanceController } from './controllers/maintenance-controller';
 import { createPingController } from './controllers/ping.controller';
@@ -47,6 +50,7 @@ import { createAdminAuthMiddleware } from './middleware/admin-auth.middleware';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
 import { BackpressureMiddleware } from './middleware/backpressure.middleware';
 import { ChunkedUploadMiddleware } from './middleware/chunked-upload.middleware';
+import { shouldCompress } from './middleware/compression-filter';
 import { createCorsMiddleware } from './middleware/cors.middleware';
 import { createMaintenanceModeMiddleware } from './middleware/maintenance-mode.middleware';
 import { PerformanceMonitoringMiddleware } from './middleware/performance-monitoring.middleware';
@@ -78,19 +82,12 @@ export function createApp(rootLogger?: LoggerPort) {
   const perfMonitor = new PerformanceMonitoringMiddleware(rootLogger);
   app.use(perfMonitor.handle());
 
-  // Enable compression for all responses (gzip/deflate)
+  // Compress responses above 1 KB, except server-sent events
   app.use(
     compression({
       level: 6, // Balance between speed and compression ratio
       threshold: 1024, // Only compress responses > 1KB
-      filter: (req, res) => {
-        // Don't compress if the client doesn't support it
-        if (req.headers['x-no-compression']) {
-          return false;
-        }
-        // Use default compression filter
-        return compression.filter(req, res);
-      },
+      filter: shouldCompress,
     })
   );
 
@@ -268,6 +265,9 @@ export function createApp(rootLogger?: LoggerPort) {
   );
   const finalizationStreamTokenService = new FinalizationStreamTokenService(
     `${EnvConfig.apiKey()}:finalization-sse`
+  );
+  backpressure.authorizeFinalizationStreams(
+    createFinalizationStreamAuthorizer(finalizationStreamTokenService)
   );
 
   // Content version service for PWA cache invalidation

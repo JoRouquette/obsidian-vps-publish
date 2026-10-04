@@ -34,7 +34,7 @@ ASSETS_ROOT=./tmp/assets
 UI_ROOT=./tmp/ui
 API_KEY=devkeylocal
 LOGGER_LEVEL=debug
-ALLOWED_ORIGINS=*,app://obsidian,http://localhost:4200,http://localhost:3000
+ALLOWED_ORIGINS=*,app://obsidian.md,http://localhost:4200,http://localhost:3000
 BASE_URL=http://localhost:3000
 ```
 
@@ -401,8 +401,8 @@ Sur Windows, les dossiers sont créés avec les permissions par défaut. Si tu a
    - Plugin : `Ctrl+Shift+I` dans Obsidian, onglet Console
 
 5. **CORS** :
-   - Vérifie dans `.env.dev` que `ALLOWED_ORIGINS` contient `app://obsidian`
-   - Redémarre le backend après modification
+   - Les appels du plugin, sauf le flux de finalisation, passent par `requestUrl` d'Obsidian, sans CORS : `ALLOWED_ORIGINS` ne les concerne pas
+   - Une erreur CORS ne peut venir que du flux `/events/session/…/finalization` : un 429 du délestage du backend (logs `[BACKPRESSURE]`), émis avant les en-têtes CORS, ou un proxy qui ajoute ou réécrit les en-têtes `Access-Control-*`
 
 ### Le plugin upload mais rien n'apparaît
 
