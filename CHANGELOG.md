@@ -1,3 +1,12 @@
+## [6.24.3](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.24.2...6.24.3) (2026-10-04)
+
+### Bug Fixes
+
+* **node:** exempt only authenticated finalization streams from backpressure ([47a74f1](https://github.com/JoRouquette/obsidian-vps-publish/commit/47a74f1107a47a25fa6728afe6ef60a01a3fcc05))
+* **node:** let Obsidian read the finalization stream without configuration ([5e1c67b](https://github.com/JoRouquette/obsidian-vps-publish/commit/5e1c67bcf9b860dd6bbceb86d86172eb54e202d5))
+* **node:** never compress server-sent events ([c6c3973](https://github.com/JoRouquette/obsidian-vps-publish/commit/c6c3973481e7bed5cc74f8b7338e6b1f957710f3))
+* **plugin:** back off finalization polling instead of amplifying backpressure ([8e97695](https://github.com/JoRouquette/obsidian-vps-publish/commit/8e97695bb523f8d525a3d3483fd138f8f4412287))
+
 ## [6.24.2](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.24.1...6.24.2) (2026-09-16)
 
 ## [6.24.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.24.0...6.24.1) (2026-09-15)
