@@ -9,10 +9,12 @@
  * - Precise line/character tracking for debugging
  * - Easy to extend with additional features
  *
- * FENCED CODE BLOCKS:
- * - Opening: ``` followed by language identifier on same line
+ * FENCED CODE BLOCKS (CommonMark, as rendered by Obsidian):
+ * - Opening: 3+ backticks or 3+ tildes followed by language identifier on same line
  * - Content: anything between opening and closing
- * - Closing: ``` on its own line (may have trailing whitespace)
+ * - Closing: a fence of the SAME character, at least as long as the opening one,
+ *   alone on its line (surrounding whitespace allowed). A 3-backtick block closed by
+ *   4 backticks is valid and must be detected, otherwise it is uploaded raw.
  *
  * DATAVIEW vs DATAVIEWJS:
  * - `dataview` (case-insensitive): DQL query language (LIST, TABLE, TASK, CALENDAR)
@@ -36,12 +38,30 @@ import type {
 type ParserState = 'OUTSIDE' | 'INSIDE_DATAVIEW';
 
 /**
+ * Opening fence of the block being parsed.
+ */
+interface Fence {
+  char: '`' | '~';
+  length: number;
+}
+
+/**
+ * Opening line of a Dataview block.
+ */
+interface OpeningFenceMatch {
+  langRaw: string;
+  kind: DataviewBlockKind;
+  fence: Fence;
+}
+
+/**
  * Temporary state during parsing.
  */
 interface ParsingContext {
   state: ParserState;
   langRaw: string;
   kind: DataviewBlockKind | null;
+  fence: Fence | null;
   contentLines: string[];
   startLine: number;
   startIndex: number;
@@ -62,6 +82,7 @@ export function parseDataviewBlocks(content: string): DataviewBlock[] {
     state: 'OUTSIDE',
     langRaw: '',
     kind: null,
+    fence: null,
     contentLines: [],
     startLine: 0,
     startIndex: 0,
@@ -78,12 +99,13 @@ export function parseDataviewBlocks(content: string): DataviewBlock[] {
         ctx.state = 'INSIDE_DATAVIEW';
         ctx.langRaw = opening.langRaw;
         ctx.kind = opening.kind;
+        ctx.fence = opening.fence;
         ctx.contentLines = [];
         ctx.startLine = lineNum + 1; // 1-based
         ctx.startIndex = lineStartIndex;
       }
     } else if (ctx.state === 'INSIDE_DATAVIEW') {
-      if (isClosingFence(line)) {
+      if (isClosingFence(line, ctx.fence!)) {
         // Close block
         const endLine = lineNum + 1; // 1-based
         const endIndex = lineStartIndex + line.length;
@@ -104,6 +126,7 @@ export function parseDataviewBlocks(content: string): DataviewBlock[] {
         // Reset state
         ctx.state = 'OUTSIDE';
         ctx.kind = null;
+        ctx.fence = null;
         ctx.contentLines = [];
       } else {
         ctx.contentLines.push(line);
@@ -120,18 +143,19 @@ export function parseDataviewBlocks(content: string): DataviewBlock[] {
  * Match opening fence and detect Dataview block kind.
  *
  * @param line - Line to check
- * @returns Match result with langRaw and kind, or null if not a Dataview fence
+ * @returns langRaw, kind and opening fence, or null if not a Dataview fence
  */
-function matchOpeningFence(line: string): { langRaw: string; kind: DataviewBlockKind } | null {
+function matchOpeningFence(line: string): OpeningFenceMatch | null {
   const trimmed = line.trim();
 
-  // Must start with ```
-  if (!trimmed.startsWith('```')) {
+  // 3+ backticks or 3+ tildes, then the language identifier
+  const match = /^(`{3,}|~{3,})(.*)$/.exec(trimmed);
+  if (!match) {
     return null;
   }
 
-  // Extract language identifier (everything after ```)
-  const langRaw = trimmed.substring(3).trim();
+  const fenceRaw = match[1];
+  const langRaw = match[2].trim();
 
   if (!langRaw) {
     return null;
@@ -139,26 +163,44 @@ function matchOpeningFence(line: string): { langRaw: string; kind: DataviewBlock
 
   const langLower = langRaw.toLowerCase();
 
-  // CRITICAL: Check for "dataviewjs" BEFORE "dataview" to avoid false matches
+  let kind: DataviewBlockKind;
   if (langLower === 'dataviewjs') {
-    return { langRaw, kind: 'js' };
+    kind = 'js';
+  } else if (langLower === 'dataview') {
+    kind = 'query';
+  } else {
+    return null;
   }
 
-  if (langLower === 'dataview') {
-    return { langRaw, kind: 'query' };
-  }
-
-  return null;
+  return {
+    langRaw,
+    kind,
+    fence: { char: fenceRaw[0] === '~' ? '~' : '`', length: fenceRaw.length },
+  };
 }
 
 /**
- * Check if line is a closing fence.
+ * Check if line closes the current block.
  *
  * @param line - Line to check
- * @returns True if line is ``` (possibly with trailing whitespace)
+ * @param opening - Fence that opened the block
+ * @returns True if the line is only a fence of the same character, at least as long
+ *          as the opening one (surrounding whitespace allowed)
  */
-function isClosingFence(line: string): boolean {
-  return line.trim() === '```';
+function isClosingFence(line: string, opening: Fence): boolean {
+  const trimmed = line.trim();
+
+  if (trimmed.length < opening.length) {
+    return false;
+  }
+
+  for (const char of trimmed) {
+    if (char !== opening.char) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /**

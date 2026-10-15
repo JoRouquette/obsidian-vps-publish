@@ -6,6 +6,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import type { Component } from 'obsidian';
+
 import { type DataviewApi, DataviewExecutor } from '../lib/dataview/dataview-executor';
 
 describe('DataviewExecutor', () => {
@@ -333,4 +335,196 @@ describe('DataviewExecutor', () => {
     expect(captured?.innerHTML).toContain('Nations of Aegasos');
     expect(captured?.innerHTML).toContain('Nations of Yalgranthir');
   });
+
+  it('waits for a mutation that lands after executeJs() returns, instead of capturing the container too early', async () => {
+    // Mirrors what Dataview's own executeJs() really does: the renderer's onload() calls
+    // render() without awaiting it (fire-and-forget), so our executeJs() mock can resolve
+    // before that render() has finished its own async work. The content below lands via a
+    // setTimeout fired AFTER the mock resolves, simulating render()'s continuation after an
+    // internal await (e.g. dv.view() or async Markdown rendering) -- it must still be in the
+    // captured container, not missed because we stopped watching too soon.
+    const dataviewApi: DataviewApi = {
+      query: jest.fn(),
+      executeJs: jest.fn(async (_code, container, component) => {
+        component.addChild({ unload: jest.fn() } as unknown as Component);
+        setTimeout(() => {
+          const span = document.createElement('span');
+          span.textContent = 'rendered-late';
+          container.appendChild(span);
+        }, 150);
+      }),
+    };
+
+    const executor = new DataviewExecutor(dataviewApi, {
+      workspace: { getActiveFile: () => null },
+    });
+
+    const result = await executor.executeBlock(
+      {
+        kind: 'js',
+        contentRaw: 'test',
+        langRaw: 'dataviewjs',
+        startIndex: 0,
+        endIndex: 0,
+        startLine: 1,
+        endLine: 1,
+      },
+      'World/Ektaron.md'
+    );
+
+    expect(result.success).toBe(true);
+    const captured = 'container' in result ? result.container : null;
+    expect(captured?.querySelector('span')?.textContent).toBe('rendered-late');
+    // Exactly one span: waiting for quiescence must not re-run the script, so there is
+    // no second, overlapping render that could duplicate this content.
+    expect(captured?.querySelectorAll('span').length).toBe(1);
+  });
+
+  it('resolves quickly for a purely synchronous view, instead of always waiting the full cap', async () => {
+    // Mirrors the common case: a dataviewjs script (dv.table()/dv.list()/dv.pages()) that
+    // renders entirely within onload()'s synchronous call stack, with no further await of
+    // its own. All DOM mutations happen before executeJs() itself returns.
+    const dataviewApi: DataviewApi = {
+      query: jest.fn(),
+      executeJs: jest.fn(async (_code, container, component) => {
+        component.addChild({ unload: jest.fn() } as unknown as Component);
+        const span = document.createElement('span');
+        span.textContent = 'sync-rendered';
+        container.appendChild(span);
+      }),
+    };
+
+    const executor = new DataviewExecutor(dataviewApi, {
+      workspace: { getActiveFile: () => null },
+    });
+
+    const startedAt = Date.now();
+    const result = await executor.executeBlock(
+      {
+        kind: 'js',
+        contentRaw: 'test',
+        langRaw: 'dataviewjs',
+        startIndex: 0,
+        endIndex: 0,
+        startLine: 1,
+        endLine: 1,
+      },
+      'World/Ektaron.md'
+    );
+    const elapsedMs = Date.now() - startedAt;
+
+    expect(result.success).toBe(true);
+    const captured = 'container' in result ? result.container : null;
+    expect(captured?.querySelector('span')?.textContent).toBe('sync-rendered');
+    // Must resolve shortly after the mutation (quietMs), not wait out the full maxWaitMs
+    // (2000ms) hard cap that only a never-settling view should ever hit.
+    expect(elapsedMs).toBeLessThan(1000);
+  });
+
+  it('unloads every renderer captured via addChild, so their refresh listeners and DOM watchers do not leak on republish', async () => {
+    const firstUnload = jest.fn();
+    const secondUnload = jest.fn();
+
+    const dataviewApi: DataviewApi = {
+      query: jest.fn(),
+      executeJs: jest.fn(async (_code, _container, component) => {
+        component.addChild({ unload: firstUnload } as unknown as Component);
+        component.addChild({ unload: secondUnload } as unknown as Component);
+      }),
+    };
+
+    const executor = new DataviewExecutor(dataviewApi, {
+      workspace: { getActiveFile: () => null },
+    });
+
+    await executor.executeBlock(
+      {
+        kind: 'js',
+        contentRaw: 'test',
+        langRaw: 'dataviewjs',
+        startIndex: 0,
+        endIndex: 0,
+        startLine: 1,
+        endLine: 1,
+      },
+      'World/Ektaron.md'
+    );
+
+    expect(firstUnload).toHaveBeenCalledTimes(1);
+    expect(secondUnload).toHaveBeenCalledTimes(1);
+  });
+
+  it('still discharges every other renderer and restores shims/cache when one unload() throws', async () => {
+    const throwingUnload = jest.fn(() => {
+      throw new Error('boom');
+    });
+    const okUnload = jest.fn();
+
+    const dataviewApi: DataviewApi = {
+      query: jest.fn(),
+      executeJs: jest.fn(async (_code, _container, component) => {
+        component.addChild({ unload: throwingUnload } as unknown as Component);
+        component.addChild({ unload: okUnload } as unknown as Component);
+      }),
+    };
+
+    const executor = new DataviewExecutor(dataviewApi, {
+      workspace: { getActiveFile: () => null },
+    });
+
+    const result = await executor.executeBlock(
+      {
+        kind: 'js',
+        contentRaw: 'test',
+        langRaw: 'dataviewjs',
+        startIndex: 0,
+        endIndex: 0,
+        startLine: 1,
+        endLine: 1,
+      },
+      'World/Ektaron.md'
+    );
+
+    expect(throwingUnload).toHaveBeenCalledTimes(1);
+    // The renderer after the throwing one must still be discharged, and the block must
+    // still report success -- a third-party unload() failure must not abort cleanup.
+    expect(okUnload).toHaveBeenCalledTimes(1);
+    expect(result.success).toBe(true);
+  });
+
+  it('does not hang when a view never settles, thanks to the hard cap on waiting for DOM quiescence', async () => {
+    const dataviewApi: DataviewApi = {
+      query: jest.fn(),
+      executeJs: jest.fn(async (_code, container) => {
+        // Keeps mutating forever, faster than the quiet window ever needed to resolve --
+        // only the hard cap can end the wait.
+        const interval = setInterval(() => {
+          container.appendChild(document.createElement('span'));
+        }, 20);
+        setTimeout(() => clearInterval(interval), 2500);
+      }),
+    };
+
+    const executor = new DataviewExecutor(dataviewApi, {
+      workspace: { getActiveFile: () => null },
+    });
+
+    const start = Date.now();
+    const result = await executor.executeBlock(
+      {
+        kind: 'js',
+        contentRaw: 'test',
+        langRaw: 'dataviewjs',
+        startIndex: 0,
+        endIndex: 0,
+        startLine: 1,
+        endLine: 1,
+      },
+      'World/Ektaron.md'
+    );
+    const elapsedMs = Date.now() - start;
+
+    expect(result.success).toBe(true);
+    expect(elapsedMs).toBeLessThan(3000);
+  }, 10000);
 });

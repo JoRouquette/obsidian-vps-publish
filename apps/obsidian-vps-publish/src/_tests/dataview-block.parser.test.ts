@@ -353,4 +353,111 @@ LIST
       expect(blocks).toHaveLength(0); // Block not closed
     });
   });
+
+  // Obsidian suit CommonMark : une fence se ferme par une fence du même caractère, de
+  // longueur supérieure ou égale. Un bloc fermé par quatre backticks s'affiche dans le
+  // vault ; le parser doit le reconnaître, sinon le bloc part brut au serveur.
+  describe('Regression: CommonMark fence lengths', () => {
+    const fence = (length: number, char = '`'): string => char.repeat(length);
+    const lines = (...parts: string[]): string => parts.join('\n');
+
+    it('should close a 3-backtick block on a 4-backtick fence', () => {
+      const content = lines(
+        fence(3) + 'dataviewjs',
+        'await dv.view("_assets/_views/puissance/header", { current: dv.current() })',
+        fence(4),
+        '',
+        '### Histoire et relations'
+      );
+
+      const blocks = parseDataviewBlocks(content);
+
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0].kind).toBe('js');
+      expect(blocks[0].contentRaw).toBe(
+        'await dv.view("_assets/_views/puissance/header", { current: dv.current() })'
+      );
+      expect(blocks[0].endLine).toBe(3);
+      expect(content.substring(blocks[0].startIndex, blocks[0].endIndex)).toBe(
+        content.substring(0, content.indexOf('\n\n'))
+      );
+    });
+
+    it('should keep the next block intact after a 4-backtick closing fence', () => {
+      const content = lines(
+        fence(3) + 'dataviewjs',
+        'dv.list([1]);',
+        fence(4),
+        '',
+        fence(3) + 'dataview',
+        'LIST',
+        fence(3)
+      );
+
+      const blocks = parseDataviewBlocks(content);
+
+      expect(blocks).toHaveLength(2);
+      expect(blocks[0].kind).toBe('js');
+      expect(blocks[1].kind).toBe('query');
+      expect(blocks[1].contentRaw).toBe('LIST');
+    });
+
+    it('should open on a 4-backtick fence and ignore shorter fences inside', () => {
+      const content = lines(
+        fence(4) + 'dataviewjs',
+        'dv.paragraph("avant");',
+        fence(3),
+        'dv.paragraph("après");',
+        fence(4)
+      );
+
+      const blocks = parseDataviewBlocks(content);
+
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0].contentRaw).toBe(
+        lines('dv.paragraph("avant");', fence(3), 'dv.paragraph("après");')
+      );
+      expect(blocks[0].endIndex).toBe(content.length);
+    });
+
+    it('should not close a 4-backtick block on a 3-backtick fence', () => {
+      const content = lines(fence(4) + 'dataview', 'LIST', fence(3));
+
+      expect(parseDataviewBlocks(content)).toHaveLength(0);
+    });
+
+    it('should detect tilde fences', () => {
+      const content = lines(fence(3, '~') + 'dataview', 'LIST', fence(3, '~'));
+
+      const blocks = parseDataviewBlocks(content);
+
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0].kind).toBe('query');
+    });
+
+    it('should not close a backtick fence with tildes', () => {
+      const content = lines(fence(3) + 'dataview', 'LIST', fence(3, '~'));
+
+      expect(parseDataviewBlocks(content)).toHaveLength(0);
+    });
+
+    it('should not close on a fence followed by text', () => {
+      const content = lines(fence(3) + 'dataview', 'LIST', fence(3) + ' fin', fence(3));
+
+      const blocks = parseDataviewBlocks(content);
+
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0].contentRaw).toBe(lines('LIST', fence(3) + ' fin'));
+    });
+
+    it('should handle CRLF line endings with a 4-backtick closing fence', () => {
+      const content = [fence(3) + 'dataviewjs', 'dv.list([1]);', fence(4), 'Suite'].join('\r\n');
+
+      const blocks = parseDataviewBlocks(content);
+
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0].contentRaw).toBe('dv.list([1]);\r');
+      expect(content.substring(blocks[0].endIndex)).toBe('\nSuite');
+    });
+  });
 });
