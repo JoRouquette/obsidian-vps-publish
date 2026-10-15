@@ -10,7 +10,7 @@ import {
   type SourcePackageNote,
   UNAVAILABLE_INTERNAL_PAGE_MESSAGE,
 } from '@core-domain';
-import { humanizePropertyKey } from '@core-domain/utils/string.utils';
+import { humanizePropertyKey, scalarToString } from '@core-domain/utils/string.utils';
 
 import { type CommandHandler } from '../../common/command-handler';
 import type { MarkdownRendererPort } from '../../ports/markdown-renderer.port';
@@ -482,7 +482,7 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
       const renderedText =
         typeof value === 'string'
           ? this.renderFrontmatterText(value, note, path)
-          : this.escapeHtml(String(value));
+          : this.escapeHtml(scalarToString(value));
       return `<span class="fm-value">${renderedText}</span>`;
     };
 

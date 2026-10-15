@@ -2,6 +2,7 @@ import type { DomainFrontmatter } from '@core-domain/entities/domain-frontmatter
 import type { InlineDataviewExpression } from '@core-domain/entities/inline-dataview-expression';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
+import { scalarToString } from '@core-domain/utils/string.utils';
 
 import { type BaseService } from '../../common/base-service';
 
@@ -158,10 +159,22 @@ export class RenderInlineDataviewService implements BaseService {
 
     if (Array.isArray(value)) {
       logger.debug('Rendering array value', { value, length: value.length });
-      return value.map((v) => String(v)).join(', ');
+      return value.map((v) => this.stringifyValue(v)).join(', ');
     }
 
-    logger.debug('Rendering scalar value', { value: String(value) });
-    return String(value);
+    const rendered = this.stringifyValue(value);
+    logger.debug('Rendering scalar value', { value: rendered });
+    return rendered;
+  }
+
+  /**
+   * Same output as `String()` for primitives, nested arrays and dates; only plain
+   * objects change, rendered as JSON instead of "[object Object]".
+   */
+  private stringifyValue(value: unknown): string {
+    if (Array.isArray(value)) return value.map((v) => this.stringifyValue(v)).join(',');
+    if (value instanceof Date) return value.toString();
+    if (value !== null && typeof value === 'object') return JSON.stringify(value);
+    return scalarToString(value);
   }
 }

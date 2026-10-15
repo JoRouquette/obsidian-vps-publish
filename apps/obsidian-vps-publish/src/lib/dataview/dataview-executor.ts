@@ -193,7 +193,7 @@ export class DataviewExecutor {
         onload: () => {},
         unload: () => {},
         addChild: (child: Component) => {
-          capturedRenderers.push(child as unknown as CapturedRenderer);
+          capturedRenderers.push(child);
           return component;
         },
         removeChild: () => {},
@@ -341,20 +341,20 @@ export class DataviewExecutor {
   ): Promise<void> {
     return new Promise((resolve) => {
       let settled = false;
-      let quietTimer: ReturnType<typeof setTimeout> | undefined;
+      let quietTimer: ReturnType<Window['setTimeout']> | undefined;
 
       const finish = (): void => {
         if (settled) return;
         settled = true;
         observer.disconnect();
-        clearTimeout(quietTimer);
-        clearTimeout(maxTimer);
+        window.clearTimeout(quietTimer);
+        window.clearTimeout(maxTimer);
         resolve();
       };
 
       const onMutation = (): void => {
-        clearTimeout(quietTimer);
-        quietTimer = setTimeout(finish, quietMs);
+        window.clearTimeout(quietTimer);
+        quietTimer = window.setTimeout(finish, quietMs);
       };
 
       const observer = new MutationObserver(onMutation);
@@ -365,7 +365,7 @@ export class DataviewExecutor {
         attributes: true,
       });
 
-      const maxTimer = setTimeout(finish, maxWaitMs);
+      const maxTimer = window.setTimeout(finish, maxWaitMs);
     });
   }
 

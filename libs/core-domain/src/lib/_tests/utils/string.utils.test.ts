@@ -1,4 +1,25 @@
-import { humanizePropertyKey, normalizePropertyKey } from '../../utils/string.utils';
+import {
+  humanizePropertyKey,
+  normalizePropertyKey,
+  scalarToString,
+} from '../../utils/string.utils';
+
+describe('scalarToString', () => {
+  it('keeps the String() form of primitives', () => {
+    expect(scalarToString('a')).toBe('a');
+    expect(scalarToString(42)).toBe('42');
+    expect(scalarToString(false)).toBe('false');
+    expect(scalarToString(10n)).toBe('10');
+    expect(scalarToString(null)).toBe('null');
+    expect(scalarToString(undefined)).toBe('undefined');
+    expect(scalarToString(Symbol('s'))).toBe('Symbol(s)');
+  });
+
+  it('never yields "[object Object]" nor function source', () => {
+    expect(scalarToString({ key: 'value' })).toBe('');
+    expect(scalarToString(() => 1)).toBe('');
+  });
+});
 
 describe('normalizePropertyKey', () => {
   it('converts separated keys to camelCase', () => {
