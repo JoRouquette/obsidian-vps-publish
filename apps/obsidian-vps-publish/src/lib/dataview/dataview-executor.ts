@@ -92,6 +92,14 @@ export interface JsExecutionResult {
 }
 
 /**
+ * Minimal shape of the Dataview-internal renderer passed to our fake Component's
+ * addChild(), used to release it once rendering is known to be settled.
+ */
+interface CapturedRenderer {
+  unload?: () => void;
+}
+
+/**
  * Dataview block executor (returns structured data, not HTML).
  */
 export class DataviewExecutor {
@@ -167,12 +175,27 @@ export class DataviewExecutor {
       // Create a temporary container for rendering
       const container = createDiv({ cls: 'dv-js-container' });
 
-      // Create a minimal component for Dataview API
+      // Create a minimal component for Dataview API.
+      //
+      // Dataview's executeJs() does `renderer.load()` then `component.addChild(renderer)`
+      // (in that order): by the time addChild runs, the renderer's own onload() has already
+      // called its render() without awaiting it (fire-and-forget), so there is nothing to
+      // await from the outside at this point and no public signal we could await instead
+      // (confirmed by reading Dataview's own source: onload() discards render()'s promise).
+      // We capture whatever children get added here purely so we can unload() them below,
+      // once rendering is known to be settled (see waitForDomQuiescence) — that is what
+      // stops the 'dataview:refresh-views' listener and DOM watcher registered in onload()
+      // from leaking on every republish. A plain array (not a single variable) because
+      // nothing guarantees exactly one addChild() call.
+      const capturedRenderers: CapturedRenderer[] = [];
       const component: Component = {
         load: () => {},
         onload: () => {},
         unload: () => {},
-        addChild: () => component,
+        addChild: (child: Component) => {
+          capturedRenderers.push(child as unknown as CapturedRenderer);
+          return component;
+        },
         removeChild: () => {},
         register: () => {},
         registerEvent: () => {},
@@ -217,8 +240,35 @@ export class DataviewExecutor {
       stableRenderCache?.clear();
 
       try {
+        // Start observing before executeJs() runs: a fully synchronous dataviewjs view
+        // (the common case) finishes mutating the DOM inside executeJs()'s own synchronous
+        // call stack, before our await below ever resumes. Attaching the observer only
+        // after that await would see no mutations on such views and fall through to the
+        // full maxWaitMs cap every time.
+        const domQuiescence = this.waitForDomQuiescence(container);
         await this.dataviewApi.executeJs(code, container, component, filePath);
+
+        // onload()'s fire-and-forget render() may still be running at this point (it can
+        // contain further awaits of its own, e.g. dv.view() or async Markdown rendering).
+        // Rather than guessing a fixed wait or re-running the script ourselves (which can
+        // leave the container with duplicated content from the two overlapping runs), wait
+        // for the DOM to actually stop changing, with a hard cap so a view that never
+        // settles cannot hang publishing indefinitely.
+        await domQuiescence;
       } finally {
+        // Discharge every renderer captured above now that rendering is known to be
+        // settled, so Obsidian runs each one's unload() and the 'dataview:refresh-views'
+        // listener and DOM watcher registered in onload() stop leaking on every republish.
+        // Each call is isolated: a renderer whose unload() throws must not stop the others
+        // from being discharged, nor skip the shim/cache restoration right below.
+        for (const renderer of capturedRenderers) {
+          try {
+            renderer.unload?.();
+          } catch (unloadError) {
+            console.error('[obsidian-vps-publish] dataview renderer unload() failed:', unloadError);
+          }
+        }
+
         restoreRequire?.();
         restoreGetResourcePath?.();
         if (stableRenderCache && savedCacheEntries) {
@@ -227,23 +277,6 @@ export class DataviewExecutor {
             stableRenderCache.set(k, v);
           }
         }
-      }
-
-      // Wait for DOM updates to complete (Dataview may render asynchronously)
-      const maxWaitMs = 500;
-      const startTime = Date.now();
-      let lastChildCount = 0;
-
-      while (Date.now() - startTime < maxWaitMs) {
-        const currentChildCount = this.countMeaningfulChildren(container);
-
-        // If we have meaningful content and it's stable
-        if (currentChildCount > 0 && currentChildCount === lastChildCount) {
-          break;
-        }
-
-        lastChildCount = currentChildCount;
-        await new Promise((resolve) => window.setTimeout(resolve, 50));
       }
 
       // Force-load all lazy <details> nodes before capturing the DOM for publishing.
@@ -289,6 +322,51 @@ export class DataviewExecutor {
         error: errorMessage,
       };
     }
+  }
+
+  /**
+   * Wait until a container's subtree stops changing, instead of guessing a fixed delay.
+   *
+   * There is no signal for "nothing is going to happen" versus "the script hasn't reached
+   * its next mutation yet", so the quiet window only starts counting down once at least one
+   * mutation has actually been observed; before that, only `maxWaitMs` can end the wait. That
+   * keeps a genuinely empty view no worse than before (it waits out the full cap, same as the
+   * old fixed-delay loop did), while a view that does mutate resolves `quietMs` after its last
+   * mutation rather than on a fixed schedule.
+   */
+  private waitForDomQuiescence(
+    container: HTMLElement,
+    quietMs = 100,
+    maxWaitMs = 2000
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      let settled = false;
+      let quietTimer: ReturnType<typeof setTimeout> | undefined;
+
+      const finish = (): void => {
+        if (settled) return;
+        settled = true;
+        observer.disconnect();
+        clearTimeout(quietTimer);
+        clearTimeout(maxTimer);
+        resolve();
+      };
+
+      const onMutation = (): void => {
+        clearTimeout(quietTimer);
+        quietTimer = setTimeout(finish, quietMs);
+      };
+
+      const observer = new MutationObserver(onMutation);
+      observer.observe(container, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+      });
+
+      const maxTimer = setTimeout(finish, maxWaitMs);
+    });
   }
 
   /**
