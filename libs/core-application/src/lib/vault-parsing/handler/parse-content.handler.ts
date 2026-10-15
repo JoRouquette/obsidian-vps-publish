@@ -61,7 +61,7 @@ export class ParseContentHandler implements CommandHandler<CollectedNote[], Publ
     // Step 2: Convert to PublishableNote
     this.cancellation?.throwIfCancelled();
     stepSpan = this.perfTracker?.startSpan('map-to-publishable');
-    const converted = normalizedNotes.map(this.noteMapper.map);
+    const converted = normalizedNotes.map((note) => this.noteMapper.map(note));
     this.perfTracker?.endSpan(stepSpan!, { notesProcessed: converted.length });
 
     this.logger?.debug('Notes converted to PublishableNote', {
