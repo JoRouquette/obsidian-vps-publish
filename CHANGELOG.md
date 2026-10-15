@@ -1,3 +1,11 @@
+## [6.24.4](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.24.3...6.24.4) (2026-10-15)
+
+### Bug Fixes
+
+* **dataview:** wait for DOM quiescence instead of guessing a fixed delay ([d5cb482](https://github.com/JoRouquette/obsidian-vps-publish/commit/d5cb48229bf4e6ab00f53401184b3c6aa0352d76))
+* **plugin:** detect Dataview blocks closed by a longer fence ([0724fa4](https://github.com/JoRouquette/obsidian-vps-publish/commit/0724fa4d3a25dc4ce6757943a9deedf80b68df75))
+* **plugin:** stop the code-block cleanup rule from leaving a stray backtick ([4eb048b](https://github.com/JoRouquette/obsidian-vps-publish/commit/4eb048b221ac86e1fffee0f95ecfacd6d7631794))
+
 ## [6.24.3](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.24.2...6.24.3) (2026-10-04)
 
 ### Bug Fixes
