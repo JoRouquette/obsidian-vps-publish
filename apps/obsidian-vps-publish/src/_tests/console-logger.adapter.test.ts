@@ -28,6 +28,18 @@ describe('ConsoleLoggerAdapter', () => {
     expect(output).toContain('"feature": "x"');
   });
 
+  it('liste les clés quand les métadonnées ne sont pas sérialisables', () => {
+    const logger = new ConsoleLoggerAdapter({}, LogLevel.warn);
+    const circular: Record<string, unknown> = {};
+    circular['self'] = circular;
+
+    logger.warn('boucle', { circular });
+
+    const output = (console.warn as jest.Mock).mock.calls[0][0];
+    expect(output).toContain('[unserializable metadata: circular]');
+    expect(output).not.toContain('[object Object]');
+  });
+
   it('filtre les logs selon le niveau', () => {
     const logger = new ConsoleLoggerAdapter({}, LogLevel.error);
     logger.debug('info');

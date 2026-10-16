@@ -20,6 +20,7 @@
  */
 
 import type { LoggerPort } from '@core-domain';
+import { scalarToString } from '@core-domain/utils/string.utils';
 
 import {
   getInternalLinkBasename,
@@ -117,7 +118,7 @@ export class MarkdownLinkNormalizer {
     }
 
     // Primitives → string conversion
-    return String(value);
+    return scalarToString(value);
   }
 
   /**

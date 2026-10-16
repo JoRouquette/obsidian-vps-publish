@@ -55,6 +55,26 @@ export function humanizePropertyKey(key: string): string {
     .join(' ');
 }
 
+/**
+ * `String()` restricted to primitives. An object or a function gives '' instead of
+ * "[object Object]" or its source text.
+ */
+export function scalarToString(value: unknown): string {
+  switch (typeof value) {
+    case 'string':
+      return value;
+    case 'number':
+    case 'boolean':
+    case 'bigint':
+    case 'undefined':
+      return String(value);
+    case 'symbol':
+      return value.toString();
+    default:
+      return value === null ? 'null' : '';
+  }
+}
+
 export function toString(value: unknown): string {
   if (value === null || value === undefined) {
     return '';
@@ -83,5 +103,5 @@ export function toString(value: unknown): string {
     return '(func)';
   }
 
-  return String(value);
+  return scalarToString(value);
 }

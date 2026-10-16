@@ -54,9 +54,9 @@ export class ConsoleLoggerAdapter implements LoggerPort {
 
   private serialize(data: Record<string, unknown>): string {
     try {
-      return JSON.stringify(data, this.jsonReplacer, 2);
+      return JSON.stringify(data, (key, value) => this.jsonReplacer(key, value), 2);
     } catch {
-      return String(data);
+      return `[unserializable metadata: ${Object.keys(data).join(', ')}]`;
     }
   }
 

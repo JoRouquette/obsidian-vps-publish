@@ -340,8 +340,31 @@ describe('RenderInlineDataviewService', () => {
       const note = baseNote('Object: `= this.obj`', frontmatter);
       const [result] = service.process([note]);
 
-      // String(object) produit "[object Object]", ce qui est acceptable comme fallback
-      expect(result.content).toContain('Object: [object Object]');
+      expect(result.content).toBe('Object: {"key":"value"}');
+    });
+
+    it('should render object items of an array as JSON', () => {
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { items: ['a', { key: 'value' }] },
+      };
+
+      const note = baseNote('Items: `= this.items`', frontmatter);
+      const [result] = service.process([note]);
+
+      expect(result.content).toBe('Items: a, {"key":"value"}');
+    });
+
+    it('should keep the String() form of nested arrays', () => {
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { matrix: [['a', 'b'], 'c'] },
+      };
+
+      const note = baseNote('Matrix: `= this.matrix`', frontmatter);
+      const [result] = service.process([note]);
+
+      expect(result.content).toBe('Matrix: a,b, c');
     });
   });
 });
