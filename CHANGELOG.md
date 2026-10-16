@@ -1,3 +1,9 @@
+## [6.24.5](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.24.4...6.24.5) (2026-10-16)
+
+### Bug Fixes
+
+* **dataview:** capture the rendered DOM before unloading renderers ([fab4a4e](https://github.com/JoRouquette/obsidian-vps-publish/commit/fab4a4ea0d0d7309aa81864600e7eb1289c3c112))
+
 ## [6.24.4](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.24.3...6.24.4) (2026-10-15)
 
 ### Bug Fixes
