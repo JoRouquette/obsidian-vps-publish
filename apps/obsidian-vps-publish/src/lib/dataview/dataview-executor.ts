@@ -239,81 +239,77 @@ export class DataviewExecutor {
       const savedCacheEntries = stableRenderCache ? [...stableRenderCache.entries()] : null;
       stableRenderCache?.clear();
 
-      try {
-        // Start observing before executeJs() runs: a fully synchronous dataviewjs view
-        // (the common case) finishes mutating the DOM inside executeJs()'s own synchronous
-        // call stack, before our await below ever resumes. Attaching the observer only
-        // after that await would see no mutations on such views and fall through to the
-        // full maxWaitMs cap every time.
-        const domQuiescence = this.waitForDomQuiescence(container);
-        await this.dataviewApi.executeJs(code, container, component, filePath);
-
-        // onload()'s fire-and-forget render() may still be running at this point (it can
-        // contain further awaits of its own, e.g. dv.view() or async Markdown rendering).
-        // Rather than guessing a fixed wait or re-running the script ourselves (which can
-        // leave the container with duplicated content from the two overlapping runs), wait
-        // for the DOM to actually stop changing, with a hard cap so a view that never
-        // settles cannot hang publishing indefinitely.
-        await domQuiescence;
-      } finally {
-        // Discharge every renderer captured above now that rendering is known to be
-        // settled, so Obsidian runs each one's unload() and the 'dataview:refresh-views'
-        // listener and DOM watcher registered in onload() stop leaking on every republish.
-        // Each call is isolated: a renderer whose unload() throws must not stop the others
-        // from being discharged, nor skip the shim/cache restoration right below.
-        for (const renderer of capturedRenderers) {
-          try {
-            renderer.unload?.();
-          } catch (unloadError) {
-            console.error('[obsidian-vps-publish] dataview renderer unload() failed:', unloadError);
-          }
-        }
-
-        restoreRequire?.();
-        restoreGetResourcePath?.();
-        if (stableRenderCache && savedCacheEntries) {
-          stableRenderCache.clear();
-          for (const [k, v] of savedCacheEntries) {
-            stableRenderCache.set(k, v);
-          }
-        }
-      }
-
-      // Force-load all lazy <details> nodes before capturing the DOM for publishing.
+      // Detached copy of the rendered DOM, taken before any renderer is unloaded.
       //
-      // Views using createLazyDetails() (geo-tree.js) populate content on demand via a
-      // "toggle" event listener.  In JSDOM these events are never fired automatically, and
-      // on the published static site there is no JS to fire them either.  We simulate the
-      // sequence here: open each unloaded node and dispatch a synthetic toggle event so its
-      // contentBuilder runs synchronously.  The outer loop repeats because loading a parent
-      // node (continent) creates new lazy child nodes (nations, cities) that must also be
-      // expanded — we iterate until no new unloaded nodes remain (max 10 passes).
-      for (let pass = 0; pass < 10; pass++) {
-        const unloaded = Array.from(
-          container.querySelectorAll<HTMLDetailsElement>('details:not([data-loaded="true"])')
-        );
-        if (unloaded.length === 0) break;
-        for (const el of unloaded) {
-          el.open = true;
-          el.dispatchEvent(new Event('toggle'));
+      // Unloading must come AFTER the capture: Dataview's dv.list()/dv.table()/dv.taskList()
+      // register ReactRenderer children on the renderer, and ReactRenderer.onunload() unmounts
+      // its Preact tree from the container (`render(null, containerEl)`), emptying it. Unloading
+      // first, then reading the live container, published every such view as an empty block.
+      let snapshot: HTMLElement;
+
+      try {
+        try {
+          // Start observing before executeJs() runs: a fully synchronous dataviewjs view
+          // (the common case) finishes mutating the DOM inside executeJs()'s own synchronous
+          // call stack, before our await below ever resumes. Attaching the observer only
+          // after that await would see no mutations on such views and fall through to the
+          // full maxWaitMs cap every time.
+          const domQuiescence = this.waitForDomQuiescence(container);
+          await this.dataviewApi.executeJs(code, container, component, filePath);
+
+          // onload()'s fire-and-forget render() may still be running at this point (it can
+          // contain further awaits of its own, e.g. dv.view() or async Markdown rendering).
+          // Rather than guessing a fixed wait or re-running the script ourselves (which can
+          // leave the container with duplicated content from the two overlapping runs), wait
+          // for the DOM to actually stop changing, with a hard cap so a view that never
+          // settles cannot hang publishing indefinitely.
+          await domQuiescence;
+        } finally {
+          restoreRequire?.();
+          restoreGetResourcePath?.();
+          if (stableRenderCache && savedCacheEntries) {
+            stableRenderCache.clear();
+            for (const [k, v] of savedCacheEntries) {
+              stableRenderCache.set(k, v);
+            }
+          }
         }
+
+        // Force-load all lazy <details> nodes before capturing the DOM for publishing.
+        //
+        // Views using createLazyDetails() (geo-tree.js) populate content on demand via a
+        // "toggle" event listener.  In JSDOM these events are never fired automatically, and
+        // on the published static site there is no JS to fire them either.  We simulate the
+        // sequence here: open each unloaded node and dispatch a synthetic toggle event so its
+        // contentBuilder runs synchronously.  The outer loop repeats because loading a parent
+        // node (continent) creates new lazy child nodes (nations, cities) that must also be
+        // expanded — we iterate until no new unloaded nodes remain (max 10 passes).
+        // Runs on the live container, while the renderers (and their listeners) are still loaded.
+        for (let pass = 0; pass < 10; pass++) {
+          const unloaded = Array.from(
+            container.querySelectorAll<HTMLDetailsElement>('details:not([data-loaded="true"])')
+          );
+          if (unloaded.length === 0) break;
+          for (const el of unloaded) {
+            el.open = true;
+            el.dispatchEvent(new Event('toggle'));
+          }
+        }
+
+        snapshot = container.cloneNode(true) as HTMLElement;
+      } finally {
+        // Discharge every renderer captured above, now that the DOM has been copied, so
+        // Obsidian runs each one's unload() and the 'dataview:refresh-views' listener and DOM
+        // watcher registered in onload() stop leaking on every republish. Each call is
+        // isolated: a renderer whose unload() throws must not stop the others from being
+        // discharged. Also runs when execution failed, so a failing view does not leak either.
+        this.unloadRenderers(capturedRenderers);
       }
 
-      // Check if we got any meaningful output
-      // Use countMeaningfulChildren() instead of innerHTML.trim() to detect truly empty containers
-      const meaningfulChildCount = this.countMeaningfulChildren(container);
-      if (meaningfulChildCount === 0) {
-        // Empty output is valid - return success with empty container
-        // The converter will detect this and return '' (block will be removed)
-        return {
-          success: true,
-          container,
-        };
-      }
-
+      // Empty output is valid: the converter detects an empty container and removes the block.
       return {
         success: true,
-        container,
+        container: snapshot,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -321,6 +317,20 @@ export class DataviewExecutor {
         success: false,
         error: errorMessage,
       };
+    }
+  }
+
+  /**
+   * Unload every captured Dataview renderer, each call isolated so one failure cannot skip
+   * the others.
+   */
+  private unloadRenderers(renderers: readonly CapturedRenderer[]): void {
+    for (const renderer of renderers) {
+      try {
+        renderer.unload?.();
+      } catch (unloadError) {
+        console.error('[obsidian-vps-publish] dataview renderer unload() failed:', unloadError);
+      }
     }
   }
 
@@ -367,43 +377,6 @@ export class DataviewExecutor {
 
       const maxTimer = setTimeout(finish, maxWaitMs);
     });
-  }
-
-  /**
-   * Count meaningful child nodes in a container (ignoring empty elements).
-   */
-  private countMeaningfulChildren(container: HTMLElement): number {
-    if (!container || !container.childNodes) {
-      return 0;
-    }
-
-    let count = 0;
-
-    const countNodes = (node: Node): void => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        if (node.textContent && node.textContent.trim().length > 0) {
-          count++;
-        }
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        const el = node as HTMLElement;
-        // Count non-empty elements
-        if (el.children.length > 0 || (el.textContent && el.textContent.trim().length > 0)) {
-          count++;
-        }
-        // Recurse through children if they exist
-        if (el.childNodes && el.childNodes.length > 0) {
-          for (let i = 0; i < el.childNodes.length; i++) {
-            countNodes(el.childNodes[i]);
-          }
-        }
-      }
-    };
-
-    for (let i = 0; i < container.childNodes.length; i++) {
-      countNodes(container.childNodes[i]);
-    }
-
-    return count;
   }
 
   private installVaultRootRequireShim(): (() => void) | null {
