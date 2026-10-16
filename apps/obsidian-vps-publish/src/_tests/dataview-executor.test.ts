@@ -492,6 +492,86 @@ describe('DataviewExecutor', () => {
     expect(result.success).toBe(true);
   });
 
+  it('captures the rendered DOM before unloading renderers whose unload() empties the container', async () => {
+    // Mirrors Dataview 0.5.68: dv.list()/dv.table() append a sub-container and register a
+    // ReactRenderer child whose onunload() unmounts its Preact tree (`render(null, el)`),
+    // which empties that sub-container. Unloading before capturing published an empty block.
+    const unloadOrder: string[] = [];
+    const dataviewApi: DataviewApi = {
+      query: jest.fn(),
+      executeJs: jest.fn(async (_code, container, component) => {
+        const subcontainer = document.createElement('div');
+        const list = document.createElement('ul');
+        const item = document.createElement('li');
+        item.textContent = 'Kaela';
+        list.appendChild(item);
+        subcontainer.appendChild(list);
+        container.appendChild(subcontainer);
+        component.addChild({
+          unload: () => {
+            unloadOrder.push('unload');
+            subcontainer.replaceChildren();
+          },
+        } as unknown as Component);
+      }),
+    };
+
+    const executor = new DataviewExecutor(dataviewApi, {
+      workspace: { getActiveFile: () => null },
+    });
+
+    const result = await executor.executeBlock(
+      {
+        kind: 'js',
+        contentRaw: 'test',
+        langRaw: 'dataviewjs',
+        startIndex: 0,
+        endIndex: 0,
+        startLine: 1,
+        endLine: 1,
+      },
+      'World/Ektaron.md'
+    );
+
+    expect(result.success).toBe(true);
+    // The renderer is still discharged (no listener leak)...
+    expect(unloadOrder).toEqual(['unload']);
+    // ...but only after the DOM was captured.
+    const captured = 'container' in result ? result.container : null;
+    expect(captured?.querySelector('li')?.textContent).toBe('Kaela');
+  });
+
+  it('still unloads captured renderers when the DataviewJS execution fails', async () => {
+    const unload = jest.fn();
+    const dataviewApi: DataviewApi = {
+      query: jest.fn(),
+      executeJs: jest.fn(async (_code, _container, component) => {
+        component.addChild({ unload } as unknown as Component);
+        throw new Error('view failed');
+      }),
+    };
+
+    const executor = new DataviewExecutor(dataviewApi, {
+      workspace: { getActiveFile: () => null },
+    });
+
+    const result = await executor.executeBlock(
+      {
+        kind: 'js',
+        contentRaw: 'test',
+        langRaw: 'dataviewjs',
+        startIndex: 0,
+        endIndex: 0,
+        startLine: 1,
+        endLine: 1,
+      },
+      'World/Ektaron.md'
+    );
+
+    expect(result.success).toBe(false);
+    expect(unload).toHaveBeenCalledTimes(1);
+  });
+
   it('does not hang when a view never settles, thanks to the hard cap on waiting for DOM quiescence', async () => {
     const dataviewApi: DataviewApi = {
       query: jest.fn(),
