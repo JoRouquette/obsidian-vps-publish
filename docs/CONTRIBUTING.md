@@ -198,6 +198,9 @@ git commit -m "refactor(site): simplify markdown rendering pipeline"
 # Vérifier le linting
 npm run lint
 
+# Règles de la revue du répertoire Obsidian (plafond d'avertissements, bloquant en CI)
+npx nx run obsidian-vps-publish:lint:directory
+
 # Corriger automatiquement si possible
 npm run lint:fix
 
@@ -553,6 +556,7 @@ git commit -m "refactor(site): simplify markdown rendering pipeline"
 
 ```bash
 npm run lint
+npx nx run obsidian-vps-publish:lint:directory  # Obsidian directory review rules, warning ceiling enforced in CI
 npm run lint:fix
 npm run test
 npm run build

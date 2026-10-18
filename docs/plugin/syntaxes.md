@@ -198,6 +198,12 @@ PDFs, vidéos, et autres fichiers sont automatiquement détectés et uploadés.
 `= dateformat(this.file.ctime, "yyyy-MM-dd")`
 ```
 
+Rendu de la valeur d'une requête `= this.propriété` :
+
+- texte, nombre, booléen : tel quel ;
+- liste : éléments séparés par `, ` ;
+- objet (propriété YAML imbriquée, par exemple `auteur: { nom: Kaela }`) : en JSON, `{"nom":"Kaela"}`, au lieu de `[object Object]`.
+
 ### Blocs Dataview
 
 ```markdown
