@@ -5,9 +5,17 @@ import { readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const input = JSON.parse(readFileSync(0, 'utf8').replace(/^\uFEFF/, ''));
-const filePath = input.tool_input?.file_path;
-if (!filePath) process.exit(0);
+let filePath;
+try {
+  const input = JSON.parse(readFileSync(0, 'utf8').replace(/^\uFEFF/, ''));
+  filePath = input.tool_input?.file_path;
+} catch (error) {
+  // Entrée absente ou illisible : rien à linter. Sortie 0 pour ne pas bloquer l'édition ;
+  // le hook ne doit pas planter sur une charge qu'il ne maîtrise pas.
+  process.stderr.write(`Hook lint-directory : entrée illisible, ignorée (${String(error)}).\n`);
+  process.exit(0);
+}
+if (typeof filePath !== 'string' || filePath.length === 0) process.exit(0);
 
 const rel = relative(projectDir, resolve(projectDir, filePath)).replaceAll('\\', '/');
 const isShippedSource =
