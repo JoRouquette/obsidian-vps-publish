@@ -367,6 +367,34 @@ describe('RenderInlineDataviewService', () => {
       expect(result.content).toBe('Matrix: a,b, c');
     });
 
+    it('should render null and undefined inside a nested array as empty, like String()', () => {
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { matrix: [['a', null, undefined, 'b'], 'c'] },
+      };
+
+      const note = baseNote('Matrix: `= this.matrix`', frontmatter);
+      const [result] = service.process([note]);
+
+      // The inner array keeps its String() form ("a,,,b"); the top level uses ", ".
+      expect(String(['a', null, undefined, 'b'])).toBe('a,,,b');
+      expect(result.content).toBe('Matrix: a,,,b, c');
+    });
+
+    it('should render an object that cannot be serialized as empty instead of throwing', () => {
+      const circular: Record<string, unknown> = { name: 'loop' };
+      circular['self'] = circular;
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { circular, big: { n: BigInt(1) } },
+      };
+
+      const note = baseNote('A: `= this.circular` B: `= this.big`', frontmatter);
+      const [result] = service.process([note]);
+
+      expect(result.content).toBe('A:  B: ');
+    });
+
     it('should render object items as JSON in join() instead of [object Object]', () => {
       const frontmatter: DomainFrontmatter = {
         ...baseFrontmatter,

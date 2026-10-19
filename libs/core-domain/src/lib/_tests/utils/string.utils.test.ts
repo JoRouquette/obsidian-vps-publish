@@ -15,9 +15,29 @@ describe('scalarToString', () => {
     expect(scalarToString(Symbol('s'))).toBe('Symbol(s)');
   });
 
+  it('keeps the String() form of edge primitives', () => {
+    expect(scalarToString('')).toBe('');
+    expect(scalarToString(NaN)).toBe('NaN');
+    expect(scalarToString(-Infinity)).toBe('-Infinity');
+    expect(scalarToString(-0)).toBe('0');
+    expect(scalarToString(Symbol())).toBe('Symbol()');
+  });
+
   it('never yields "[object Object]" nor function source', () => {
     expect(scalarToString({ key: 'value' })).toBe('');
     expect(scalarToString(() => 1)).toBe('');
+  });
+
+  it('yields an empty string for every non-primitive, never its String() form', () => {
+    class Box {
+      constructor(readonly value: string) {}
+    }
+
+    expect(scalarToString(['a', 'b'])).toBe('');
+    expect(scalarToString(new Date(0))).toBe('');
+    expect(scalarToString(new Box('x'))).toBe('');
+    expect(scalarToString(Object.create(null))).toBe('');
+    expect(scalarToString(new Map([['k', 'v']]))).toBe('');
   });
 });
 

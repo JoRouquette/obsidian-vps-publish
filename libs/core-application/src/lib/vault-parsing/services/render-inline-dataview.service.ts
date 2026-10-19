@@ -181,13 +181,27 @@ export class RenderInlineDataviewService implements BaseService {
   }
 
   /**
-   * Same output as `String()` for primitives, nested arrays and dates; only plain
-   * objects change, rendered as JSON instead of "[object Object]".
+   * Same output as `String()` for primitives, nested arrays and dates (inside a nested
+   * array `null` and `undefined` give an empty string, as `String([null])` does); only
+   * plain objects change, rendered as JSON instead of "[object Object]". An object that
+   * cannot be serialized (circular reference, BigInt) renders as an empty string.
    */
-  private stringifyValue(value: unknown): string {
-    if (Array.isArray(value)) return value.map((v) => this.stringifyValue(v)).join(',');
+  private stringifyValue(value: unknown, insideArray = false): string {
+    if (Array.isArray(value)) return value.map((v) => this.stringifyValue(v, true)).join(',');
+    if (insideArray && (value === null || value === undefined)) return '';
     if (value instanceof Date) return value.toString();
-    if (value !== null && typeof value === 'object') return JSON.stringify(value);
+    if (value !== null && typeof value === 'object') return this.toJson(value);
     return scalarToString(value);
+  }
+
+  private toJson(value: object): string {
+    try {
+      return JSON.stringify(value) ?? '';
+    } catch (error) {
+      this._logger.debug('Value cannot be serialized to JSON, rendering as empty string.', {
+        error,
+      });
+      return '';
+    }
   }
 }
