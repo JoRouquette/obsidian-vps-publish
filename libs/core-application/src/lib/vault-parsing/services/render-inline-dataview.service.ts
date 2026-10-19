@@ -13,9 +13,9 @@ export class RenderInlineDataviewService implements BaseService {
   private readonly _logger: LoggerPort;
 
   /**
-   * @param frontmatterKeysToExclude Keys that must never reach the published output. The
-   * server-side sanitizer runs after this service, so they are dropped here before any
-   * expression is resolved.
+   * @param frontmatterKeysToExclude Keys the inline expressions must ignore. They are dropped
+   * from the frontmatter before any expression is resolved, so a query on one renders
+   * nothing and a displayed object never carries them. Nothing else consumes this setting.
    */
   constructor(
     logger: LoggerPort,

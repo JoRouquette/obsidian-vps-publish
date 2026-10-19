@@ -461,7 +461,7 @@ describe('RenderInlineDataviewService', () => {
       const note = baseNote('Meta: `= this.meta`', frontmatterWithSecret());
       const [result] = excluding('Hidden-Key').process([note]);
 
-      expect(result.content).not.toContain('nope');
+      expect(result.content).toBe('Meta: {"visible":"ok"}');
     });
 
     it('should hide excluded keys from join() as well', () => {

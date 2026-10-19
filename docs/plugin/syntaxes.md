@@ -206,7 +206,7 @@ Rendu de la valeur d'une requête `= this.propriété` :
 
 `= join(this.propriété, ", ")` applique les mêmes règles à chaque élément : un élément objet est rendu en JSON.
 
-Les clés listées dans « Clés de frontmatter à supprimer » ne sont jamais publiées, y compris quand une requête inline les vise ou quand elles sont imbriquées dans un objet affiché : la requête rend alors une valeur vide, ou l'objet sans ces clés.
+Les requêtes inline ignorent les clés listées dans « Clés de frontmatter à supprimer » : une requête qui en vise une rend une valeur vide, et un objet affiché est rendu sans ces clés. Ce réglage ne s'applique qu'à ces requêtes.
 
 ### Blocs Dataview
 

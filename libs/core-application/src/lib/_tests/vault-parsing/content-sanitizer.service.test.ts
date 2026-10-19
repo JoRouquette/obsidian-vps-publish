@@ -74,6 +74,28 @@ Body with ![[img.png]]`,
     expect(sanitized.frontmatter.nested['created']).toBe(created);
   });
 
+  it('cleans arrays nested in arrays and keeps an emptied object in its list', () => {
+    const service = new ContentSanitizerService([], ['secret', 'deep.secret'], [], logger);
+
+    const note: PublishableNote = {
+      ...baseNote,
+      content: 'Body',
+      frontmatter: {
+        flat: {},
+        nested: {
+          matrix: [[{ secret: 'x', ok: 1 }], [{ secret: 'y' }]],
+          deep: [[{ secret: 'z', keep: true }]],
+        },
+        tags: [],
+      },
+    };
+    const [sanitized] = service.process([note]);
+
+    // An object emptied inside a list stays in place ({}): the list keeps its length and order.
+    expect(sanitized.frontmatter.nested['matrix']).toEqual([[{ ok: 1 }], [{}]]);
+    expect(sanitized.frontmatter.nested['deep']).toEqual([[{ keep: true }]]);
+  });
+
   it('applies a dotted exclusion path through a list of objects', () => {
     const service = new ContentSanitizerService([], ['meta.secret'], [], logger);
 
