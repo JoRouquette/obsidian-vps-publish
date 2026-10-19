@@ -206,7 +206,7 @@ Rendu de la valeur d'une requête `= this.propriété` :
 
 `= join(this.propriété, ", ")` applique les mêmes règles à chaque élément : un élément objet est rendu en JSON.
 
-Les requêtes inline ignorent les clés listées dans « Clés de frontmatter à supprimer » : une requête qui en vise une rend une valeur vide, et un objet affiché est rendu sans ces clés. Ce réglage ne s'applique qu'à ces requêtes.
+Les requêtes inline ignorent les clés listées dans « Clés de frontmatter ignorées par les requêtes inline » : une requête qui en vise une rend une valeur vide, et un objet affiché est rendu sans ces clés. Ce réglage ne retire pas ces clés des propriétés publiées de la note.
 
 ### Blocs Dataview
 
