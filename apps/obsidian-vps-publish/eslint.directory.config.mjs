@@ -1,5 +1,5 @@
-// Lint « revue du répertoire » : les règles que la revue automatisée d'Obsidian
-// applique au miroir vps-publish, rejouées ici sur les sources du monorepo.
+// Lint « revue du répertoire » : la config du miroir vps-publish, rejouée sur les
+// sources du monorepo.
 //
 // POURQUOI CE FICHIER EXISTE
 // Le lint habituel du monorepo (`nx lint`) ne charge pas eslint-plugin-obsidianmd.
@@ -10,58 +10,71 @@
 // Le plafond ne se resserre pas tout seul : quand un lot fait baisser le compte,
 // abaisser `--max-warnings` dans `project.json` dans le même commit.
 //
-// À garder aligné sur `tools/mirror/templates/vps-publish/eslint.config.mjs`, qui est
-// la config réellement scannée. Seuls changent les chemins (`src/` du miroir devient
-// `apps/obsidian-vps-publish/src/`, et les libs sont lintées depuis leurs sources).
+// COMMENT IL RESTE FIDÈLE AU MIROIR
+// Aucune règle n'est recopiée ici. La config du miroir
+// (`tools/mirror/templates/vps-publish/eslint.config.mjs`), qui est celle réellement
+// scannée par le répertoire, est importée telle quelle ; ce fichier n'en change que les
+// chemins :
+//   - `files` : les sources du monorepo à la place de `**/*.ts` du miroir ;
+//   - `parserOptions.project` : `tsconfig.directory.json`, qui reprend les options du
+//     `tsconfig.json` du miroir, à la place de `./tsconfig.json` ;
+//   - `ignores` : les suites de tests sont hors périmètre, la revue du répertoire n'en
+//     a jamais signalé une seule et le miroir n'en embarque aucune. Le bloc propre aux
+//     suites est donc écarté.
+// Toute règle ajoutée ou changée côté miroir s'applique ici sans autre édition.
 //
 // Le fichier est en .mjs : eslint-plugin-obsidianmd est ESM pur.
 import { resolve } from 'node:path';
 
-import tsPlugin from '@typescript-eslint/eslint-plugin';
-import tsParser from '@typescript-eslint/parser';
-import obsidianmd from 'eslint-plugin-obsidianmd';
+import mirrorConfig from '../../tools/mirror/templates/vps-publish/eslint.config.mjs';
 
+const REPO_ROOT = resolve(import.meta.dirname, '../..');
 const SOURCES = ['apps/obsidian-vps-publish/src/**/*.ts', 'libs/*/src/**/*.ts'];
-const NOT_SHIPPED = ['**/*.test.ts', '**/*.spec.ts', '**/__mocks__/**'];
+const TESTS = ['**/*.test.ts', '**/*.spec.ts', '**/__mocks__/**'];
 
-export default [
-  { ignores: ['**/node_modules/**', 'dist/**', 'tmp/**', '**/*.d.ts'] },
+const isGlobalIgnores = (block) => Object.keys(block).length === 1 && Array.isArray(block.ignores);
+const isTestsBlock = (block) =>
+  !block.ignores && Array.isArray(block.files) && block.files.includes('**/*.test.ts');
 
-  ...obsidianmd.configs.recommended.map((block) => ({
+function retarget(block) {
+  if (isGlobalIgnores(block)) {
+    return { ...block, ignores: [...block.ignores, 'tmp/**'] };
+  }
+
+  const parserOptions = block.languageOptions?.parserOptions;
+  return {
     ...block,
-    ignores: [...(block.ignores ?? []), ...NOT_SHIPPED],
-  })),
+    ...(block.files?.includes('**/*.ts') ? { files: SOURCES } : {}),
+    ignores: [...(block.ignores ?? []), ...TESTS],
+    ...(parserOptions?.project
+      ? {
+          languageOptions: {
+            ...block.languageOptions,
+            parserOptions: {
+              ...parserOptions,
+              project: ['./apps/obsidian-vps-publish/tsconfig.directory.json'],
+              tsconfigRootDir: REPO_ROOT,
+            },
+          },
+        }
+      : {}),
+  };
+}
 
-  {
-    files: SOURCES,
-    ignores: NOT_SHIPPED,
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        ecmaVersion: 2022,
-        sourceType: 'module',
-        project: ['./tsconfig.base.json'],
-        tsconfigRootDir: resolve(import.meta.dirname, '../..'),
-      },
-    },
-    plugins: { '@typescript-eslint': tsPlugin },
-    // Mêmes sévérités que la config du miroir : obsidianmd et les restrictions sur
-    // les directives restent en erreur, les règles typées listées en « Warning » par
-    // la revue restent en avertissement (le plafond de la cible les tient).
-    rules: {
-      'no-undef': 'off',
-      '@typescript-eslint/no-unsafe-argument': 'warn',
-      '@typescript-eslint/no-unsafe-assignment': 'warn',
-      '@typescript-eslint/no-unsafe-member-access': 'warn',
-      '@typescript-eslint/no-unsafe-call': 'warn',
-      '@typescript-eslint/no-unsafe-return': 'warn',
-      '@typescript-eslint/no-unsafe-enum-comparison': 'warn',
-      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
-      '@typescript-eslint/no-base-to-string': 'warn',
-      '@typescript-eslint/unbound-method': 'warn',
-      '@typescript-eslint/only-throw-error': 'warn',
-      '@typescript-eslint/no-require-imports': 'warn',
-      '@typescript-eslint/no-deprecated': 'warn',
-    },
-  },
-];
+const retargeted = mirrorConfig.filter((block) => !isTestsBlock(block)).map(retarget);
+
+// Garde-fou : si le miroir change de forme (autres globs, `projectService`...), le retarget
+// ne reconnaîtrait plus rien et le lint passerait sans la config voulue. Mieux vaut échouer
+// ici, avec une cause lisible, que de dériver en silence.
+const hasRetargetedFiles = retargeted.some((block) => block.files === SOURCES);
+const hasRetargetedProject = retargeted.some(
+  (block) => block.languageOptions?.parserOptions?.tsconfigRootDir === REPO_ROOT
+);
+if (!hasRetargetedFiles || !hasRetargetedProject) {
+  throw new Error(
+    'eslint.directory.config.mjs : la config du miroir a changé de forme, mettre à jour retarget() ' +
+      `(blocs files retargetés : ${hasRetargetedFiles}, blocs parserOptions.project retargetés : ${hasRetargetedProject}).`
+  );
+}
+
+export default retargeted;
