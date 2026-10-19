@@ -4,7 +4,7 @@ type PlainRecord = Record<string, unknown>;
 
 function isPlainRecord(value: unknown): value is PlainRecord {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
-  const proto = Object.getPrototypeOf(value);
+  const proto: unknown = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
 }
 
