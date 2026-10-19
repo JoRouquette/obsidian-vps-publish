@@ -366,5 +366,138 @@ describe('RenderInlineDataviewService', () => {
 
       expect(result.content).toBe('Matrix: a,b, c');
     });
+
+    it('should render object items as JSON in join() instead of [object Object]', () => {
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { items: ['a', { key: 'value' }] },
+      };
+
+      const note = baseNote('Items: `= join(this.items, " | ")`', frontmatter);
+      const [result] = service.process([note]);
+
+      expect(result.content).toBe('Items: a | {"key":"value"}');
+      expect(result.content).not.toContain('[object Object]');
+    });
+
+    it('should render a single object in join() as JSON', () => {
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { obj: { key: 'value' } },
+      };
+
+      const note = baseNote('Obj: `= join(this.obj, ", ")`', frontmatter);
+      const [result] = service.process([note]);
+
+      expect(result.content).toBe('Obj: {"key":"value"}');
+    });
+  });
+
+  describe('frontmatterKeysToExclude', () => {
+    const excluding = (...keys: string[]): RenderInlineDataviewService =>
+      new RenderInlineDataviewService(logger, keys);
+
+    const frontmatterWithSecret = (): DomainFrontmatter => ({
+      ...baseFrontmatter,
+      nested: {
+        titre: 'Public',
+        secret: { token: 'abc123', note: 'hidden' },
+        meta: { visible: 'ok', hiddenKey: 'nope' },
+      },
+    });
+
+    it('should not publish an excluded sub-key held by a published object', () => {
+      const note = baseNote('Meta: `= this.meta`', frontmatterWithSecret());
+      const [result] = excluding('hiddenKey').process([note]);
+
+      expect(result.content).toBe('Meta: {"visible":"ok"}');
+      expect(result.content).not.toContain('nope');
+    });
+
+    it('should not publish an excluded sub-key addressed by a dotted path', () => {
+      const note = baseNote('Meta: `= this.meta`', frontmatterWithSecret());
+      const [result] = excluding('meta.hiddenKey').process([note]);
+
+      expect(result.content).toBe('Meta: {"visible":"ok"}');
+    });
+
+    it('should render nothing when the expression targets an excluded key directly', () => {
+      const note = baseNote('A: `= this.secret` B: `= this.secret.token`', frontmatterWithSecret());
+      const [result] = excluding('secret').process([note]);
+
+      expect(result.content).toBe('A:  B: ');
+      expect(result.content).not.toContain('abc123');
+    });
+
+    it('should match excluded keys regardless of case and separators', () => {
+      const note = baseNote('Meta: `= this.meta`', frontmatterWithSecret());
+      const [result] = excluding('Hidden-Key').process([note]);
+
+      expect(result.content).not.toContain('nope');
+    });
+
+    it('should hide excluded keys from join() as well', () => {
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { items: [{ a: 1, secret: 'x' }, 'b'] },
+      };
+
+      const note = baseNote('Items: `= join(this.items, " | ")`', frontmatter);
+      const [result] = excluding('secret').process([note]);
+
+      expect(result.content).toBe('Items: {"a":1} | b');
+    });
+
+    it('should apply a dotted path through a list of objects', () => {
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: {
+          meta: [
+            { secret: 'x', ok: 1 },
+            { secret: 'y', ok: 2 },
+          ],
+        },
+      };
+
+      const note = baseNote('Meta: `= this.meta`', frontmatter);
+      const [result] = excluding('meta.secret').process([note]);
+
+      expect(result.content).toBe('Meta: {"ok":1}, {"ok":2}');
+    });
+
+    it('should not mutate the frontmatter of the note', () => {
+      const frontmatter = frontmatterWithSecret();
+      const note = baseNote('Meta: `= this.meta`', frontmatter);
+
+      excluding('secret', 'hiddenKey').process([note]);
+
+      expect(frontmatter.nested['secret']).toEqual({ token: 'abc123', note: 'hidden' });
+      expect(frontmatter.nested['meta']).toEqual({ visible: 'ok', hiddenKey: 'nope' });
+    });
+
+    it('should render the same output as before when no key is excluded', () => {
+      const note = baseNote(
+        'Titre: `= this.titre` Secret: `= this.secret`',
+        frontmatterWithSecret()
+      );
+      const [withEmpty] = excluding().process([note]);
+      const [withDefault] = service.process([note]);
+
+      expect(withEmpty.content).toBe(withDefault.content);
+      expect(withDefault.content).toContain('abc123');
+    });
+
+    it('should keep Date values untouched when keys are excluded', () => {
+      const date = new Date('2026-01-02T00:00:00Z');
+      const frontmatter: DomainFrontmatter = {
+        ...baseFrontmatter,
+        nested: { created: date, secret: 'x' },
+      };
+
+      const note = baseNote('Created: `= this.created`', frontmatter);
+      const [result] = excluding('secret').process([note]);
+
+      expect(result.content).toBe(`Created: ${date.toString()}`);
+    });
   });
 });

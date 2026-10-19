@@ -855,7 +855,7 @@ export const en: Translations = {
       dataview: {
         title: 'Dataview Support',
         content:
-          'Dataview queries are executed and rendered to HTML before publishing.\n\nSupported: inline queries (=this.property), dataview blocks, dataviewjs, and custom views (dv.view()).\n\nValues of =this.property queries: list items are joined with ", " and nested objects are shown as JSON.',
+          'Dataview queries are executed and rendered to HTML before publishing.\n\nSupported: inline queries (=this.property), dataview blocks, dataviewjs, and custom views (dv.view()).\n\nValues of =this.property queries: list items are joined with ", " and nested objects are shown as JSON. join(this.property, sep) follows the same rules for each item. Frontmatter keys you chose to remove are never published, even inside a displayed object.',
         examples: [
           {
             code: '`= this.title`',
@@ -1437,7 +1437,7 @@ export const fr: Translations = {
       dataview: {
         title: 'Support Dataview',
         content:
-          "Les requêtes Dataview sont exécutées et rendues en HTML avant publication.\n\nSupporté : requêtes inline (=this.property), blocs dataview, dataviewjs, et vues personnalisées (dv.view()).\n\nValeur d'une requête =this.property : les éléments d'une liste sont séparés par une virgule suivie d'une espace, un objet imbriqué est affiché en JSON.",
+          "Les requêtes Dataview sont exécutées et rendues en HTML avant publication.\n\nSupporté : requêtes inline (=this.property), blocs dataview, dataviewjs, et vues personnalisées (dv.view()).\n\nValeur d'une requête =this.property : les éléments d'une liste sont séparés par une virgule suivie d'une espace, un objet imbriqué est affiché en JSON. join(this.property, sép) suit les mêmes règles pour chaque élément. Les clés de frontmatter que vous avez choisi de supprimer ne sont jamais publiées, même dans un objet affiché.",
         examples: [
           {
             code: '`= this.title`',

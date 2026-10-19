@@ -2,6 +2,7 @@ import type { DomainFrontmatter } from '@core-domain/entities/domain-frontmatter
 import type { InlineDataviewExpression } from '@core-domain/entities/inline-dataview-expression';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
+import { omitExcludedFrontmatterKeys } from '@core-domain/utils/frontmatter-exclusion.utils';
 import { scalarToString } from '@core-domain/utils/string.utils';
 
 import { type BaseService } from '../../common/base-service';
@@ -11,7 +12,15 @@ const INLINE_CODE_REGEX = /`([^`]*?)`/g;
 export class RenderInlineDataviewService implements BaseService {
   private readonly _logger: LoggerPort;
 
-  constructor(logger: LoggerPort) {
+  /**
+   * @param frontmatterKeysToExclude Keys that must never reach the published output. The
+   * server-side sanitizer runs after this service, so they are dropped here before any
+   * expression is resolved.
+   */
+  constructor(
+    logger: LoggerPort,
+    private readonly frontmatterKeysToExclude: readonly string[] = []
+  ) {
     this._logger = logger.child({ usecase: 'RenderInlineDataviewUseCase' });
   }
 
@@ -26,8 +35,12 @@ export class RenderInlineDataviewService implements BaseService {
     }));
   }
 
-  renderContent(content: string, frontmatter: DomainFrontmatter): string {
+  renderContent(content: string, rawFrontmatter: DomainFrontmatter): string {
     const expressions: InlineDataviewExpression[] = [];
+    const frontmatter: DomainFrontmatter = {
+      ...rawFrontmatter,
+      nested: omitExcludedFrontmatterKeys(rawFrontmatter.nested, this.frontmatterKeysToExclude),
+    };
 
     const renderedMarkdown = content.replace(
       INLINE_CODE_REGEX,
@@ -90,7 +103,7 @@ export class RenderInlineDataviewService implements BaseService {
 
       const value = this.getValueFromFrontmatter(frontmatter, propertyPath, logger);
       const arrayValue = this.normalizeToArray(value);
-      return arrayValue.map((v) => String(v)).join(separator);
+      return arrayValue.map((v) => this.stringifyValue(v)).join(separator);
     }
 
     const THIS_PREFIX = 'this.';

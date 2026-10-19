@@ -1605,7 +1605,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       logger
     );
     const noteMapper = new NotesMapper();
-    const inlineDataviewRenderer = new RenderInlineDataviewService(logger);
+    const inlineDataviewRenderer = new RenderInlineDataviewService(
+      logger,
+      settings.frontmatterKeysToExclude
+    );
 
     // Dataview block processor (plugin-side only)
     // Executes blocks via Dataview API and converts results to native Markdown

@@ -54,4 +54,40 @@ Body with ![[img.png]]`,
     expect(sanitized.content.startsWith('---')).toBe(false);
     expect(sanitized.content.trim().startsWith('Body with')).toBe(true);
   });
+
+  it('removes excluded keys held by objects inside arrays and keeps non-plain values', () => {
+    const service = new ContentSanitizerService([], ['secret'], [], logger);
+    const created = new Date('2026-01-02T00:00:00Z');
+
+    const note: PublishableNote = {
+      ...baseNote,
+      content: 'Body',
+      frontmatter: {
+        flat: {},
+        nested: { items: [{ a: 1, secret: 'x' }, 'b'], created },
+        tags: [],
+      },
+    };
+    const [sanitized] = service.process([note]);
+
+    expect(sanitized.frontmatter.nested['items']).toEqual([{ a: 1 }, 'b']);
+    expect(sanitized.frontmatter.nested['created']).toBe(created);
+  });
+
+  it('applies a dotted exclusion path through a list of objects', () => {
+    const service = new ContentSanitizerService([], ['meta.secret'], [], logger);
+
+    const note: PublishableNote = {
+      ...baseNote,
+      content: 'Body',
+      frontmatter: {
+        flat: {},
+        nested: { meta: [{ secret: 'x', ok: 1 }] },
+        tags: [],
+      },
+    };
+    const [sanitized] = service.process([note]);
+
+    expect(sanitized.frontmatter.nested['meta']).toEqual([{ ok: 1 }]);
+  });
 });

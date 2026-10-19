@@ -204,6 +204,10 @@ Rendu de la valeur d'une requête `= this.propriété` :
 - liste : éléments séparés par `, ` ;
 - objet (propriété YAML imbriquée, par exemple `auteur: { nom: Kaela }`) : en JSON, `{"nom":"Kaela"}`, au lieu de `[object Object]`.
 
+`= join(this.propriété, ", ")` applique les mêmes règles à chaque élément : un élément objet est rendu en JSON.
+
+Les clés listées dans « Clés de frontmatter à supprimer » ne sont jamais publiées, y compris quand une requête inline les vise ou quand elles sont imbriquées dans un objet affiché : la requête rend alors une valeur vide, ou l'objet sans ces clés.
+
 ### Blocs Dataview
 
 ```markdown
