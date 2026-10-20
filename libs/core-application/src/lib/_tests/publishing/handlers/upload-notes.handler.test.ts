@@ -477,4 +477,157 @@ describe('UploadNotesHandler', () => {
       })
     );
   });
+
+  describe('ignoredFrontmatterKeys (properties card masking)', () => {
+    function savedHtml(): string {
+      const calls = contentStorage.save.mock.calls as Array<[{ content: string }]>;
+      return calls[calls.length - 1][0].content;
+    }
+
+    function buildNote(): PublishableNote {
+      return createNote({
+        frontmatter: {
+          tags: ['alpha'],
+          flat: {},
+          nested: {
+            description: 'Visible summary',
+            aliases: ['Alias One'],
+            secret: 'hidden-value',
+            meta: { internal: 'deep-hidden', public: 'deep-visible' },
+          },
+        },
+      });
+    }
+
+    it('renders every property when no key is excluded', async () => {
+      const handler = new UploadNotesHandler(
+        markdownRenderer,
+        contentStorage,
+        manifestStorage,
+        logger
+      );
+
+      await handler.handle({ sessionId: 's', notes: [buildNote()] });
+
+      const html = savedHtml();
+      expect(html).toContain('hidden-value');
+      expect(html).toContain('deep-hidden');
+      expect(html).toContain('Visible summary');
+    });
+
+    it('hides excluded keys at any depth from the card only', async () => {
+      const handler = new UploadNotesHandler(
+        markdownRenderer,
+        contentStorage,
+        manifestStorage,
+        logger,
+        undefined,
+        undefined,
+        undefined,
+        ['secret', 'internal']
+      );
+      const note = buildNote();
+
+      await handler.handle({ sessionId: 's', notes: [note] });
+
+      const html = savedHtml();
+      expect(html).not.toContain('hidden-value');
+      expect(html).not.toContain('deep-hidden');
+      expect(html).toContain('Visible summary');
+      expect(html).toContain('deep-visible');
+    });
+
+    it.each([
+      {
+        keys: ['meta.internal'],
+        hidden: ['deep-hidden'],
+        visible: ['hidden-value', 'deep-visible'],
+      },
+      { keys: ['SECRET'], hidden: ['hidden-value'], visible: ['deep-hidden', 'deep-visible'] },
+    ])('matches dotted paths and ignores case: $keys', async ({ keys, hidden, visible }) => {
+      const handler = new UploadNotesHandler(
+        markdownRenderer,
+        contentStorage,
+        manifestStorage,
+        logger,
+        undefined,
+        undefined,
+        undefined,
+        keys
+      );
+
+      await handler.handle({ sessionId: 's', notes: [buildNote()] });
+
+      const html = savedHtml();
+      for (const value of hidden) expect(html).not.toContain(value);
+      for (const value of visible) expect(html).toContain(value);
+    });
+
+    it('drops a parent group left empty by the masking', async () => {
+      const handler = new UploadNotesHandler(
+        markdownRenderer,
+        contentStorage,
+        manifestStorage,
+        logger,
+        undefined,
+        undefined,
+        undefined,
+        ['meta.internal', 'meta.public']
+      );
+
+      await handler.handle({ sessionId: 's', notes: [buildNote()] });
+
+      const html = savedHtml();
+      expect(html).not.toContain('deep-hidden');
+      expect(html).not.toContain('deep-visible');
+      expect(html).not.toContain('fm-group');
+    });
+
+    it('never alters the note data: pipeline keys stay available', async () => {
+      const handler = new UploadNotesHandler(
+        markdownRenderer,
+        contentStorage,
+        manifestStorage,
+        logger,
+        undefined,
+        undefined,
+        undefined,
+        ['aliases', 'description', 'tags', 'secret']
+      );
+      const note = buildNote();
+      const before = JSON.parse(JSON.stringify(note.frontmatter));
+
+      await handler.handle({ sessionId: 's', notes: [note] });
+
+      expect(JSON.parse(JSON.stringify(note.frontmatter))).toEqual(before);
+      expect(note.frontmatter.nested.aliases).toEqual(['Alias One']);
+      expect(note.frontmatter.nested.description).toBe('Visible summary');
+      expect(note.frontmatter.tags).toEqual(['alpha']);
+    });
+
+    it('skips the tags fallback entry when tags is excluded', async () => {
+      const withTags = new UploadNotesHandler(
+        markdownRenderer,
+        contentStorage,
+        manifestStorage,
+        logger
+      );
+      const withoutTags = new UploadNotesHandler(
+        markdownRenderer,
+        contentStorage,
+        manifestStorage,
+        logger,
+        undefined,
+        undefined,
+        undefined,
+        ['Tags']
+      );
+
+      await withTags.handle({ sessionId: 's1', notes: [buildNote()] });
+      expect(savedHtml()).toContain('alpha');
+
+      await withoutTags.handle({ sessionId: 's2', notes: [buildNote()] });
+      expect(savedHtml()).not.toContain('alpha');
+    });
+  });
 });

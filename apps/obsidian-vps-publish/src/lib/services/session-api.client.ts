@@ -182,6 +182,7 @@ export class SessionApiClient {
     customIndexConfigs?: CustomIndexConfig[];
     ignoreRules?: IgnoreRule[];
     ignoredTags?: string[];
+    ignoredFrontmatterKeys?: string[];
     folderDisplayNames?: Record<string, string>;
     pipelineSignature?: { version: string; renderSettingsHash: string };
     locale?: 'en' | 'fr';
@@ -195,6 +196,7 @@ export class SessionApiClient {
       customIndexConfigs: payload.customIndexConfigs ?? [],
       ignoreRules: payload.ignoreRules ?? [],
       ignoredTags: payload.ignoredTags ?? [],
+      ignoredFrontmatterKeys: payload.ignoredFrontmatterKeys ?? [],
       folderDisplayNames: payload.folderDisplayNames ?? {},
       pipelineSignature: payload.pipelineSignature,
       locale: payload.locale,

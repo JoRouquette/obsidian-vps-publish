@@ -206,13 +206,18 @@ describe('Deterministic note transform finalization', () => {
       .sort((left, right) => left.route.localeCompare(right.route));
   }
 
-  async function publishScenario(envName: string, notes: PublishableNote[]) {
+  async function publishScenario(
+    envName: string,
+    notes: PublishableNote[],
+    ignoredFrontmatterKeys?: string[]
+  ) {
     const env = await createEnvironment(envName);
     const createResult = await env.createSessionHandler.handle({
       notesPlanned: notes.length,
       assetsPlanned: 0,
       batchConfig: { maxBytesPerRequest: 1024 * 1024 },
       ignoreRules: deterministicTransformParityIgnoreRules,
+      ignoredFrontmatterKeys,
     });
 
     await env.uploadNotesHandler.handle({
@@ -235,6 +240,58 @@ describe('Deterministic note transform finalization', () => {
       htmlByRoute: await readPublishedHtml(env.contentRoot, manifest),
     };
   }
+
+  describe('ignoredFrontmatterKeys', () => {
+    async function buildMaskedNote(): Promise<PublishableNote> {
+      const [prepared] = await buildParseHandler().handle([
+        {
+          ...deterministicTransformParityFixtures[0].notes[0],
+          noteId: 'masked-e2e',
+          content: 'Body: `= this.secret` / `= this.meta.internal` / `= this.visible`',
+          frontmatter: {
+            tags: [],
+            // The parse step rebuilds `nested` from `flat`: both carry the full structure.
+            flat: {
+              secret: 'zz-hidden-secret',
+              visible: 'zz-visible-value',
+              aliases: ['Zz Alias'],
+              meta: { internal: 'zz-hidden-deep', public: 'zz-visible-deep' },
+            },
+            nested: {
+              secret: 'zz-hidden-secret',
+              visible: 'zz-visible-value',
+              aliases: ['Zz Alias'],
+              meta: { internal: 'zz-hidden-deep', public: 'zz-visible-deep' },
+            },
+          },
+        },
+      ]);
+      return prepared;
+    }
+
+    it('hides the listed keys in the properties card and inline queries, keeps the pipeline data', async () => {
+      const note = await buildMaskedNote();
+
+      const control = await publishScenario('masked-control', [note]);
+      const masked = await publishScenario('masked-keys', [note], ['SECRET', 'meta.internal']);
+
+      const controlHtml = Object.values(control.htmlByRoute).join('\n');
+      const maskedHtml = Object.values(masked.htmlByRoute).join('\n');
+
+      // Witness: without exclusion the values are published (card and inline).
+      expect(controlHtml).toContain('zz-hidden-secret');
+      expect(controlHtml).toContain('zz-hidden-deep');
+
+      expect(maskedHtml).not.toContain('zz-hidden-secret');
+      expect(maskedHtml).not.toContain('zz-hidden-deep');
+      expect(maskedHtml).toContain('zz-visible-value');
+      expect(maskedHtml).toContain('zz-visible-deep');
+
+      // Pipeline data untouched: aliases still reach the manifest.
+      expect(masked.manifest?.pages.flatMap((page) => page.aliases ?? [])).toContain('Zz Alias');
+      expect(note.frontmatter.nested.secret).toBe('zz-hidden-secret');
+    });
+  });
 
   for (const fixture of deterministicTransformParityFixtures) {
     it(`publishes the canonical deterministic output for ${fixture.id}`, async () => {

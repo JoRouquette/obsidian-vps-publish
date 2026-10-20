@@ -48,6 +48,7 @@ export function prepareSessionBootstrapPlan(args: {
       calloutStyles: Record<string, string>;
       cleanupRules: Array<{ id: string; isEnabled: boolean; regex: string; replace: string }>;
       ignoredTags: string[];
+      ignoredFrontmatterKeys?: string[];
     }
   ) => Promise<{ version: string; renderSettingsHash: string }>;
 }): SessionBootstrapPlan {
@@ -108,6 +109,7 @@ export function prepareSessionBootstrapPlan(args: {
       calloutStyles: calloutStylesRecord,
       cleanupRules: transformedCleanupRules,
       ignoredTags: args.settings.frontmatterTagsToExclude || [],
+      ignoredFrontmatterKeys: args.settings.frontmatterKeysToExclude || [],
     });
 
     return {
@@ -133,6 +135,7 @@ export function startSessionBootstrapEarly<TStartedSession>(args: {
   maxBytesPerRequest: number;
   ignoreRules: IgnoreRule[];
   ignoredTags: string[];
+  ignoredFrontmatterKeys?: string[];
   locale?: SiteLocale;
   deduplicationEnabled: boolean;
   startSession: (payload: {
@@ -143,6 +146,7 @@ export function startSessionBootstrapEarly<TStartedSession>(args: {
     customIndexConfigs?: CustomIndexConfig[];
     ignoreRules?: IgnoreRule[];
     ignoredTags?: string[];
+    ignoredFrontmatterKeys?: string[];
     folderDisplayNames?: Record<string, string>;
     pipelineSignature?: { version: string; renderSettingsHash: string };
     locale?: SiteLocale;
@@ -169,6 +173,7 @@ export function startSessionBootstrapEarly<TStartedSession>(args: {
       customIndexConfigs: args.sessionBootstrapPlan.customIndexConfigs,
       ignoreRules: args.ignoreRules,
       ignoredTags: args.ignoredTags,
+      ignoredFrontmatterKeys: args.ignoredFrontmatterKeys,
       folderDisplayNames: args.sessionBootstrapPlan.folderDisplayNames,
       pipelineSignature,
       locale: args.locale,

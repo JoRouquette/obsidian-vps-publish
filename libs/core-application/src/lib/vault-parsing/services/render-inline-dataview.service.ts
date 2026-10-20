@@ -15,7 +15,8 @@ export class RenderInlineDataviewService implements BaseService {
   /**
    * @param frontmatterKeysToExclude Keys the inline expressions must ignore. They are dropped
    * from the frontmatter before any expression is resolved, so a query on one renders
-   * nothing and a displayed object never carries them. Nothing else consumes this setting.
+   * nothing and a displayed object never carries them. Only the render sees the filtered copy:
+   * the note's own frontmatter is left intact for the rest of the pipeline.
    */
   constructor(
     logger: LoggerPort,

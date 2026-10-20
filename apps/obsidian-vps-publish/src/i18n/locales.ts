@@ -695,9 +695,9 @@ export const en: Translations = {
       modeValues: 'Ignore specific values',
       modeBoolean: 'Ignore if equal (true/false)',
       rulesLabel: 'Ignore Rules',
-      frontmatterKeysLabel: 'Frontmatter keys to ignore in inline queries',
+      frontmatterKeysLabel: 'Frontmatter keys to hide',
       frontmatterKeysDescription:
-        'Inline Dataview queries ignore these frontmatter properties. They are not removed from the published note properties.',
+        'These frontmatter properties are hidden in the published properties card and in inline Dataview queries. They stay in the note for aliases, tags, SEO and routing.',
       frontmatterKeysPlaceholder: 'e.g. publish, draft, private',
       tagsLabel: 'Tags to exclude',
       tagsDescription: 'These tags will be removed from notes before publishing.',
@@ -855,7 +855,7 @@ export const en: Translations = {
       dataview: {
         title: 'Dataview Support',
         content:
-          'Dataview queries are executed and rendered to HTML before publishing.\n\nSupported: inline queries (=this.property), dataview blocks, dataviewjs, and custom views (dv.view()).\n\nValues of =this.property queries: list items are joined with ", " and nested objects are shown as JSON. join(this.property, sep) follows the same rules for each item. Inline queries ignore the frontmatter keys listed in the settings: a query on one renders nothing, and a displayed object is rendered without them. The setting does not remove them from the published note properties.',
+          'Dataview queries are executed and rendered to HTML before publishing.\n\nSupported: inline queries (=this.property), dataview blocks, dataviewjs, and custom views (dv.view()).\n\nValues of =this.property queries: list items are joined with ", " and nested objects are shown as JSON. join(this.property, sep) follows the same rules for each item. The frontmatter keys listed in the settings are hidden in the published properties card and in inline queries: a query on one renders nothing, and a displayed object is rendered without them. The keys stay in the note, so aliases, tags, SEO and routing keep working.',
         examples: [
           {
             code: '`= this.title`',
@@ -1276,9 +1276,9 @@ export const fr: Translations = {
       modeValues: 'Ignorer des valeurs specifiques',
       modeBoolean: 'Ignorer si egal (true/false)',
       rulesLabel: "Règles d'Exclusion",
-      frontmatterKeysLabel: 'Clés de frontmatter ignorées par les requêtes inline',
+      frontmatterKeysLabel: 'Clés de frontmatter masquées',
       frontmatterKeysDescription:
-        'Les requêtes Dataview inline ignorent ces propriétés de frontmatter. Elles ne sont pas retirées des propriétés publiées de la note.',
+        'Ces propriétés de frontmatter sont masquées dans la carte des propriétés publiée et dans les requêtes Dataview inline. Elles restent dans la note pour les alias, les tags, le SEO et le routage.',
       frontmatterKeysPlaceholder: 'ex: publish, draft, private',
       tagsLabel: 'Tags à exclure',
       tagsDescription: 'Ces tags seront retirés des notes avant publication.',
@@ -1437,7 +1437,7 @@ export const fr: Translations = {
       dataview: {
         title: 'Support Dataview',
         content:
-          "Les requêtes Dataview sont exécutées et rendues en HTML avant publication.\n\nSupporté : requêtes inline (=this.property), blocs dataview, dataviewjs, et vues personnalisées (dv.view()).\n\nValeur d'une requête =this.property : les éléments d'une liste sont séparés par une virgule suivie d'une espace, un objet imbriqué est affiché en JSON. join(this.property, sép) suit les mêmes règles pour chaque élément. Les requêtes inline ignorent les clés de frontmatter listées dans les réglages : une requête qui en vise une ne rend rien, et un objet affiché est rendu sans ces clés. Le réglage ne les retire pas des propriétés publiées de la note.",
+          "Les requêtes Dataview sont exécutées et rendues en HTML avant publication.\n\nSupporté : requêtes inline (=this.property), blocs dataview, dataviewjs, et vues personnalisées (dv.view()).\n\nValeur d'une requête =this.property : les éléments d'une liste sont séparés par une virgule suivie d'une espace, un objet imbriqué est affiché en JSON. join(this.property, sép) suit les mêmes règles pour chaque élément. Les clés de frontmatter listées dans les réglages sont masquées dans la carte des propriétés publiée et dans les requêtes inline : une requête qui en vise une ne rend rien, et un objet affiché est rendu sans ces clés. Les clés restent dans la note, donc les alias, les tags, le SEO et le routage continuent de fonctionner.",
         examples: [
           {
             code: '`= this.title`',

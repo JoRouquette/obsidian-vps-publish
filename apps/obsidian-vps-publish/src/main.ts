@@ -109,6 +109,7 @@ async function computePipelineSignature(
     calloutStyles: Record<string, string>;
     cleanupRules: Array<{ id: string; isEnabled: boolean; regex: string; replace: string }>;
     ignoredTags: string[];
+    ignoredFrontmatterKeys?: string[];
   }
 ): Promise<{ version: string; renderSettingsHash: string }> {
   const hashService = new BrowserHashService();
@@ -137,6 +138,10 @@ async function computePipelineSignature(
     calloutStyles: sortedCalloutStyles,
     cleanupRules: sortedCleanupRules,
     ignoredTags: [...renderSettings.ignoredTags].sort((a, b) => a.localeCompare(b)),
+    // Masked at render time on the server: changing it must force a full re-render.
+    ignoredFrontmatterKeys: [...(renderSettings.ignoredFrontmatterKeys ?? [])].sort((a, b) =>
+      a.localeCompare(b)
+    ),
   };
 
   // 4. Stringify with sorted root keys
@@ -751,6 +756,7 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
         maxBytesPerRequest: defaultNginxLimit,
         ignoreRules: vps.ignoreRules ?? [],
         ignoredTags: settings.frontmatterTagsToExclude || [],
+        ignoredFrontmatterKeys: settings.frontmatterKeysToExclude || [],
         locale,
         deduplicationEnabled,
         startSession: (payload) => sessionClient!.startSession(payload),
@@ -1669,7 +1675,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     };
 
     const leafletBlocksDetector = new DetectLeafletBlocksService(logger);
-    // Note: ContentSanitizerService est maintenant appliqué côté backend après la finalisation
+    // Note: the published inline Dataview render and the properties card are produced by the
+    // server at finalization; frontmatterKeysToExclude reaches it via the session payload
+    // (ignoredFrontmatterKeys). The plugin-side inline renderer only drives asset detection.
     const removeNoPublishingMarkerService = new RemoveNoPublishingMarkerService(logger);
     const assetsDetector = new DetectAssetsService(logger);
 

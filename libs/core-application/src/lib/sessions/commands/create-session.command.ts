@@ -9,6 +9,7 @@ export interface CreateSessionCommand {
   customIndexConfigs?: CustomIndexConfig[];
   ignoreRules?: IgnoreRule[];
   ignoredTags?: string[];
+  ignoredFrontmatterKeys?: string[];
   folderDisplayNames?: Record<string, string>;
   pipelineSignature?: PipelineSignature;
   /**

@@ -12,6 +12,8 @@ export interface DeterministicNoteTransformsOptions {
   ignoreRules?: IgnoreRule[];
   deduplicationEnabled?: boolean;
   ignoreRulesAlreadyApplied?: boolean;
+  /** Frontmatter keys hidden from inline Dataview expressions (the note data stays intact). */
+  ignoredFrontmatterKeys?: readonly string[];
 }
 
 class NullLogger implements LoggerPort {
@@ -63,7 +65,10 @@ export class DeterministicNoteTransformsService {
     });
 
     const evaluateIgnoreRules = new EvaluateIgnoreRulesHandler(ignoreRules, baseLogger);
-    const inlineDataviewRenderer = new RenderInlineDataviewService(baseLogger);
+    const inlineDataviewRenderer = new RenderInlineDataviewService(
+      baseLogger,
+      options.ignoredFrontmatterKeys ?? []
+    );
     const ensureTitleHeader = new EnsureTitleHeaderService(baseLogger);
     const computeRouting = new ComputeRoutingService(baseLogger);
     const detectWikilinks = new DetectWikilinksService(baseLogger);

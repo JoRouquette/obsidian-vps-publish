@@ -212,6 +212,44 @@ describe('prepareSessionBootstrapPlan', () => {
     });
   });
 
+  it('feeds the excluded frontmatter keys to the pipeline signature and the session payload', async () => {
+    const computePipelineSignature = jest
+      .fn()
+      .mockResolvedValue({ version: '1.0.0', renderSettingsHash: 'hash-1' });
+
+    const plan = prepareSessionBootstrapPlan({
+      vps: createVps(),
+      settings: { ...baseSettings, frontmatterKeysToExclude: ['secret', 'meta.internal'] },
+      manifestVersion: '1.0.0',
+      generateGuid: () => 'guid-1',
+      loadCalloutStyles: jest.fn().mockResolvedValue([]),
+      computePipelineSignature,
+    });
+    await plan.pipelineSignaturePromise;
+
+    expect(computePipelineSignature).toHaveBeenCalledWith(
+      '1.0.0',
+      expect.objectContaining({ ignoredFrontmatterKeys: ['secret', 'meta.internal'] })
+    );
+
+    const startSession = jest.fn(async () => ({ sessionId: 's' }));
+    await startSessionBootstrapEarly({
+      sessionBootstrapPlan: plan,
+      notesPlanned: 0,
+      assetsPlanned: 0,
+      maxBytesPerRequest: 1024,
+      ignoreRules: [],
+      ignoredTags: [],
+      ignoredFrontmatterKeys: ['secret', 'meta.internal'],
+      deduplicationEnabled: true,
+      startSession,
+    });
+
+    expect(startSession).toHaveBeenCalledWith(
+      expect.objectContaining({ ignoredFrontmatterKeys: ['secret', 'meta.internal'] })
+    );
+  });
+
   it('propagates early session start failures', async () => {
     const plan = prepareSessionBootstrapPlan({
       vps: createVps(),
