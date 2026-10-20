@@ -1,6 +1,47 @@
+import MarkdownIt from 'markdown-it';
+
 import { sanitizeRenderedHtml } from '../html-sanitizer';
+import { registerKatexRenderer } from '../katex-renderer.plugin';
 
 describe('sanitizeRenderedHtml', () => {
+  describe('removes MathML elements that integrate HTML (mXSS surface)', () => {
+    it.each([
+      [
+        'annotation-xml',
+        '<math><annotation-xml encoding="text/html"><img src=x></annotation-xml></math>',
+      ],
+      ['mglyph', '<math><mtext><mglyph><img src=x></mglyph></mtext></math>'],
+      ['maction', '<math><maction actiontype="toggle"><mi>a</mi><mi>b</mi></maction></math>'],
+    ])('drops <%s>', (tag, html) => {
+      expect(sanitizeRenderedHtml(html)).not.toContain(`<${tag}`);
+    });
+  });
+
+  describe('leaves the MathML emitted by the KaTeX pipeline untouched', () => {
+    const md = new MarkdownIt({ html: true });
+    registerKatexRenderer(md);
+
+    // `\includegraphics` is the only KaTeX command that emits <mglyph>; the
+    // pipeline's `trust: false` must keep it out of the output.
+    it.each([
+      '\\frac{a}{b}',
+      '\\sqrt[3]{x}',
+      '\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}',
+      '\\text{abc}',
+      '\\hat{x}',
+      '\\overbrace{a+b}^{n}',
+      '\\color{red}{x}',
+      '\\includegraphics[height=1em]{https://x.example/a.png}',
+    ])('%s', (formula) => {
+      const raw = md.render(`$$${formula}$$`);
+      const mathml = (html: string) => html.match(/<math[\s\S]*<\/math>/)?.[0];
+
+      expect(raw).not.toMatch(/annotation-xml|mglyph|maction/);
+      expect(mathml(raw)).toBeDefined();
+      expect(mathml(sanitizeRenderedHtml(raw))).toBe(mathml(raw));
+    });
+  });
+
   describe('removes executable markup', () => {
     it('drops <script> tags and their content', () => {
       const result = sanitizeRenderedHtml('<p>ok</p><script>alert(1)</script>');

@@ -1,3 +1,6 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
 import express from 'express';
 import request from 'supertest';
 
@@ -89,6 +92,40 @@ describe('createApp', () => {
     } finally {
       setIntervalSpy.mockRestore();
     }
+  });
+
+  // Rendered notes opened directly as a top-level document must not run any
+  // residual script with the site origin.
+  describe('/content security headers', () => {
+    beforeAll(async () => {
+      const root = EnvConfig.contentRoot();
+      await fs.mkdir(root, { recursive: true });
+      await fs.writeFile(path.join(root, 'csp-page.html'), '<p>page</p>');
+      await fs.writeFile(path.join(root, '_manifest.json'), '{}');
+    });
+
+    it('sends a sandboxing CSP and nosniff on HTML content', async () => {
+      const { app } = createApp();
+
+      const res = await request(app).get('/content/csp-page.html');
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-security-policy']).toBe(
+        "default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; sandbox"
+      );
+      expect(res.headers['x-content-type-options']).toBe('nosniff');
+      expect(res.headers['cache-control']).toBe('public, max-age=300, must-revalidate');
+    });
+
+    it('does not send them on the manifest', async () => {
+      const { app } = createApp();
+
+      const res = await request(app).get('/content/_manifest.json');
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-security-policy']).toBeUndefined();
+      expect(res.headers['x-content-type-options']).toBeUndefined();
+    });
   });
 
   // compression() sits in front of every route. Without the SSE exclusion that

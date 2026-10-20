@@ -5,7 +5,7 @@ import type { AdminSessionTokenService } from '../../../admin/admin-session-toke
 
 const BEARER_PREFIX = 'Bearer ';
 
-function extractBearerToken(req: Request): string | undefined {
+export function extractBearerToken(req: Request): string | undefined {
   const header = req.header('authorization') ?? '';
   if (!header.startsWith(BEARER_PREFIX)) {
     return undefined;

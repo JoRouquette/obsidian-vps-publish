@@ -18,11 +18,13 @@ import sanitizeHtml from 'sanitize-html';
  *   not an execution vector in modern browsers for author-controlled content.
  */
 
+// `annotation-xml`, `mglyph` and `maction` are deliberately absent: they are HTML
+// integration points known for mutation XSS, and KaTeX (with `trust: false`) never
+// emits them.
 const MATHML_TAGS: string[] = [
   'math',
   'semantics',
   'annotation',
-  'annotation-xml',
   'mrow',
   'mi',
   'mo',
@@ -51,9 +53,7 @@ const MATHML_TAGS: string[] = [
   'mmultiscripts',
   'mprescripts',
   'none',
-  'maction',
   'mfenced',
-  'mglyph',
 ];
 
 // Inline SVG icons are a supported feature (e.g. DataviewJS views). Drawing and
@@ -239,7 +239,6 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     time: ['datetime'],
     math: ['xmlns', 'display', 'mode'],
     annotation: ['encoding'],
-    'annotation-xml': ['encoding'],
     mo: [
       'stretchy',
       'fence',
@@ -261,7 +260,8 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     mpadded: ['width', 'height', 'depth', 'lspace', 'voffset'],
     mfrac: ['linethickness', 'numalign', 'denomalign'],
     menclose: ['notation'],
-    mtable: ['columnalign', 'rowalign', 'displaystyle'],
+    mtable: ['columnalign', 'rowalign', 'displaystyle', 'rowspacing', 'columnspacing'],
+    mover: ['accent'],
     mtd: ['columnalign', 'rowalign', 'columnspan', 'rowspan'],
     mtr: ['columnalign', 'rowalign'],
   },

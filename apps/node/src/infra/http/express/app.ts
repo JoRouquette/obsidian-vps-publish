@@ -151,6 +151,13 @@ export function createApp(rootLogger?: LoggerPort) {
         // HTML content: moderate cache with revalidation
         else if (filePath.endsWith('.html')) {
           res.setHeader('Cache-Control', 'public, max-age=300, must-revalidate');
+          // Neutralize a note opened as a top-level document: any residual XSS would
+          // otherwise run with the site origin. The site fetches it, so it is unaffected.
+          res.setHeader(
+            'Content-Security-Policy',
+            "default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; sandbox"
+          );
+          res.setHeader('X-Content-Type-Options', 'nosniff');
         }
       },
     })

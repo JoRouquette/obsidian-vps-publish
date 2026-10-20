@@ -4,7 +4,7 @@ import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
 import { ConfigFacade } from '../../facades/config-facade';
-import { AdminDashboardService } from '../admin-dashboard.service';
+import { type AdminDashboardSnapshot, AdminDashboardService } from '../admin-dashboard.service';
 
 const ADMIN_API_PATH = '/admin-api';
 const STORAGE_KEY = 'vps-admin-session';
@@ -121,6 +121,42 @@ describe('AdminDashboardService', () => {
     expect(sessionStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 
+  it('revokes the session token on the server when logging out', () => {
+    service.sessionToken.set('tok-logout');
+    sessionStorage.setItem(STORAGE_KEY, 'tok-logout');
+
+    service.logout();
+
+    const logoutRequest = httpTestingController.expectOne(`${ADMIN_API_PATH}/logout`);
+    expect(logoutRequest.request.method).toBe('POST');
+    expect(logoutRequest.request.headers.get('Authorization')).toBe('Bearer tok-logout');
+    logoutRequest.flush(null, { status: 204, statusText: 'No Content' });
+    expect(service.isAuthenticated()).toBe(false);
+    expect(sessionStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it('clears the local session even when the logout call fails', () => {
+    service.sessionToken.set('tok-logout');
+    sessionStorage.setItem(STORAGE_KEY, 'tok-logout');
+
+    expect(() => service.logout()).not.toThrow();
+    httpTestingController
+      .expectOne(`${ADMIN_API_PATH}/logout`)
+      .flush('server error', { status: 500, statusText: 'Internal Server Error' });
+
+    expect(service.isAuthenticated()).toBe(false);
+    expect(service.sessionToken()).toBeNull();
+    expect(sessionStorage.getItem(STORAGE_KEY)).toBeNull();
+    expect(service.snapshot()).toBeNull();
+  });
+
+  it('does not call the server on logout when no session is open', () => {
+    service.logout();
+
+    httpTestingController.expectNone(`${ADMIN_API_PATH}/logout`);
+    expect(service.isAuthenticated()).toBe(false);
+  });
+
   it('reports a failed login without storing a token', async () => {
     const loginPromise = service.login('admin', 'wrong');
 
@@ -133,5 +169,90 @@ describe('AdminDashboardService', () => {
     expect(ok).toBe(false);
     expect(service.isAuthenticated()).toBe(false);
     expect(sessionStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  describe('error messages', () => {
+    function openSession(token: string): void {
+      service.sessionToken.set(token);
+      sessionStorage.setItem(STORAGE_KEY, token);
+    }
+
+    function failRefresh(
+      status: number,
+      statusText: string,
+      headers: Record<string, string> = {}
+    ): void {
+      httpTestingController
+        .match((r) => r.url === `${ADMIN_API_PATH}/summary`)
+        .forEach((r) => r.flush('error', { status, statusText, headers }));
+      httpTestingController
+        .match((r) => r.url.startsWith(`${ADMIN_API_PATH}/logs`))
+        .forEach((r) => r.flush('error', { status, statusText, headers }));
+    }
+
+    it('tells how long to wait when rate limited with a Retry-After header', async () => {
+      const loginPromise = service.login('admin', 'secret');
+
+      httpTestingController.expectOne(`${ADMIN_API_PATH}/login`).flush('too many', {
+        status: 429,
+        statusText: 'Too Many Requests',
+        headers: { 'Retry-After': '42' },
+      });
+      await loginPromise;
+
+      expect(service.authError()).toBe('Trop de tentatives, réessaie dans 42 s.');
+    });
+
+    it('asks to retry shortly when rate limited without a Retry-After header', async () => {
+      const loginPromise = service.login('admin', 'secret');
+
+      httpTestingController
+        .expectOne(`${ADMIN_API_PATH}/login`)
+        .flush('too many', { status: 429, statusText: 'Too Many Requests' });
+      await loginPromise;
+
+      expect(service.authError()).toBe('Trop de tentatives, réessaie dans un instant.');
+    });
+
+    it('keeps the open session and its data when rate limited', async () => {
+      openSession('tok-open');
+      const snapshot = { notifications: [] } as unknown as AdminDashboardSnapshot;
+      service.snapshot.set(snapshot);
+      const refreshPromise = service.refreshAll();
+
+      failRefresh(429, 'Too Many Requests', { 'Retry-After': '3' });
+      await refreshPromise;
+
+      expect(service.authError()).toBe('Trop de tentatives, réessaie dans 3 s.');
+      expect(service.sessionToken()).toBe('tok-open');
+      expect(sessionStorage.getItem(STORAGE_KEY)).toBe('tok-open');
+      expect(service.snapshot()).toBe(snapshot);
+    });
+
+    it('reports an expired session when an open session is refused with 401', async () => {
+      openSession('tok-stale');
+      const refreshPromise = service.refreshAll();
+
+      failRefresh(401, 'Unauthorized');
+      await refreshPromise;
+
+      expect(service.authError()).toBe('Session expirée, reconnecte-toi.');
+      expect(service.isAuthenticated()).toBe(false);
+      expect(sessionStorage.getItem(STORAGE_KEY)).toBeNull();
+      expect(service.snapshot()).toBeNull();
+      expect(service.logs()).toEqual([]);
+    });
+
+    it('reports invalid credentials when the login itself is refused with 401', async () => {
+      const loginPromise = service.login('admin', 'wrong');
+
+      httpTestingController
+        .expectOne(`${ADMIN_API_PATH}/login`)
+        .flush('unauthorized', { status: 401, statusText: 'Unauthorized' });
+      await loginPromise;
+
+      expect(service.authError()).toBe('Identifiants admin invalides.');
+      expect(service.isAuthenticated()).toBe(false);
+    });
   });
 });

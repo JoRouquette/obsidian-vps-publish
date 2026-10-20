@@ -73,6 +73,20 @@ describe('admin auth flow', () => {
     expect(response.body).toEqual({ ok: true });
   });
 
+  it('rejects a token on protected routes once it has been logged out', async () => {
+    const app = buildApp();
+    const login = await request(app).post('/login').send({ user: ADMIN_USER, mdp: ADMIN_PASSWORD });
+    const token: string = login.body.token;
+    const before = await request(app).get('/summary').set('Authorization', `Bearer ${token}`);
+
+    const logout = await request(app).post('/logout').set('Authorization', `Bearer ${token}`);
+    const after = await request(app).get('/summary').set('Authorization', `Bearer ${token}`);
+
+    expect(before.status).toBe(200);
+    expect(logout.status).toBe(204);
+    expect(after.status).toBe(401);
+  });
+
   it('rejects a protected route when the bearer token is garbage', async () => {
     const response = await request(buildApp())
       .get('/summary')

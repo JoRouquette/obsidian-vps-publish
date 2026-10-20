@@ -219,6 +219,15 @@ export class AdminDashboardService {
   }
 
   logout(): void {
+    const token = this.sessionToken();
+    const apiPath = this.config.cfg()?.adminApiPath;
+    if (token && apiPath) {
+      // Fire and forget: the local session ends whether or not the server revocation succeeds.
+      this.http
+        .post(`${apiPath}/logout`, null, { headers: this.buildHeaders(token) })
+        .subscribe({ error: () => undefined });
+    }
+
     this.clearToken();
     this.snapshot.set(null);
     this.logs.set([]);
@@ -350,11 +359,21 @@ export class AdminDashboardService {
   }
 
   private handleAuthError(error: unknown): void {
+    if (error instanceof HttpErrorResponse && error.status === 429) {
+      this.authError.set(buildTooManyAttemptsMessage(error.headers.get('Retry-After')));
+      return;
+    }
+
     if (error instanceof HttpErrorResponse && (error.status === 401 || error.status === 403)) {
+      // Read before clearToken(): login() only stores a token once it succeeds, so a token
+      // present here means an open session was refused, not a wrong password.
+      const hadSession = this.sessionToken() !== null;
       this.clearToken();
       this.snapshot.set(null);
       this.logs.set([]);
-      this.authError.set('Identifiants admin invalides.');
+      this.authError.set(
+        hadSession ? 'Session expirée, reconnecte-toi.' : 'Identifiants admin invalides.'
+      );
       return;
     }
 
@@ -402,4 +421,12 @@ export class AdminDashboardService {
   private get isBrowser(): boolean {
     return isPlatformBrowser(this.platformId);
   }
+}
+
+function buildTooManyAttemptsMessage(retryAfterHeader: string | null): string {
+  const retryAfterSeconds = Number(retryAfterHeader);
+  if (retryAfterHeader !== null && Number.isInteger(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return `Trop de tentatives, réessaie dans ${retryAfterSeconds} s.`;
+  }
+  return 'Trop de tentatives, réessaie dans un instant.';
 }
