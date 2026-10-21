@@ -198,6 +198,12 @@ git commit -m "refactor(site): simplify markdown rendering pipeline"
 # Vérifier le linting
 npm run lint
 
+# Règles de la revue du répertoire Obsidian (plafond d'avertissements, bloquant en CI).
+# La config importe celle du miroir (tools/mirror/templates/vps-publish/eslint.config.mjs)
+# et n'en change que les chemins ; le hook Claude Code versionné dans .claude/settings.json
+# (tools/claude/lint-directory-hook.mjs) rejoue ce lint sur chaque fichier modifié.
+npx nx run obsidian-vps-publish:lint:directory
+
 # Corriger automatiquement si possible
 npm run lint:fix
 
@@ -553,6 +559,7 @@ git commit -m "refactor(site): simplify markdown rendering pipeline"
 
 ```bash
 npm run lint
+npx nx run obsidian-vps-publish:lint:directory  # Obsidian directory review rules, warning ceiling enforced in CI
 npm run lint:fix
 npm run test
 npm run build

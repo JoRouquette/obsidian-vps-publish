@@ -3,7 +3,7 @@
 ## Release flow
 
 - CI workflow: `.github/workflows/ci-release.yml`
-  - `quality`: lint, test, build (Nx), upload `dist` artifact.
+  - `quality`: lint, Obsidian directory review lint (`obsidian-vps-publish:lint:directory`), test, build (Nx), upload `dist` artifact. The directory review lint fails above a warning ceiling (`--max-warnings` in `apps/obsidian-vps-publish/project.json`); lower the ceiling in the same commit whenever a change brings the count down.
   - `semantic-release`: syncs versions (workspace + plugin manifests), rebuilds and packages the plugin, zips it, creates the GitHub release and attaches the plugin asset.
   - `docker-images`: builds and pushes the Docker image to the private registry and Docker Hub `jorouquette/obsidian-vps-publish` (tags: version, short SHA, `latest`).
 - Release config: `release.config.cjs` (version sync, changelog, git commits/tags, plugin packaging, GitHub assets).

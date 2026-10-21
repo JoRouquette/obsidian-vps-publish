@@ -83,5 +83,7 @@ npm-debug.log*
 # Conservé pour ignorer les reliquats dans les worktrees existantes.
 test-vault
 
-# Claude Code configuration
-.claude/
+# Claude Code configuration : seul settings.json est versionné (il enregistre le hook
+# tools/claude/lint-directory-hook.mjs) ; les réglages locaux restent ignorés.
+.claude/*
+!.claude/settings.json

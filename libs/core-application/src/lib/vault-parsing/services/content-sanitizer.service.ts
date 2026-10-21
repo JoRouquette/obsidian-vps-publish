@@ -1,6 +1,11 @@
 import { type LoggerPort } from '@core-domain';
 import { type PublishableNote } from '@core-domain/entities/publishable-note';
 import { type SanitizationRules } from '@core-domain/entities/sanitization-rules';
+import {
+  buildExcludedKeySet,
+  deleteNestedPath,
+  removeNestedKeys,
+} from '@core-domain/utils/frontmatter-exclusion.utils';
 import { normalizePropertyKey } from '@core-domain/utils/string.utils';
 
 import { type BaseService } from '../../common/base-service';
@@ -32,9 +37,7 @@ export class ContentSanitizerService implements BaseService {
   private sanitizeFrontmatter(notes: PublishableNote[]): PublishableNote[] {
     this.logger?.debug('Sanitizing frontmatter for notes', { notesLength: notes.length });
 
-    const keysToRemove = new Set(
-      (this.frontmatterKeysToExclude || []).map((k) => normalizePropertyKey(k)).filter(Boolean)
-    );
+    const keysToRemove = buildExcludedKeySet(this.frontmatterKeysToExclude);
 
     if (keysToRemove.size === 0) return notes;
 
@@ -47,10 +50,12 @@ export class ContentSanitizerService implements BaseService {
         }
       }
 
-      this.removeNestedKeys(note.frontmatter.nested, keysToRemove, note.noteId);
+      removeNestedKeys(note.frontmatter.nested, keysToRemove, (key) =>
+        this.logger?.debug('Excluding frontmatter key (nested)', { key, noteId: note.noteId })
+      );
 
       for (const rawKey of this.frontmatterKeysToExclude || []) {
-        this.deleteNestedPath(note.frontmatter.nested, rawKey);
+        deleteNestedPath(note.frontmatter.nested, rawKey);
       }
     }
 
@@ -139,61 +144,6 @@ export class ContentSanitizerService implements BaseService {
     }
 
     return compiled;
-  }
-
-  private removeNestedKeys(
-    target: Record<string, unknown>,
-    keysToRemove: Set<string>,
-    noteId: string
-  ): void {
-    for (const key of Object.keys(target)) {
-      const normalized = normalizePropertyKey(key);
-      const value = target[key];
-
-      if (keysToRemove.has(normalized)) {
-        this.logger?.debug('Excluding frontmatter key (nested)', { key, noteId });
-        delete target[key];
-        continue;
-      }
-
-      if (value && typeof value === 'object' && !Array.isArray(value)) {
-        this.removeNestedKeys(value as Record<string, unknown>, keysToRemove, noteId);
-        if (Object.keys(value).length === 0) {
-          delete target[key];
-        }
-      }
-    }
-  }
-
-  private deleteNestedPath(target: Record<string, unknown>, rawPath: string): void {
-    const segments = rawPath
-      .split('.')
-      .map((s) => normalizePropertyKey(s))
-      .filter(Boolean);
-    if (segments.length === 0) return;
-    this.deletePathRecursive(target, segments);
-  }
-
-  private deletePathRecursive(target: Record<string, unknown>, segments: string[]): void {
-    if (segments.length === 0) return;
-    const [head, ...rest] = segments;
-
-    for (const key of Object.keys(target)) {
-      if (normalizePropertyKey(key) !== head) continue;
-
-      if (rest.length === 0) {
-        delete target[key];
-        return;
-      }
-
-      const next = target[key];
-      if (next && typeof next === 'object' && !Array.isArray(next)) {
-        this.deletePathRecursive(next as Record<string, unknown>, rest);
-        if (Object.keys(next).length === 0) {
-          delete target[key];
-        }
-      }
-    }
   }
 
   private stripFrontmatter(content: string): string {

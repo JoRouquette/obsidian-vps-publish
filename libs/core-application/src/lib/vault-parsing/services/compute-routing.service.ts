@@ -66,7 +66,7 @@ export class ComputeRoutingService implements BaseService {
         const sluggedDirs =
           note.folderConfig.flattenTree || isAdditionalFile
             ? []
-            : dirSegments.map(this.slugifySegment).filter(Boolean);
+            : dirSegments.map((segment) => this.slugifySegment(segment)).filter(Boolean);
 
         const path = sluggedDirs.join('/');
 

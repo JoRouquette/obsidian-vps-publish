@@ -47,6 +47,11 @@ jobs:
       - name: Lint (Nx)
         run: npm run lint
 
+      # Règles de la revue du répertoire Obsidian, avec un plafond d'avertissements :
+      # voir apps/obsidian-vps-publish/eslint.directory.config.mjs.
+      - name: Lint (Obsidian directory review)
+        run: npx nx run obsidian-vps-publish:lint:directory
+
       - name: Documentation validation
         run: npm run docs:check
 

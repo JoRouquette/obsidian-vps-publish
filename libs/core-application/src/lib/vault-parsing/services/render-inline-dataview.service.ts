@@ -2,6 +2,8 @@ import type { DomainFrontmatter } from '@core-domain/entities/domain-frontmatter
 import type { InlineDataviewExpression } from '@core-domain/entities/inline-dataview-expression';
 import type { PublishableNote } from '@core-domain/entities/publishable-note';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
+import { omitExcludedFrontmatterKeys } from '@core-domain/utils/frontmatter-exclusion.utils';
+import { scalarToString } from '@core-domain/utils/string.utils';
 
 import { type BaseService } from '../../common/base-service';
 
@@ -10,7 +12,15 @@ const INLINE_CODE_REGEX = /`([^`]*?)`/g;
 export class RenderInlineDataviewService implements BaseService {
   private readonly _logger: LoggerPort;
 
-  constructor(logger: LoggerPort) {
+  /**
+   * @param frontmatterKeysToExclude Keys the inline expressions must ignore. They are dropped
+   * from the frontmatter before any expression is resolved, so a query on one renders
+   * nothing and a displayed object never carries them. Nothing else consumes this setting.
+   */
+  constructor(
+    logger: LoggerPort,
+    private readonly frontmatterKeysToExclude: readonly string[] = []
+  ) {
     this._logger = logger.child({ usecase: 'RenderInlineDataviewUseCase' });
   }
 
@@ -25,8 +35,12 @@ export class RenderInlineDataviewService implements BaseService {
     }));
   }
 
-  renderContent(content: string, frontmatter: DomainFrontmatter): string {
+  renderContent(content: string, rawFrontmatter: DomainFrontmatter): string {
     const expressions: InlineDataviewExpression[] = [];
+    const frontmatter: DomainFrontmatter = {
+      ...rawFrontmatter,
+      nested: omitExcludedFrontmatterKeys(rawFrontmatter.nested, this.frontmatterKeysToExclude),
+    };
 
     const renderedMarkdown = content.replace(
       INLINE_CODE_REGEX,
@@ -89,7 +103,7 @@ export class RenderInlineDataviewService implements BaseService {
 
       const value = this.getValueFromFrontmatter(frontmatter, propertyPath, logger);
       const arrayValue = this.normalizeToArray(value);
-      return arrayValue.map((v) => String(v)).join(separator);
+      return arrayValue.map((v) => this.stringifyValue(v)).join(separator);
     }
 
     const THIS_PREFIX = 'this.';
@@ -158,10 +172,36 @@ export class RenderInlineDataviewService implements BaseService {
 
     if (Array.isArray(value)) {
       logger.debug('Rendering array value', { value, length: value.length });
-      return value.map((v) => String(v)).join(', ');
+      return value.map((v) => this.stringifyValue(v)).join(', ');
     }
 
-    logger.debug('Rendering scalar value', { value: String(value) });
-    return String(value);
+    const rendered = this.stringifyValue(value);
+    logger.debug('Rendering scalar value', { value: rendered });
+    return rendered;
+  }
+
+  /**
+   * Same output as `String()` for primitives, nested arrays and dates (inside a nested
+   * array `null` and `undefined` give an empty string, as `String([null])` does); only
+   * plain objects change, rendered as JSON instead of "[object Object]". An object that
+   * cannot be serialized (circular reference, BigInt) renders as an empty string.
+   */
+  private stringifyValue(value: unknown, insideArray = false): string {
+    if (Array.isArray(value)) return value.map((v) => this.stringifyValue(v, true)).join(',');
+    if (insideArray && (value === null || value === undefined)) return '';
+    if (value instanceof Date) return value.toString();
+    if (value !== null && typeof value === 'object') return this.toJson(value);
+    return scalarToString(value);
+  }
+
+  private toJson(value: object): string {
+    try {
+      return JSON.stringify(value) ?? '';
+    } catch (error) {
+      this._logger.debug('Value cannot be serialized to JSON, rendering as empty string.', {
+        error,
+      });
+      return '';
+    }
   }
 }

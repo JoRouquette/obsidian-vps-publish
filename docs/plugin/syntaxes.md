@@ -198,6 +198,16 @@ PDFs, vidéos, et autres fichiers sont automatiquement détectés et uploadés.
 `= dateformat(this.file.ctime, "yyyy-MM-dd")`
 ```
 
+Rendu de la valeur d'une requête `= this.propriété` :
+
+- texte, nombre, booléen : tel quel ;
+- liste : éléments séparés par `, ` ;
+- objet (propriété YAML imbriquée, par exemple `auteur: { nom: Kaela }`) : en JSON, `{"nom":"Kaela"}`, au lieu de `[object Object]`.
+
+`= join(this.propriété, ", ")` applique les mêmes règles à chaque élément : un élément objet est rendu en JSON.
+
+Les requêtes inline ignorent les clés listées dans « Clés de frontmatter ignorées par les requêtes inline » : une requête qui en vise une rend une valeur vide, et un objet affiché est rendu sans ces clés. Ce réglage ne retire pas ces clés des propriétés publiées de la note.
+
 ### Blocs Dataview
 
 ```markdown

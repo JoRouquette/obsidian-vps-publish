@@ -1,0 +1,23 @@
+{
+  "//": "Programme TypeScript du lint « revue du répertoire » (eslint.directory.config.mjs). Reprend les compilerOptions de tools/mirror/templates/vps-publish/tsconfig.json, la config réellement scannée par le répertoire ; seuls les chemins changent (baseUrl à la racine du monorepo, include sur les sources de l'app et des libs). À garder aligné sur ce modèle.",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "target": "ES2021",
+    "lib": ["ES2021", "DOM"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "types": ["obsidian", "jest", "node"],
+    "paths": {
+      "@core-domain": ["./libs/core-domain/src/index.ts"],
+      "@core-domain/*": ["./libs/core-domain/src/lib/*"],
+      "@core-application": ["./libs/core-application/src/index.ts"],
+      "@core-application/*": ["./libs/core-application/src/lib/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../libs/*/src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
