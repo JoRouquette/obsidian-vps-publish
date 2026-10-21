@@ -1,3 +1,12 @@
+## [6.24.6](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.24.5...6.24.6) (2026-10-21)
+
+### Bug Fixes
+
+* **core-domain:** type the prototype lookup in the exclusion utils ([6c537bc](https://github.com/JoRouquette/obsidian-vps-publish/commit/6c537bcf14e3236e307c3194202dde43661d2919))
+* **plugin:** apply excluded frontmatter keys before inline dataview rendering ([37a4663](https://github.com/JoRouquette/obsidian-vps-publish/commit/37a4663a7db5ab375d613227093577b0624322ce))
+* **plugin:** clear the directory review warnings added since 6.24.2 ([a3be762](https://github.com/JoRouquette/obsidian-vps-publish/commit/a3be762fa811822db048f6d5b09da65ea77984b0))
+* **plugin:** keep String() parity for nested inline dataview values ([b3fbc6e](https://github.com/JoRouquette/obsidian-vps-publish/commit/b3fbc6e8421e2c15221633cfa017406edac2ff7d))
+
 ## [6.24.5](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.24.4...6.24.5) (2026-10-16)
 
 ### Bug Fixes
