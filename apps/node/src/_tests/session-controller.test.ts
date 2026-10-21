@@ -164,6 +164,34 @@ describe('sessionController', () => {
     );
   });
 
+  it('passes the ignored frontmatter keys to session creation and keeps them optional', async () => {
+    const app = buildApp();
+    const body = {
+      notesPlanned: 1,
+      assetsPlanned: 1,
+      batchConfig: { maxBytesPerRequest: 1000 },
+    };
+
+    const withKeys = await request(app)
+      .post('/session/start')
+      .send({ ...body, ignoredFrontmatterKeys: ['secret', 'meta.internal'] });
+    expect(withKeys.status).toBe(201);
+    expect(createSessionHandler.handle).toHaveBeenLastCalledWith(
+      expect.objectContaining({ ignoredFrontmatterKeys: ['secret', 'meta.internal'] })
+    );
+
+    const withoutKeys = await request(app).post('/session/start').send(body);
+    expect(withoutKeys.status).toBe(201);
+    expect(createSessionHandler.handle).toHaveBeenLastCalledWith(
+      expect.objectContaining({ ignoredFrontmatterKeys: undefined })
+    );
+
+    const invalid = await request(app)
+      .post('/session/start')
+      .send({ ...body, ignoredFrontmatterKeys: 'secret' });
+    expect(invalid.status).toBe(400);
+  });
+
   it('rejects invalid create payload', async () => {
     const app = buildApp();
     const res = await request(app).post('/session/start').send({});

@@ -106,4 +106,80 @@ describe('DeterministicNoteTransformsService', () => {
 
     expect(apiOwned.some((note) => note.noteId === noteMarkedIgnored.noteId)).toBe(false);
   });
+
+  describe('ignoredFrontmatterKeys', () => {
+    async function buildNote(): Promise<PublishableNote> {
+      const [prepared] = await buildParseHandler().handle([
+        {
+          ...deterministicTransformParityFixtures[0].notes[0],
+          noteId: 'masked-inline',
+          content: 'Secret: `= this.secret` / Summary: `= this.description`',
+          frontmatter: {
+            tags: [],
+            flat: { secret: 'hidden-value', description: 'Visible summary' },
+            nested: { secret: 'hidden-value', description: 'Visible summary' },
+          },
+        },
+      ]);
+      return prepared;
+    }
+
+    it('hides excluded keys from inline queries rendered on the server', async () => {
+      const note = await buildNote();
+
+      const [withoutExclusion] = await new DeterministicNoteTransformsService(logger).process(
+        [note],
+        { ignoreRulesAlreadyApplied: true }
+      );
+      const [withExclusion] = await new DeterministicNoteTransformsService(logger).process([note], {
+        ignoreRulesAlreadyApplied: true,
+        ignoredFrontmatterKeys: ['secret'],
+      });
+
+      expect(withoutExclusion.content).toContain('hidden-value');
+      expect(withExclusion.content).not.toContain('hidden-value');
+      expect(withExclusion.content).toContain('Visible summary');
+    });
+
+    it('masks a displayed object, a dotted key and a different case', async () => {
+      const [prepared] = await buildParseHandler().handle([
+        {
+          ...deterministicTransformParityFixtures[0].notes[0],
+          noteId: 'masked-object',
+          content: 'Meta: `= this.meta` / Deep: `= this.meta.internal` / Case: `= this.Secret`',
+          frontmatter: {
+            tags: [],
+            // The parse step rebuilds `nested` from `flat` (keys normalized).
+            flat: {
+              meta: { internal: 'zz-deep-hidden', public: 'zz-deep-visible' },
+              Secret: 'zz-cased',
+            },
+            nested: {},
+          },
+        },
+      ]);
+
+      const [result] = await new DeterministicNoteTransformsService(logger).process([prepared], {
+        ignoreRulesAlreadyApplied: true,
+        ignoredFrontmatterKeys: ['meta.internal', 'secret'],
+      });
+
+      expect(result.content).not.toContain('zz-deep-hidden');
+      expect(result.content).not.toContain('zz-cased');
+      expect(result.content).toContain('zz-deep-visible');
+    });
+
+    it('keeps the pipeline data intact for an excluded key', async () => {
+      const note = await buildNote();
+
+      const [result] = await new DeterministicNoteTransformsService(logger).process([note], {
+        ignoreRulesAlreadyApplied: true,
+        ignoredFrontmatterKeys: ['secret', 'description'],
+      });
+
+      expect(result.frontmatter.nested.secret).toBe('hidden-value');
+      expect(result.frontmatter.nested.description).toBe('Visible summary');
+      expect(result.frontmatter.flat.description).toBe('Visible summary');
+    });
+  });
 });

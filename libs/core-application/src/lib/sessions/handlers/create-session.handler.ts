@@ -42,6 +42,7 @@ export class CreateSessionHandler implements CommandHandler<
       customIndexConfigs: command.customIndexConfigs,
       ignoreRules: command.ignoreRules,
       ignoredTags: command.ignoredTags,
+      ignoredFrontmatterKeys: command.ignoredFrontmatterKeys,
       folderDisplayNames: command.folderDisplayNames,
       pipelineSignature: command.pipelineSignature, // PHASE 7: Store for later injection into manifest
       locale: command.locale, // Store locale for manifest generation

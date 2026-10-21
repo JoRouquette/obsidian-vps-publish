@@ -206,7 +206,7 @@ Rendu de la valeur d'une requête `= this.propriété` :
 
 `= join(this.propriété, ", ")` applique les mêmes règles à chaque élément : un élément objet est rendu en JSON.
 
-Les requêtes inline ignorent les clés listées dans « Clés de frontmatter ignorées par les requêtes inline » : une requête qui en vise une rend une valeur vide, et un objet affiché est rendu sans ces clés. Ce réglage ne retire pas ces clés des propriétés publiées de la note.
+Les clés listées dans « Clés de frontmatter masquées » sont masquées dans la carte des propriétés publiée et dans les requêtes inline : une requête qui en vise une rend une valeur vide, et un objet affiché est rendu sans ces clés. Les clés restent dans la note, donc les alias, les tags, le SEO et le routage continuent de fonctionner. Ce réglage ne s'applique pas aux blocs Dataview ci-dessous : pour qu'une valeur ne soit jamais publiée, ne la mets pas dans le frontmatter ou utilise une règle d'exclusion.
 
 ### Blocs Dataview
 

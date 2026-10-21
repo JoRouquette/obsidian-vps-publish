@@ -10,7 +10,15 @@ import {
   type SourcePackageNote,
   UNAVAILABLE_INTERNAL_PAGE_MESSAGE,
 } from '@core-domain';
-import { humanizePropertyKey, scalarToString } from '@core-domain/utils/string.utils';
+import {
+  buildExcludedKeySet,
+  omitExcludedFrontmatterKeys,
+} from '@core-domain/utils/frontmatter-exclusion.utils';
+import {
+  humanizePropertyKey,
+  normalizePropertyKey,
+  scalarToString,
+} from '@core-domain/utils/string.utils';
 
 import { type CommandHandler } from '../../common/command-handler';
 import type { MarkdownRendererPort } from '../../ports/markdown-renderer.port';
@@ -41,7 +49,8 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
     logger?: LoggerPort,
     private readonly notesStorage?: SessionNotesStoragePort,
     private readonly ignoredTags?: string[],
-    private readonly noteHashService?: NoteHashPort
+    private readonly noteHashService?: NoteHashPort,
+    private readonly ignoredFrontmatterKeys?: readonly string[]
   ) {
     this.logger = logger?.child({ handler: 'UploadNotesHandler' });
   }
@@ -439,15 +448,22 @@ export class UploadNotesHandler implements CommandHandler<UploadNotesCommand, Up
   }
 
   private renderFrontmatter(note: PublishableNote): string {
-    const fm = note.frontmatter?.nested ?? {};
+    // Display-only masking: the note's frontmatter (aliases, tags, SEO, routing) stays intact.
+    const fm = omitExcludedFrontmatterKeys(
+      note.frontmatter?.nested ?? {},
+      this.ignoredFrontmatterKeys
+    );
     const tags = Array.isArray(note.frontmatter?.tags) ? note.frontmatter.tags : [];
+    const tagsExcluded = buildExcludedKeySet(this.ignoredFrontmatterKeys).has(
+      normalizePropertyKey('tags')
+    );
 
     const entries: Array<{ key: string; value: unknown; path: string }> = [];
     for (const [k, v] of Object.entries(fm)) {
       if (!this.hasRenderableFrontmatterValue(v)) continue;
       entries.push({ key: k, value: v, path: k });
     }
-    if (tags.length > 0 && !('tags' in fm)) {
+    if (tags.length > 0 && !tagsExcluded && !('tags' in fm)) {
       entries.push({ key: 'tags', value: tags, path: 'tags' });
     }
 

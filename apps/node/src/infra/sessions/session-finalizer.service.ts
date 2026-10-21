@@ -154,6 +154,7 @@ export class SessionFinalizerService {
       ignoreRules: session?.ignoreRules,
       deduplicationEnabled: session?.deduplicationEnabled !== false,
       ignoreRulesAlreadyApplied: true,
+      ignoredFrontmatterKeys: session?.ignoredFrontmatterKeys,
     });
     timings.resolveWikilinksAndRouting = performance.now() - stepStart;
 
@@ -181,7 +182,8 @@ export class SessionFinalizerService {
       this.logger,
       undefined, // notesStorage not needed here
       session?.ignoredTags, // Pass ignoredTags from session
-      noteHashService
+      noteHashService,
+      session?.ignoredFrontmatterKeys // Keys hidden from the properties card
     );
 
     // Publier toutes les notes avec folderDisplayNames

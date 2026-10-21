@@ -19,6 +19,11 @@ export interface Session {
   customIndexConfigs?: CustomIndexConfig[];
   ignoreRules?: IgnoreRule[];
   ignoredTags?: string[];
+  /**
+   * Frontmatter keys hidden at render time (properties card, inline Dataview queries).
+   * They stay in the note data: aliases, tags, SEO fields and routing keep working.
+   */
+  ignoredFrontmatterKeys?: string[];
   folderDisplayNames?: Record<string, string>;
   /**
    * Site locale for HTML lang attribute and PWA.
