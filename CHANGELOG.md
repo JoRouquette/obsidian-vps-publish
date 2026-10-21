@@ -1,3 +1,9 @@
+## [6.25.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.24.6...6.25.0) (2026-10-21)
+
+### Features
+
+* **frontmatter:** hide excluded keys at render time on the server ([7d6911b](https://github.com/JoRouquette/obsidian-vps-publish/commit/7d6911bfb1534bac3055d2c39f0c3a3a53728aa8))
+
 ## [6.24.6](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.24.5...6.24.6) (2026-10-21)
 
 ### Bug Fixes
