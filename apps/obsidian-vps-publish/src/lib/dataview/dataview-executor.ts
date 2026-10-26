@@ -26,6 +26,8 @@
 import type { DataviewBlock } from '@core-domain/dataview/dataview-block';
 import { type Component, Platform } from 'obsidian';
 
+import { RenderTracker } from './dataview-render-tracker';
+
 /**
  * Minimal Dataview API interface.
  */
@@ -100,13 +102,71 @@ interface CapturedRenderer {
 }
 
 /**
+ * Upper bound on the wait for a view's own render work (its render() promise and the
+ * MarkdownRenderer.render() calls it started). Only a view that never finishes reaches it.
+ */
+const DEFAULT_RENDER_SETTLE_MAX_MS = 10_000;
+
+/**
+ * Quiet tail kept after the render promises settled, for work a view starts without a promise.
+ * It counts from the last DOM mutation, so a view that ran for a while waits no further.
+ */
+const DOM_TAIL_QUIET_MS = 150;
+const DOM_TAIL_MAX_MS = 1000;
+
+/** What counts as a DOM change, for both ways of waiting for the DOM to go quiet. */
+const DOM_OBSERVE_OPTIONS: MutationObserverInit = {
+  childList: true,
+  subtree: true,
+  characterData: true,
+  attributes: true,
+};
+
+/** Rounds of "settle the tracked promises, then wait out the quiet tail" before giving up. */
+const MAX_SETTLE_ROUNDS = 5;
+
+/**
+ * The global shims and the stableRender.js cache bypass belong to the whole process, not to an
+ * executor: a new executor is created per publication, and two publications can overlap. The
+ * lease count lives here for that reason (see DataviewExecutor.acquireGlobalShims).
+ */
+let sharedShimLeases = 0;
+let restoreSharedShims: (() => void) | null = null;
+
+/** Number of executions holding the global shims right now (introspection, used by the tests). */
+export function activeShimLeaseCount(): number {
+  return sharedShimLeases;
+}
+
+/** Handle on the DOM mutations of a container since it was created. */
+interface DomActivity {
+  /** Resolves once no mutation occurred for `quietMs`, or after `maxMs` at the latest. */
+  quietFor(quietMs: number, maxMs: number): Promise<void>;
+  dispose(): void;
+}
+
+export interface DataviewExecutorOptions {
+  /** Safety cap on waiting for a view to finish rendering, in milliseconds. */
+  readonly renderSettleMaxMs?: number;
+}
+
+/**
  * Dataview block executor (returns structured data, not HTML).
  */
 export class DataviewExecutor {
+  private readonly renderSettleMaxMs: number;
+
+  /** Each warning below is emitted once per executor, not once per block. */
+  private hasWarnedRenderNotCaptured = false;
+  private hasWarnedTrackerUnavailable = false;
+
   constructor(
     private readonly dataviewApi: DataviewApi,
-    private readonly app: ObsidianApp
-  ) {}
+    private readonly app: ObsidianApp,
+    options?: DataviewExecutorOptions
+  ) {
+    this.renderSettleMaxMs = options?.renderSettleMaxMs ?? DEFAULT_RENDER_SETTLE_MAX_MS;
+  }
 
   /**
    * Execute a Dataview block and return structured data.
@@ -179,11 +239,11 @@ export class DataviewExecutor {
       //
       // Dataview's executeJs() does `renderer.load()` then `component.addChild(renderer)`
       // (in that order): by the time addChild runs, the renderer's own onload() has already
-      // called its render() without awaiting it (fire-and-forget), so there is nothing to
-      // await from the outside at this point and no public signal we could await instead
-      // (confirmed by reading Dataview's own source: onload() discards render()'s promise).
-      // We capture whatever children get added here purely so we can unload() them below,
-      // once rendering is known to be settled (see waitForDomQuiescence) — that is what
+      // called its render() without awaiting it (fire-and-forget), and it exposes no public
+      // signal (confirmed by reading Dataview's own source: onload() discards render()'s
+      // promise). The end of the render is awaited through the RenderTracker instead (see
+      // awaitRender). We capture whatever children get added here purely so we can unload()
+      // them below, once rendering is known to be settled — that is what
       // stops the 'dataview:refresh-views' listener and DOM watcher registered in onload()
       // from leaking on every republish. A plain array (not a single variable) because
       // nothing guarantees exactly one addChild() call.
@@ -203,41 +263,10 @@ export class DataviewExecutor {
         registerInterval: () => 0,
       } as unknown as Component;
 
-      // Execute the JavaScript.
-      // Legacy DataviewJS views in some vaults still use require("//_assets/..."),
-      // which Electron treats as an invalid absolute module path. During publishing,
-      // shim require() so these old-style vault-root imports still resolve.
-      //
-      // Also shim getResourcePath() so that views that call
-      //   img.src = app.vault.adapter.getResourcePath(vaultRelativePath)
-      // produce vault-relative paths in the captured DOM (e.g. "_assets/_icones/Continent.ico")
-      // instead of Obsidian-internal app:// URLs.  The downstream DetectAssetsService
-      // filters app:// scheme as an external URL, which would silently drop these assets
-      // from the upload queue and leave broken images on the published site.
-      const restoreRequire = this.installVaultRootRequireShim();
-      const restoreGetResourcePath = this.installGetResourcePathShim();
-
-      // Bypass the stableRender.js HTML cache for the duration of this execution.
-      //
-      // stableRender.js stores serialized container.innerHTML in globalThis.__stableRenderCache.
-      // If the data hash matches a previous Obsidian session, shouldRender() restores the
-      // stale HTML and returns false — the view script exits early without re-rendering.
-      // During publishing this produces broken output: cached HTML from an older version of
-      // the view (different DOM structure, empty content divs) is published as-is.
-      //
-      // We clear the map contents before execution so every shouldRender() call is a cache
-      // miss and the script always runs in full.  The original entries are restored in the
-      // finally block so Obsidian's own rendering state is not permanently affected.
-      //
-      // Note: stableRender.js closes over its internal `cache` reference at module-load time,
-      // so reassigning window.__stableRenderCache has no effect — we must mutate the Map.
-      // stableRender.js et le plugin sont évalués dans le même realm : `window` EST
-      // le global qui porte ce cache.
-      const stableRenderCache = (window as unknown as Record<string, unknown>)[
-        '__stableRenderCache'
-      ] as Map<unknown, unknown> | undefined;
-      const savedCacheEntries = stableRenderCache ? [...stableRenderCache.entries()] : null;
-      stableRenderCache?.clear();
+      // Execute the JavaScript, with the require() / getResourcePath() shims and the
+      // stableRender.js cache bypass in place (see acquireGlobalShims for why). They are
+      // leased: installed by the first execution in flight, restored by the last one.
+      let shimsAcquired = false;
 
       // Detached copy of the rendered DOM, taken before any renderer is unloaded.
       //
@@ -247,31 +276,48 @@ export class DataviewExecutor {
       // first, then reading the live container, published every such view as an empty block.
       let snapshot: HTMLElement;
 
+      // Collects the promises of the view's own render work while this execution is in flight
+      // (see dataview-render-tracker.ts). Created before executeJs() so that the render() that
+      // Dataview starts inside it is seen. Disposed in the outer finally below.
+      let renderTracker: RenderTracker | undefined;
+      let domActivity: DomActivity | undefined;
+      let cancelQuiescence: (() => void) | undefined;
+
       try {
         try {
-          // Start observing before executeJs() runs: a fully synchronous dataviewjs view
-          // (the common case) finishes mutating the DOM inside executeJs()'s own synchronous
-          // call stack, before our await below ever resumes. Attaching the observer only
-          // after that await would see no mutations on such views and fall through to the
-          // full maxWaitMs cap every time.
+          this.acquireGlobalShims();
+          shimsAcquired = true;
+          try {
+            renderTracker = new RenderTracker(container);
+          } catch (trackerError) {
+            // The hooks cannot be installed (locked prototype, say): publish with the DOM
+            // quiescence fallback rather than failing every block.
+            if (!this.hasWarnedTrackerUnavailable) {
+              this.hasWarnedTrackerUnavailable = true;
+              console.warn(
+                '[obsidian-vps-publish] dataview: render tracking is unavailable ' +
+                  '(falling back to DOM quiescence):',
+                trackerError
+              );
+            }
+          }
+
+          // Both detectors below are started before executeJs(): a fully synchronous view
+          // finishes mutating the DOM inside executeJs()'s own call stack, so attaching an
+          // observer afterwards would see nothing.
+          domActivity = this.trackDomActivity(container);
+          // Fallback, used only when no render() promise could be captured (Dataview changed,
+          // or a stand-in that never loads a renderer).
           const domQuiescence = this.waitForDomQuiescence(container);
+          cancelQuiescence = domQuiescence.cancel;
           await this.dataviewApi.executeJs(code, container, component, filePath);
 
-          // onload()'s fire-and-forget render() may still be running at this point (it can
-          // contain further awaits of its own, e.g. dv.view() or async Markdown rendering).
-          // Rather than guessing a fixed wait or re-running the script ourselves (which can
-          // leave the container with duplicated content from the two overlapping runs), wait
-          // for the DOM to actually stop changing, with a hard cap so a view that never
-          // settles cannot hang publishing indefinitely.
-          await domQuiescence;
+          await this.awaitRender(renderTracker, domActivity, domQuiescence, filePath);
         } finally {
-          restoreRequire?.();
-          restoreGetResourcePath?.();
-          if (stableRenderCache && savedCacheEntries) {
-            stableRenderCache.clear();
-            for (const [k, v] of savedCacheEntries) {
-              stableRenderCache.set(k, v);
-            }
+          cancelQuiescence?.();
+          domActivity?.dispose();
+          if (shimsAcquired) {
+            this.releaseGlobalShims();
           }
         }
 
@@ -304,6 +350,7 @@ export class DataviewExecutor {
         // isolated: a renderer whose unload() throws must not stop the others from being
         // discharged. Also runs when execution failed, so a failing view does not leak either.
         this.unloadRenderers(capturedRenderers);
+        renderTracker?.dispose();
       }
 
       // Empty output is valid: the converter detects an empty container and removes the block.
@@ -318,6 +365,197 @@ export class DataviewExecutor {
         error: errorMessage,
       };
     }
+  }
+
+  /**
+   * Wait for the end of the view's rendering.
+   *
+   * executeJs() returns before the view has finished: onload() calls render() without awaiting
+   * it, and dv.list()/dv.table() do not await the Markdown render. A quiet period on the DOM
+   * cannot tell that from "done": the first mutation is an empty reset, so any view slower
+   * than the quiet window was captured empty. The tracker waits for the real promises instead,
+   * never re-running the script (which duplicated content).
+   *
+   * Some work starts later and without a promise: Dataview's table and list cells call
+   * renderMarkdown() from a Preact effect, scheduled after the next paint (or 100 ms later in a
+   * hidden window), and a view may use a timer. A quiet tail on the DOM, counted from the last
+   * mutation, covers that; whatever it starts through the tracked APIs is then settled in a
+   * further round. Bounded by the safety cap (and a number of rounds) so a view that never
+   * finishes cannot hang publishing.
+   *
+   * Without any captured render() (Dataview changed, no renderer created for this file, or a
+   * stand-in), fall back to waiting for the DOM to go quiet.
+   *
+   * Known limit: work that carries no promise and starts more than the tail after the last DOM
+   * mutation is not waited for. The case at hand is a DQL query embedded in a view with
+   * dv.execute(): Dataview mounts a ReactRenderer (not bound to `container`, no render()
+   * promise to capture) that fills in once the query has run.
+   */
+  private async awaitRender(
+    tracker: RenderTracker | undefined,
+    activity: DomActivity,
+    quiescence: { done: Promise<void>; cancel: () => void },
+    filePath: string
+  ): Promise<void> {
+    if (!tracker?.renderCaptured) {
+      if (!this.hasWarnedRenderNotCaptured) {
+        this.hasWarnedRenderNotCaptured = true;
+        console.warn(
+          '[obsidian-vps-publish] dataview: no renderer render() could be captured ' +
+            `(first seen on ${filePath}); falling back to DOM quiescence, so slow views may be ` +
+            'published incomplete. Expected when Dataview is disabled for a file; otherwise ' +
+            'Dataview may have changed its renderer.'
+        );
+      }
+      await quiescence.done;
+      return;
+    }
+
+    quiescence.cancel();
+    const deadline = Date.now() + this.renderSettleMaxMs;
+    for (let round = 0; round < MAX_SETTLE_ROUNDS; round++) {
+      const settled = await tracker.settle(Math.max(0, deadline - Date.now()));
+      if (!settled) {
+        console.warn(
+          `[obsidian-vps-publish] dataview view still rendering after ${this.renderSettleMaxMs} ms (${filePath}); capturing it as it is.`
+        );
+        return;
+      }
+      // The tail counts against the same safety cap as the rest of the wait.
+      await activity.quietFor(
+        DOM_TAIL_QUIET_MS,
+        Math.min(DOM_TAIL_MAX_MS, Math.max(0, deadline - Date.now()))
+      );
+      if (!tracker.hasPending) {
+        return;
+      }
+    }
+    console.warn(
+      `[obsidian-vps-publish] dataview view still starting renders after ${MAX_SETTLE_ROUNDS} settle rounds (${filePath}); capturing it as it is.`
+    );
+  }
+
+  /**
+   * Install the require() / getResourcePath() shims and bypass the stableRender.js cache, for
+   * as long as at least one execution is in flight.
+   *
+   * Legacy DataviewJS views in some vaults still use require("//_assets/..."), which Electron
+   * treats as an invalid absolute module path: require() is shimmed so these old-style
+   * vault-root imports still resolve. getResourcePath() is shimmed so that views that call
+   *   img.src = app.vault.adapter.getResourcePath(vaultRelativePath)
+   * produce vault-relative paths in the captured DOM (e.g. "_assets/_icones/Continent.ico")
+   * instead of Obsidian-internal app:// URLs. The downstream DetectAssetsService filters the
+   * app:// scheme as an external URL, which would silently drop these assets from the upload
+   * queue and leave broken images on the published site.
+   *
+   * stableRender.js stores serialized container.innerHTML in globalThis.__stableRenderCache.
+   * If the data hash matches a previous Obsidian session, shouldRender() restores the stale
+   * HTML and returns false: the view script exits early without re-rendering. During
+   * publishing this produces broken output (cached HTML from an older version of the view is
+   * published as-is). The map is cleared on every acquisition so each shouldRender() call is
+   * a cache miss and the script always runs in full; the entries present before the first
+   * execution are put back by the last one, so Obsidian's own rendering state is unaffected.
+   * stableRender.js closes over its internal `cache` reference at module-load time, so the Map
+   * must be mutated, not reassigned. Plugin and stableRender.js share the same realm: `window`
+   * is the global carrying that cache.
+   *
+   * Shared state, hence the module-level lease count: the first acquisition installs and
+   * records, the last release restores, whichever executor they come from. If installing
+   * fails, nothing stays installed and the count is unchanged. The shims are bound to the
+   * `app` of the executor that installs them (one app per process in the plugin).
+   *
+   * The lease lasts for the whole wait for rendering, since a view may call require() or
+   * getResourcePath() from a late render; overlapping executions can therefore keep the shims
+   * (and the cache bypass) in place for a whole batch, and Obsidian's own UI sees them too:
+   * images of an open note resolve to vault-relative paths, and stableRender.js entries
+   * written meanwhile are dropped on restore. Accepted trade-off, bounded by the publication:
+   * the shims are global by nature (views call the global require and the adapter), the
+   * previous per-execution scheme had the same effect for each execution, and publishing is
+   * an explicit user action that the user watches. They are restored when the batch ends.
+   */
+  private acquireGlobalShims(): void {
+    const stableRenderCache = (window as unknown as Record<string, unknown>)[
+      '__stableRenderCache'
+    ] as Map<unknown, unknown> | undefined;
+
+    if (sharedShimLeases === 0) {
+      const restoreRequire = this.installVaultRootRequireShim();
+      let restoreGetResourcePath: (() => void) | null = null;
+      try {
+        restoreGetResourcePath = this.installGetResourcePathShim();
+      } catch (error) {
+        restoreRequire?.();
+        throw error;
+      }
+      const savedCacheEntries = stableRenderCache ? [...stableRenderCache.entries()] : null;
+      // Each step is isolated: one that throws must not leave the others undone, the lease
+      // being already released by then.
+      const attempt = (step: () => void): void => {
+        try {
+          step();
+        } catch (restoreError) {
+          console.error('[obsidian-vps-publish] dataview shim restore failed:', restoreError);
+        }
+      };
+      restoreSharedShims = () => {
+        attempt(() => restoreRequire?.());
+        attempt(() => restoreGetResourcePath?.());
+        attempt(() => {
+          if (stableRenderCache && savedCacheEntries) {
+            stableRenderCache.clear();
+            for (const [k, v] of savedCacheEntries) {
+              stableRenderCache.set(k, v);
+            }
+          }
+        });
+      };
+    }
+
+    stableRenderCache?.clear();
+    sharedShimLeases++;
+  }
+
+  private releaseGlobalShims(): void {
+    sharedShimLeases--;
+    if (sharedShimLeases === 0) {
+      const restore = restoreSharedShims;
+      restoreSharedShims = null;
+      restore?.();
+    }
+  }
+
+  /**
+   * Start recording the container's DOM mutations. Started before executeJs() so that a view
+   * that finishes inside its own synchronous call stack is still accounted for.
+   */
+  private trackDomActivity(container: HTMLElement): DomActivity {
+    let lastMutationAt = Date.now();
+    const observer = new MutationObserver(() => {
+      lastMutationAt = Date.now();
+    });
+    observer.observe(container, DOM_OBSERVE_OPTIONS);
+
+    return {
+      quietFor: (quietMs: number, maxMs: number): Promise<void> =>
+        new Promise<void>((resolve) => {
+          const deadline = Date.now() + maxMs;
+          const check = (): void => {
+            // The observer callback is delivered as a microtask: take its pending records.
+            if (observer.takeRecords().length > 0) {
+              lastMutationAt = Date.now();
+            }
+            const now = Date.now();
+            const remainingQuietMs = lastMutationAt + quietMs - now;
+            if (remainingQuietMs <= 0 || now >= deadline) {
+              resolve();
+              return;
+            }
+            window.setTimeout(check, Math.min(remainingQuietMs, deadline - now));
+          };
+          check();
+        }),
+      dispose: (): void => observer.disconnect(),
+    };
   }
 
   /**
@@ -348,8 +586,9 @@ export class DataviewExecutor {
     container: HTMLElement,
     quietMs = 100,
     maxWaitMs = 2000
-  ): Promise<void> {
-    return new Promise((resolve) => {
+  ): { done: Promise<void>; cancel: () => void } {
+    let cancel: () => void = () => {};
+    const done = new Promise<void>((resolve) => {
       let settled = false;
       let quietTimer: ReturnType<Window['setTimeout']> | undefined;
 
@@ -361,6 +600,7 @@ export class DataviewExecutor {
         window.clearTimeout(maxTimer);
         resolve();
       };
+      cancel = finish;
 
       const onMutation = (): void => {
         window.clearTimeout(quietTimer);
@@ -368,15 +608,11 @@ export class DataviewExecutor {
       };
 
       const observer = new MutationObserver(onMutation);
-      observer.observe(container, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-        attributes: true,
-      });
+      observer.observe(container, DOM_OBSERVE_OPTIONS);
 
       const maxTimer = window.setTimeout(finish, maxWaitMs);
     });
+    return { done, cancel: () => cancel() };
   }
 
   private installVaultRootRequireShim(): (() => void) | null {
@@ -447,14 +683,19 @@ export class DataviewExecutor {
       globalScope.window.require = wrappedRequire;
     }
 
+    // Put the previous value back only where our shim is still the current one: the shims
+    // stay installed for a whole batch, so another plugin may have replaced or wrapped
+    // require() meanwhile, and that must not be undone.
     return () => {
-      if (previousGlobalRequire) {
-        globalScope.require = previousGlobalRequire;
-      } else {
-        Reflect.deleteProperty(globalScope, 'require');
+      if (globalScope.require === wrappedRequire) {
+        if (previousGlobalRequire) {
+          globalScope.require = previousGlobalRequire;
+        } else {
+          Reflect.deleteProperty(globalScope, 'require');
+        }
       }
 
-      if (globalScope.window) {
+      if (globalScope.window && globalScope.window.require === wrappedRequire) {
         if (previousWindowRequire) {
           globalScope.window.require = previousWindowRequire;
         } else {
@@ -473,7 +714,7 @@ export class DataviewExecutor {
    * Returning the bare vault-relative path lets the downstream detection pipeline see
    * "_assets/_icones/Continent.ico" in <img src="..."> tags and upload those files.
    *
-   * The shim is installed only for the duration of executeJs() and restored afterward.
+   * The shim is installed for the duration of the executions in flight and restored afterward.
    */
   private installGetResourcePathShim(): (() => void) | null {
     const adapter = this.app.vault?.adapter as Record<string, unknown> | undefined;
@@ -482,10 +723,14 @@ export class DataviewExecutor {
     }
 
     const original = adapter['getResourcePath'] as (resourcePath: string) => string;
-    adapter['getResourcePath'] = (resourcePath: string) => resourcePath;
+    const shim = (resourcePath: string): string => resourcePath;
+    adapter['getResourcePath'] = shim;
 
+    // Only where our shim is still the current one (see installVaultRootRequireShim).
     return () => {
-      adapter['getResourcePath'] = original;
+      if (adapter['getResourcePath'] === shim) {
+        adapter['getResourcePath'] = original;
+      }
     };
   }
 
