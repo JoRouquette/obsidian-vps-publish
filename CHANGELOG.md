@@ -1,3 +1,9 @@
+## [6.25.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.25.0...6.25.1) (2026-10-26)
+
+### Bug Fixes
+
+* **dataview:** await real render promises instead of a DOM quiet window ([90d0dad](https://github.com/JoRouquette/obsidian-vps-publish/commit/90d0dada3006e24a2337a819794b11d461587ca5))
+
 ## [6.25.0](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.24.6...6.25.0) (2026-10-21)
 
 ### Features
