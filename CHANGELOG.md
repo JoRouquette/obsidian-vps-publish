@@ -1,3 +1,21 @@
+## [6.25.2](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.25.1...6.25.2) (2026-10-26)
+
+### Bug Fixes
+
+* **admin:** replace plaintext admin password with signed session token ([1f811aa](https://github.com/JoRouquette/obsidian-vps-publish/commit/1f811aa06db118d4ddb65d5a127a21365ce0be97))
+* **admin:** revoke session tokens on logout and throttle login ([89640b7](https://github.com/JoRouquette/obsidian-vps-publish/commit/89640b7eb1d792302773e43373f503cb88bc4047))
+* **node:** build SSR render URL from trusted origin to prevent Host cache poisoning ([b1a3c35](https://github.com/JoRouquette/obsidian-vps-publish/commit/b1a3c357179c0f3915c765f8d4f1e05484478de1))
+* **node:** enforce asset MIME allowlist, fail closed on scan errors, harden SVG serving ([745a4e4](https://github.com/JoRouquette/obsidian-vps-publish/commit/745a4e44b49fbba19e6e8bd2bca4b7a09675c8c7))
+* **node:** sanitize rendered vault HTML to prevent stored XSS ([8308288](https://github.com/JoRouquette/obsidian-vps-publish/commit/8308288cbc1511f89eaeeee6b0e64bb6c5493b7c))
+* **node:** stop leaking API key in auth logs and use timing-safe compare ([259246f](https://github.com/JoRouquette/obsidian-vps-publish/commit/259246fcffb6320295cbbe311c1da5cd854a59e0))
+* **security:** close the branch review findings on assets, sanitizer and admin session ([392c18f](https://github.com/JoRouquette/obsidian-vps-publish/commit/392c18f7a3fb9afe4a5045ecfccf4572bd455f9b))
+* **site:** guard /admin route and stop viewer router subscription leak ([a75e51a](https://github.com/JoRouquette/obsidian-vps-publish/commit/a75e51a6f330858aabaa10dd8c925c9011c61163))
+* **site:** stop residual subscription leaks and replace blocking PWA confirm ([e116272](https://github.com/JoRouquette/obsidian-vps-publish/commit/e1162720e2c31fe398fcf20ef78d9d16e0f6981f))
+
+### Performance Improvements
+
+* **site:** enable OnPush change detection on signal-driven components ([efab8a1](https://github.com/JoRouquette/obsidian-vps-publish/commit/efab8a1aa388279b1e0cbd6449e52bd44621250f))
+
 ## [6.25.1](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.25.0...6.25.1) (2026-10-26)
 
 ### Bug Fixes

@@ -1,6 +1,6 @@
 {
   "name": "obsidian-vps-publish",
-  "version": "6.25.1",
+  "version": "6.25.2",
   "private": true,
   "scripts": {
     "dev": "node esbuild.config.mjs",
