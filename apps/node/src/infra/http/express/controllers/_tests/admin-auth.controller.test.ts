@@ -195,6 +195,46 @@ describe('admin auth controller rate limiting', () => {
   });
 });
 
+describe('admin auth controller credential length', () => {
+  beforeEach(() => {
+    now = 1_000_000;
+    verifyMock.mockReset();
+    verifyMock.mockImplementation(async (secret, storedHash) => secret === storedHash);
+  });
+
+  it.each([
+    ['user', { user: 'a'.repeat(1025), mdp: 'good' }],
+    ['password', { user: 'admin', mdp: 'a'.repeat(1025) }],
+  ])('answers 400 without running scrypt when the %s exceeds 1024 characters', async (_, body) => {
+    const response = await request(buildApp()).post('/login').send(body);
+
+    expect(response.status).toBe(400);
+    expect(verifyMock).not.toHaveBeenCalled();
+  });
+
+  it('does not count an oversized attempt against the failure limit', async () => {
+    const app = buildApp();
+    for (let i = 0; i < 6; i++) {
+      await request(app)
+        .post('/login')
+        .send({ user: 'admin', mdp: 'a'.repeat(1025) });
+    }
+
+    const response = await request(app).post('/login').send(GOOD);
+
+    expect(response.status).toBe(200);
+  });
+
+  it('still verifies a credential of exactly 1024 characters', async () => {
+    const response = await request(buildApp())
+      .post('/login')
+      .send({ user: 'admin', mdp: 'a'.repeat(1024) });
+
+    expect(response.status).toBe(403);
+    expect(verifyMock).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('admin auth controller logout', () => {
   function buildLogoutApp() {
     const tokenService = new AdminSessionTokenService('test-secret');

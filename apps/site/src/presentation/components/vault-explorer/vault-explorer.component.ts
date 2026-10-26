@@ -118,7 +118,7 @@ export class VaultExplorerComponent implements OnInit, OnDestroy {
   private readonly hScroller?: ElementRef<HTMLDivElement>;
   @ViewChild(MatTree, { static: false })
   private readonly matTree?: MatTree<TreeNode>;
-  treeScrollWidth = 0;
+  treeScrollWidth = signal<number>(0);
 
   // Track if any folder is expanded
   hasExpandedFolders = signal<boolean>(false);
@@ -188,7 +188,9 @@ export class VaultExplorerComponent implements OnInit, OnDestroy {
     const t = this.treeScroller?.nativeElement;
     if (!t) return;
     const w = t.scrollWidth;
-    if (w !== this.treeScrollWidth) this.treeScrollWidth = w;
+    if (w !== this.treeScrollWidth()) {
+      this.treeScrollWidth.set(w);
+    }
   }
 
   shouldAutoExpand(node: TreeNode): boolean {

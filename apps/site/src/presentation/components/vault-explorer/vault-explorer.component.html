@@ -108,6 +108,6 @@
   </div>
 
   <div class="hscroll" #hScroller (scroll)="syncX('h')">
-    <div class="phantom" [style.width.px]="treeScrollWidth"></div>
+    <div class="phantom" [style.width.px]="treeScrollWidth()"></div>
   </div>
 </nav>

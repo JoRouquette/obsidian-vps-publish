@@ -83,8 +83,6 @@ export class ShellComponent implements OnInit {
   repo = () => this.config.cfg()?.repoUrl ?? '';
   reportIssues = () => this.config.cfg()?.reportIssuesUrl ?? '';
 
-  currentTitle = signal('');
-
   private readonly _crumbs = signal<Crumb[]>([]);
   crumbs = this._crumbs.asReadonly();
   private readonly pageTitleCache = new Map<string, string>();
@@ -130,7 +128,6 @@ export class ShellComponent implements OnInit {
         this.searchFacade.setQuery(q);
       }
       this._crumbs.set([]);
-      this.currentTitle.set('Recherche');
       return;
     }
 
@@ -141,7 +138,6 @@ export class ShellComponent implements OnInit {
 
     if (cleanUrl === '/') {
       this._crumbs.set([]);
-      this.currentTitle.set('');
       this.lastNonSearchUrl = '/';
       return;
     }
@@ -167,9 +163,6 @@ export class ShellComponent implements OnInit {
       };
     });
     this._crumbs.set(crumbs);
-
-    const page = this.findPageForRoute(url);
-    this.currentTitle.set(page?.title ?? decodeURIComponent(parts.at(-1) || ''));
   }
 
   private normalizeRoute(route: string): string {

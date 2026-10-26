@@ -171,6 +171,98 @@ describe('AdminDashboardService', () => {
     expect(sessionStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 
+  describe('session storage', () => {
+    const LEGACY_CREDENTIALS_KEY = 'vps-admin-credentials';
+
+    function createFreshService(): AdminDashboardService {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          provideHttpClient(),
+          provideHttpClientTesting(),
+          AdminDashboardService,
+          {
+            provide: ConfigFacade,
+            useValue: {
+              cfg: () => ({ adminApiPath: ADMIN_API_PATH, adminDashboardEnabled: true }),
+            },
+          },
+          { provide: PLATFORM_ID, useValue: 'browser' },
+        ],
+      });
+      return TestBed.inject(AdminDashboardService);
+    }
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('starts unauthenticated when reading the storage throws', () => {
+      jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('storage blocked');
+      });
+
+      const fresh = createFreshService();
+
+      expect(fresh.isAuthenticated()).toBe(false);
+      expect(fresh.sessionToken()).toBeNull();
+    });
+
+    it('purges the legacy clear-text credentials on load', () => {
+      sessionStorage.setItem(LEGACY_CREDENTIALS_KEY, '{"user":"admin","mdp":"secret"}');
+
+      createFreshService();
+
+      expect(sessionStorage.getItem(LEGACY_CREDENTIALS_KEY)).toBeNull();
+    });
+
+    it('restores the stored session token on load', () => {
+      sessionStorage.setItem(STORAGE_KEY, 'tok-restored');
+
+      const fresh = createFreshService();
+
+      expect(fresh.sessionToken()).toBe('tok-restored');
+    });
+
+    it('still completes the login when persisting the token throws', async () => {
+      jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('quota exceeded');
+      });
+
+      const loginPromise = service.login('admin', 'secret');
+      httpTestingController.expectOne(`${ADMIN_API_PATH}/login`).flush({
+        token: 'tok-memory',
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+      await tick();
+      httpTestingController
+        .expectOne((r) => r.url === `${ADMIN_API_PATH}/summary`)
+        .flush({ notifications: [], history: { recentSessions: [] } });
+      httpTestingController
+        .expectOne((r) => r.url.startsWith(`${ADMIN_API_PATH}/logs`))
+        .flush({ lines: [] });
+
+      const ok = await loginPromise;
+
+      expect(ok).toBe(true);
+      expect(service.sessionToken()).toBe('tok-memory');
+    });
+
+    it('does not throw on logout when removing the token throws', () => {
+      service.sessionToken.set('tok-logout');
+      jest.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+        throw new Error('storage blocked');
+      });
+
+      expect(() => service.logout()).not.toThrow();
+      httpTestingController
+        .expectOne(`${ADMIN_API_PATH}/logout`)
+        .flush(null, { status: 204, statusText: 'No Content' });
+
+      expect(service.isAuthenticated()).toBe(false);
+    });
+  });
+
   describe('error messages', () => {
     function openSession(token: string): void {
       service.sessionToken.set(token);

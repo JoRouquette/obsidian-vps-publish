@@ -3,11 +3,14 @@ import { type Request, type Response, Router } from 'express';
 
 import { verifyAdminSecret } from '../../../admin/admin-credential.util';
 import type { AdminSessionTokenService } from '../../../admin/admin-session-token.service';
-import { extractBearerToken } from '../middleware/admin-token-auth.middleware';
+import { createLoginThrottle } from '../../../admin/login-throttle';
+import { extractBearerToken } from '../utils/bearer-token.util';
 import { asyncRoute } from './async-route.util';
 
 const MAX_LOGIN_FAILURES = 5;
 const LOGIN_FAILURE_WINDOW_MS = 60_000;
+// Bounds the work scrypt does on attacker-controlled input.
+const MAX_CREDENTIAL_LENGTH = 1024;
 
 interface AdminAuthConfig {
   usernameHash: string;
@@ -22,53 +25,6 @@ function readBodyString(body: unknown, keys: string[]): string | undefined {
   return keys
     .map((key) => record[key])
     .find((value): value is string => typeof value === 'string' && value.length > 0);
-}
-
-type LoginAttempt =
-  | { ok: true; release(failed: boolean): void }
-  | { ok: false; retryAfterSeconds: number; blockStarted: boolean };
-
-function createLoginThrottle(options: {
-  maxFailures: number;
-  windowMs: number;
-  now: () => number;
-}): { tryAcquire(): LoginAttempt } {
-  const { maxFailures, windowMs, now } = options;
-  const failureTimestamps: number[] = [];
-  let attemptsInFlight = 0;
-  let blocked = false;
-
-  return {
-    tryAcquire() {
-      const current = now();
-      while (failureTimestamps.length > 0 && failureTimestamps[0] <= current - windowMs) {
-        failureTimestamps.shift();
-      }
-      // In-flight attempts count too, otherwise parallel requests would all pass this check.
-      if (failureTimestamps.length + attemptsInFlight >= maxFailures) {
-        const blockStarted = !blocked;
-        blocked = true;
-        // Blocked only by in-flight attempts: a slot frees up as soon as one of them settles.
-        const retryAfterSeconds =
-          failureTimestamps.length < maxFailures
-            ? 1
-            : Math.max(1, Math.ceil((failureTimestamps[0] + windowMs - current) / 1000));
-        return { ok: false, retryAfterSeconds, blockStarted };
-      }
-
-      blocked = false;
-      attemptsInFlight++;
-      return {
-        ok: true,
-        release(failed) {
-          attemptsInFlight--;
-          if (failed) {
-            failureTimestamps.push(now());
-          }
-        },
-      };
-    },
-  };
 }
 
 /**
@@ -104,6 +60,10 @@ export function createAdminAuthController(
 
       if (!user || !password) {
         return res.status(401).json({ ok: false, error: 'missing admin credentials' });
+      }
+
+      if (user.length > MAX_CREDENTIAL_LENGTH || password.length > MAX_CREDENTIAL_LENGTH) {
+        return res.status(400).json({ ok: false, error: 'admin credentials too long' });
       }
 
       const attempt = throttle.tryAcquire();

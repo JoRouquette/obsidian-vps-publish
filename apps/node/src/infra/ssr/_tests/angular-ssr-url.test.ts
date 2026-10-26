@@ -43,6 +43,66 @@ describe('resolveRenderUrl', () => {
     expect(url.origin).toBe('https://trusted.example');
   });
 
+  describe('invariants over hostile targets and bases', () => {
+    const TRUSTED = 'https://trusted.example';
+    const targets = [
+      '/',
+      '',
+      '/notes/page?x=1#frag',
+      '//evil.example/x',
+      '\\\\evil.example\\x',
+      '/\\evil.example/x',
+      'https://evil.example/x',
+      'https://evil.example//evil2.example/x',
+      'http://[bad',
+      'javascript:alert(1)',
+      'data:text/html,<script>',
+      '/.//evil.example/x',
+      '/%2e//evil.example/x',
+      '/a/..//evil.example/x',
+      '//[/x',
+      '?q=1',
+      '#only-hash',
+      '/%00',
+    ];
+
+    it.each(targets)('keeps the trusted origin and a rooted path for target %j', (target) => {
+      const url = new URL(resolveRenderUrl(target, 'http://evil.example', TRUSTED));
+
+      expect(url.origin).toBe(TRUSTED);
+      expect(url.pathname.startsWith('/')).toBe(true);
+      expect(url.pathname.startsWith('//')).toBe(false);
+    });
+
+    it.each(targets)('never throws for target %j whatever the base', (target) => {
+      expect(() => resolveRenderUrl(target, 'not a url', 'also not a url')).not.toThrow();
+      expect(() => resolveRenderUrl(target, '', undefined)).not.toThrow();
+    });
+
+    it.each([
+      ['an unparseable trusted origin', 'http://evil.example', 'not a url', 'http://evil.example'],
+      [
+        'an opaque trusted origin',
+        'http://evil.example',
+        'data:text/plain,x',
+        'http://evil.example',
+      ],
+      ['an unparseable request origin', 'bad', undefined, 'http://localhost'],
+      ['both origins unparseable', 'bad', 'worse', 'http://localhost'],
+    ])('resolves an origin with %s', (_, requestOrigin, trustedOrigin, expectedOrigin) => {
+      const url = new URL(resolveRenderUrl('/page', requestOrigin, trustedOrigin));
+
+      expect(url.origin).toBe(expectedOrigin);
+      expect(url.pathname).toBe('/page');
+    });
+
+    it('keeps a non-hierarchical target under the trusted origin', () => {
+      expect(resolveRenderUrl('javascript:alert(1)', 'http://localhost', TRUSTED)).toMatch(
+        /^https:\/\/trusted\.example\//
+      );
+    });
+  });
+
   it('keeps the query string untouched', () => {
     expect(
       resolveRenderUrl('/page?a=1&b=%20', 'http://localhost:4200', 'https://trusted.example')

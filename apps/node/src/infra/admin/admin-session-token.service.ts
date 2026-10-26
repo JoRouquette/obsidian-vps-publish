@@ -24,9 +24,10 @@ const DEFAULT_MAX_REVOKED_TOKENS = 10_000;
  * never has to persist or re-send the admin password. Mirrors the finalization
  * stream token service (base64url payload + HMAC-SHA256 signature + expiry).
  *
- * The signing secret is derived by the caller from the admin username/password
- * hashes, so rotating the admin password automatically invalidates every
- * previously issued token.
+ * The signing key is derived by the caller (see `deriveAdminSessionKey`) from a
+ * server secret and the admin credential hashes, so rotating the admin password
+ * automatically invalidates every previously issued token while the hashes
+ * alone are never enough to forge one.
  *
  * Logged-out tokens are kept in an in-memory deny list until they expire. The
  * list is lost on restart, which is acceptable given the short token lifetime.
@@ -36,7 +37,7 @@ export class AdminSessionTokenService {
   private readonly revokedTokens = new Map<string, number>();
 
   constructor(
-    private readonly secret: string,
+    private readonly secret: string | Buffer,
     private readonly ttlMs: number = DEFAULT_TTL_MS,
     private readonly maxRevokedTokens: number = DEFAULT_MAX_REVOKED_TOKENS
   ) {}
@@ -120,8 +121,9 @@ export class AdminSessionTokenService {
       return { ok: false, reason: 'missing' };
     }
 
-    const [encodedPayload, signature] = token.split('.');
-    if (!encodedPayload || !signature) {
+    const segments = token.split('.');
+    const [encodedPayload, signature] = segments;
+    if (segments.length !== 2 || !encodedPayload || !signature) {
       return { ok: false, reason: 'invalid' };
     }
 

@@ -15,6 +15,7 @@ import express from 'express';
 
 import { AdminDashboardService } from '../../admin/admin-dashboard.service';
 import { AdminRuntimeControlService } from '../../admin/admin-runtime-control.service';
+import { deriveAdminSessionKey } from '../../admin/admin-session-key';
 import { AdminSessionTokenService } from '../../admin/admin-session-token.service';
 import { EnvConfig } from '../../config/env-config';
 import { ContentVersionService } from '../../content-version/content-version.service';
@@ -58,6 +59,13 @@ import { createMaintenanceModeMiddleware } from './middleware/maintenance-mode.m
 import { PerformanceMonitoringMiddleware } from './middleware/performance-monitoring.middleware';
 import { createRedirectMiddleware } from './middleware/redirect.middleware';
 import { RequestCorrelationMiddleware } from './middleware/request-correlation.middleware';
+import {
+  applyNosniffHeader,
+  applySandboxHeaders,
+  ASSET_SANDBOX_CSP,
+  CONTENT_SANDBOX_CSP,
+  isInertAssetPath,
+} from './security-headers';
 import { sanitizeLogUrl } from './utils/sanitize-log-url.util';
 
 export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
@@ -117,14 +125,11 @@ export function createApp(rootLogger?: LoggerPort) {
       lastModified: true,
       maxAge: '7d', // Cache assets for 7 days; frontend appends ?cv= for cache-busting
       setHeaders: (res, filePath) => {
-        // Neutralize SVG assets viewed as a top-level document: block scripts via
-        // CSP and stop MIME sniffing. Images embedded via <img> are unaffected.
-        if (filePath.toLowerCase().endsWith('.svg')) {
-          res.setHeader(
-            'Content-Security-Policy',
-            "default-src 'none'; style-src 'unsafe-inline'; sandbox"
-          );
-          res.setHeader('X-Content-Type-Options', 'nosniff');
+        // Stop MIME sniffing everywhere, and sandbox anything that is not a named inert
+        // type (SVG, text, JSON, or an extension added to the allowlist later).
+        applyNosniffHeader(res);
+        if (!isInertAssetPath(filePath)) {
+          applySandboxHeaders(res, ASSET_SANDBOX_CSP);
         }
       },
     })
@@ -153,11 +158,7 @@ export function createApp(rootLogger?: LoggerPort) {
           res.setHeader('Cache-Control', 'public, max-age=300, must-revalidate');
           // Neutralize a note opened as a top-level document: any residual XSS would
           // otherwise run with the site origin. The site fetches it, so it is unaffected.
-          res.setHeader(
-            'Content-Security-Policy',
-            "default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; sandbox"
-          );
-          res.setHeader('X-Content-Type-Options', 'nosniff');
+          applySandboxHeaders(res, CONTENT_SANDBOX_CSP);
         }
       },
     })
@@ -374,10 +375,13 @@ export function createApp(rootLogger?: LoggerPort) {
       usernameHash: EnvConfig.adminUsernameHash(),
       passwordHash: EnvConfig.adminPasswordHash(),
     };
-    // Derive the token secret from the credential hashes so rotating the admin
-    // password invalidates every previously issued session token.
+    // The signing key mixes a server secret with the credential hashes: rotating the admin
+    // password invalidates every issued token, and the hashes alone cannot forge one.
     const adminSessionTokenService = new AdminSessionTokenService(
-      `${adminCredentials.usernameHash}:${adminCredentials.passwordHash}`
+      deriveAdminSessionKey(
+        { configuredSecret: EnvConfig.adminSessionSecret(), ...adminCredentials },
+        rootLogger
+      )
     );
 
     const adminRouter = express.Router();
@@ -571,14 +575,21 @@ export function createApp(rootLogger?: LoggerPort) {
 
   // Angular SSR for all other routes
   // Initialize SSR service (lazy loading on first request)
+  const ssrEnabled = EnvConfig.ssrEnabled();
+  const trustedOrigin = EnvConfig.baseUrlOrNull(rootLogger);
+  if (ssrEnabled && !trustedOrigin) {
+    rootLogger?.warn(
+      'SSR is enabled without a valid BASE_URL: the render origin comes from the Host header, so a forged Host can poison absolute URLs and the SSR cache'
+    );
+  }
   const ssrService = createAngularSSRService(
     EnvConfig.uiServerRoot(),
     ANGULAR_DIST,
-    EnvConfig.ssrEnabled(),
+    ssrEnabled,
     rootLogger,
     EnvConfig.contentRoot(), // For cache invalidation based on manifest changes
     true, // Enable SSR caching
-    EnvConfig.baseUrlOrNull() ?? undefined // Trusted origin to avoid Host-header cache poisoning
+    trustedOrigin // Avoids Host-header cache poisoning
   );
 
   const staticIndexPath = resolveStaticBrowserEntryPath(ANGULAR_DIST);

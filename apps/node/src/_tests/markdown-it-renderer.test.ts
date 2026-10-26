@@ -35,6 +35,39 @@ describe('MarkdownItRenderer', () => {
     expect(html).toContain('>Title</h1>');
   });
 
+  it('renders no script, handler or javascript: link from hostile note content', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = [
+      '<script>alert(1)</script>',
+      '',
+      '<img src=x onerror=alert(1)>',
+      '',
+      '[x](javascript:alert(1))',
+    ].join('\n');
+
+    const html = await renderer.render(note);
+    const $ = load(html);
+
+    expect($('script').length).toBe(0);
+    expect($('[onerror]').length).toBe(0);
+    expect($('a').length).toBe(0);
+    expect(html).not.toContain('<script');
+    expect(html).not.toContain('onerror');
+  });
+
+  it('keeps the text of a javascript: link without making it a link', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = '[click me](javascript:alert(1))';
+
+    const html = await renderer.render(note);
+    const $ = load(html);
+
+    expect($('a').length).toBe(0);
+    expect($.text()).toContain('click me');
+  });
+
   it('renders Obsidian $$...$$ math blocks with KaTeX HTML', async () => {
     const renderer = new MarkdownItRenderer();
     const note = baseNote();
@@ -68,6 +101,24 @@ describe('MarkdownItRenderer', () => {
     expect(mathText).toContain('bonus de maîtrise');
     expect(mathText).toContain('modificateur de caractéristique');
     expect($('.katex-display .textrm').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the KaTeX layout styles and drops positioning from the final HTML', async () => {
+    const renderer = new MarkdownItRenderer();
+    const note = baseNote();
+    note.content = [
+      '$$x_i^2 + \\frac{a}{b} + \\sqrt{x} + \\sum_{i=1}^n i$$',
+      '',
+      '$$\\begin{array}{c|c}a&b\\\\\\hline c&d\\end{array}$$',
+    ].join('\n');
+
+    const html = await renderer.render(note);
+
+    expect(html).toContain('top:-');
+    expect(html).toContain('vertical-align:');
+    expect(html).toContain('border-bottom-width:');
+    expect(html).toContain('min-width:');
+    expect(html).not.toMatch(/position\s*:|z-index/i);
   });
 
   it('renders inline $...$ math without affecting regular markdown', async () => {

@@ -80,6 +80,70 @@ describe('EnvConfig', () => {
     expect(EnvConfig.adminDashboardEnabled()).toBe(true);
   });
 
+  describe('baseUrlOrNull', () => {
+    it('returns the origin of a valid BASE_URL, dropping path and credentials', () => {
+      process.env.BASE_URL = ' https://user:pw@Example.com:8443/some/path?x=1 ';
+
+      expect(EnvConfig.baseUrlOrNull()).toBe('https://example.com:8443');
+    });
+
+    it.each([
+      ['http://localhost:3000/x', 'http://localhost:3000'],
+      ['HTTPS://Example.com', 'https://example.com'],
+    ])('accepts the http(s) value %j', (value, origin) => {
+      const logger = { warn: jest.fn() };
+      process.env.BASE_URL = value;
+
+      expect(EnvConfig.baseUrlOrNull(logger)).toBe(origin);
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it('returns undefined without warning when BASE_URL is unset or blank', () => {
+      const logger = { warn: jest.fn() };
+      delete process.env.BASE_URL;
+      expect(EnvConfig.baseUrlOrNull(logger)).toBeUndefined();
+
+      process.env.BASE_URL = '   ';
+      expect(EnvConfig.baseUrlOrNull(logger)).toBeUndefined();
+
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      'not a url',
+      'example.com',
+      '/relative',
+      'data:text/plain,x',
+      'ftp://x',
+      'ws://x',
+      'wss://x.example',
+      'file:///etc/passwd',
+    ])('returns undefined and warns for the invalid value %j', (value) => {
+      const logger = { warn: jest.fn() };
+      process.env.BASE_URL = value;
+
+      expect(EnvConfig.baseUrlOrNull(logger)).toBeUndefined();
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+      expect(logger.warn.mock.calls[0][0]).not.toContain(value);
+    });
+  });
+
+  describe('adminSessionSecret', () => {
+    it('returns the trimmed secret when set', () => {
+      process.env.ADMIN_SESSION_SECRET = '  a-long-random-secret \n';
+
+      expect(EnvConfig.adminSessionSecret()).toBe('a-long-random-secret');
+    });
+
+    it('returns undefined when unset or blank', () => {
+      delete process.env.ADMIN_SESSION_SECRET;
+      expect(EnvConfig.adminSessionSecret()).toBeUndefined();
+
+      process.env.ADMIN_SESSION_SECRET = '  ';
+      expect(EnvConfig.adminSessionSecret()).toBeUndefined();
+    });
+  });
+
   it('should resolve relative paths from the workspace root even if cwd changes', () => {
     process.chdir(path.join(originalCwd, 'apps', 'node'));
     process.env.CONTENT_ROOT = './tmp/site-content';

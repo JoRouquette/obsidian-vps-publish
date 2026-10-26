@@ -45,6 +45,74 @@ describe('AdminSessionTokenService', () => {
     expect(result).toEqual({ ok: false, reason: 'invalid' });
   });
 
+  it('rejects a signature that differs by one character but has the same length', () => {
+    const service = new AdminSessionTokenService(secret);
+    const { token } = service.createToken();
+    const [payload = '', signature = ''] = token.split('.');
+    const lastChar = signature.slice(-1);
+    const mutated = `${signature.slice(0, -1)}${lastChar === 'A' ? 'B' : 'A'}`;
+
+    const result = service.validateToken(`${payload}.${mutated}`);
+
+    expect(mutated).toHaveLength(signature.length);
+    expect(result).toEqual({ ok: false, reason: 'invalid' });
+  });
+
+  it('rejects a payload rewritten with a later expiry under the original signature', () => {
+    const service = new AdminSessionTokenService(secret);
+    const { token } = service.createToken();
+    const [payload = '', signature = ''] = token.split('.');
+    const original = readPayload(token);
+    const extended = Buffer.from(
+      JSON.stringify({ ...original, exp: (original['exp'] as number) + 86_400_000 }),
+      'utf8'
+    ).toString('base64url');
+
+    const result = service.validateToken(`${extended}.${signature}`);
+
+    expect(extended).not.toBe(payload);
+    expect(result).toEqual({ ok: false, reason: 'invalid' });
+  });
+
+  describe('correctly signed payloads that are not admin session claims', () => {
+    function signedToken(rawPayload: string): string {
+      const encoded = Buffer.from(rawPayload, 'utf8').toString('base64url');
+      const signature = createHmac('sha256', secret).update(encoded).digest('base64url');
+      return `${encoded}.${signature}`;
+    }
+
+    it.each([
+      ['invalid JSON', '{not json'],
+      ['a non-object JSON value', '"admin"'],
+      [
+        'a subject other than admin',
+        JSON.stringify({ sub: 'user', jti: 'j', exp: Date.now() + 60_000 }),
+      ],
+      ['a non-numeric expiry', JSON.stringify({ sub: 'admin', jti: 'j', exp: 'soon' })],
+    ])('rejects %s', (_, rawPayload) => {
+      const service = new AdminSessionTokenService(secret);
+
+      expect(service.validateToken(signedToken(rawPayload))).toEqual({
+        ok: false,
+        reason: 'invalid',
+      });
+    });
+  });
+
+  describe('token shape', () => {
+    it.each([
+      ['a trailing segment', (token: string) => `${token}.x`],
+      ['an empty signature', (token: string) => `${token.split('.')[0]}.`],
+      ['an empty payload', (token: string) => `.${token.split('.')[1]}`],
+      ['a single segment', (token: string) => token.split('.')[0] ?? ''],
+    ])('rejects a token with %s', (_, mutate) => {
+      const service = new AdminSessionTokenService(secret);
+      const { token } = service.createToken();
+
+      expect(service.validateToken(mutate(token))).toEqual({ ok: false, reason: 'invalid' });
+    });
+  });
+
   it('rejects a token signed with a different secret', () => {
     const issuer = new AdminSessionTokenService(secret);
     const verifier = new AdminSessionTokenService('rotated-password-hash');

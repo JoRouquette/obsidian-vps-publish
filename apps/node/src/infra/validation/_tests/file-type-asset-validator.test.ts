@@ -1,4 +1,5 @@
 import { AssetScanError, type AssetScannerPort, AssetValidationError } from '@core-domain';
+import fileType from 'file-type';
 
 import { FileTypeAssetValidator } from '../file-type-asset-validator';
 
@@ -38,6 +39,248 @@ describe('FileTypeAssetValidator', () => {
       await expect(
         validator.validate(Buffer.from('hello world'), 'note.txt', 'text/plain', 4)
       ).rejects.toMatchObject({ reason: 'SIZE_EXCEEDED' });
+    });
+  });
+
+  describe('active content types', () => {
+    it.each([
+      ['page.html', '<html><script>alert(1)</script></html>'],
+      ['script.js', 'alert(1)'],
+      ['doc.xhtml', '<html xmlns="http://www.w3.org/1999/xhtml"></html>'],
+      ['data.xml', '<?xml version="1.0"?><a/>'],
+    ])('rejects %s', async (filename, content) => {
+      const validator = new FileTypeAssetValidator();
+
+      await expect(validator.validate(Buffer.from(content), filename)).rejects.toMatchObject({
+        reason: 'INVALID_CONTENT',
+      });
+    });
+  });
+
+  describe('extension bound to the detected type', () => {
+    // 8-byte PNG signature plus an IHDR header, enough for file-type to report image/png.
+    const png = Buffer.concat([
+      Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44,
+        0x52,
+      ]),
+      Buffer.alloc(64),
+    ]);
+
+    it.each([['x.png'], ['x.PNG'], ['folder/x.Png'], ['archive.v2.png'], ['C:\\images\\x.png']])(
+      'accepts PNG content named %s',
+      async (filename) => {
+        const validator = new FileTypeAssetValidator();
+
+        await expect(validator.validate(png, filename)).resolves.toMatchObject({
+          detectedMimeType: 'image/png',
+        });
+      }
+    );
+
+    it.each([
+      ['x.html'],
+      ['x.HTML'],
+      ['x.exe'],
+      ['x.svg'],
+      ['x.jpg'],
+      ['x.png.html'],
+      ['x.html '],
+      ['x.html.'],
+      ['x'],
+      ['.png'],
+      ['folder.png/x'],
+      [''],
+    ])('rejects PNG content named %j', async (filename) => {
+      const validator = new FileTypeAssetValidator();
+
+      await expect(validator.validate(png, filename)).rejects.toMatchObject({
+        reason: 'INVALID_CONTENT',
+      });
+    });
+
+    // Documented decision: when file-type recognises nothing, the declared extension decides the
+    // type (that is how text, JSON and SVG assets are accepted). Arbitrary text named x.png is
+    // therefore stored and served as image/png with `nosniff`, which a browser shows as a
+    // broken image and never runs. Revisit only if a magic-number check is added for PNG.
+    it('accepts arbitrary text named x.png, falling back on the extension', async () => {
+      const validator = new FileTypeAssetValidator();
+
+      await expect(
+        validator.validate(Buffer.from('not an image at all'), 'x.png')
+      ).resolves.toMatchObject({ valid: true, detectedMimeType: 'image/png' });
+    });
+
+    it('rejects an extension that belongs to another allowed type', async () => {
+      const validator = new FileTypeAssetValidator();
+
+      await expect(validator.validate(png, 'x.pdf')).rejects.toBeInstanceOf(AssetValidationError);
+    });
+
+    it('accepts JPEG content under both of its extensions', async () => {
+      const validator = new FileTypeAssetValidator();
+      const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(100)]);
+
+      await expect(validator.validate(jpeg, 'a.jpg')).resolves.toMatchObject({ valid: true });
+      await expect(validator.validate(jpeg, 'a.JPEG')).resolves.toMatchObject({ valid: true });
+    });
+  });
+
+  describe('content checks for types resolved from the extension', () => {
+    it.each([
+      [
+        'a script element',
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+      ],
+      ['an upper-case script element', '<svg><SCRIPT>alert(1)</SCRIPT></svg>'],
+      ['a foreignObject', '<svg><foreignObject><iframe/></foreignObject></svg>'],
+      ['an onload handler', '<svg onload="alert(1)"></svg>'],
+      ['a slash-separated handler', '<svg/onload=alert(1)></svg>'],
+      ['a handler after a > in an attribute', '<svg title=">" onload=alert(1)></svg>'],
+      ['an onclick handler on a child', '<svg><rect onclick = "alert(1)"/></svg>'],
+      ['an href javascript: link', '<svg><a href="javascript:alert(1)"><rect/></a></svg>'],
+      ['an xlink:href javascript: link', "<svg><a xlink:href='javascript:alert(1)'/></svg>"],
+      ['a tab-obfuscated javascript: link', '<svg><a href="java\tscript:alert(1)"/></svg>'],
+      ['an entity-obfuscated javascript: link', '<svg><a href="&#106;avascript:alert(1)"/></svg>'],
+      ['a hex-entity javascript: link', '<svg><a href="&#x6A;avascript:alert(1)"/></svg>'],
+    ])('rejects an SVG with %s', async (_, svg) => {
+      const validator = new FileTypeAssetValidator();
+
+      await expect(validator.validate(Buffer.from(svg), 'icon.svg')).rejects.toMatchObject({
+        reason: 'INVALID_CONTENT',
+      });
+    });
+
+    it('rejects an SVG encoded as UTF-16', async () => {
+      const validator = new FileTypeAssetValidator();
+      const utf16 = Buffer.from('<svg><script>alert(1)</script></svg>', 'utf16le');
+
+      await expect(validator.validate(utf16, 'icon.svg')).rejects.toMatchObject({
+        reason: 'INVALID_CONTENT',
+      });
+    });
+
+    it('accepts a plain SVG with a style element and internal links', async () => {
+      const validator = new FileTypeAssetValidator();
+      const svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><style>.a{fill:red}</style>' +
+        '<a href="#target"><rect class="a" width="5" height="5"/></a></svg>';
+
+      await expect(validator.validate(Buffer.from(svg), 'icon.svg')).resolves.toMatchObject({
+        detectedMimeType: 'image/svg+xml',
+      });
+    });
+
+    it.each([['{not json'], [''], ['undefined'], ["{'a':1}"]])(
+      'rejects JSON that does not parse: %j',
+      async (content) => {
+        const validator = new FileTypeAssetValidator();
+
+        await expect(validator.validate(Buffer.from(content), 'data.json')).rejects.toMatchObject({
+          reason: 'INVALID_CONTENT',
+        });
+      }
+    );
+
+    it('accepts JSON with a byte order mark', async () => {
+      const validator = new FileTypeAssetValidator();
+
+      await expect(
+        validator.validate(Buffer.from('\uFEFF{"a":1}'), 'data.json')
+      ).resolves.toMatchObject({ detectedMimeType: 'application/json' });
+    });
+
+    it.each([['note.txt'], ['note.md']])('rejects a NUL byte in %s', async (filename) => {
+      const validator = new FileTypeAssetValidator();
+
+      await expect(
+        validator.validate(Buffer.from([0x68, 0x69, 0x00, 0x21]), filename)
+      ).rejects.toMatchObject({ reason: 'INVALID_CONTENT' });
+    });
+
+    it('accepts markdown text', async () => {
+      const validator = new FileTypeAssetValidator();
+
+      await expect(
+        validator.validate(Buffer.from('# Title\n\nSome *text*.'), 'note.md')
+      ).resolves.toMatchObject({ detectedMimeType: 'text/markdown' });
+    });
+  });
+
+  describe('SVG with an XML prolog', () => {
+    const prolog = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    const svg = `${prolog}<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect/></svg>`;
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('is detected by file-type as application/xml, never as an SVG', async () => {
+      // If this changes, the extension-based path below can be revisited.
+      expect((await fileType.fromBuffer(Buffer.from(svg)))?.mime).toBe('application/xml');
+      expect(
+        await fileType.fromBuffer(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'))
+      ).toBeUndefined();
+    });
+
+    it('is accepted under the .svg extension', async () => {
+      const validator = new FileTypeAssetValidator();
+
+      await expect(validator.validate(Buffer.from(svg), 'drawing.svg')).resolves.toMatchObject({
+        valid: true,
+        detectedMimeType: 'image/svg+xml',
+      });
+      await expect(validator.validate(Buffer.from(svg), 'drawing.SVG')).resolves.toMatchObject({
+        valid: true,
+      });
+    });
+
+    it.each([['drawing.xml'], ['drawing.svg.xml'], ['drawing.xml.svg.html'], ['drawing']])(
+      'refuses the same content named %s',
+      async (filename) => {
+        const validator = new FileTypeAssetValidator();
+
+        await expect(validator.validate(Buffer.from(svg), filename)).rejects.toMatchObject({
+          reason: 'INVALID_CONTENT',
+        });
+      }
+    );
+
+    it('refuses an XML document without an svg root even under .svg', async () => {
+      const validator = new FileTypeAssetValidator();
+
+      await expect(
+        validator.validate(Buffer.from(`${prolog}<html xmlns="x"/>`), 'drawing.svg')
+      ).rejects.toMatchObject({ reason: 'INVALID_CONTENT' });
+    });
+
+    it.each([
+      [
+        'a script',
+        `${prolog}<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`,
+      ],
+      ['a DOCTYPE', `${prolog}<!DOCTYPE svg><svg xmlns="http://www.w3.org/2000/svg"/>`],
+      ['an event handler', `${prolog}<svg xmlns="http://www.w3.org/2000/svg" onload="x()"/>`],
+    ])('refuses a prolog SVG with %s', async (_, content) => {
+      const validator = new FileTypeAssetValidator();
+
+      await expect(validator.validate(Buffer.from(content), 'drawing.svg')).rejects.toMatchObject({
+        reason: 'INVALID_CONTENT',
+      });
+    });
+
+    it('applies the SVG content checks even when file-type reports image/svg+xml', async () => {
+      // The library's own types do not list SVG, hence the cast.
+      jest
+        .spyOn(fileType, 'fromBuffer')
+        .mockResolvedValue({ ext: 'svg', mime: 'image/svg+xml' } as unknown as Awaited<
+          ReturnType<typeof fileType.fromBuffer>
+        >);
+      const validator = new FileTypeAssetValidator();
+
+      await expect(
+        validator.validate(Buffer.from('<svg><script>alert(1)</script></svg>'), 'icon.svg')
+      ).rejects.toMatchObject({ reason: 'INVALID_CONTENT' });
     });
   });
 

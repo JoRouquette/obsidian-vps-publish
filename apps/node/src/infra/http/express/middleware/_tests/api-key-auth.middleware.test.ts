@@ -90,6 +90,18 @@ describe('createApiKeyAuthMiddleware', () => {
     expect(mockNext).not.toHaveBeenCalled();
   });
 
+  it('responds 403 when a wrong API key has the same length as the expected one', () => {
+    const sameLengthKey = 'x'.repeat(expectedKey.length);
+    givenApiKeyHeader(sameLengthKey);
+    const handler = createApiKeyAuthMiddleware(expectedKey, logger);
+
+    handler(mockReq, mockRes, mockNext);
+
+    expect(sameLengthKey).toHaveLength(expectedKey.length);
+    expect(statusMock).toHaveBeenCalledWith(403);
+    expect(mockNext).not.toHaveBeenCalled();
+  });
+
   it('calls next when the API key matches', () => {
     givenApiKeyHeader(expectedKey);
     const handler = createApiKeyAuthMiddleware(expectedKey, logger);

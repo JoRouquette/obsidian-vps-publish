@@ -85,6 +85,9 @@ services:
       - ./assets:/assets
 ```
 
+> `BASE_URL` doit être une URL absolue valide : c'est l'origine de confiance du rendu SSR (sans elle, l'origine vient de l'en-tête `Host`, qui est forgeable).
+> Si vous activez le tableau de bord admin (`ADMIN_USERNAME_HASH`, `ADMIN_PASSWORD_HASH`), ajoutez aussi `ADMIN_SESSION_SECRET` (32 caractères aléatoires ou plus, par exemple `openssl rand -base64 48`). Sans lui, une clé aléatoire est générée à chaque démarrage et les sessions admin ne survivent pas à un redémarrage.
+
 ```bash
 sudo docker compose up -d
 curl -fsS http://127.0.0.1:3000/health   # doit répondre avant de continuer

@@ -28,7 +28,7 @@ jest.mock('../infra/config/env-config', () => ({
     loggerLevel: jest.fn(() => 'debug'),
     logFilePath: jest.fn(() => './tmp/node.log'),
     baseUrl: jest.fn(() => 'http://localhost:4200'),
-    baseUrlOrNull: jest.fn(() => null),
+    baseUrlOrNull: jest.fn(() => undefined),
     siteName: jest.fn(() => 'Site'),
     author: jest.fn(() => 'Author'),
     repoUrl: jest.fn(() => 'http://repo'),
@@ -37,6 +37,7 @@ jest.mock('../infra/config/env-config', () => ({
     adminApiPath: jest.fn(() => '/admin-api'),
     adminUsernameHash: jest.fn(() => ''),
     adminPasswordHash: jest.fn(() => ''),
+    adminSessionSecret: jest.fn(() => undefined),
     adminDashboardEnabled: jest.fn(() => false),
     port: jest.fn(() => 3000),
     maxActiveRequests: jest.fn(() => 100),
@@ -57,6 +58,8 @@ jest.mock('../infra/config/env-config', () => ({
   },
 }));
 
+import { hashAdminSecret } from '../infra/admin/admin-credential.util';
+import { AdminSessionTokenService } from '../infra/admin/admin-session-token.service';
 import { EnvConfig } from '../infra/config/env-config';
 import { createApp } from '../infra/http/express/app';
 import { FinalizationStreamTokenService } from '../infra/http/express/finalization-stream-token.service';
@@ -125,6 +128,149 @@ describe('createApp', () => {
       expect(res.status).toBe(200);
       expect(res.headers['content-security-policy']).toBeUndefined();
       expect(res.headers['x-content-type-options']).toBeUndefined();
+    });
+  });
+
+  // Uploaded files are served from the site origin: anything that can run script when opened
+  // as a top-level document must be sandboxed, and nothing may be MIME-sniffed.
+  describe('/assets security headers', () => {
+    const sandboxCsp = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
+
+    beforeAll(async () => {
+      const root = EnvConfig.assetsRoot();
+      await fs.mkdir(root, { recursive: true });
+      await fs.writeFile(path.join(root, 'x.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+      await fs.writeFile(path.join(root, 'x.SVG'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+      await fs.writeFile(path.join(root, 'x.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+      await fs.writeFile(path.join(root, 'notes.txt'), 'hello');
+      await fs.writeFile(path.join(root, 'page.html'), '<script>alert(1)</script>');
+    });
+
+    it.each(['x.svg', 'x.SVG', 'notes.txt', 'page.html'])(
+      'sandboxes /assets/%s and disables sniffing',
+      async (name) => {
+        const { app } = createApp();
+
+        const res = await request(app).get(`/assets/${name}`);
+
+        expect(res.status).toBe(200);
+        expect(res.headers['content-security-policy']).toBe(sandboxCsp);
+        expect(res.headers['x-content-type-options']).toBe('nosniff');
+      }
+    );
+
+    it('disables sniffing but adds no CSP on an inert raster image', async () => {
+      const { app } = createApp();
+
+      const res = await request(app).get('/assets/x.png');
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-security-policy']).toBeUndefined();
+      expect(res.headers['x-content-type-options']).toBe('nosniff');
+    });
+  });
+
+  describe('admin dashboard wiring', () => {
+    const ADMIN_USER = 'admin';
+    const ADMIN_PASSWORD = 'integration-password';
+    const summaryPath = '/admin-api/summary';
+
+    beforeEach(() => {
+      (EnvConfig.adminDashboardEnabled as jest.Mock).mockReturnValue(true);
+      (EnvConfig.adminUsernameHash as jest.Mock).mockReturnValue(hashAdminSecret(ADMIN_USER));
+      (EnvConfig.adminPasswordHash as jest.Mock).mockReturnValue(hashAdminSecret(ADMIN_PASSWORD));
+    });
+
+    afterEach(() => {
+      (EnvConfig.adminDashboardEnabled as jest.Mock).mockReturnValue(false);
+      (EnvConfig.adminUsernameHash as jest.Mock).mockReturnValue('');
+      (EnvConfig.adminPasswordHash as jest.Mock).mockReturnValue('');
+      (EnvConfig.adminSessionSecret as jest.Mock).mockReturnValue(undefined);
+    });
+
+    async function login(app: express.Express): Promise<string> {
+      const res = await request(app)
+        .post('/admin-api/login')
+        .send({ user: ADMIN_USER, mdp: ADMIN_PASSWORD });
+      expect(res.status).toBe(200);
+      return res.body.token as string;
+    }
+
+    it('rejects an admin route without a bearer token', async () => {
+      const { app } = createApp();
+
+      const res = await request(app).get(summaryPath);
+
+      expect(res.status).toBe(401);
+    });
+
+    it('issues a token on login', async () => {
+      const { app } = createApp();
+
+      const token = await login(app);
+
+      expect(token.length).toBeGreaterThan(0);
+    });
+
+    it('lets a bearer token through the admin middleware', async () => {
+      const { app } = createApp();
+      const token = await login(app);
+
+      const res = await request(app).get(summaryPath).set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).not.toBe(401);
+    });
+
+    it('refuses the token once the session is logged out', async () => {
+      const { app } = createApp();
+      const token = await login(app);
+
+      const logout = await request(app)
+        .post('/admin-api/logout')
+        .set('Authorization', `Bearer ${token}`);
+      const after = await request(app).get(summaryPath).set('Authorization', `Bearer ${token}`);
+
+      expect(logout.status).toBe(204);
+      expect(after.status).toBe(401);
+    });
+
+    describe('with a configured session secret', () => {
+      const SECRET = 'integration-session-secret-0123456789';
+      const OTHER_SECRET = 'another-session-secret-9876543210-xyz';
+
+      it('accepts, on a second app with the same secret, a token issued by the first', async () => {
+        (EnvConfig.adminSessionSecret as jest.Mock).mockReturnValue(SECRET);
+        const token = await login(createApp().app);
+
+        const res = await request(createApp().app)
+          .get(summaryPath)
+          .set('Authorization', `Bearer ${token}`);
+
+        expect(res.status).not.toBe(401);
+      });
+
+      it('refuses, on a second app with another secret, a token issued by the first', async () => {
+        (EnvConfig.adminSessionSecret as jest.Mock).mockReturnValue(SECRET);
+        const token = await login(createApp().app);
+        (EnvConfig.adminSessionSecret as jest.Mock).mockReturnValue(OTHER_SECRET);
+
+        const res = await request(createApp().app)
+          .get(summaryPath)
+          .set('Authorization', `Bearer ${token}`);
+
+        expect(res.status).toBe(401);
+      });
+    });
+
+    it('does not accept a token signed with a key derived from the hashes alone', async () => {
+      const { app } = createApp();
+      const forged = new AdminSessionTokenService(
+        `${EnvConfig.adminUsernameHash()}:${EnvConfig.adminPasswordHash()}`
+      ).createToken().token;
+
+      const res = await request(app).get(summaryPath).set('Authorization', `Bearer ${forged}`);
+
+      expect(res.status).toBe(401);
     });
   });
 

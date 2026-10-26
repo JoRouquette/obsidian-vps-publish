@@ -177,6 +177,7 @@ export class AdminDashboardService {
   private readonly config = inject(ConfigFacade);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly STORAGE_KEY = 'vps-admin-session';
+  private readonly LEGACY_CREDENTIALS_KEY = 'vps-admin-credentials';
 
   readonly sessionToken = signal<string | null>(this.loadStoredToken());
   readonly isAuthenticated = computed(() => this.sessionToken() !== null);
@@ -396,16 +397,30 @@ export class AdminDashboardService {
     this.authError.set("Impossible de charger le dashboard d'administration.");
   }
 
+  // sessionStorage can throw (blocked storage, quota, private mode): the session then simply
+  // lives in memory for the current page.
   private clearToken(): void {
     this.sessionToken.set(null);
-    if (this.isBrowser) {
+    if (!this.isBrowser) {
+      return;
+    }
+
+    try {
       sessionStorage.removeItem(this.STORAGE_KEY);
+    } catch {
+      // Nothing persisted, nothing to clear.
     }
   }
 
   private storeToken(token: string): void {
-    if (this.isBrowser) {
+    if (!this.isBrowser) {
+      return;
+    }
+
+    try {
       sessionStorage.setItem(this.STORAGE_KEY, token);
+    } catch {
+      // The token stays in memory: a failed persistence must not fail the login.
     }
   }
 
@@ -414,8 +429,23 @@ export class AdminDashboardService {
       return null;
     }
 
-    const stored = sessionStorage.getItem(this.STORAGE_KEY);
-    return stored && stored.length > 0 ? stored : null;
+    this.removeLegacyCredentials();
+
+    try {
+      const stored = sessionStorage.getItem(this.STORAGE_KEY);
+      return stored && stored.length > 0 ? stored : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Earlier versions kept the admin credentials in clear text under this key. */
+  private removeLegacyCredentials(): void {
+    try {
+      sessionStorage.removeItem(this.LEGACY_CREDENTIALS_KEY);
+    } catch {
+      // Storage unavailable: nothing to purge.
+    }
   }
 
   private get isBrowser(): boolean {

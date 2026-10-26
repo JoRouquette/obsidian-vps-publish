@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import type { LoggerPort } from '@core-domain';
+
 export class EnvConfig {
   private static _workspaceRoot: string | null = null;
 
@@ -129,6 +131,14 @@ export class EnvConfig {
 
   static adminPasswordHash(): string {
     return this.norm(process.env.ADMIN_PASSWORD_HASH);
+  }
+
+  /**
+   * Secret mixed into the admin session token signing key. Optional: when unset,
+   * a random key is generated at startup and sessions do not survive a restart.
+   */
+  static adminSessionSecret(): string | undefined {
+    return this.norm(process.env.ADMIN_SESSION_SECRET) || undefined;
   }
 
   static adminDashboardEnabled(): boolean {
@@ -278,11 +288,27 @@ export class EnvConfig {
   }
 
   /**
-   * Base URL if configured, otherwise null (no throw). Used to build a trusted
-   * origin for SSR so a forged Host header cannot poison absolute URLs / cache.
+   * Origin (scheme://host[:port]) of BASE_URL when it is set and is an http(s) URL, otherwise
+   * undefined (no throw). Used as the trusted origin for SSR so a forged Host
+   * header cannot poison absolute URLs / cache. An invalid value is reported
+   * through the optional logger (the raw value is not logged: it may hold
+   * credentials).
    */
-  static baseUrlOrNull(): string | null {
-    return this.norm(process.env.BASE_URL) || null;
+  static baseUrlOrNull(logger?: Pick<LoggerPort, 'warn'>): string | undefined {
+    const raw = this.norm(process.env.BASE_URL);
+    if (!raw) {
+      return undefined;
+    }
+    try {
+      const { origin, protocol } = new URL(raw);
+      if (origin !== 'null' && (protocol === 'http:' || protocol === 'https:')) {
+        return origin;
+      }
+    } catch {
+      // Falls through to the warning below.
+    }
+    logger?.warn('BASE_URL is not a valid absolute http(s) URL and is ignored');
+    return undefined;
   }
 
   /**

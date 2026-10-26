@@ -24,6 +24,8 @@ services:
       ADMIN_API_PATH: /internal-admin-dashboard
       ADMIN_USERNAME_HASH: 'scrypt$$CHANGE_ME_SALT$$CHANGE_ME_HASH'
       ADMIN_PASSWORD_HASH: 'scrypt$$CHANGE_ME_SALT$$CHANGE_ME_HASH'
+      # Optional: keeps admin sessions valid across restarts (32+ random characters)
+      # ADMIN_SESSION_SECRET: CHANGE_ME_RANDOM_SECRET
       MAX_ACTIVE_REQUESTS: '200'
       MAX_CONCURRENT_FINALIZATION_JOBS: '8'
       MAX_ASSET_SIZE_BYTES: '10485760'

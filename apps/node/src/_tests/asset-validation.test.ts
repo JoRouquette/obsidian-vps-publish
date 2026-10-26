@@ -45,7 +45,8 @@ describe('FileTypeAssetValidator - MIME Detection & Size Limits', () => {
     });
 
     it('should accept asset when no size limit is specified', async () => {
-      const anyBuffer = Buffer.alloc(50 * 1024 * 1024); // 50MB, larger than typical limit
+      // 50MB, larger than typical limit. Filled with text: a NUL byte is refused in text files.
+      const anyBuffer = Buffer.alloc(50 * 1024 * 1024, 'a');
 
       const result = await validator.validate(
         anyBuffer,

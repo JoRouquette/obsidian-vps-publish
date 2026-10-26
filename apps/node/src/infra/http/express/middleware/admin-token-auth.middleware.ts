@@ -2,17 +2,7 @@ import type { LoggerPort } from '@core-domain';
 import type { NextFunction, Request, Response } from 'express';
 
 import type { AdminSessionTokenService } from '../../../admin/admin-session-token.service';
-
-const BEARER_PREFIX = 'Bearer ';
-
-export function extractBearerToken(req: Request): string | undefined {
-  const header = req.header('authorization') ?? '';
-  if (!header.startsWith(BEARER_PREFIX)) {
-    return undefined;
-  }
-  const token = header.slice(BEARER_PREFIX.length).trim();
-  return token.length > 0 ? token : undefined;
-}
+import { extractBearerToken } from '../utils/bearer-token.util';
 
 /**
  * Protects admin dashboard routes by requiring a valid session token issued by
