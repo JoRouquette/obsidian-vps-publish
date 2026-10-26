@@ -1,5 +1,7 @@
 import { isPlatformBrowser } from '@angular/common';
-import { ApplicationRef, inject, Injectable, PLATFORM_ID } from '@angular/core';
+import { ApplicationRef, DestroyRef, inject, Injectable, PLATFORM_ID } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
 import { concat, filter, first, interval } from 'rxjs';
 
@@ -23,6 +25,8 @@ export class SwUpdateService {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly swUpdate = inject(SwUpdate, { optional: true });
   private readonly appRef = inject(ApplicationRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly snackBar = inject(MatSnackBar);
 
   /**
    * Vérifie si les mises à jour SW sont possibles.
@@ -46,13 +50,16 @@ export class SwUpdateService {
     const checkInterval$ = interval(6 * 60 * 60 * 1000); // 6 heures
     const checkWhenStable$ = concat(appIsStable$, checkInterval$);
 
-    checkWhenStable$.subscribe(() => {
+    checkWhenStable$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       void this.swUpdate!.checkForUpdate();
     });
 
     // Observer les nouvelles versions disponibles
     this.swUpdate.versionUpdates
-      .pipe(filter((evt): evt is VersionReadyEvent => evt.type === 'VERSION_READY'))
+      .pipe(
+        filter((evt): evt is VersionReadyEvent => evt.type === 'VERSION_READY'),
+        takeUntilDestroyed(this.destroyRef)
+      )
       .subscribe((event) => {
         console.log(`[PWA] Nouvelle version disponible: ${event.latestVersion.hash}`);
         this.promptUserForUpdate();
@@ -95,17 +102,18 @@ export class SwUpdateService {
   }
 
   /**
-   * Invite l'utilisateur à mettre à jour.
-   * Implémentation simple avec confirm() - peut être remplacé par un snackbar/dialog.
+   * Invite l'utilisateur à mettre à jour via une notification non bloquante.
    */
   private promptUserForUpdate(): void {
-    // Note: Pour une meilleure UX, remplacer par un MatSnackBar ou dialog
-    const shouldUpdate = confirm(
-      "Une nouvelle version de l'application est disponible. Voulez-vous recharger la page pour la mettre à jour ?"
+    const snackRef = this.snackBar.open(
+      "Une nouvelle version de l'application est disponible.",
+      'Recharger',
+      { duration: 0 }
     );
 
-    if (shouldUpdate) {
-      void this.activateUpdate();
-    }
+    snackRef
+      .onAction()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => void this.activateUpdate());
   }
 }

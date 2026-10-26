@@ -15,6 +15,8 @@ import express from 'express';
 
 import { AdminDashboardService } from '../../admin/admin-dashboard.service';
 import { AdminRuntimeControlService } from '../../admin/admin-runtime-control.service';
+import { deriveAdminSessionKey } from '../../admin/admin-session-key';
+import { AdminSessionTokenService } from '../../admin/admin-session-token.service';
 import { EnvConfig } from '../../config/env-config';
 import { ContentVersionService } from '../../content-version/content-version.service';
 import { AssetsFileSystemStorage } from '../../filesystem/assets-file-system.storage';
@@ -34,6 +36,7 @@ import { SessionFinalizerService } from '../../sessions/session-finalizer.servic
 import { createAngularSSRService } from '../../ssr/angular-ssr.service';
 import { AssetHashService } from '../../utils/asset-hash.service';
 import { FileTypeAssetValidator } from '../../validation/file-type-asset-validator';
+import { createAdminAuthController } from './controllers/admin-auth.controller';
 import { createAdminDashboardController } from './controllers/admin-dashboard.controller';
 import { createContentVersionController } from './controllers/content-version.controller';
 import {
@@ -46,7 +49,7 @@ import { createPingController } from './controllers/ping.controller';
 import { createSeoController } from './controllers/seo.controller';
 import { createSessionController } from './controllers/session-controller';
 import { FinalizationStreamTokenService } from './finalization-stream-token.service';
-import { createAdminAuthMiddleware } from './middleware/admin-auth.middleware';
+import { createAdminTokenAuthMiddleware } from './middleware/admin-token-auth.middleware';
 import { createApiKeyAuthMiddleware } from './middleware/api-key-auth.middleware';
 import { BackpressureMiddleware } from './middleware/backpressure.middleware';
 import { ChunkedUploadMiddleware } from './middleware/chunked-upload.middleware';
@@ -56,6 +59,13 @@ import { createMaintenanceModeMiddleware } from './middleware/maintenance-mode.m
 import { PerformanceMonitoringMiddleware } from './middleware/performance-monitoring.middleware';
 import { createRedirectMiddleware } from './middleware/redirect.middleware';
 import { RequestCorrelationMiddleware } from './middleware/request-correlation.middleware';
+import {
+  applyNosniffHeader,
+  applySandboxHeaders,
+  ASSET_SANDBOX_CSP,
+  CONTENT_SANDBOX_CSP,
+  isInertAssetPath,
+} from './security-headers';
 import { sanitizeLogUrl } from './utils/sanitize-log-url.util';
 
 export const BYTES_LIMIT = process.env.MAX_REQUEST_SIZE || '50mb';
@@ -114,6 +124,14 @@ export function createApp(rootLogger?: LoggerPort) {
       etag: true,
       lastModified: true,
       maxAge: '7d', // Cache assets for 7 days; frontend appends ?cv= for cache-busting
+      setHeaders: (res, filePath) => {
+        // Stop MIME sniffing everywhere, and sandbox anything that is not a named inert
+        // type (SVG, text, JSON, or an extension added to the allowlist later).
+        applyNosniffHeader(res);
+        if (!isInertAssetPath(filePath)) {
+          applySandboxHeaders(res, ASSET_SANDBOX_CSP);
+        }
+      },
     })
   );
 
@@ -138,6 +156,9 @@ export function createApp(rootLogger?: LoggerPort) {
         // HTML content: moderate cache with revalidation
         else if (filePath.endsWith('.html')) {
           res.setHeader('Cache-Control', 'public, max-age=300, must-revalidate');
+          // Neutralize a note opened as a top-level document: any residual XSS would
+          // otherwise run with the site origin. The site fetches it, so it is unaffected.
+          applySandboxHeaders(res, CONTENT_SANDBOX_CSP);
         }
       },
     })
@@ -350,16 +371,26 @@ export function createApp(rootLogger?: LoggerPort) {
   app.use('/api', apiRouter);
 
   if (EnvConfig.adminDashboardEnabled()) {
-    const adminRouter = express.Router();
-    adminRouter.use(
-      createAdminAuthMiddleware(
-        {
-          usernameHash: EnvConfig.adminUsernameHash(),
-          passwordHash: EnvConfig.adminPasswordHash(),
-        },
+    const adminCredentials = {
+      usernameHash: EnvConfig.adminUsernameHash(),
+      passwordHash: EnvConfig.adminPasswordHash(),
+    };
+    // The signing key mixes a server secret with the credential hashes: rotating the admin
+    // password invalidates every issued token, and the hashes alone cannot forge one.
+    const adminSessionTokenService = new AdminSessionTokenService(
+      deriveAdminSessionKey(
+        { configuredSecret: EnvConfig.adminSessionSecret(), ...adminCredentials },
         rootLogger
       )
     );
+
+    const adminRouter = express.Router();
+    // Unauthenticated login endpoint that exchanges credentials for a token.
+    adminRouter.use(
+      createAdminAuthController(adminCredentials, adminSessionTokenService, rootLogger)
+    );
+    // Every other admin route requires a valid session token.
+    adminRouter.use(createAdminTokenAuthMiddleware(adminSessionTokenService, rootLogger));
     adminRouter.use(createAdminDashboardController(adminDashboardService, rootLogger));
     app.use(EnvConfig.adminApiPath(), adminRouter);
   }
@@ -544,13 +575,21 @@ export function createApp(rootLogger?: LoggerPort) {
 
   // Angular SSR for all other routes
   // Initialize SSR service (lazy loading on first request)
+  const ssrEnabled = EnvConfig.ssrEnabled();
+  const trustedOrigin = EnvConfig.baseUrlOrNull(rootLogger);
+  if (ssrEnabled && !trustedOrigin) {
+    rootLogger?.warn(
+      'SSR is enabled without a valid BASE_URL: the render origin comes from the Host header, so a forged Host can poison absolute URLs and the SSR cache'
+    );
+  }
   const ssrService = createAngularSSRService(
     EnvConfig.uiServerRoot(),
     ANGULAR_DIST,
-    EnvConfig.ssrEnabled(),
+    ssrEnabled,
     rootLogger,
     EnvConfig.contentRoot(), // For cache invalidation based on manifest changes
-    true // Enable SSR caching
+    true, // Enable SSR caching
+    trustedOrigin // Avoids Host-header cache poisoning
   );
 
   const staticIndexPath = resolveStaticBrowserEntryPath(ANGULAR_DIST);

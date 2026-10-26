@@ -45,12 +45,13 @@ describe('FileTypeAssetValidator - MIME Detection & Size Limits', () => {
     });
 
     it('should accept asset when no size limit is specified', async () => {
-      const anyBuffer = Buffer.alloc(50 * 1024 * 1024); // 50MB, larger than typical limit
+      // 50MB, larger than typical limit. Filled with text: a NUL byte is refused in text files.
+      const anyBuffer = Buffer.alloc(50 * 1024 * 1024, 'a');
 
       const result = await validator.validate(
         anyBuffer,
-        'no-limit.bin',
-        'application/octet-stream'
+        'no-limit.txt',
+        'text/plain'
         // No maxSizeBytes parameter
       );
 
@@ -128,18 +129,17 @@ describe('FileTypeAssetValidator - MIME Detection & Size Limits', () => {
       expect(result.detectedMimeType).toBe('text/plain');
     });
 
-    it('should default to octet-stream for unknown extensions', async () => {
+    it('should reject unknown extensions that resolve to octet-stream', async () => {
       const unknownBuffer = Buffer.from('unknown content');
 
-      const result = await validator.validate(
-        unknownBuffer,
-        'file.unknownext',
-        'application/octet-stream',
-        10 * 1024 * 1024
-      );
-
-      expect(result.valid).toBe(true);
-      expect(result.detectedMimeType).toBe('application/octet-stream');
+      await expect(
+        validator.validate(
+          unknownBuffer,
+          'file.unknownext',
+          'application/octet-stream',
+          10 * 1024 * 1024
+        )
+      ).rejects.toMatchObject({ reason: 'INVALID_CONTENT' });
     });
   });
 

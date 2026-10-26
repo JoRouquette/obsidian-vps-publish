@@ -1,5 +1,5 @@
 import { JsonPipe, NgClass } from '@angular/common';
-import { Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 
 import {
@@ -8,6 +8,7 @@ import {
 } from '../../../../application/services/admin-dashboard.service';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   selector: 'app-admin-observability-tab',
   imports: [JsonPipe, MatCardModule, NgClass],

@@ -85,6 +85,9 @@ services:
       - ./assets:/assets
 ```
 
+> `BASE_URL` must be a valid absolute URL: it is the trusted origin for SSR rendering (without it the origin comes from the forgeable `Host` header).
+> If you enable the admin dashboard (`ADMIN_USERNAME_HASH`, `ADMIN_PASSWORD_HASH`), also set `ADMIN_SESSION_SECRET` (32 or more random characters, for example `openssl rand -base64 48`). Without it a random key is generated at every start and admin sessions do not survive a restart.
+
 ```bash
 sudo docker compose up -d
 curl -fsS http://127.0.0.1:3000/health   # must respond before you continue

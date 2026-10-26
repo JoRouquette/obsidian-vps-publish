@@ -1,8 +1,18 @@
+import { timingSafeEqual } from 'node:crypto';
+
 import { type LoggerPort } from '@core-domain';
 import type { NextFunction, Request, Response } from 'express';
 
 const norm = (s: string | undefined) => (s ?? '').replace(/^\uFEFF/, '').trim();
-const mask = (s: string) => (!s ? '∅' : s.length <= 6 ? '***' : `${s.slice(0, 3)}…${s.slice(-2)}`);
+
+const isApiKeyValid = (provided: string, expected: string): boolean => {
+  const providedBuffer = Buffer.from(provided);
+  const expectedBuffer = Buffer.from(expected);
+  return (
+    providedBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(providedBuffer, expectedBuffer)
+  );
+};
 
 export function createApiKeyAuthMiddleware(expectedRaw: string, logger?: LoggerPort) {
   const expected = norm(expectedRaw);
@@ -13,16 +23,9 @@ export function createApiKeyAuthMiddleware(expectedRaw: string, logger?: LoggerP
     const logMeta = {
       method: req.method,
       path: req.path,
-      gotMasked: mask(got),
       gotLen: got.length,
-      gotHex: Buffer.from(got).toString('hex'),
-      expectedMasked: mask(expected),
-      expectedLen: expected.length,
-      expectedHex: Buffer.from(expected).toString('hex'),
       requestId: req.headers['x-request-id'],
     };
-
-    logger?.debug('[auth] API key check', logMeta);
 
     if (!expected) {
       logger?.error('[auth] API key missing in server config', logMeta);
@@ -32,7 +35,7 @@ export function createApiKeyAuthMiddleware(expectedRaw: string, logger?: LoggerP
       logger?.warn('[auth] Missing API key in request', logMeta);
       return res.status(401).json({ ok: false, error: 'missing api key' });
     }
-    if (got !== expected) {
+    if (!isApiKeyValid(got, expected)) {
       logger?.warn('[auth] Invalid API key provided', logMeta);
       return res.status(403).json({ ok: false, error: 'Invalid API key' });
     }

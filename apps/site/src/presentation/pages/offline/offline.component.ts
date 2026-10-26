@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 
@@ -31,16 +32,11 @@ export class OfflineComponent implements OnInit {
   private readonly visitedPagesService = inject(VisitedPagesService);
 
   readonly visitedPages = signal<VisitedPageMeta[]>([]);
-  readonly isOnline = signal(false);
+  readonly isOnline = toSignal(this.offlineService.online$, { initialValue: false });
 
   ngOnInit(): void {
     // Load visited pages
     this.visitedPages.set(this.visitedPagesService.getRecentlyVisited(15));
-
-    // Track online status
-    this.offlineService.online$.subscribe((online) => {
-      this.isOnline.set(online);
-    });
   }
 
   retry(): void {

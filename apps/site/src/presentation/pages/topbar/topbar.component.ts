@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -11,6 +11,7 @@ import { SearchBarComponent } from '../../components/search-bar/search-bar.compo
 type Crumb = { label: string; url: string };
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-topbar',
   standalone: true,
   imports: [

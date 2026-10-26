@@ -5,9 +5,9 @@ import { firstValueFrom } from 'rxjs';
 
 import { ConfigFacade } from '../facades/config-facade';
 
-interface AdminCredentials {
-  user: string;
-  mdp: string;
+interface AdminLoginResponse {
+  token: string;
+  expiresAt: string;
 }
 
 export interface AdminNotification {
@@ -176,9 +176,11 @@ export class AdminDashboardService {
   private readonly http = inject(HttpClient);
   private readonly config = inject(ConfigFacade);
   private readonly platformId = inject(PLATFORM_ID);
-  private readonly STORAGE_KEY = 'vps-admin-credentials';
+  private readonly STORAGE_KEY = 'vps-admin-session';
+  private readonly LEGACY_CREDENTIALS_KEY = 'vps-admin-credentials';
 
-  readonly credentials = signal<AdminCredentials | null>(this.loadStoredCredentials());
+  readonly sessionToken = signal<string | null>(this.loadStoredToken());
+  readonly isAuthenticated = computed(() => this.sessionToken() !== null);
   readonly snapshot = signal<AdminDashboardSnapshot | null>(null);
   readonly logs = signal<AdminLogEntry[]>([]);
   readonly loading = signal(false);
@@ -193,19 +195,41 @@ export class AdminDashboardService {
   readonly history = computed(() => this.snapshot()?.history.recentSessions ?? []);
 
   async login(user: string, mdp: string): Promise<boolean> {
-    const nextCredentials = { user: user.trim(), mdp };
-    this.credentials.set(nextCredentials);
-    this.storeCredentials(nextCredentials);
-
-    const ok = await this.refreshAll();
-    if (!ok) {
-      this.clearCredentials();
+    const apiPath = this.config.cfg()?.adminApiPath;
+    if (!apiPath) {
+      return false;
     }
-    return ok;
+
+    this.loading.set(true);
+    this.authError.set(null);
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<AdminLoginResponse>(`${apiPath}/login`, { user: user.trim(), mdp })
+      );
+      this.sessionToken.set(response.token);
+      this.storeToken(response.token);
+    } catch (error) {
+      this.handleAuthError(error);
+      return false;
+    } finally {
+      this.loading.set(false);
+    }
+
+    return this.refreshAll();
   }
 
   logout(): void {
-    this.clearCredentials();
+    const token = this.sessionToken();
+    const apiPath = this.config.cfg()?.adminApiPath;
+    if (token && apiPath) {
+      // Fire and forget: the local session ends whether or not the server revocation succeeds.
+      this.http
+        .post(`${apiPath}/logout`, null, { headers: this.buildHeaders(token) })
+        .subscribe({ error: () => undefined });
+    }
+
+    this.clearToken();
     this.snapshot.set(null);
     this.logs.set([]);
     this.authError.set(null);
@@ -213,9 +237,9 @@ export class AdminDashboardService {
   }
 
   async refreshAll(): Promise<boolean> {
-    const credentials = this.credentials();
+    const token = this.sessionToken();
     const apiPath = this.config.cfg()?.adminApiPath;
-    if (!credentials || !apiPath) {
+    if (!token || !apiPath) {
       return false;
     }
 
@@ -226,12 +250,12 @@ export class AdminDashboardService {
       const [snapshot, logs] = await Promise.all([
         firstValueFrom(
           this.http.get<AdminDashboardSnapshot>(`${apiPath}/summary`, {
-            headers: this.buildHeaders(credentials),
+            headers: this.buildHeaders(token),
           })
         ),
         firstValueFrom(
           this.http.get<{ lines: AdminLogEntry[] }>(`${apiPath}/logs?limit=200`, {
-            headers: this.buildHeaders(credentials),
+            headers: this.buildHeaders(token),
           })
         ),
       ]);
@@ -249,9 +273,9 @@ export class AdminDashboardService {
   }
 
   async refreshLogs(): Promise<void> {
-    const credentials = this.credentials();
+    const token = this.sessionToken();
     const apiPath = this.config.cfg()?.adminApiPath;
-    if (!credentials || !apiPath) {
+    if (!token || !apiPath) {
       return;
     }
 
@@ -259,7 +283,7 @@ export class AdminDashboardService {
     try {
       const response = await firstValueFrom(
         this.http.get<{ lines: AdminLogEntry[] }>(`${apiPath}/logs?limit=200`, {
-          headers: this.buildHeaders(credentials),
+          headers: this.buildHeaders(token),
         })
       );
       this.logs.set(response.lines);
@@ -310,9 +334,9 @@ export class AdminDashboardService {
   private async runAction(
     action: (apiPath: string, headers: HttpHeaders) => Promise<void>
   ): Promise<void> {
-    const credentials = this.credentials();
+    const token = this.sessionToken();
     const apiPath = this.config.cfg()?.adminApiPath;
-    if (!credentials || !apiPath) {
+    if (!token || !apiPath) {
       return;
     }
 
@@ -320,7 +344,7 @@ export class AdminDashboardService {
     this.actionFeedback.set(null);
 
     try {
-      await action(apiPath, this.buildHeaders(credentials));
+      await action(apiPath, this.buildHeaders(token));
       await this.refreshAll();
     } catch (error) {
       this.handleAuthError(error);
@@ -329,18 +353,28 @@ export class AdminDashboardService {
     }
   }
 
-  private buildHeaders(credentials: AdminCredentials): HttpHeaders {
+  private buildHeaders(token: string): HttpHeaders {
     return new HttpHeaders({
-      'x-admin-user': credentials.user,
-      'x-admin-mdp': credentials.mdp,
+      Authorization: `Bearer ${token}`,
     });
   }
 
   private handleAuthError(error: unknown): void {
+    if (error instanceof HttpErrorResponse && error.status === 429) {
+      this.authError.set(buildTooManyAttemptsMessage(error.headers.get('Retry-After')));
+      return;
+    }
+
     if (error instanceof HttpErrorResponse && (error.status === 401 || error.status === 403)) {
+      // Read before clearToken(): login() only stores a token once it succeeds, so a token
+      // present here means an open session was refused, not a wrong password.
+      const hadSession = this.sessionToken() !== null;
+      this.clearToken();
       this.snapshot.set(null);
       this.logs.set([]);
-      this.authError.set('Identifiants admin invalides.');
+      this.authError.set(
+        hadSession ? 'Session expirée, reconnecte-toi.' : 'Identifiants admin invalides.'
+      );
       return;
     }
 
@@ -363,40 +397,66 @@ export class AdminDashboardService {
     this.authError.set("Impossible de charger le dashboard d'administration.");
   }
 
-  private clearCredentials(): void {
-    this.credentials.set(null);
-    if (this.isBrowser) {
+  // sessionStorage can throw (blocked storage, quota, private mode): the session then simply
+  // lives in memory for the current page.
+  private clearToken(): void {
+    this.sessionToken.set(null);
+    if (!this.isBrowser) {
+      return;
+    }
+
+    try {
       sessionStorage.removeItem(this.STORAGE_KEY);
+    } catch {
+      // Nothing persisted, nothing to clear.
     }
   }
 
-  private storeCredentials(credentials: AdminCredentials): void {
-    if (this.isBrowser) {
-      sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(credentials));
+  private storeToken(token: string): void {
+    if (!this.isBrowser) {
+      return;
+    }
+
+    try {
+      sessionStorage.setItem(this.STORAGE_KEY, token);
+    } catch {
+      // The token stays in memory: a failed persistence must not fail the login.
     }
   }
 
-  private loadStoredCredentials(): AdminCredentials | null {
+  private loadStoredToken(): string | null {
     if (!this.isBrowser) {
       return null;
     }
 
+    this.removeLegacyCredentials();
+
     try {
-      const raw = sessionStorage.getItem(this.STORAGE_KEY);
-      if (!raw) {
-        return null;
-      }
-      const parsed = JSON.parse(raw) as Partial<AdminCredentials>;
-      if (typeof parsed.user === 'string' && typeof parsed.mdp === 'string') {
-        return { user: parsed.user, mdp: parsed.mdp };
-      }
-      return null;
+      const stored = sessionStorage.getItem(this.STORAGE_KEY);
+      return stored && stored.length > 0 ? stored : null;
     } catch {
       return null;
+    }
+  }
+
+  /** Earlier versions kept the admin credentials in clear text under this key. */
+  private removeLegacyCredentials(): void {
+    try {
+      sessionStorage.removeItem(this.LEGACY_CREDENTIALS_KEY);
+    } catch {
+      // Storage unavailable: nothing to purge.
     }
   }
 
   private get isBrowser(): boolean {
     return isPlatformBrowser(this.platformId);
   }
+}
+
+function buildTooManyAttemptsMessage(retryAfterHeader: string | null): string {
+  const retryAfterSeconds = Number(retryAfterHeader);
+  if (retryAfterHeader !== null && Number.isInteger(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return `Trop de tentatives, réessaie dans ${retryAfterSeconds} s.`;
+  }
+  return 'Trop de tentatives, réessaie dans un instant.';
 }

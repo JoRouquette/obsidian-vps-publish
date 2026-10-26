@@ -370,7 +370,7 @@ describe('Callout Aliases - Obsidian Spec Compliance', () => {
 
       expect(html).toContain('data-callout="optional-rule"');
       expect(html).toContain('data-icon="toggle_on"');
-      expect(html).toContain('style="--callout-color: rgb(100, 220, 100)"');
+      expect(html).toContain('style="--callout-color:rgb(100, 220, 100)"');
     });
 
     it('CSS --callout-color as hex value should be injected as-is', async () => {
@@ -387,7 +387,7 @@ describe('Callout Aliases - Obsidian Spec Compliance', () => {
       const html = await renderer.render(note);
 
       expect(html).toContain('data-callout="idea"');
-      expect(html).toContain('style="--callout-color: #f59e0b"');
+      expect(html).toContain('style="--callout-color:#f59e0b"');
     });
 
     it('built-in callout types should not have an inline style color (SCSS handles it)', async () => {
@@ -416,7 +416,7 @@ describe('Callout Aliases - Obsidian Spec Compliance', () => {
 
       expect(html).toContain('<details class="callout"');
       expect(html).toContain('data-callout="event"');
-      expect(html).toContain('style="--callout-color: rgb(99, 102, 241)"');
+      expect(html).toContain('style="--callout-color:rgb(99, 102, 241)"');
       expect(html).toContain('data-icon="calendar_today"');
     });
   });

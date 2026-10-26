@@ -1,5 +1,6 @@
 import { isPlatformBrowser, NgComponentOutlet } from '@angular/common';
 import {
+  ChangeDetectionStrategy,
   Component,
   DestroyRef,
   Inject,
@@ -30,6 +31,7 @@ import { ThemeService } from '../services/theme.service';
 type Crumb = { label: string; url: string };
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   selector: 'app-shell',
   imports: [
@@ -81,10 +83,8 @@ export class ShellComponent implements OnInit {
   repo = () => this.config.cfg()?.repoUrl ?? '';
   reportIssues = () => this.config.cfg()?.reportIssuesUrl ?? '';
 
-  currentTitle = '';
-
-  private _crumbs: Crumb[] = [];
-  crumbs = () => this._crumbs;
+  private readonly _crumbs = signal<Crumb[]>([]);
+  crumbs = this._crumbs.asReadonly();
   private readonly pageTitleCache = new Map<string, string>();
   private readonly pageByRoute = new Map<string, ManifestPage>();
   private readonly folderDisplayNameCache = new Map<string, string>();
@@ -127,8 +127,7 @@ export class ShellComponent implements OnInit {
       if (q !== this.searchFacade.query()) {
         this.searchFacade.setQuery(q);
       }
-      this._crumbs = [];
-      this.currentTitle = 'Recherche';
+      this._crumbs.set([]);
       return;
     }
 
@@ -138,8 +137,7 @@ export class ShellComponent implements OnInit {
     }
 
     if (cleanUrl === '/') {
-      this._crumbs = [];
-      this.currentTitle = '';
+      this._crumbs.set([]);
       this.lastNonSearchUrl = '/';
       return;
     }
@@ -150,7 +148,7 @@ export class ShellComponent implements OnInit {
     const isFolderIndexRoute = rawParts.at(-1) === 'index';
     const parts = isFolderIndexRoute ? rawParts.slice(0, -1) : rawParts;
 
-    this._crumbs = parts.map((seg, i) => {
+    const crumbs = parts.map((seg, i) => {
       const partial = this.normalizeRoute('/' + parts.slice(0, i + 1).join('/'));
       const page = this.findPageForRoute(partial);
       const decodedSeg = decodeURIComponent(seg);
@@ -164,9 +162,7 @@ export class ShellComponent implements OnInit {
         label: page?.title ?? folderDisplayName ?? humanizePropertyKey(decodedSeg),
       };
     });
-
-    const page = this.findPageForRoute(url);
-    this.currentTitle = page?.title ?? decodeURIComponent(parts.at(-1) || '');
+    this._crumbs.set(crumbs);
   }
 
   private normalizeRoute(route: string): string {

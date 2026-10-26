@@ -1,9 +1,10 @@
-import { Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { ThemeService } from '../../services/theme.service';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   selector: 'app-logo',
   imports: [RouterLink],

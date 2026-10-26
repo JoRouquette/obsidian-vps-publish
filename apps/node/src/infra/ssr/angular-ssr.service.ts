@@ -45,6 +45,65 @@ interface AngularSSRConfig {
   cacheEnabled?: boolean;
   /** Maximum cached pages */
   cacheMaxEntries?: number;
+  /** Trusted origin (scheme://host) used to build the render URL instead of the request Host header */
+  trustedOrigin?: string;
+}
+
+const LAST_RESORT_ORIGIN = 'http://localhost';
+
+function parseOrigin(candidate: string | undefined): string | undefined {
+  if (!candidate) {
+    return undefined;
+  }
+  try {
+    const { origin } = new URL(candidate);
+    return origin === 'null' ? undefined : origin;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Path, query and fragment of the request target, always starting with a single '/'.
+ * Origin-form targets ('/…', '\…') are taken verbatim: parsing them would read '//docs/page'
+ * as a host, or throw on input Node accepts. Absolute targets keep only their path, query
+ * and fragment; one that cannot be parsed degrades to '/'.
+ */
+function toRootedTarget(originalUrl: string, origin: string): string {
+  let target = originalUrl;
+  if (!/^[/\\]/.test(originalUrl)) {
+    try {
+      const { pathname, search, hash } = new URL(originalUrl, origin);
+      target = `${pathname}${search}${hash}`;
+    } catch {
+      target = '/';
+    }
+  }
+  return `/${target.replace(/^[/\\]+/, '')}`;
+}
+
+/**
+ * Build the absolute URL passed to the SSR engine.
+ *
+ * Invariant: the origin never comes from `originalUrl`. It is the trusted origin when
+ * valid, else the request origin, else a fixed fallback, so a forged Host cannot poison
+ * absolute URLs and the SSR cache when a trusted origin is configured. Never throws.
+ */
+export function resolveRenderUrl(
+  originalUrl: string,
+  requestOrigin: string,
+  trustedOrigin?: string
+): string {
+  const origin = parseOrigin(trustedOrigin) ?? parseOrigin(requestOrigin) ?? LAST_RESORT_ORIGIN;
+  try {
+    const url = new URL(`${origin}${toRootedTarget(originalUrl, origin)}`);
+    // '.'/'..' segment normalization can expose a new leading '//', which must not stay
+    // protocol-relative.
+    url.pathname = url.pathname.replace(/^\/{2,}/, '/');
+    return url.href;
+  } catch {
+    return `${origin}/`;
+  }
 }
 
 /**
@@ -150,7 +209,8 @@ export class AngularSSRService {
       throw new Error('Angular SSR engine not initialized');
     }
 
-    const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+    const requestOrigin = `${req.protocol}://${req.get('host')}`;
+    const url = resolveRenderUrl(req.originalUrl, requestOrigin, this.config.trustedOrigin);
 
     this.logger?.debug('SSR rendering', { url });
 
@@ -265,7 +325,8 @@ export function createAngularSSRService(
   enabled: boolean,
   logger?: LoggerPort,
   contentRoot?: string,
-  cacheEnabled = true
+  cacheEnabled = true,
+  trustedOrigin?: string
 ): AngularSSRService {
   return new AngularSSRService(
     {
@@ -274,6 +335,7 @@ export function createAngularSSRService(
       enabled,
       contentRoot,
       cacheEnabled,
+      trustedOrigin,
     },
     logger
   );

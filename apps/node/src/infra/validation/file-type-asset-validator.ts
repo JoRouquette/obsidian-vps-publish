@@ -8,6 +8,17 @@ import {
 } from '@core-domain';
 import fileType from 'file-type';
 
+import { findUnsafeContent, hasSvgRootElement } from './asset-content-inspector';
+import {
+  extensionOf,
+  guessMimeTypeFromExtension,
+  isAllowedMimeType,
+  isExtensionAllowedForMimeType,
+} from './asset-mime-policy';
+
+const SVG_MIME_TYPE = 'image/svg+xml';
+const XML_MIME_TYPES: readonly string[] = ['application/xml', 'text/xml'];
+
 /**
  * Asset validator that detects real MIME types from file bytes using file-type library.
  * Prevents MIME spoofing attacks by not trusting client-provided MIME types.
@@ -39,37 +50,10 @@ export class FileTypeAssetValidator implements AssetValidatorPort {
     }
 
     // Check 2: Detect MIME type from actual bytes
-    let detectedMimeType: string;
-    try {
-      const fileTypeResult = await fileType.fromBuffer(buffer);
+    const detectedMimeType = await this.detectMimeType(buffer, filename, clientMimeType);
 
-      if (fileTypeResult) {
-        detectedMimeType = fileTypeResult.mime;
-        this.logger?.debug('MIME type detected from bytes', {
-          filename,
-          detectedMimeType,
-          clientMimeType,
-        });
-      } else {
-        // Fallback: guess from extension if file-type can't detect
-        detectedMimeType = this.guessMimeTypeFromExtension(filename);
-        this.logger?.debug('MIME type guessed from extension (file-type returned null)', {
-          filename,
-          detectedMimeType,
-        });
-      }
-    } catch (error) {
-      // If file-type fails, fallback to extension-based guessing
-      detectedMimeType = this.guessMimeTypeFromExtension(filename);
-      this.logger?.warn('file-type detection failed, falling back to extension', {
-        filename,
-        error,
-        detectedMimeType,
-      });
-    }
-
-    // Check 3: MIME mismatch warning (optional - we can choose to reject or just log)
-    // For now, we LOG but ACCEPT with the detected MIME (not client-provided)
+    // Check 3: MIME mismatch is informational; the detected type is trusted over
+    // the client-provided one.
     if (clientMimeType && detectedMimeType !== clientMimeType) {
       this.logger?.warn('MIME type mismatch detected (potential spoofing)', {
         filename,
@@ -77,8 +61,48 @@ export class FileTypeAssetValidator implements AssetValidatorPort {
         detectedMimeType,
         action: 'accepted_with_detected_mime',
       });
-      // If we wanted strict mode, we would throw here:
-      // throw new AssetValidationError(`MIME mismatch: client=${clientMimeType}, detected=${detectedMimeType}`, filename, 'MIME_MISMATCH');
+    }
+
+    // Check 3b: Enforce the MIME allowlist. Reject anything outside the set of
+    // supported asset types (and the octet-stream fallback for unknown content).
+    if (!isAllowedMimeType(detectedMimeType)) {
+      this.logger?.warn('Asset MIME type not allowed', {
+        filename,
+        detectedMimeType,
+        clientMimeType,
+      });
+      throw new AssetValidationError(
+        `Asset MIME type not allowed: ${detectedMimeType}`,
+        filename,
+        'INVALID_CONTENT'
+      );
+    }
+
+    // Check 3c: The stored name decides how the file is served, so its extension must
+    // belong to the detected type (a PNG header in `x.html` would be served as HTML).
+    if (!isExtensionAllowedForMimeType(filename, detectedMimeType)) {
+      this.logger?.warn('Asset extension does not match detected MIME type', {
+        filename,
+        detectedMimeType,
+      });
+      throw new AssetValidationError(
+        `Asset extension does not match its content type: ${detectedMimeType}`,
+        filename,
+        'INVALID_CONTENT'
+      );
+    }
+
+    // Check 3d: Text-based types are mostly not recognised from their bytes, and the type
+    // may come from the extension or from file-type; either way the content is inspected
+    // (the inspector ignores binary types).
+    const problem = findUnsafeContent(detectedMimeType, buffer);
+    if (problem) {
+      this.logger?.warn('Asset content refused', { filename, detectedMimeType, problem });
+      throw new AssetValidationError(
+        `Asset content refused: ${problem}`,
+        filename,
+        'INVALID_CONTENT'
+      );
     }
 
     // Check 4: Virus scan (if scanner is configured)
@@ -110,13 +134,17 @@ export class FileTypeAssetValidator implements AssetValidatorPort {
           throw error;
         }
 
-        // Log other errors but don't fail validation if scanner is misconfigured
-        this.logger?.error('Virus scan failed with error (validation continues)', {
+        // Fail closed: if a scanner is configured but cannot complete the scan,
+        // reject the asset rather than storing unscanned content.
+        this.logger?.error('Virus scan failed to complete; rejecting asset (fail-closed)', {
           filename,
           error,
         });
-        // In production, you might want to FAIL if scanner is enabled but not working
-        // For now, we log and continue (fail-open approach)
+        throw new AssetValidationError(
+          'Asset could not be scanned for threats',
+          filename,
+          'INVALID_CONTENT'
+        );
       }
     }
 
@@ -127,40 +155,59 @@ export class FileTypeAssetValidator implements AssetValidatorPort {
     };
   }
 
-  private guessMimeTypeFromExtension(filename: string): string {
-    const ext = filename.split('.').pop()?.toLowerCase();
-    switch (ext) {
-      case 'png':
-        return 'image/png';
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'gif':
-        return 'image/gif';
-      case 'svg':
-        return 'image/svg+xml';
-      case 'webp':
-        return 'image/webp';
-      case 'pdf':
-        return 'application/pdf';
-      case 'mp3':
-        return 'audio/mpeg';
-      case 'wav':
-        return 'audio/wav';
-      case 'ogg':
-        return 'audio/ogg';
-      case 'mp4':
-        return 'video/mp4';
-      case 'webm':
-        return 'video/webm';
-      case 'txt':
-        return 'text/plain';
-      case 'md':
-        return 'text/markdown';
-      case 'json':
-        return 'application/json';
-      default:
-        return 'application/octet-stream';
+  /**
+   * Type read from the bytes. When file-type finds nothing (or fails), the type implied by
+   * the extension is used.
+   */
+  private async detectMimeType(
+    buffer: Buffer | Uint8Array,
+    filename: string,
+    clientMimeType?: string
+  ): Promise<string> {
+    try {
+      const fileTypeResult = await fileType.fromBuffer(buffer);
+
+      if (fileTypeResult) {
+        this.logger?.debug('MIME type detected from bytes', {
+          filename,
+          detectedMimeType: fileTypeResult.mime,
+          clientMimeType,
+        });
+        return this.reclassifySvgWithXmlProlog(fileTypeResult.mime, buffer, filename);
+      }
+
+      const mimeType = guessMimeTypeFromExtension(filename);
+      this.logger?.debug('MIME type guessed from extension (file-type returned null)', {
+        filename,
+        detectedMimeType: mimeType,
+      });
+      return mimeType;
+    } catch (error) {
+      const mimeType = guessMimeTypeFromExtension(filename);
+      this.logger?.warn('file-type detection failed, falling back to extension', {
+        filename,
+        error,
+        detectedMimeType: mimeType,
+      });
+      return mimeType;
     }
+  }
+
+  /**
+   * file-type reports a document starting with `<?xml` (Inkscape, Illustrator) as
+   * `application/xml`, which would refuse a legitimate SVG. That type is read as SVG only
+   * when the final extension is `.svg` and an `<svg>` root is present; the SVG content
+   * checks then apply as for any SVG. The same bytes under another name stay refused.
+   */
+  private reclassifySvgWithXmlProlog(
+    detectedMimeType: string,
+    buffer: Buffer | Uint8Array,
+    filename: string
+  ): string {
+    const isXml = XML_MIME_TYPES.includes(detectedMimeType);
+    if (isXml && extensionOf(filename) === 'svg' && hasSvgRootElement(buffer)) {
+      return SVG_MIME_TYPE;
+    }
+    return detectedMimeType;
   }
 }
