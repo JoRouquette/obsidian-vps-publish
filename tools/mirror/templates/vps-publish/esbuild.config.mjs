@@ -1,6 +1,12 @@
 import esbuild from 'esbuild';
 import process from 'process';
-import builtins from 'builtin-modules';
+import { builtinModules } from 'node:module';
+
+// esbuild keeps the `node:` prefix of an import only when the external list holds that exact
+// form, so every built-in is listed with and without the prefix (as `builtin-modules` did).
+const nodeBuiltins = builtinModules.flatMap((name) =>
+  name.startsWith('node:') ? [name] : [name, `node:${name}`]
+);
 
 const prod = process.argv[2] === 'production';
 const context = await esbuild.context({
@@ -22,7 +28,7 @@ const context = await esbuild.context({
     '@codemirror/language', '@codemirror/lint', '@codemirror/search',
     '@codemirror/state', '@codemirror/view',
     '@lezer/common', '@lezer/highlight', '@lezer/lr',
-    ...builtins,
+    ...nodeBuiltins,
   ],
 });
 
