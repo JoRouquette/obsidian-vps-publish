@@ -116,7 +116,7 @@
     "lint:directory": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npx eslint --config apps/obsidian-vps-publish/eslint.directory.config.mjs --no-config-lookup --max-warnings 27 \"apps/obsidian-vps-publish/src/**/*.ts\" \"libs/*/src/**/*.ts\""
+        "command": "npx eslint --config apps/obsidian-vps-publish/eslint.directory.config.mjs --no-config-lookup --max-warnings 17 \"apps/obsidian-vps-publish/src/**/*.ts\" \"libs/*/src/**/*.ts\""
       }
     },
     "test": {
