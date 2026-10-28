@@ -306,6 +306,157 @@ describe('Route Node Migration', () => {
 
       expect(childFirst).toEqual(parentFirst);
     });
+
+    describe('deep chains and repeated routes', () => {
+      const folder = (id: string, vaultFolder: string, routeBase: string): FolderConfig => ({
+        id,
+        vpsId: 'vps-1',
+        vaultFolder,
+        routeBase,
+        ignoredCleanupRuleIds: [`rule-${id}`],
+        flattenTree: id === 'b',
+      });
+
+      function findNode(roots: RouteNode[], ...segments: string[]): RouteNode | undefined {
+        let level: RouteNode[] = roots;
+        let node: RouteNode | undefined;
+        for (const segment of segments) {
+          node = level.find((candidate) => candidate.segment === segment);
+          level = node?.children ?? [];
+        }
+        return node;
+      }
+
+      it('should promote every intermediate node declared after its descendants', () => {
+        const { roots } = migrateLegacyFoldersToRouteTree([
+          folder('c', 'A/B/C', '/a/b/c'),
+          folder('b', 'A/B', '/a/b'),
+          folder('a', 'A', '/a'),
+        ]);
+
+        expect(validateRouteTree({ roots }).valid).toBe(true);
+        expect(roots).toHaveLength(1);
+        expect(findNode(roots, 'a')).toMatchObject({
+          id: 'a',
+          vaultFolder: 'A',
+          ignoredCleanupRuleIds: ['rule-a'],
+        });
+        expect(findNode(roots, 'a', 'b')).toMatchObject({
+          id: 'b',
+          vaultFolder: 'A/B',
+          flattenTree: true,
+          ignoredCleanupRuleIds: ['rule-b'],
+        });
+        expect(findNode(roots, 'a', 'b', 'c')).toMatchObject({ id: 'c', vaultFolder: 'A/B/C' });
+      });
+
+      it('should give the same tree for every order of a three-level chain', () => {
+        const chain = [
+          folder('a', 'A', '/a'),
+          folder('b', 'A/B', '/a/b'),
+          folder('c', 'A/B/C', '/a/b/c'),
+        ];
+        const orders = [
+          [0, 1, 2],
+          [0, 2, 1],
+          [1, 0, 2],
+          [1, 2, 0],
+          [2, 0, 1],
+          [2, 1, 0],
+        ];
+
+        const trees = orders.map((order) =>
+          migrateLegacyFoldersToRouteTree(order.map((index) => chain[index]))
+        );
+
+        for (const tree of trees) {
+          expect(tree).toEqual(trees[0]);
+        }
+      });
+
+      it('should keep sibling routes separate when the parent is declared between them', () => {
+        const { roots } = migrateLegacyFoldersToRouteTree([
+          folder('b', 'A/B', '/a/b'),
+          folder('a', 'A', '/a'),
+          folder('c', 'A/C', '/a/c'),
+        ]);
+
+        expect(roots).toHaveLength(1);
+        expect(roots[0].children?.map((child) => child.segment)).toEqual(['b', 'c']);
+        expect(roots[0]).toMatchObject({ id: 'a', vaultFolder: 'A' });
+      });
+
+      it('should read the same route twice as a single node', () => {
+        const { roots } = migrateLegacyFoldersToRouteTree([
+          folder('a1', 'A', '/a'),
+          folder('a2', 'A', '/a'),
+        ]);
+
+        expect(roots).toHaveLength(1);
+        expect(roots[0]).toMatchObject({
+          vaultFolder: 'A',
+          ignoredCleanupRuleIds: ['rule-a1', 'rule-a2'],
+        });
+      });
+
+      it('should read " a" and "a" as the same route', () => {
+        const { roots } = migrateLegacyFoldersToRouteTree([
+          folder('a1', 'A', '/ a'),
+          folder('a2', 'A', '/a'),
+        ]);
+
+        expect(roots).toHaveLength(1);
+        expect(validateRouteTree({ roots }).valid).toBe(true);
+      });
+    });
+
+    describe('conflict warnings', () => {
+      const base = { vpsId: 'vps-1', ignoredCleanupRuleIds: [] as string[] };
+
+      it('should report the vault folder dropped when two folders on "/" differ', () => {
+        const warnings: string[] = [];
+
+        migrateLegacyFoldersToRouteTree(
+          [
+            { ...base, id: 'f1', vaultFolder: 'Home', routeBase: '/' },
+            { ...base, id: 'f2', vaultFolder: 'Elsewhere', routeBase: '/' },
+          ],
+          (message) => warnings.push(message)
+        );
+
+        expect(warnings).toEqual(['Route "/": vault folder "Elsewhere" ignored, "Home" kept']);
+      });
+
+      it('should report a custom index dropped on a repeated route', () => {
+        const warnings: string[] = [];
+
+        migrateLegacyFoldersToRouteTree(
+          [
+            { ...base, id: 'f1', vaultFolder: 'A', routeBase: '/a', customIndexFile: 'one.md' },
+            { ...base, id: 'f2', vaultFolder: 'A', routeBase: '/a', customIndexFile: 'two.md' },
+          ],
+          (message) => warnings.push(message)
+        );
+
+        expect(warnings).toEqual(['Route "/a": custom index "two.md" ignored, "one.md" kept']);
+      });
+
+      it('should stay silent when nothing is lost', () => {
+        const warnings: string[] = [];
+
+        migrateLegacyFoldersToRouteTree(
+          [
+            { ...base, id: 'f1', vaultFolder: '', routeBase: '/' },
+            { ...base, id: 'f2', vaultFolder: 'Home', routeBase: '/' },
+            { ...base, id: 'f3', vaultFolder: 'A', routeBase: '/a' },
+            { ...base, id: 'f4', vaultFolder: 'A', routeBase: '/a' },
+          ],
+          (message) => warnings.push(message)
+        );
+
+        expect(warnings).toEqual([]);
+      });
+    });
   });
 
   describe('migrateLegacyVpsConfig', () => {
@@ -382,6 +533,200 @@ describe('Route Node Migration', () => {
 
       expect(migrated).toBe(false);
       expect(vps.routeTree).toBeUndefined();
+    });
+
+    it('should migrate legacy folders saved next to the empty default root', () => {
+      const { vps, migrated } = migrateLegacyVpsConfig(
+        createSavedLegacyVps({
+          routeTree: { roots: [{ id: 'default', segment: '', ignoredCleanupRuleIds: [] }] },
+        })
+      );
+
+      expect(migrated).toBe(true);
+      expect(vps.routeTree?.roots.map((root) => root.segment)).toEqual(['blog']);
+    });
+
+    it.each([
+      ['a vault folder', { id: 'root', segment: '', vaultFolder: 'Home' }],
+      ['a custom index', { id: 'root', segment: '', customIndexFile: 'home.md' }],
+      ['a child route', { id: 'root', segment: '', children: [{ id: 'c', segment: 'c' }] }],
+      ['a name and no vault folder', { id: 'root', segment: 'docs' }],
+    ] as [string, RouteNode][])('should keep a root route that has %s', (_label, root) => {
+      const routeTree: RouteTreeConfig = { roots: [root] };
+
+      const { vps, migrated } = migrateLegacyVpsConfig(createSavedLegacyVps({ routeTree }));
+
+      expect(migrated).toBe(false);
+      expect(vps.routeTree).toBe(routeTree);
+    });
+
+    it('should be idempotent: a migrated VPS is not migrated again', () => {
+      const first = migrateLegacyVpsConfig(createSavedLegacyVps());
+      // The legacy folders are still present, as when the saved file was not rewritten.
+      const second = migrateLegacyVpsConfig({
+        ...(first.vps as LegacyVpsConfig),
+        folders: createSavedLegacyVps().folders,
+      });
+
+      expect(first.migrated).toBe(true);
+      expect(second.migrated).toBe(false);
+      expect(second.vps.routeTree).toBe(first.vps.routeTree);
+    });
+
+    it('should treat a null root entry as no route and migrate', () => {
+      const { migrated } = migrateLegacyVpsConfig(
+        createSavedLegacyVps({ routeTree: { roots: [null] } as unknown as RouteTreeConfig })
+      );
+
+      expect(migrated).toBe(true);
+    });
+
+    it('should not throw on a conflict when no warning handler is given', () => {
+      const folder = (id: string, vaultFolder: string): FolderConfig => ({
+        id,
+        vpsId: 'vps-1',
+        vaultFolder,
+        routeBase: '/a/b',
+        ignoredCleanupRuleIds: [],
+      });
+
+      expect(() =>
+        migrateLegacyVpsConfig(
+          createSavedLegacyVps({
+            folders: [folder('f1', 'One'), folder('f2', 'Two')],
+            customIndexes: [{ id: 'i', folderPath: '/gone', indexFilePath: 'x.md' }],
+          })
+        )
+      ).not.toThrow();
+    });
+
+    it('should name the nested route in a conflict warning', () => {
+      const warnings: string[] = [];
+      const folder = (id: string, vaultFolder: string): FolderConfig => ({
+        id,
+        vpsId: 'vps-1',
+        vaultFolder,
+        routeBase: '/a/b',
+        ignoredCleanupRuleIds: [],
+      });
+
+      migrateLegacyVpsConfig(
+        createSavedLegacyVps({
+          folders: [folder('f1', 'One'), folder('f2', 'Two')],
+          customIndexes: undefined,
+        }),
+        (message) => warnings.push(message)
+      );
+
+      expect(warnings).toEqual(['Route "/a/b": vault folder "Two" ignored, "One" kept']);
+    });
+
+    describe('saved data that is not trusted', () => {
+      it.each([
+        ['null', null],
+        ['a string', 'folders'],
+        ['an object', { 0: 'x' }],
+      ])('should not throw when folders is %s', (_label, folders) => {
+        const warnings: string[] = [];
+
+        const { vps, migrated } = migrateLegacyVpsConfig(
+          createSavedLegacyVps({ folders: folders as unknown as FolderConfig[] }),
+          (message) => warnings.push(message)
+        );
+
+        expect(migrated).toBe(false);
+        expect(vps.routeTree).toBeUndefined();
+        expect(warnings).toEqual([]);
+      });
+
+      it('should skip unreadable folder entries, report them, and migrate the others', () => {
+        const warnings: string[] = [];
+        const readable = createSavedLegacyVps().folders as FolderConfig[];
+
+        const { vps, migrated } = migrateLegacyVpsConfig(
+          createSavedLegacyVps({
+            folders: [
+              null,
+              42,
+              { id: 'bad', vaultFolder: 'X', routeBase: 7 },
+              ...readable,
+            ] as unknown as FolderConfig[],
+          }),
+          (message) => warnings.push(message)
+        );
+
+        expect(migrated).toBe(true);
+        expect(vps.routeTree?.roots.map((root) => root.segment)).toEqual(['blog']);
+        expect(warnings).toHaveLength(3);
+        expect(warnings.every((message) => message.startsWith('Legacy folder ignored'))).toBe(true);
+      });
+
+      it('should keep the VPS as saved when no folder entry is readable', () => {
+        const legacy = createSavedLegacyVps({ folders: [null] as unknown as FolderConfig[] });
+
+        const { vps, migrated } = migrateLegacyVpsConfig(legacy);
+
+        expect(migrated).toBe(false);
+        expect(vps).toBe(legacy);
+      });
+
+      it('should ignore unreadable custom indexes and report them', () => {
+        const warnings: string[] = [];
+
+        const { vps, migrated } = migrateLegacyVpsConfig(
+          createSavedLegacyVps({
+            customIndexes: [
+              null,
+              { id: 'x', folderPath: 3, indexFilePath: 'x.md' },
+            ] as unknown as LegacyVpsConfig['customIndexes'],
+          }),
+          (message) => warnings.push(message)
+        );
+
+        expect(migrated).toBe(true);
+        expect(vps.routeTree?.roots[0].customIndexFile).toBeUndefined();
+        expect(warnings).toEqual(['Some legacy custom indexes are unreadable and were ignored']);
+      });
+    });
+
+    it('should report a custom index that matches no route', () => {
+      const warnings: string[] = [];
+
+      const { vps } = migrateLegacyVpsConfig(
+        createSavedLegacyVps({
+          customIndexes: [
+            { id: 'i1', folderPath: '/blog', indexFilePath: 'indexes/blog.md' },
+            { id: 'i2', folderPath: '/gone', indexFilePath: 'indexes/gone.md' },
+          ],
+        }),
+        (message) => warnings.push(message)
+      );
+
+      expect(vps.routeTree?.roots[0].customIndexFile).toBe('indexes/blog.md');
+      expect(warnings).toEqual([
+        'Legacy custom index for "/gone" matches no route and was ignored',
+      ]);
+    });
+
+    it('should report the dropped vault folder when folders on "/" conflict', () => {
+      const warnings: string[] = [];
+      const folder = (id: string, vaultFolder: string): FolderConfig => ({
+        id,
+        vpsId: 'vps-1',
+        vaultFolder,
+        routeBase: '/',
+        ignoredCleanupRuleIds: [],
+      });
+
+      migrateLegacyVpsConfig(
+        createSavedLegacyVps({
+          folders: [folder('f1', 'Home'), folder('f2', 'Other')],
+          customIndexes: undefined,
+        }),
+        (message) => warnings.push(message)
+      );
+
+      expect(warnings).toEqual(['Route "/": vault folder "Other" ignored, "Home" kept']);
     });
   });
 

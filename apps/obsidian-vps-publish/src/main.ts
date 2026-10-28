@@ -434,10 +434,36 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     // Auto-migrate legacy folders to route tree (only for VPS without routeTree)
     let needsSave = false;
+    let migrationWarned = false;
     let vpsConfigs: VpsConfig[] = merged.vpsConfigs;
     if (merged.vpsConfigs && Array.isArray(merged.vpsConfigs)) {
-      vpsConfigs = merged.vpsConfigs.map((legacyVps) => {
-        const { vps, migrated } = migrateLegacyVpsConfig(legacyVps);
+      const readableEntries = merged.vpsConfigs.filter((entry) => {
+        const readable = typeof entry === 'object' && entry !== null;
+        if (!readable) {
+          migrationWarned = true;
+          this.logger.warn('Ignoring an unreadable VPS entry in the saved settings', {
+            entryType: entry === null ? 'null' : typeof entry,
+          });
+        }
+        return readable;
+      });
+      vpsConfigs = readableEntries.map((legacyVps) => {
+        let result: ReturnType<typeof migrateLegacyVpsConfig>;
+        try {
+          result = migrateLegacyVpsConfig(legacyVps, (message) => {
+            migrationWarned = true;
+            this.logger.warn(`VPS settings migration: ${message}`, { vpsId: legacyVps?.id });
+          });
+        } catch (error) {
+          // An unreadable entry must not stop the plugin from loading: keep it as saved.
+          migrationWarned = true;
+          this.logger.error('VPS settings migration failed, entry kept as saved', {
+            vpsId: legacyVps?.id,
+            error,
+          });
+          return legacyVps;
+        }
+        const { vps, migrated } = result;
         if (migrated) {
           this.logger.info(`Migrated VPS "${vps.name}" from legacy folders to route tree`, {
             vpsId: vps.id,
@@ -458,6 +484,11 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     }
 
     this.settings = withDecryptedApiKeys({ ...merged, vpsConfigs });
+
+    if (migrationWarned) {
+      const { t } = getTranslations(this.app, this.settings);
+      new Notice(t.notice.settingsMigrationWarnings, 8000);
+    }
 
     // Save immediately if migration occurred
     if (needsSave) {
