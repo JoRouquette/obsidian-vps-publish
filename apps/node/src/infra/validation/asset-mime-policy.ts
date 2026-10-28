@@ -17,6 +17,9 @@ const EXTENSIONS_BY_MIME_TYPE: Readonly<Record<string, readonly string[]>> = {
   'image/gif': ['gif'],
   'image/webp': ['webp'],
   'image/svg+xml': ['svg'],
+  // ICO: file-type reports `image/x-icon`; `image/vnd.microsoft.icon` is the IANA name.
+  'image/x-icon': ['ico'],
+  'image/vnd.microsoft.icon': ['ico'],
   'application/pdf': ['pdf'],
   'audio/mpeg': ['mp3'],
   'audio/wav': ['wav'],
@@ -40,6 +43,7 @@ const MIME_TYPE_BY_EXTENSION: ReadonlyMap<string, string> = new Map([
   ['gif', 'image/gif'],
   ['svg', 'image/svg+xml'],
   ['webp', 'image/webp'],
+  ['ico', 'image/x-icon'],
   ['pdf', 'application/pdf'],
   ['mp3', 'audio/mpeg'],
   ['wav', 'audio/wav'],
