@@ -1,4 +1,4 @@
-import type { FolderConfig } from '@core-domain/entities/folder-config';
+import type { RouteNode } from '@core-domain/entities/route-node';
 import { VpsConfigInvariants } from '@core-domain/entities/vps-config';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 
@@ -30,10 +30,6 @@ export function normalizeSettings(settings: PluginSettings, logger?: LoggerPort)
       VpsConfigInvariants.validateUniqueUrl(settings.vpsConfigs, vps.baseUrl, vps.id);
     } catch (e) {
       logger?.error(`VPS #${index} validation failed`, { error: e });
-      // Fix the VPS
-      if (!vps.folders || vps.folders.length === 0) {
-        vps.folders = [createDefaultFolder(vps.id)];
-      }
     }
 
     // Ensure arrays exist
@@ -43,8 +39,9 @@ export function normalizeSettings(settings: PluginSettings, logger?: LoggerPort)
     if (!Array.isArray(vps.cleanupRules)) {
       vps.cleanupRules = [];
     }
-    if (!Array.isArray(vps.folders)) {
-      vps.folders = [createDefaultFolder(vps.id)];
+    // Fix the VPS: at least the root route
+    if (!vps.routeTree || !Array.isArray(vps.routeTree.roots) || vps.routeTree.roots.length === 0) {
+      vps.routeTree = { roots: [createDefaultRootRoute()] };
     }
   });
 
@@ -91,24 +88,16 @@ function createDefaultVps(): PluginSettings['vpsConfigs'][0] {
     ignoreRules: [],
     cleanupRules: [],
     routeTree: {
-      roots: [
-        {
-          id: `folder-${Date.now()}`,
-          segment: '',
-          ignoredCleanupRuleIds: [],
-        },
-      ],
+      roots: [createDefaultRootRoute()],
     },
   };
 }
 
-function createDefaultFolder(vpsId: string): FolderConfig {
+/** Empty root route ("/") of a new VPS. It publishes nothing until a vault folder is mapped on the routes page. */
+export function createDefaultRootRoute(): RouteNode {
   return {
     id: `folder-${Date.now()}`,
-    vpsId,
-    vaultFolder: '',
-    routeBase: '/',
+    segment: '',
     ignoredCleanupRuleIds: [],
-    flattenTree: false,
   };
 }

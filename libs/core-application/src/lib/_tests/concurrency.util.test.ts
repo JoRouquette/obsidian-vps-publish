@@ -56,6 +56,25 @@ describe('YieldScheduler', () => {
     const statsAfter = scheduler.getStats();
     expect(statsAfter.operationCount).toBe(0);
   });
+
+  it('yields through window.setTimeout when a window exists', async () => {
+    const setTimeoutStub = jest.fn((callback: () => void) => {
+      callback();
+      return 1;
+    });
+    Object.defineProperty(globalThis, 'window', {
+      value: { setTimeout: setTimeoutStub },
+      configurable: true,
+      writable: true,
+    });
+    try {
+      const scheduler = new YieldScheduler(100, 1000);
+      await scheduler.forceYield();
+      expect(setTimeoutStub).toHaveBeenCalledWith(expect.any(Function), 0);
+    } finally {
+      Reflect.deleteProperty(globalThis, 'window');
+    }
+  });
 });
 
 describe('ConcurrencyLimiter', () => {

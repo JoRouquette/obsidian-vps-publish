@@ -27,7 +27,6 @@ describe('testVpsConnection', () => {
         apiKey: '',
         ignoreRules: [],
         cleanupRules: [],
-        folders: [],
       },
       handler as any,
       logger
@@ -47,7 +46,6 @@ describe('testVpsConnection', () => {
         apiKey: 'k',
         ignoreRules: [],
         cleanupRules: [],
-        folders: [],
       },
       handler as any,
       logger
@@ -71,7 +69,6 @@ describe('testVpsConnection', () => {
         apiKey: 'k',
         ignoreRules: [],
         cleanupRules: [],
-        folders: [],
       },
       handler as any,
       logger
@@ -104,7 +101,6 @@ describe('testVpsConnection', () => {
         apiKey: 'k',
         ignoreRules: [],
         cleanupRules: [],
-        folders: [],
       },
       handler as any,
       logger

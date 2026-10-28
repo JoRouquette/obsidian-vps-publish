@@ -4,6 +4,7 @@ import type { LoggerPort } from '@core-domain/ports/logger-port';
 
 import { getTranslations } from '../../i18n';
 import type ObsidianVpsPublishPlugin from '../../main';
+import { getEffectiveFolders } from '../utils/get-effective-folders.util';
 import type { SettingsContext as BaseContext } from './plugin-settings.type';
 
 export type SettingsViewContext = BaseContext & {
@@ -59,7 +60,7 @@ export function buildSettingsContext(
 
     getFoldersForVps: (vpsId: string) => {
       const vps = base.settings.vpsConfigs?.find((v) => v.id === vpsId);
-      return vps?.folders || [];
+      return vps ? getEffectiveFolders(vps) : [];
     },
 
     isVpsNameUnique: (name: string, excludeId?: string) => {

@@ -30,17 +30,17 @@ describe('prepareSessionBootstrapPlan', () => {
       name: 'Test VPS',
       baseUrl: 'https://example.com',
       apiKey: 'secret',
-      routeTree: undefined,
-      folders: [
-        {
-          id: 'folder-1',
-          vaultFolder: 'notes',
-          routeBase: '/notes',
-          vpsId: 'vps-1',
-          ignoredCleanupRuleIds: [],
-          customIndexFile: 'notes/_index.md',
-        },
-      ],
+      routeTree: {
+        roots: [
+          {
+            id: 'folder-1',
+            segment: 'notes',
+            vaultFolder: 'notes',
+            ignoredCleanupRuleIds: [],
+            customIndexFile: 'notes/_index.md',
+          },
+        ],
+      },
       customRootIndexFile: '_index.md',
       cleanupRules: [
         {
