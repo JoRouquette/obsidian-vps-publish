@@ -9,6 +9,17 @@ Publish selected vault folders to your personal VPS with property-based filterin
 - Incremental sync — only changed files are uploaded
 - Desktop-only (requires Node.js file system access)
 
+## Vault access disclosure
+
+The plugin lists the files of your vault (`vault.getFiles`, `getMarkdownFiles`, `getAllLoadedFiles`) in four places. Every listing is local, read-only and held in memory only:
+
+- **Folder and file pickers** in the settings suggest paths while you type.
+- **Property picker** in the ignore rules reads the frontmatter keys of your notes to suggest property names. Only the key names and their counts are kept, never the values.
+- **Publication summary** counts the notes and assets of the folders you configured, to fill the confirmation dialog.
+- **Asset lookup** builds an index of file names to match the images and attachments embedded in the notes you publish. Outside your assets folder, it only searches the rest of the vault when you turn on the vault fallback option.
+
+Nothing from these listings is sent anywhere. Only the notes of the folders you configured (minus your ignore rules) and the assets those notes embed are uploaded, to your own server.
+
 ## Installation
 
 ### From Obsidian Community Plugins

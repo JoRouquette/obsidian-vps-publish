@@ -81,19 +81,24 @@ jobs:
           push_mirror core-application
           push_mirror vps-publish
 
-  mirror-release:
-    name: Create marketplace release on vps-publish
+  # Les assets de la release marketplace doivent être EXACTEMENT ce que la revue
+  # automatisée du répertoire Obsidian reconstruit : elle clone le miroir vps-publish,
+  # lance un `npm ci` nu puis `npm run build`, et compare le main.js obtenu à l'asset de
+  # la release. Construit par Nx depuis le monorepo (autre lockfile, autre esbuild, sans
+  # minification), le main.js ne pouvait pas correspondre (« Build output does not match
+  # the released main.js artifact »). On régénère donc l'arbre du miroir avec le même
+  # script que `sync-mirrors` et on le construit avec les mêmes commandes.
+  #
+  # La construction vit dans un job SANS secret ni permission d'écriture : il exécute les
+  # scripts d'installation et de build des dépendances. La signature et la publication
+  # (PAT, OIDC) se font dans le job suivant, qui n'exécute aucun code de dépendance.
+  build-assets:
+    name: Build marketplace assets from the mirror tree
     needs: [gate, sync-mirrors]
     if: needs.gate.outputs.is_release == 'true'
     runs-on: ubuntu-latest
-    # C'est ICI que vit l'étape d'attestation, pas dans `sync-mirrors` : les
-    # permissions doivent donc être portées par ce job. Les avoir posées sur le
-    # job voisin a fait échouer la release 6.23.0 sur
-    # `missing "id-token" permission`, après que les miroirs eurent été poussés.
     permissions:
       contents: read
-      id-token: write
-      attestations: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -105,50 +110,97 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund --ignore-scripts --legacy-peer-deps
-        env:
-          HUSKY: 0
+      - name: Regenerate the mirror tree
+        run: |
+          chmod +x tools/mirror/regenerate.sh
+          bash tools/mirror/regenerate.sh vps-publish "$RUNNER_TEMP/mirror-vps-publish"
 
-      - name: Build plugin
-        run: npm run build:plugin
+      # ⚠️ PAS de --legacy-peer-deps : même commande que la revue du répertoire.
+      - name: Install dependencies (same command as the directory review)
+        working-directory: ${{ runner.temp }}/mirror-vps-publish
+        run: npm ci --no-audit --no-fund
 
-      - name: Package Obsidian plugin
-        run: npm run package:plugin
+      - name: Build plugin (same command as the directory review)
+        working-directory: ${{ runner.temp }}/mirror-vps-publish
+        run: npm run build
 
-      - name: Read manifest id/version
+      - name: Print the digests of the built assets
+        working-directory: ${{ runner.temp }}/mirror-vps-publish
+        run: sha256sum main.js styles.css manifest.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-assets
+          path: |
+            ${{ runner.temp }}/mirror-vps-publish/main.js
+            ${{ runner.temp }}/mirror-vps-publish/styles.css
+            ${{ runner.temp }}/mirror-vps-publish/manifest.json
+          if-no-files-found: error
+          retention-days: 1
+
+  mirror-release:
+    name: Create marketplace release on vps-publish
+    needs: [gate, build-assets]
+    if: needs.gate.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    # C'est ICI que vit l'étape d'attestation, pas dans `sync-mirrors` : les
+    # permissions doivent donc être portées par ce job. Les avoir posées sur le
+    # job voisin a fait échouer la release 6.23.0 sur
+    # `missing "id-token" permission`, après que les miroirs eurent été poussés.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      # La version vient du dépôt (source de confiance), pas du répertoire construit.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugin-assets
+          path: plugin-assets
+
+      - name: Read manifest version
         id: manifest
         run: |
-          echo "plugin_id=$(node -e "console.log(require('./manifest.json').id)")" >> "$GITHUB_OUTPUT"
-          echo "version=$(node -e "console.log(require('./manifest.json').version)")" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -e "console.log(require('./apps/obsidian-vps-publish/manifest.json').version)")" >> "$GITHUB_OUTPUT"
+
+      # Garde-fou : le manifest construit doit être celui du dépôt à cette révision.
+      - name: Check the built manifest matches the repository
+        run: cmp apps/obsidian-vps-publish/manifest.json plugin-assets/manifest.json
 
       # Provenance SLSA des artefacts publiés du plugin.
       # ⚠️ Limite connue : l'attestation est rattachée au dépôt qui exécute le workflow,
       # donc à obsidian-vps-publish — PAS au miroir JoRouquette/vps-publish où vit la
       # release. Vérification :
       #   gh attestation verify main.js --repo JoRouquette/obsidian-vps-publish
-      # La revue automatisée du répertoire Obsidian, qui inspecte le miroir, ne la voit pas.
+      # La revue du miroir lit celle que sa propre CI publie (voir
+      # tools/mirror/ci/vps-publish-release.yml) : le build étant reproductible, les deux
+      # attestations portent la même empreinte que l'asset.
       - name: Attest plugin build provenance
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
-            dist/${{ steps.manifest.outputs.plugin_id }}/main.js
-            dist/${{ steps.manifest.outputs.plugin_id }}/styles.css
+            plugin-assets/main.js
+            plugin-assets/styles.css
+            plugin-assets/manifest.json
 
       - name: Create or update GitHub Release on vps-publish
         env:
           GH_TOKEN: ${{ secrets.SUBTREE_SYNC_TOKEN }}
+          V: ${{ steps.manifest.outputs.version }}
         run: |
           set -euo pipefail
-          ID="${{ steps.manifest.outputs.plugin_id }}"
-          V="${{ steps.manifest.outputs.version }}"
+          [[ "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "::error::invalid version: $V"; exit 1; }
           # Le tag DOIT être exactement la version (sans préfixe 'v') pour la marketplace Obsidian.
           # versions.json n'est PAS un asset de release supporté par le répertoire Obsidian :
           # il reste versionné dans le dépôt miroir, mais n'est plus attaché à la release.
-          A="dist/$ID/main.js dist/$ID/manifest.json dist/$ID/styles.css"
+          A=(plugin-assets/main.js plugin-assets/manifest.json plugin-assets/styles.css)
           if gh release view "$V" --repo JoRouquette/vps-publish >/dev/null 2>&1; then
-            gh release upload "$V" $A --repo JoRouquette/vps-publish --clobber
+            gh release upload "$V" "${A[@]}" --repo JoRouquette/vps-publish --clobber
           else
-            gh release create "$V" $A --repo JoRouquette/vps-publish --target main \
+            gh release create "$V" "${A[@]}" --repo JoRouquette/vps-publish --target main \
               --title "Publish to VPS v$V" --notes "Automated release synced from monorepo (obsidian-vps-publish)."
           fi

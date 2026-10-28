@@ -3,6 +3,8 @@
  * Prevents UI freezing during long-running operations
  */
 
+import { setTimeoutSafe } from './timers.util';
+
 export class YieldScheduler {
   private operationCount = 0;
   private lastYieldTime = performance.now();
@@ -35,7 +37,7 @@ export class YieldScheduler {
    * Unconditionally yield control to event loop
    */
   async forceYield(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise<void>((resolve) => setTimeoutSafe(resolve, 0));
     this.operationCount = 0;
     this.lastYieldTime = performance.now();
   }

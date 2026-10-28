@@ -6,6 +6,8 @@ import type {
 } from '@core-domain/ports/compression-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 
+import { setTimeoutSafe } from '../../utils/timers.util';
+
 export interface ChunkedUploadOptions {
   maxChunkSize?: number; // in bytes, default 5MB
   maxRequestBytes?: number; // serialized request body size limit
@@ -223,7 +225,7 @@ export class ChunkedUploadService {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeoutSafe(resolve, ms));
   }
 
   private computeSafeChunkSize(

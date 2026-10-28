@@ -21,6 +21,7 @@ describe('DataviewExecutor', () => {
   const originalWindowRequire = (window as Window & { require?: NodeRequire }).require;
 
   afterEach(() => {
+    jest.restoreAllMocks();
     global.require = originalGlobalRequire;
     (window as Window & { require?: NodeRequire }).require = originalWindowRequire;
   });
@@ -94,6 +95,8 @@ describe('DataviewExecutor', () => {
     baseRequire.resolve = require.resolve;
     baseRequire.cache = require.cache;
     baseRequire.main = require.main;
+    // The wrapper must not copy the deprecated extensions map, even when the base has one.
+    baseRequire.extensions = require.extensions;
 
     let wrapped: NodeRequire | undefined;
     let legacyValue: unknown;
@@ -134,11 +137,121 @@ describe('DataviewExecutor', () => {
     expect(wrapped).not.toBe(baseRequire);
     expect(wrapped?.cache).toBe(baseRequire.cache);
     expect(wrapped?.main).toBe(baseRequire.main);
+    expect(wrapped?.extensions).toBeUndefined();
+    const helperFile = path.join(helperDir, 'value.js');
+    expect(wrapped?.resolve(helperFile)).toBe(baseRequire.resolve(helperFile));
     expect(wrapped?.resolve('node:path')).toBe(baseRequire.resolve('node:path'));
     expect(legacyValue).toEqual({ value: 42 });
     expect(delegatedPath).toBe(path);
-    expect(delegated).toEqual(['node:path']);
+    // The shim loads its two Node modules through the base require first, then the block calls node:path.
+    expect(delegated).toEqual(['node:module', 'node:path', 'node:path']);
     expect(requireHolder.require).toBe(baseRequire);
+  });
+
+  it('falls back to the bare module names when window.require refuses the node: scheme', async () => {
+    const tempVault = fs.mkdtempSync(path.join(os.tmpdir(), 'obsidian-vps-publish-dv-'));
+    const helperDir = path.join(tempVault, '_assets', '_views', 'helpers');
+    fs.mkdirSync(helperDir, { recursive: true });
+    fs.writeFileSync(path.join(helperDir, 'value.js'), 'exports.value = 42;', 'utf8');
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const requested: string[] = [];
+    const prefixRefusingRequire = Object.assign(
+      (request: string): unknown => {
+        requested.push(request);
+        if (request.startsWith('node:')) {
+          throw new Error(`Cannot find module '${request}'`);
+        }
+        return require(request);
+      },
+      { resolve: require.resolve, cache: require.cache, main: require.main }
+    ) as NodeRequire;
+    let legacyValue: unknown;
+    const dataviewApi: DataviewApi = {
+      query: jest.fn(),
+      executeJs: jest.fn(async () => {
+        legacyValue = (window as Window & { require: NodeRequire }).require(
+          '//_assets/_views/helpers/value.js'
+        );
+      }),
+    };
+
+    global.require = prefixRefusingRequire;
+    (window as Window & { require?: NodeRequire }).require = prefixRefusingRequire;
+
+    const executor = new DataviewExecutor(dataviewApi, {
+      workspace: { getActiveFile: () => null },
+      vault: { adapter: { getBasePath: () => tempVault } },
+    });
+
+    const result = await executor.executeBlock(
+      {
+        kind: 'js',
+        contentRaw: 'dv.paragraph("x")',
+        langRaw: 'dataviewjs',
+        startIndex: 0,
+        endIndex: 0,
+        startLine: 1,
+        endLine: 1,
+      },
+      'Some Note.md'
+    );
+
+    expect(result.success).toBe(true);
+    expect(requested).toEqual(['node:module', 'module', 'node:path', 'path']);
+    expect(legacyValue).toEqual({ value: 42 });
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('skips the require shim when window.require cannot load the Node modules', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const failingRequire = Object.assign(
+      (request: string): never => {
+        throw new Error(`Cannot find module '${request}'`);
+      },
+      {
+        resolve: require.resolve,
+        cache: require.cache,
+        main: require.main,
+        extensions: require.extensions,
+      }
+    );
+    let requireSeenByScript: unknown;
+    const dataviewApi: DataviewApi = {
+      query: jest.fn(),
+      executeJs: jest.fn(async () => {
+        requireSeenByScript = (window as Window & { require?: unknown }).require;
+      }),
+    };
+
+    global.require = failingRequire;
+    (window as Window & { require?: NodeRequire }).require = failingRequire;
+
+    const executor = new DataviewExecutor(dataviewApi, {
+      workspace: { getActiveFile: () => null },
+      vault: { adapter: { getBasePath: () => os.tmpdir() } },
+    });
+
+    const result = await executor.executeBlock(
+      {
+        kind: 'js',
+        contentRaw: 'dv.paragraph("x")',
+        langRaw: 'dataviewjs',
+        startIndex: 0,
+        endIndex: 0,
+        startLine: 1,
+        endLine: 1,
+      },
+      'Some Note.md'
+    );
+
+    expect(result.success).toBe(true);
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.stringContaining('require shim disabled'),
+      expect.any(Error)
+    );
+    expect(requireSeenByScript).toBe(failingRequire);
+    expect((window as Window & { require?: NodeRequire }).require).toBe(failingRequire);
   });
 
   it('resolves vault-root require from vault root even when note is in a subfolder', async () => {

@@ -10,11 +10,11 @@ import { NormalizeFrontmatterService } from '@core-application/vault-parsing/ser
 import { RemoveNoPublishingMarkerService } from '@core-application/vault-parsing/services/remove-no-publishing-marker.service';
 import { RenderInlineDataviewService } from '@core-application/vault-parsing/services/render-inline-dataview.service';
 import {
-  applyCustomIndexesToRouteTree,
   CancellationError,
   type CancellationPort,
   type CollectedNote,
-  migrateLegacyFoldersToRouteTree,
+  type LegacyVpsConfig,
+  migrateLegacyVpsConfig,
   validateRouteTree,
   type VpsConfig,
 } from '@core-domain';
@@ -74,6 +74,11 @@ import {
   startSessionBootstrapEarly,
 } from './lib/utils/session-bootstrap-plan.util';
 import { selectVpsOrAuto } from './lib/utils/vps-selector';
+
+/** Settings as loaded from disk, before the legacy VPS migration. */
+type LoadedPluginSettings = Omit<PluginSettings, 'vpsConfigs'> & {
+  vpsConfigs: LegacyVpsConfig[];
+};
 
 const defaultSettings: PluginSettings = {
   vpsConfigs: [],
@@ -326,9 +331,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       id: 'open-help',
       name: t.plugin.commandOpenHelp,
       callback: () => {
-        const { HelpModal } =
-          require('./lib/modals/help-modal') as typeof import('./lib/modals/help-modal');
-        new HelpModal(this.app, t).open();
+        // import() paresseux : le modal d'aide est chargé à la demande.
+        void import('./lib/modals/help-modal')
+          .then(({ HelpModal }) => new HelpModal(this.app, t).open())
+          .catch((error: unknown) => this.logger.error('Failed to open the help modal', { error }));
       },
     });
 
@@ -418,66 +424,51 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
     } catch (e) {
       this.logger.error('Failed to load snapshot settings', { error: e });
     }
-    const merged: PluginSettings = {
+    // Raw saved VPS may still hold legacy fields (folders, customIndexes): they are
+    // read only here, through the migration-only LegacyVpsConfig type.
+    const merged: LoadedPluginSettings = {
       ...defaultSettings,
-      ...(internalRaw as Partial<PluginSettings>),
-      ...(snapshotRaw as Partial<PluginSettings>),
+      ...(internalRaw as Partial<LoadedPluginSettings>),
+      ...(snapshotRaw as Partial<LoadedPluginSettings>),
     };
 
-    // BREAKING CHANGE: Auto-migrate legacy folders to route tree
+    // Auto-migrate legacy folders to route tree (only for VPS without routeTree)
     let needsSave = false;
+    let vpsConfigs: VpsConfig[] = merged.vpsConfigs;
     if (merged.vpsConfigs && Array.isArray(merged.vpsConfigs)) {
-      merged.vpsConfigs = merged.vpsConfigs.map((vps) => {
-        // Check if migration is needed (has folders but no routeTree)
-        if (vps.folders && vps.folders.length > 0 && !vps.routeTree) {
-          this.logger.info(`Migrating VPS "${vps.name}" from legacy folders to route tree`, {
+      vpsConfigs = merged.vpsConfigs.map((legacyVps) => {
+        const { vps, migrated } = migrateLegacyVpsConfig(legacyVps);
+        if (migrated) {
+          this.logger.info(`Migrated VPS "${vps.name}" from legacy folders to route tree`, {
             vpsId: vps.id,
-            foldersCount: vps.folders.length,
-            customIndexesCount: vps.customIndexes?.length || 0,
+            foldersCount: legacyVps.folders?.length ?? 0,
+            customIndexesCount: legacyVps.customIndexes?.length ?? 0,
+            routeTreeRoots: vps.routeTree?.roots.length ?? 0,
           });
-
-          const routeTree = migrateLegacyFoldersToRouteTree(vps.folders);
-
-          // Apply custom indexes to route tree
-          if (vps.customIndexes && vps.customIndexes.length > 0) {
-            this.logger.debug('Applying custom indexes to route tree', {
-              vpsId: vps.id,
-              customIndexesCount: vps.customIndexes.length,
-            });
-            applyCustomIndexesToRouteTree(routeTree, vps.customIndexes);
-          }
-
-          this.logger.debug('Migration completed', {
-            vpsId: vps.id,
-            routeTreeRoots: routeTree.roots.length,
-          });
-
           needsSave = true;
-
-          // Return migrated VPS with routeTree and cleaned up legacy fields
-          const { folders: _folders, customIndexes: _customIndexes, ...cleanVps } = vps;
-          return {
-            ...cleanVps,
-            routeTree,
-          };
         }
-
         return vps;
       });
 
       // Enrich cleanup rules with default metadata (translation keys, isDefault flag)
-      merged.vpsConfigs = merged.vpsConfigs.map((vps) => ({
+      vpsConfigs = vpsConfigs.map((vps) => ({
         ...vps,
         cleanupRules: enrichCleanupRules(vps.cleanupRules || []),
       }));
     }
 
-    this.settings = withDecryptedApiKeys(merged);
+    this.settings = withDecryptedApiKeys({ ...merged, vpsConfigs });
 
     // Save immediately if migration occurred
     if (needsSave) {
       this.logger.info('Auto-saving migrated settings');
-      await this.saveSettings();
+      try {
+        await this.saveSettings();
+      } catch (error) {
+        // Saved settings stay untouched: the migration runs again at next load.
+        this.logger.error('Failed to save migrated settings', { error });
+        return;
+      }
       // `this.settings` est affecté juste au-dessus : les traductions sont donc
       // résolvables ici, ce qui lève le TODO qui laissait cette notice en dur.
       const { t } = getTranslations(this.app, this.settings);
@@ -620,11 +611,9 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
 
     const vps = settings.vpsConfigs[0];
 
-    // Check if either routeTree or folders are configured
-    const hasRouteTree = vps.routeTree && vps.routeTree.roots.length > 0;
-    const hasFolders = vps.folders && vps.folders.length > 0;
-
-    if (!hasRouteTree && !hasFolders) {
+    // Legacy folders are migrated to routeTree at load: routeTree is the only source
+    const routeTree = vps.routeTree;
+    if (!routeTree || routeTree.roots.length === 0) {
       this.logger.warn('No folders or route tree configured for VPS', { vpsId: vps.id });
       new Notice(translate(t, 'notice.noFoldersConfigured'));
       return;
@@ -798,31 +787,16 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       trace.startStep('2-collect-notes');
       const parseAndTransformStart = performance.now();
 
-      // Use route tree if available, otherwise fallback to legacy folders
-      let notes: CollectedNote[];
-      if (vps.routeTree && vps.routeTree.roots.length > 0) {
-        scopedLogger.debug('Using route tree collection (new method)', {
-          rootCount: vps.routeTree.roots.length,
-        });
-        notes = await vault.collectFromRouteTree(
-          {
-            routeTree: vps.routeTree,
-            vpsId: vps.id,
-          },
-          cancellation
-        );
-      } else {
-        scopedLogger.debug('Using legacy folder collection (fallback)', {
-          folderCount: vps.folders?.length || 0,
-        });
-        // Extract effective folders from route tree (or legacy folders)
-        notes = await vault.collectFromFolder(
-          {
-            folderConfig: sessionBootstrapPlan.effectiveFolders,
-          },
-          cancellation
-        );
-      }
+      scopedLogger.debug('Using route tree collection', {
+        rootCount: routeTree.roots.length,
+      });
+      const notes: CollectedNote[] = await vault.collectFromRouteTree(
+        {
+          routeTree,
+          vpsId: vps.id,
+        },
+        cancellation
+      );
 
       trace.endStep('2-collect-notes', { notesCount: notes.length });
 

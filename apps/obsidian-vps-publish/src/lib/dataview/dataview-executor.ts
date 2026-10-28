@@ -616,10 +616,11 @@ export class DataviewExecutor {
   }
 
   private installVaultRootRequireShim(): (() => void) | null {
-    // Garde de plateforme d'abord : les modules Node ne sont chargés qu'ici, en
-    // require() différé, parce qu'ils n'existent pas sur mobile. Le manifest
-    // déclare isDesktopOnly, mais la règle obsidianmd/no-nodejs-modules exige la
-    // garde explicite — un import statique ne peut, lui, jamais être gardé.
+    // Garde de plateforme d'abord : les modules Node ne sont chargés qu'ici, via
+    // window.require, parce qu'ils n'existent pas sur mobile. Le manifest déclare
+    // isDesktopOnly, mais la règle obsidianmd/no-nodejs-modules exige la garde
+    // explicite — un import statique ne peut, lui, jamais être gardé. import() est
+    // écarté : il rendrait cette fonction asynchrone.
     if (!Platform.isDesktop) {
       return null;
     }
@@ -628,9 +629,6 @@ export class DataviewExecutor {
     if (!basePath) {
       return null;
     }
-
-    const { createRequire } = require('node:module') as typeof import('node:module');
-    const path = require('node:path') as typeof import('node:path');
 
     const globalScope = window;
 
@@ -642,6 +640,27 @@ export class DataviewExecutor {
           : null;
 
     if (!originalRequire) {
+      return null;
+    }
+
+    let createRequire: (typeof import('node:module'))['createRequire'];
+    let path: typeof import('node:path');
+    // A wrapped require() may refuse the `node:` scheme while still serving the bare names.
+    const loadBuiltin = (name: 'module' | 'path'): unknown => {
+      try {
+        return originalRequire(`node:${name}`);
+      } catch {
+        return originalRequire(name);
+      }
+    };
+    try {
+      ({ createRequire } = loadBuiltin('module') as typeof import('node:module'));
+      path = loadBuiltin('path') as typeof import('node:path');
+    } catch (loadError) {
+      console.error(
+        '[obsidian-vps-publish] dataview vault-root require shim disabled: node modules unavailable:',
+        loadError
+      );
       return null;
     }
 
