@@ -78,6 +78,69 @@ describe('DataviewExecutor', () => {
     expect((window as Window & { require?: NodeRequire }).require).toBe(require);
   });
 
+  it('keeps resolve, cache and main on the wrapped require and delegates other requests', async () => {
+    const tempVault = fs.mkdtempSync(path.join(os.tmpdir(), 'obsidian-vps-publish-dv-'));
+    const helperDir = path.join(tempVault, '_assets', '_views', 'helpers');
+    fs.mkdirSync(helperDir, { recursive: true });
+    fs.writeFileSync(path.join(helperDir, 'value.js'), 'exports.value = 42;', 'utf8');
+
+    type RequireHolder = Window & { require?: NodeRequire };
+    const requireHolder = window as RequireHolder;
+    const delegated: string[] = [];
+    const baseRequire = ((request: string): unknown => {
+      delegated.push(request);
+      return require(request);
+    }) as NodeRequire;
+    baseRequire.resolve = require.resolve;
+    baseRequire.cache = require.cache;
+    baseRequire.main = require.main;
+
+    let wrapped: NodeRequire | undefined;
+    let legacyValue: unknown;
+    let delegatedPath: unknown;
+
+    const dataviewApi: DataviewApi = {
+      query: jest.fn(),
+      executeJs: jest.fn(async () => {
+        wrapped = requireHolder.require;
+        legacyValue = wrapped?.('//_assets/_views/helpers/value.js');
+        delegatedPath = wrapped?.('node:path');
+      }),
+    };
+
+    global.require = baseRequire;
+    requireHolder.require = baseRequire;
+
+    const executor = new DataviewExecutor(dataviewApi, {
+      workspace: { getActiveFile: () => null },
+      vault: { adapter: { getBasePath: () => tempVault } },
+    });
+
+    const result = await executor.executeBlock(
+      {
+        kind: 'js',
+        contentRaw: 'await dv.view("_assets/_views/geo/influences")',
+        langRaw: 'dataviewjs',
+        startIndex: 0,
+        endIndex: 0,
+        startLine: 1,
+        endLine: 1,
+      },
+      'Some Note.md'
+    );
+
+    expect(result.success).toBe(true);
+    expect(wrapped).toBeDefined();
+    expect(wrapped).not.toBe(baseRequire);
+    expect(wrapped?.cache).toBe(baseRequire.cache);
+    expect(wrapped?.main).toBe(baseRequire.main);
+    expect(wrapped?.resolve('node:path')).toBe(baseRequire.resolve('node:path'));
+    expect(legacyValue).toEqual({ value: 42 });
+    expect(delegatedPath).toBe(path);
+    expect(delegated).toEqual(['node:path']);
+    expect(requireHolder.require).toBe(baseRequire);
+  });
+
   it('resolves vault-root require from vault root even when note is in a subfolder', async () => {
     // Regression guard: path must resolve to vault_root/_assets/..., NOT note_folder/_assets/...
     // Before the fix, passing './_assets/...' to createRequire would resolve relative to

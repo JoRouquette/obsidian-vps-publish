@@ -672,7 +672,6 @@ export class DataviewExecutor {
 
     wrappedRequire.resolve = originalRequire.resolve?.bind(originalRequire);
     wrappedRequire.cache = originalRequire.cache;
-    wrappedRequire.extensions = originalRequire.extensions;
     wrappedRequire.main = originalRequire.main;
 
     const previousGlobalRequire = globalScope.require;
