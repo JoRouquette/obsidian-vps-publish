@@ -10,6 +10,10 @@ const makeLogger = () =>
   }) as any;
 
 describe('ChunkedUploadService', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('keeps every serialized chunk under maxRequestBytes', async () => {
     const compression = {
       compress: jest.fn(async (input: string) => new TextEncoder().encode(input)),
@@ -83,5 +87,36 @@ describe('ChunkedUploadService', () => {
 
     await expect(service.uploadChunk(chunk, uploader)).rejects.toThrow('413 Payload Too Large');
     expect(uploader.uploadChunk).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits the backoff delay before retrying a retryable error', async () => {
+    jest.useFakeTimers();
+    const service = new ChunkedUploadService({} as any, {} as any, makeLogger(), {
+      retryAttempts: 2,
+    });
+    const uploader = {
+      uploadChunk: jest
+        .fn()
+        .mockRejectedValueOnce(new Error('network down'))
+        .mockResolvedValueOnce(undefined),
+    };
+    const chunk = {
+      metadata: {
+        uploadId: 'upload-retry',
+        chunkIndex: 0,
+        totalChunks: 1,
+        originalSize: 10,
+        compressedSize: 10,
+      },
+      data: 'AAAA',
+    };
+
+    const done = service.uploadChunk(chunk, uploader);
+    await jest.advanceTimersByTimeAsync(999);
+    expect(uploader.uploadChunk).toHaveBeenCalledTimes(1);
+
+    await jest.advanceTimersByTimeAsync(1);
+    await done;
+    expect(uploader.uploadChunk).toHaveBeenCalledTimes(2);
   });
 });

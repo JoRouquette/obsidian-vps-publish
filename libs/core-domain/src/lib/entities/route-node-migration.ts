@@ -1,5 +1,7 @@
+import type { CustomIndexConfig } from './custom-index-config';
 import type { FolderConfig } from './folder-config';
 import type { RouteNode, RouteTreeConfig } from './route-node';
+import type { VpsConfig } from './vps-config';
 
 /**
  * Migration utility: convert legacy FolderConfig[] to RouteTreeConfig
@@ -18,26 +20,24 @@ import type { RouteNode, RouteTreeConfig } from './route-node';
  */
 export function migrateLegacyFoldersToRouteTree(legacyFolders: FolderConfig[]): RouteTreeConfig {
   const roots: RouteNode[] = [];
-  const nodeMap = new Map<string, RouteNode>(); // path -> node
+  const nodeMap = new Map<string, RouteNode>(); // path -> node ('' for the root route "/")
+  const folderNodes = new Set<RouteNode>(); // nodes already carrying a legacy folder
 
   for (const folder of legacyFolders) {
     const routePath = normalizeRoutePath(folder.routeBase);
     const segments = routePath.split('/').filter(Boolean);
 
     if (segments.length === 0) {
-      // Root route: "/"
-      const rootNode: RouteNode = {
-        id: folder.id, // Preserve original ID
-        segment: '',
-        vaultFolder: folder.vaultFolder,
-        customIndexFile: folder.customIndexFile,
-        additionalFiles: folder.additionalFiles,
-        flattenTree: folder.flattenTree,
-        ignoredCleanupRuleIds: folder.ignoredCleanupRuleIds,
-        children: [],
-      };
-      roots.push(rootNode);
-      nodeMap.set('', rootNode);
+      // Root route: "/". Only one root route is valid, later folders merge into it.
+      const existingRoot = nodeMap.get('');
+      if (existingRoot) {
+        mergeFolderIntoNode(existingRoot, folder, folderNodes);
+      } else {
+        const rootNode = createFolderNode(folder, '');
+        folderNodes.add(rootNode);
+        roots.push(rootNode);
+        nodeMap.set('', rootNode);
+      }
     } else {
       // Build nested structure
       let currentPath = '';
@@ -51,20 +51,17 @@ export function migrateLegacyFoldersToRouteTree(legacyFolders: FolderConfig[]): 
         let node = nodeMap.get(currentPath);
 
         if (!node) {
-          // Create new node
-          node = {
-            id: isLeaf ? folder.id : `route-${currentPath.replace(/\//g, '-')}`,
-            segment,
-            ignoredCleanupRuleIds: isLeaf ? folder.ignoredCleanupRuleIds : [],
-            children: [],
-          };
-
-          // If leaf node, attach folder properties
           if (isLeaf) {
-            node.vaultFolder = folder.vaultFolder;
-            node.customIndexFile = folder.customIndexFile;
-            node.additionalFiles = folder.additionalFiles;
-            node.flattenTree = folder.flattenTree;
+            node = createFolderNode(folder, segment);
+            folderNodes.add(node);
+          } else {
+            // Intermediate (pure route) node
+            node = {
+              id: `route-${currentPath.replace(/\//g, '-')}`,
+              segment,
+              ignoredCleanupRuleIds: [],
+              children: [],
+            };
           }
 
           nodeMap.set(currentPath, node);
@@ -77,10 +74,9 @@ export function migrateLegacyFoldersToRouteTree(legacyFolders: FolderConfig[]): 
             roots.push(node);
           }
         } else if (isLeaf) {
-          // Node exists from another folder, merge properties
-          // This can happen if multiple folders share the same routeBase
-          // Route conflict: multiple folders map to same route - keeping first folder config
-          // Silently ignore duplicate to avoid console pollution (logged in tests if needed)
+          // Node already exists: created as an intermediate node for a deeper
+          // folder (e.g. "/a" after "/a/b"), or by another folder on the same route.
+          mergeFolderIntoNode(node, folder, folderNodes);
         }
 
         parentNode = node;
@@ -89,6 +85,95 @@ export function migrateLegacyFoldersToRouteTree(legacyFolders: FolderConfig[]): 
   }
 
   return { roots };
+}
+
+function createFolderNode(folder: FolderConfig, segment: string): RouteNode {
+  return {
+    id: folder.id, // Preserve original ID
+    segment,
+    vaultFolder: folder.vaultFolder,
+    customIndexFile: folder.customIndexFile,
+    additionalFiles: folder.additionalFiles,
+    flattenTree: folder.flattenTree,
+    ignoredCleanupRuleIds: folder.ignoredCleanupRuleIds,
+    children: [],
+  };
+}
+
+/**
+ * Attach a legacy folder to an existing node without losing anything already set.
+ *
+ * - An intermediate node takes the folder ID, as a leaf created for it would.
+ * - Values already set on the node win (first folder wins on a real conflict);
+ *   an empty or missing value never overwrites a set one.
+ * - List values are merged without duplicates.
+ */
+function mergeFolderIntoNode(
+  node: RouteNode,
+  folder: FolderConfig,
+  folderNodes: Set<RouteNode>
+): void {
+  if (!folderNodes.has(node)) {
+    node.id = folder.id;
+    folderNodes.add(node);
+  }
+
+  node.vaultFolder = node.vaultFolder || folder.vaultFolder;
+  node.customIndexFile = node.customIndexFile || folder.customIndexFile;
+  node.flattenTree = node.flattenTree ?? folder.flattenTree;
+  node.additionalFiles = mergeUnique(node.additionalFiles, folder.additionalFiles);
+  node.ignoredCleanupRuleIds = mergeUnique(
+    node.ignoredCleanupRuleIds,
+    folder.ignoredCleanupRuleIds
+  );
+}
+
+function mergeUnique(first?: string[], second?: string[]): string[] | undefined {
+  if (!first && !second) return undefined;
+  return Array.from(new Set([...(first ?? []), ...(second ?? [])]));
+}
+
+/**
+ * Migration-only shape of a VPS as saved before the route-first model.
+ * The legacy fields are not part of the public `VpsConfig` anymore; they are
+ * only read once from the raw saved settings to build the route tree.
+ */
+export interface LegacyVpsConfig extends VpsConfig {
+  /** Legacy folder configuration (folder-first model) */
+  folders?: FolderConfig[];
+
+  /** Legacy custom indexes, moved to `RouteNode.customIndexFile` */
+  customIndexes?: CustomIndexConfig[];
+}
+
+export interface LegacyVpsMigrationResult {
+  /** VPS without legacy fields */
+  vps: VpsConfig;
+
+  /** True when legacy folders were converted to a new route tree */
+  migrated: boolean;
+}
+
+/**
+ * One-time migration of a saved VPS: legacy `folders` (and `customIndexes`)
+ * become a `routeTree` when the VPS has none. An existing `routeTree` is kept
+ * as is. Legacy fields are always dropped from the result.
+ *
+ * @param legacyVps - VPS as read from the raw saved settings
+ */
+export function migrateLegacyVpsConfig(legacyVps: LegacyVpsConfig): LegacyVpsMigrationResult {
+  const { folders, customIndexes, ...vps } = legacyVps;
+
+  if ((vps.routeTree?.roots?.length ?? 0) > 0 || !folders || folders.length === 0) {
+    return { vps, migrated: false };
+  }
+
+  const routeTree = migrateLegacyFoldersToRouteTree(folders);
+  if (customIndexes && customIndexes.length > 0) {
+    applyCustomIndexesToRouteTree(routeTree, customIndexes);
+  }
+
+  return { vps: { ...vps, routeTree }, migrated: true };
 }
 
 /**
@@ -157,11 +242,11 @@ function normalizeRoutePath(routePath: string): string {
 }
 
 /**
- * Apply custom indexes from VpsConfig.customIndexes to route tree
+ * Apply custom indexes from LegacyVpsConfig.customIndexes to route tree
  * Migrates legacy customIndexes array to per-node customIndexFile
  *
  * @param routeTree - Route tree to update
- * @param customIndexes - Legacy custom indexes array from VpsConfig
+ * @param customIndexes - Legacy custom indexes array from LegacyVpsConfig
  */
 export function applyCustomIndexesToRouteTree(
   routeTree: RouteTreeConfig,
