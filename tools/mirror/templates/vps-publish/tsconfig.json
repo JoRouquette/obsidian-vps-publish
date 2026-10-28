@@ -2,7 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "target": "ES2021",
-    "lib": ["ES2021", "DOM"],
+    "lib": ["ES2021", "ES2022.Error", "DOM"],
     "module": "commonjs",
     "moduleResolution": "node",
     "strict": true,
