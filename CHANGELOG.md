@@ -1,3 +1,11 @@
+## [6.25.3](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.25.2...6.25.3) (2026-10-28)
+
+### Bug Fixes
+
+* **mirror:** add ES2022.Error to the template tsconfig ([b575be0](https://github.com/JoRouquette/obsidian-vps-publish/commit/b575be0284bb4a8a1cb823d6bc72b28372ed7d4e))
+* **node:** accept .ico icons in the asset validator ([3df8043](https://github.com/JoRouquette/obsidian-vps-publish/commit/3df80437679c277dd6239ab133a9377ba830fbb9))
+* **settings:** harden the legacy folders migration ([eb81da2](https://github.com/JoRouquette/obsidian-vps-publish/commit/eb81da2ffc970ab70c11a35dbe4878ddc5560f90))
+
 ## [6.25.2](https://github.com/JoRouquette/obsidian-vps-publish/compare/6.25.1...6.25.2) (2026-10-26)
 
 ### Bug Fixes
