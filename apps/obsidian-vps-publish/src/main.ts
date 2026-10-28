@@ -326,9 +326,10 @@ export default class ObsidianVpsPublishPlugin extends Plugin {
       id: 'open-help',
       name: t.plugin.commandOpenHelp,
       callback: () => {
-        const { HelpModal } =
-          require('./lib/modals/help-modal') as typeof import('./lib/modals/help-modal');
-        new HelpModal(this.app, t).open();
+        // import() paresseux : le modal d'aide est chargé à la demande.
+        void import('./lib/modals/help-modal')
+          .then(({ HelpModal }) => new HelpModal(this.app, t).open())
+          .catch((error: unknown) => this.logger.error('Failed to open the help modal', { error }));
       },
     });
 
