@@ -113,7 +113,6 @@
     "@typescript-eslint/utils": "^8.40.0",
     "angular-eslint": "^20.3.0",
     "artillery": "^2.0.27",
-    "builtin-modules": "^5.0.0",
     "esbuild": "^0.19.2",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.1.8",

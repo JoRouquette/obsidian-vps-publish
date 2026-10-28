@@ -21,6 +21,7 @@ type NoticeTranslations = {
   debugModeHint: string;
   keepFocusWarning: string;
   settingsMigrated: string;
+  settingsMigrationWarnings: string;
 };
 
 type PublishingStatsTranslations = {
@@ -951,6 +952,8 @@ export const en: Translations = {
       '⚠️ Keep this window focused during publishing to avoid delays. Switching tabs or minimizing may slow down the process.',
     settingsMigrated:
       'Your VPS configuration was migrated to the new route-based model (breaking change).',
+    settingsMigrationWarnings:
+      'The migration to the route-based model reported problems. Check your routes and see the console for details.',
   },
   publishingStats: {
     summary: '📊 Publishing Summary',
@@ -1535,6 +1538,8 @@ export const fr: Translations = {
       "⚠️ Gardez cette fenêtre au premier plan pendant la publication pour éviter les ralentissements. Changer d'onglet ou minimiser peut ralentir le processus.",
     settingsMigrated:
       'Votre configuration VPS a été migrée vers le nouveau modèle par routes (changement incompatible).',
+    settingsMigrationWarnings:
+      'La migration vers le modèle par routes a signalé des problèmes. Vérifiez vos routes et consultez la console pour le détail.',
   },
   publishingStats: {
     summary: '📊 Résumé de la publication',

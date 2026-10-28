@@ -1,6 +1,11 @@
 import { AssetScanError, type AssetScannerPort, AssetValidationError } from '@core-domain';
 import fileType from 'file-type';
 
+import {
+  guessMimeTypeFromExtension,
+  isAllowedMimeType,
+  isExtensionAllowedForMimeType,
+} from '../asset-mime-policy';
 import { FileTypeAssetValidator } from '../file-type-asset-validator';
 
 describe('FileTypeAssetValidator', () => {
@@ -123,6 +128,72 @@ describe('FileTypeAssetValidator', () => {
 
       await expect(validator.validate(jpeg, 'a.jpg')).resolves.toMatchObject({ valid: true });
       await expect(validator.validate(jpeg, 'a.JPEG')).resolves.toMatchObject({ valid: true });
+    });
+  });
+
+  describe('ICO icons', () => {
+    // ICONDIR header: reserved 0, type 1 (icon), one image; enough for file-type to report an icon.
+    const ico = Buffer.concat([
+      Buffer.from([0x00, 0x00, 0x01, 0x00, 0x01, 0x00]),
+      Buffer.alloc(64),
+    ]);
+
+    it.each([['Poi.ico'], ['_assets/_icones/Nation.ICO']])(
+      'accepts ICO content named %s',
+      async (name) => {
+        const validator = new FileTypeAssetValidator();
+
+        await expect(validator.validate(ico, name)).resolves.toMatchObject({ valid: true });
+      }
+    );
+
+    it('allows both MIME names of an icon, for the .ico extension only', () => {
+      for (const mimeType of ['image/x-icon', 'image/vnd.microsoft.icon']) {
+        expect(isAllowedMimeType(mimeType)).toBe(true);
+        expect(isExtensionAllowedForMimeType('Poi.ico', mimeType)).toBe(true);
+        expect(isExtensionAllowedForMimeType('Poi.png', mimeType)).toBe(false);
+      }
+      expect(guessMimeTypeFromExtension('Poi.ico')).toBe('image/x-icon');
+    });
+
+    it('rejects PNG content named x.ico', async () => {
+      const validator = new FileTypeAssetValidator();
+      const png = Buffer.concat([
+        Buffer.from([
+          0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44,
+          0x52,
+        ]),
+        Buffer.alloc(64),
+      ]);
+
+      await expect(validator.validate(png, 'x.ico')).rejects.toMatchObject({
+        reason: 'INVALID_CONTENT',
+      });
+    });
+
+    it('accepts bytes file-type does not recognise under .ico, as for the other image types', async () => {
+      const validator = new FileTypeAssetValidator();
+
+      await expect(
+        validator.validate(Buffer.from('not an image at all'), 'x.ico')
+      ).resolves.toMatchObject({ valid: true, detectedMimeType: 'image/x-icon' });
+    });
+
+    it('rejects Windows executable content named x.ico', async () => {
+      const validator = new FileTypeAssetValidator();
+
+      // The bytes decide: an executable is refused whatever its extension.
+      await expect(validator.validate(Buffer.from('MZ binary'), 'x.ico')).rejects.toBeInstanceOf(
+        AssetValidationError
+      );
+    });
+
+    it('still rejects ICO content stored under another extension', async () => {
+      const validator = new FileTypeAssetValidator();
+
+      await expect(validator.validate(ico, 'x.html')).rejects.toMatchObject({
+        reason: 'INVALID_CONTENT',
+      });
     });
   });
 
