@@ -3,12 +3,10 @@ import type { FolderConfig, RouteNode, RouteTreeConfig, VpsConfig } from '@core-
 /**
  * Extract effective FolderConfig[] from VpsConfig
  *
- * This utility provides backward compatibility during the transition period.
- * It returns:
- * - routeTree-derived folders if routeTree is present
- * - legacy folders if routeTree is not present
+ * Returns the routeTree-derived folders, or an empty list when the VPS has no
+ * routeTree (legacy `folders` are migrated to `routeTree` at plugin load).
  *
- * @param vps - VpsConfig (with either routeTree or folders)
+ * @param vps - VpsConfig
  * @returns FolderConfig[] for consumption by existing code
  */
 export function getEffectiveFolders(vps: VpsConfig): FolderConfig[] {
@@ -16,8 +14,7 @@ export function getEffectiveFolders(vps: VpsConfig): FolderConfig[] {
     return extractFoldersFromRouteTree(vps.routeTree, vps.id);
   }
 
-  // Fallback to legacy folders
-  return vps.folders || [];
+  return [];
 }
 
 /**
