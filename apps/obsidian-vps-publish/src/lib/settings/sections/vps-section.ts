@@ -12,6 +12,7 @@ import { FileSuggest } from '../../suggesters/file-suggester';
 import { defaultSanitizationRules } from '../../utils/create-default-folder-config.util';
 import type { SettingsViewContext } from '../context';
 import { setFieldError } from '../field-error.util';
+import { createDefaultRootRoute } from '../normalize-settings';
 
 /**
  * Helper to get nested translation value from a key like "settings.cleanupRules.removeCodeBlocks.name"
@@ -291,7 +292,9 @@ export function renderVpsSection(root: HTMLElement, ctx: SettingsViewContext): v
  * exactement le même objet — une divergence ici produirait des serveurs
  * incomplets selon la version d'Obsidian.
  */
-export async function addVpsConfig(ctx: SettingsViewContext): Promise<void> {
+export async function addVpsConfig(
+  ctx: Pick<SettingsViewContext, 'settings' | 'logger' | 'save' | 'refresh'>
+): Promise<void> {
   const { settings, logger } = ctx;
   const id = `vps-${Date.now()}`;
   const newVps: VpsConfig = {
@@ -301,15 +304,9 @@ export async function addVpsConfig(ctx: SettingsViewContext): Promise<void> {
     apiKey: '',
     ignoreRules: [],
     cleanupRules: defaultSanitizationRules(),
-    folders: [
-      {
-        id: `folder-${Date.now()}`,
-        vpsId: id,
-        vaultFolder: '',
-        routeBase: '/',
-        ignoredCleanupRuleIds: [],
-      },
-    ],
+    routeTree: {
+      roots: [createDefaultRootRoute()],
+    },
   };
   logger.debug('Adding new VPS config', { id: newVps.id });
   settings.vpsConfigs.push(newVps);
