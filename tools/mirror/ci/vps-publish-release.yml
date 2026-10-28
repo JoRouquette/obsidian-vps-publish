@@ -43,3 +43,38 @@ jobs:
       - run: npm run test
         continue-on-error: true
       - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-build
+          path: |
+            main.js
+            styles.css
+            manifest.json
+          if-no-files-found: error
+          retention-days: 1
+
+  # La revue du répertoire Obsidian cherche l'attestation sur CE dépôt (le miroir), pas
+  # sur le monorepo. Le build étant reproductible, l'empreinte de ces fichiers est celle
+  # des assets que le monorepo publie dans la release (voir sync-mirrors.yml).
+  # La signature vit dans un job à part : `quality` exécute les scripts des dépendances
+  # (npm ci, lint, test, build) et ne reçoit donc aucun droit OIDC.
+  attest:
+    name: Attest build provenance
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugin-build
+          path: plugin-build
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            plugin-build/main.js
+            plugin-build/styles.css
+            plugin-build/manifest.json

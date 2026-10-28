@@ -1,9 +1,12 @@
 import type { FolderConfig } from '../../entities/folder-config';
 import type { RouteNode, RouteTreeConfig } from '../../entities/route-node';
 import {
+  type LegacyVpsConfig,
   migrateLegacyFoldersToRouteTree,
+  migrateLegacyVpsConfig,
   migrateRouteTreeToLegacyFolders,
 } from '../../entities/route-node-migration';
+import { validateRouteTree } from '../../entities/route-node-validation';
 
 describe('Route Node Migration', () => {
   describe('migrateLegacyFoldersToRouteTree', () => {
@@ -170,6 +173,215 @@ describe('Route Node Migration', () => {
         id: 'folder-flora',
         vaultFolder: 'World/Flora',
       });
+    });
+
+    it('should merge several folders on "/" into a single valid root route', () => {
+      const legacy: FolderConfig[] = [
+        {
+          id: 'folder-default',
+          vpsId: 'vps-1',
+          vaultFolder: '',
+          routeBase: '/',
+          ignoredCleanupRuleIds: ['rule-1'],
+        },
+        {
+          id: 'folder-notes',
+          vpsId: 'vps-1',
+          vaultFolder: 'Notes',
+          routeBase: '/',
+          ignoredCleanupRuleIds: ['rule-1', 'rule-2'],
+          customIndexFile: 'indexes/home.md',
+          flattenTree: true,
+          additionalFiles: ['extra.md'],
+        },
+      ];
+
+      const result = migrateLegacyFoldersToRouteTree(legacy);
+
+      expect(result.roots).toHaveLength(1);
+      expect(result.roots[0]).toMatchObject({
+        id: 'folder-default',
+        segment: '',
+        vaultFolder: 'Notes',
+        customIndexFile: 'indexes/home.md',
+        flattenTree: true,
+        additionalFiles: ['extra.md'],
+        ignoredCleanupRuleIds: ['rule-1', 'rule-2'],
+      });
+      expect(validateRouteTree(result).valid).toBe(true);
+    });
+
+    it('should keep the first folder settings when two folders on "/" conflict', () => {
+      const legacy: FolderConfig[] = [
+        {
+          id: 'folder-a',
+          vpsId: 'vps-1',
+          vaultFolder: 'A',
+          routeBase: '/',
+          ignoredCleanupRuleIds: [],
+          flattenTree: false,
+        },
+        {
+          id: 'folder-b',
+          vpsId: 'vps-1',
+          vaultFolder: 'B',
+          routeBase: '/',
+          ignoredCleanupRuleIds: [],
+          flattenTree: true,
+        },
+      ];
+
+      const result = migrateLegacyFoldersToRouteTree(legacy);
+
+      expect(result.roots).toHaveLength(1);
+      expect(result.roots[0]).toMatchObject({
+        id: 'folder-a',
+        vaultFolder: 'A',
+        flattenTree: false,
+      });
+    });
+
+    it('should not lose a parent folder declared after its child ([/a/b, /a])', () => {
+      const legacy: FolderConfig[] = [
+        {
+          id: 'folder-ab',
+          vpsId: 'vps-1',
+          vaultFolder: 'A/B',
+          routeBase: '/a/b',
+          ignoredCleanupRuleIds: [],
+        },
+        {
+          id: 'folder-a',
+          vpsId: 'vps-1',
+          vaultFolder: 'A',
+          routeBase: '/a',
+          ignoredCleanupRuleIds: ['rule-1'],
+          customIndexFile: 'indexes/a.md',
+          flattenTree: true,
+          additionalFiles: ['a-extra.md'],
+        },
+      ];
+
+      const result = migrateLegacyFoldersToRouteTree(legacy);
+
+      expect(result.roots).toHaveLength(1);
+      const aNode = result.roots[0];
+      expect(aNode).toMatchObject({
+        id: 'folder-a',
+        segment: 'a',
+        vaultFolder: 'A',
+        customIndexFile: 'indexes/a.md',
+        flattenTree: true,
+        additionalFiles: ['a-extra.md'],
+        ignoredCleanupRuleIds: ['rule-1'],
+      });
+      expect(aNode.children).toHaveLength(1);
+      expect(aNode.children![0]).toMatchObject({
+        id: 'folder-ab',
+        segment: 'b',
+        vaultFolder: 'A/B',
+      });
+      expect(validateRouteTree(result).valid).toBe(true);
+    });
+
+    it('should produce the same tree whatever the order of parent and child folders', () => {
+      const parent: FolderConfig = {
+        id: 'folder-a',
+        vpsId: 'vps-1',
+        vaultFolder: 'A',
+        routeBase: '/a',
+        ignoredCleanupRuleIds: ['rule-1'],
+        flattenTree: true,
+      };
+      const child: FolderConfig = {
+        id: 'folder-ab',
+        vpsId: 'vps-1',
+        vaultFolder: 'A/B',
+        routeBase: '/a/b',
+        ignoredCleanupRuleIds: [],
+      };
+
+      const childFirst = migrateLegacyFoldersToRouteTree([child, parent]);
+      const parentFirst = migrateLegacyFoldersToRouteTree([parent, child]);
+
+      expect(childFirst).toEqual(parentFirst);
+    });
+  });
+
+  describe('migrateLegacyVpsConfig', () => {
+    function createSavedLegacyVps(overrides: Partial<LegacyVpsConfig> = {}): LegacyVpsConfig {
+      return {
+        id: 'vps-1',
+        name: 'Legacy VPS',
+        baseUrl: 'https://example.com',
+        apiKey: 'enc:key',
+        ignoreRules: [],
+        cleanupRules: [],
+        folders: [
+          {
+            id: 'folder-blog',
+            vpsId: 'vps-1',
+            vaultFolder: 'Blog',
+            routeBase: '/blog',
+            ignoredCleanupRuleIds: [],
+          },
+        ],
+        customIndexes: [{ id: 'idx-1', folderPath: '/blog', indexFilePath: 'indexes/blog.md' }],
+        ...overrides,
+      };
+    }
+
+    it('should migrate saved legacy folders and custom indexes to a route tree', () => {
+      const { vps, migrated } = migrateLegacyVpsConfig(createSavedLegacyVps());
+
+      expect(migrated).toBe(true);
+      expect(vps).not.toHaveProperty('folders');
+      expect(vps).not.toHaveProperty('customIndexes');
+      expect(vps).toMatchObject({ id: 'vps-1', name: 'Legacy VPS', apiKey: 'enc:key' });
+      expect(vps.routeTree?.roots).toEqual([
+        {
+          id: 'folder-blog',
+          segment: 'blog',
+          vaultFolder: 'Blog',
+          customIndexFile: 'indexes/blog.md',
+          additionalFiles: undefined,
+          flattenTree: undefined,
+          ignoredCleanupRuleIds: [],
+          children: [],
+        },
+      ]);
+    });
+
+    it('should keep an existing route tree untouched and drop ignored legacy fields', () => {
+      const routeTree: RouteTreeConfig = {
+        roots: [{ id: 'route-docs', segment: 'docs', vaultFolder: 'Docs' }],
+      };
+
+      const { vps, migrated } = migrateLegacyVpsConfig(createSavedLegacyVps({ routeTree }));
+
+      expect(migrated).toBe(false);
+      expect(vps.routeTree).toBe(routeTree);
+      expect(vps).not.toHaveProperty('folders');
+      expect(vps).not.toHaveProperty('customIndexes');
+    });
+
+    it('should migrate legacy folders when the saved route tree has no roots', () => {
+      const { vps, migrated } = migrateLegacyVpsConfig(
+        createSavedLegacyVps({ routeTree: { roots: [] } })
+      );
+
+      expect(migrated).toBe(true);
+      expect(vps.routeTree?.roots.length).toBeGreaterThan(0);
+      expect(vps).not.toHaveProperty('folders');
+    });
+
+    it('should not migrate a VPS without legacy folders', () => {
+      const { vps, migrated } = migrateLegacyVpsConfig(
+        createSavedLegacyVps({ folders: [], customIndexes: undefined })
+      );
+
+      expect(migrated).toBe(false);
+      expect(vps.routeTree).toBeUndefined();
     });
   });
 
