@@ -2,6 +2,8 @@ import type { ChunkedData } from '@core-domain/entities/chunked-data';
 import type { CompressionPort, EncodingPort } from '@core-domain/ports/compression-port';
 import type { LoggerPort } from '@core-domain/ports/logger-port';
 
+import { clearIntervalSafe, type IntervalHandle, setIntervalSafe } from '../../utils/timers.util';
+
 interface ChunkStore {
   chunks: Map<number, Uint8Array>;
   metadata: ChunkedData['metadata'];
@@ -21,7 +23,7 @@ export class ChunkAssemblerService {
   private readonly chunkStores = new Map<string, ChunkStore>();
   private readonly cleanupIntervalMs: number;
   private readonly chunkExpirationMs: number;
-  private cleanupInterval?: NodeJS.Timeout;
+  private cleanupInterval?: IntervalHandle;
 
   constructor(
     private readonly compression: CompressionPort,
@@ -172,13 +174,13 @@ export class ChunkAssemblerService {
    * Start cleanup interval
    */
   private startCleanup(): void {
-    this.cleanupInterval = setInterval(() => {
+    this.cleanupInterval = setIntervalSafe(() => {
       this.cleanupExpiredChunks();
     }, this.cleanupIntervalMs);
 
     // Don't prevent process from exiting
-    if (this.cleanupInterval.unref) {
-      this.cleanupInterval.unref();
+    if (typeof this.cleanupInterval !== 'number') {
+      this.cleanupInterval.unref?.();
     }
   }
 
@@ -226,7 +228,7 @@ export class ChunkAssemblerService {
    */
   shutdown(): void {
     if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
+      clearIntervalSafe(this.cleanupInterval);
       this.cleanupInterval = undefined;
     }
     this.chunkStores.clear();
